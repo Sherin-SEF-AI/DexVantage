@@ -36,6 +36,10 @@ A `.dexv` file is a zip archive (written atomically: a `.part` file renamed over
   "requirements": [ {"uid", "name", "metric", "op": ">=|<=|<|>|==", "threshold", "unit", "study",
                      "is_default": true, "note"} ],
   "analysis": { "voxel_mm": 5.0, "refine_mm": 2.0, "live": true, "studies": {} },
+  "rig": { "hosts": [], "hubs": [], "links": [] },           // Phase 6, absent or empty when there is no topology
+  "cables": [],                                              // Phase 6
+  "policies": [],                                            // Phase 3
+  "calibration": { "boards": [], "sessions": [] },           // Phase 7
   "log": [ {"t", "kind", "text"} ],
   "meshes": ["keys in meshes.npz"], "sources": ["names under sources/"]
 }
@@ -60,6 +64,39 @@ modes); `[]` (the default) uses each imager's largest listed stream.
 - `contact_pads`: `[{"link", "name", "box": {"center": [m], "size": [m]}}]`, an axis-aligned box in the link frame.
 - `tasks.trajectories`: `[{"uid", "name", "robot_uid", "joints": [names], "t": [s], "q": [[value per joint] per
   sample]}]` in radians and metres.
+
+## Policies (Phase 3)
+
+- `policies`: `[{"uid", "name", "library_id", "cameras": [sensor uids], "overrides": {field: {"value", "source"}}}]`:
+  the policies the data is for (`core/policies.py`, docs/models/policies.md). `library_id` names a library entry of
+  kind `policy`; `cameras` `[]` means every camera and depth sensor of the active rig; an override is the user's own
+  figure for a field with where it comes from (`"measured by the user: …"`). A file without `policies` reads as none.
+
+## Grasp sets (Phase 3)
+
+- `tasks.grasp_sets`: `[{"uid", "name", "source": "sampled|imported|trajectory|dataset", "robot_uid", "frame",
+  "poses": [{"id", "pose": {"position", "quaternion"}, "approach": [x, y, z], "kind", "object_uid", "width_m", "t"}],
+  "settings": {…}}]`. `pose` is the gripper frame in the world at contact, `approach` a world unit vector; `settings`
+  records how the set was made (sampler options and which are defaults, the seed, the file or trajectory, the gripper
+  geometry, notes). Written and read only through `core/grasps.py` ([models/grasps.md](models/grasps.md)).
+
+## Host topology, cables and calibration (Phases 6 and 7)
+
+- `rig`: `{"hosts": [{"uid", "name", "library_id", "controllers": [{"uid", "name", "kind": "usb3|usb2|pcie|gmsl",
+  "practical_mbps", "source"}]}], "hubs": [{"uid", "name", "powered", "upstream"}], "links": [{"sensor_uid",
+  "stream_ids", "via", "cable_uid"}]}`. `practical_mbps` is `null` when not stated; a link's `stream_ids` name stream
+  modes as `imager|WxH|fps|format`, empty for the default streams ([models/bandwidth.md](models/bandwidth.md)).
+- `cables`: `[{"uid", "name", "sensor_uid", "type", "library_id", "min_bend_radius_m": {"value", "source", "kind"} or
+  null, "diameter_m", "length_m", "wrap_radius_m", "attachments": [{"robot_uid", "link", "point", "length_to_next_m"}],
+  "connectors", "strain_relief", "note"}]` ([models/cables.md](models/cables.md)).
+- `calibration`: `{"boards": [{"uid", "name", "board": {kind and figures}, "mount": {"parent_frame", "robot_uid",
+  "pose"}, "default"}], "sessions": [{"uid", "name", "sensor_uid", "imager", "mode": "eye_in_hand|eye_to_hand",
+  "board_uid", "robot_uid", "link", "created", "source": {"kind": "plan|folder", …}, "settings", "poses": [{"name",
+  "q", "joint_names", "image", "t_image", "t_joints", "dt_s", "ids", "uv", "note"}], "result"}]}`. Sessions keep image
+  file names without folders and the detected corner pixels, about 25 kB per 25 images
+  ([models/handeye.md](models/handeye.md#handeye-planner)).
+- Each of these sections, like `policies`, enters the content hash (`core/provenance.py`) only when it holds
+  something, so files written before them keep their hashes; a file without a section reads it as empty.
 
 ## Versions and migrations
 

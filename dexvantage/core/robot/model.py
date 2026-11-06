@@ -353,7 +353,8 @@ class RobotModel:
         self.robot_uid = robot.uid
         self.name = robot.name
         self.notes = list(c.notes)
-        self.mesh_keys = list(c.mesh_keys)
+        # the compile may be shared with a robot of another uid read from the same files: its keys name that uid
+        self.mesh_keys = [f'{robot.uid}/{k.split("/", 1)[1]}' if '/' in k else k for k in c.mesh_keys]
         self.base = robot.base.matrix()
         self._tls = threading.local()
         m = self.m
@@ -686,7 +687,11 @@ _COMPILED: OrderedDict = OrderedDict()
 _MODELS: OrderedDict = OrderedDict()
 _DIGESTS: dict = {}               # id(bytes) -> (the bytes, their SHA-256): bytes never change in place
 MAX_COMPILED = 8
-MAX_MODELS = 32
+MAX_MODELS = 12                   # a RobotModel of the UR5e sample holds about 35 MB
+
+
+DIGEST_BYTES = 256 * 2 ** 20      # the digest cache keeps the bytes it hashed alive: at most this many in all
+_DIGEST_HELD = [0]
 
 
 def _digest(b: bytes) -> str:
@@ -694,17 +699,22 @@ def _digest(b: bytes) -> str:
     e = _DIGESTS.get(id(b))
     if e is not None and e[0] is b:
         return e[1]
-    if len(_DIGESTS) > 4096:
+    if len(_DIGESTS) > 4096 or _DIGEST_HELD[0] + len(b) > DIGEST_BYTES:
         _DIGESTS.clear()
+        _DIGEST_HELD[0] = 0
     h = hashlib.sha256(b).hexdigest()
     _DIGESTS[id(b)] = (b, h)
+    _DIGEST_HELD[0] += len(b)
     return h
 
 
 def _files_key(robot, sources) -> tuple:
+    """The robot's files by content: two robots read from the same files (two openings of a sample) share one
+    compiled model, whatever their uids."""
     pre = robot.uid + '/'
-    return (robot.source.kind, robot.source.file,
-            tuple((k, _digest(v)) for k, v in sorted(sources.items()) if k.startswith(pre)))
+    f = robot.source.file
+    return (robot.source.kind, f[len(pre):] if f.startswith(pre) else f,
+            tuple((k[len(pre):], _digest(v)) for k, v in sorted(sources.items()) if k.startswith(pre)))
 
 
 def get_model(project, robot_uid: str) -> RobotModel:
@@ -739,3 +749,4 @@ def clear_cache():
         _COMPILED.clear()
         _MODELS.clear()
         _DIGESTS.clear()
+        _DIGEST_HELD[0] = 0

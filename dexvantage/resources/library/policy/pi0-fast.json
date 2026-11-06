@@ -1,0 +1,44 @@
+{
+  "id": "pi0-fast",
+  "kind": "policy",
+  "maker": "Physical Intelligence",
+  "name": "π0-FAST (pi0-FAST)",
+  "family": "Autoregressive vision-language-action model with the FAST action tokenizer (PaliGemma 3B backbone)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2501.09747",
+      "title": "K. Pertsch et al., FAST: Efficient Action Tokenization for Vision-Language-Action Models, arXiv:2501.09747 (v1)",
+      "read": "2026-11-06",
+      "covers": "the 224 px input, two or three images, chunk lengths, the inference time per chunk, the control rates of the tasks"
+    },
+    {
+      "url": "https://github.com/Physical-Intelligence/openpi/tree/215abfb217dbac7d5f1273282331b9b1866c0479",
+      "title": "openpi (official code), commit 215abfb: src/openpi/models/pi0_fast.py, model.py, src/openpi/training/config.py, src/openpi/shared/image_tools.py",
+      "read": "2026-11-06",
+      "covers": "the shared preprocessing (resize_with_pad to IMAGE_RESOLUTION), the SigLIP variant So400m/14, the default action_horizon"
+    },
+    {
+      "url": "https://arxiv.org/abs/2407.07726",
+      "title": "L. Beyer et al., PaliGemma: A versatile 3B VLM for transfer, arXiv:2407.07726",
+      "read": "2026-11-06",
+      "covers": "image tokens per image at 224 px"
+    }
+  ],
+  "note": "π0-FAST shares π0's image preprocessing in openpi (aspect-preserving resize to 224 × 224 with centred black padding). The chunk length depends on the configuration: Pi0FASTConfig's default action_horizon is 32, openpi's pi0_fast_droid configuration uses 10, and the paper trains DROID to predict 15-step chunks; set your own with an override. The paper's 750 ms per chunk does not name its GPU, so the timing's hardware is not stated. Code Apache-2.0. DexVantage bundles these figures only, not the model.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {"value": [224, 224], "source": 0, "quote": "Appendix C: \"using a resolution of 224x224 pixels\" (openpi IMAGE_RESOLUTION = (224, 224))"},
+    "crop_rule": {"value": "resize_pad", "source": 1, "quote": "Pi0FAST calls _model.preprocess_observation, which resizes with image_tools.resize_with_pad (\"without distortion by padding with black\")"},
+    "crop_side_fraction": {"value": null, "source": null},
+    "pre_resize": {"value": null, "source": null},
+    "patch_px": {"value": 14, "source": 1, "quote": "variant=\"So400m/14\" (src/openpi/models/pi0_fast.py)"},
+    "tokens_per_image": {"value": 256, "source": 2, "quote": "224 px gives 256 image tokens per image (PaliGemma, Section 3.1)"},
+    "n_cameras": {"value": 3, "source": 0, "quote": "\"conditioned on two or three inputs images (one third person camera, and one wrist camera per robot arm)\""},
+    "action_chunk": {"value": 32, "source": 1, "quote": "Pi0FASTConfig: action_horizon: int = 32 (default); pi0_fast_droid: action_horizon=10; the paper tokenizes \"1-second action chunks\" and trains DROID to \"predict 15-step action chunks\""},
+    "execute_steps": {"value": null, "source": null, "quote": "Not one figure: DROID executes \"8 or 15-step chunks open-loop at inference time\"."},
+    "temporal_ensemble_m": {"value": null, "source": null, "quote": "Not stated."},
+    "inference_ms": {"value": 750, "source": 0, "hardware": null, "quote": "\"needs approximately 750ms of inference time per chunk\" (Section VI-E; the GPU is not named)"},
+    "control_hz": {"value": null, "source": null, "quote": "Not one figure: 20 Hz (table bussing, grocery bagging), 50 Hz (T-shirt folding, toast, laundry folding), DROID 15 Hz, BridgeV2 5 Hz (Section VI-A, Table I)."}
+  }
+}

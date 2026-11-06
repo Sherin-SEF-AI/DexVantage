@@ -6,7 +6,7 @@ from PyQt6.QtGui import QKeySequence
 from conftest import pump
 from dexvantage.core import provenance as PV
 
-MENUS = ['File', 'Edit', 'View', 'Robot', 'Sensors', 'Workspace', 'Analysis', 'Calibrate', 'Simulate', 'Data',
+MENUS = ['File', 'Edit', 'View', 'Robot', 'Sensors', 'Workspace', 'Tasks', 'Analysis', 'Calibrate', 'Simulate', 'Data',
          'Export', 'Window', 'Help']
 
 

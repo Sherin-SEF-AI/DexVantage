@@ -1,0 +1,44 @@
+{
+  "id": "pi0",
+  "kind": "policy",
+  "maker": "Physical Intelligence",
+  "name": "π0 (pi0)",
+  "family": "Vision-language-action flow model (PaliGemma 3B backbone)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2410.24164",
+      "title": "K. Black et al., π0: A Vision-Language-Action Flow Model for General Robot Control, arXiv:2410.24164",
+      "read": "2026-11-06",
+      "covers": "images per robot, the chunk length H, actions executed per inference, temporal ensembling, the timing on an RTX 4090, control rates"
+    },
+    {
+      "url": "https://github.com/Physical-Intelligence/openpi/tree/215abfb217dbac7d5f1273282331b9b1866c0479",
+      "title": "openpi (official code), commit 215abfb: src/openpi/models/model.py, pi0.py, pi0_config.py, siglip.py, src/openpi/shared/image_tools.py",
+      "read": "2026-11-06",
+      "covers": "IMAGE_RESOLUTION, IMAGE_KEYS, resize_with_pad, the SigLIP variant So400m/14, action_horizon"
+    },
+    {
+      "url": "https://arxiv.org/abs/2407.07726",
+      "title": "L. Beyer et al., PaliGemma: A versatile 3B VLM for transfer, arXiv:2407.07726",
+      "read": "2026-11-06",
+      "covers": "image tokens per image at 224 px (the backbone π0 is initialised from)"
+    }
+  ],
+  "note": "openpi resizes every image to 224 × 224 keeping its aspect ratio and pads the rest with black, split evenly on both sides (image_tools.resize_with_pad, which replicates tf.image.resize_with_pad). In training only, non-wrist images also get a random crop of 95 % of each side, a resize back and a ±5° rotation (model.preprocess_observation); not at inference. Three image slots (a base camera and two wrist cameras); a robot with fewer cameras masks the missing slots. control_hz is the paper's upper figure; its UR5e and Franka robots run at 20 Hz and execute 16 actions per chunk. Code Apache-2.0 (the Gemma weights carry Gemma's terms, LICENSE_GEMMA.txt). DexVantage bundles these figures only, not the model.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {"value": [224, 224], "source": 1, "quote": "IMAGE_RESOLUTION = (224, 224) (src/openpi/models/model.py)"},
+    "crop_rule": {"value": "resize_pad", "source": 1, "quote": "resize_with_pad: \"Resizes an image to a target height and width without distortion by padding with black\"; pad_h0, remainder_h = divmod(height - resized_height, 2) (centred)"},
+    "crop_side_fraction": {"value": null, "source": null},
+    "pre_resize": {"value": null, "source": null},
+    "patch_px": {"value": 14, "source": 1, "quote": "_siglip.Module(variant=\"So400m/14\"); siglip.decode_variant reads \"/14\" as patch_size (14, 14)"},
+    "tokens_per_image": {"value": 256, "source": 2, "quote": "\"We always resize the image to a fixed square size (224, 448, or 896 pixels). This leads to a fixed number of image tokens per model variant (respectively 256, 1024, or 4096 tokens)\""},
+    "n_cameras": {"value": 3, "source": 1, "quote": "IMAGE_KEYS = (\"base_0_rgb\", \"left_wrist_0_rgb\", \"right_wrist_0_rgb\"); the paper: \"with 2 or 3 images per robot\", \"we also mask out the missing image slots\""},
+    "action_chunk": {"value": 50, "source": 0, "quote": "\"we use H=50 for our tasks\" (openpi Pi0Config: action_horizon: int = 50)"},
+    "execute_steps": {"value": 25, "source": 0, "quote": "for 50 Hz robots \"we run inference every 0.5 seconds (after executing 25 actions)\"; the 20 Hz UR5e and Franka every 0.8 s, after 16 actions"},
+    "temporal_ensemble_m": {"value": false, "source": 0, "quote": "they \"tried temporal ensembling early on and found that it hurt policy performance\" and execute chunks open-loop"},
+    "inference_ms": {"value": 73, "source": 0, "hardware": "NVIDIA GeForce RTX 4090 (on-board)", "quote": "73 ms on-board: image encoders 14 ms, observation forward pass 32 ms, ten flow forward passes 27 ms; 86 ms off-board with 13 ms of network latency"},
+    "control_hz": {"value": 50, "source": 0, "quote": "\"control robots at frequencies of up to 50 Hz\" (the UR5e and Franka at 20 Hz)"}
+  }
+}

@@ -99,6 +99,92 @@ REFERENCES = {
     'mujoco_renderer': 'MuJoCo Python bindings, mujoco.Renderer (offscreen OpenGL rendering of RGB, depth as the '
                        'distance from the camera plane, and segmentation as (object id, object type)), with '
                        'MUJOCO_GL=egl, https://mujoco.readthedocs.io/en/stable/python.html#rendering.',
+    # policy inputs (checks_policies.py)
+    'openpi': 'Physical Intelligence, openpi, src/openpi/shared/image_tools.py resize_with_pad and '
+              'src/openpi/models/model.py, https://github.com/Physical-Intelligence/openpi (commit 215abfb), '
+              'read 2026-11-06.',
+    'lerobot': 'Hugging Face, LeRobot, src/lerobot/policies/common/vla_utils.py resize_with_pad (left and top '
+               'padding), https://github.com/huggingface/lerobot (commit d490e47), read 2026-11-06.',
+    'torchvision_centercrop': 'torchvision.transforms.functional.center_crop (crop_top = int(round((image_height − '
+                              'crop_height) / 2.0)), likewise the left), torchvision/transforms/functional.py of '
+                              'https://github.com/pytorch/vision (main branch), read 2026-11-06.',
+    'isaac_gr00t': 'NVIDIA, Isaac-GR00T, branch n1-release, gr00t/data/transform/video.py VideoCrop and '
+                   'gr00t/experiment/data_config.py, https://github.com/NVIDIA/Isaac-GR00T (commit 755876a), '
+                   'read 2026-11-06.',
+    'opencv_resize': 'OpenCV, cv2.resize with INTER_LINEAR (bilinear, pixel centres aligned), '
+                     'https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html.',
+    # VLA tokens and Plücker ray maps (checks_vla.py)
+    'plucker1865': 'J. Plücker, "On a new geometry of space", Philosophical Transactions of the Royal Society of '
+                   'London 155, 725–791, 1865 (line coordinates: direction d and moment m = o × d, m · d = 0).',
+    'safetensors': 'Hugging Face, safetensors, README "Format" (8-byte little-endian header length, UTF-8 JSON '
+                   'header with dtype, shape and data_offsets, __metadata__, no holes, little-endian row-major) and '
+                   'safetensors/src/tensor.rs (dtype names, header padded with spaces to 8 bytes), '
+                   'https://github.com/huggingface/safetensors, read 2026-11-06.',
+    # cables across joints (checks_cables.py)
+    'docarmo1976': 'M. P. do Carmo, Differential Geometry of Curves and Surfaces, Prentice-Hall, 1976 (§1-5: the '
+                   'helix (a cos s/c, a sin s/c, b s/c), c² = a² + b², has curvature a / c²).',
+    'scipy_brentq': 'SciPy, scipy.optimize.brentq (Brent\'s root finder, an independent solver), '
+                    'https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.brentq.html.',
+    # bandwidth, hosts and power (checks_bandwidth.py)
+    'usb32_spec': 'USB 3.0 Promoter Group, Universal Serial Bus 3.2 Specification, Revision 1.1, June 2022 (Table 3-1 '
+                  'bus power, §4.4.11 efficiency, §10.14 hub configuration and §11.4 power distribution), '
+                  'https://www.usb.org/sites/default/files/usb_32_202206_0.zip, read 2026-11-06.',
+    'usb20_spec': 'Universal Serial Bus Specification, Revision 2.0, April 27, 2000 (Table 5-10 high-speed bulk '
+                  'transaction limits, §7.2.1 classes of devices), '
+                  'https://www.usb.org/sites/default/files/usb_20_20250603.zip, read 2026-11-06.',
+    'naneyec': 'ams OSRAM, NanEyeC miniature camera module datasheet (frame rate and serial data rate over SEIM and '
+               'LVDS), https://look.ams-osram.com/m/19863b4335e67f1b/original/NanEyeC-Miniature-Camera-Module.pdf, '
+               'as recorded in the library entry ams-osram-naneyec (read 2026-11-06).',
+    # brackets (checks_brackets.py)
+    'treece1999': 'G. M. Treece, R. W. Prager and A. H. Gee, "Regularised marching tetrahedra: improved iso-surface '
+                  'extraction", Computers & Graphics 23(4), 583–598, 1999.',
+    'euler_poincare': 'The Euler–Poincaré formula for a closed orientable surface of genus g: V − E + F = 2 − 2g per '
+                      'connected shell (e.g. M. de Berg et al., Computational Geometry, 3rd ed., Springer, 2008, '
+                      '§2.2).',
+    'ur5e_flange': 'Universal Robots, UR5e datasheet, drawing "Tool flange for UR5e" (EN ISO-9409-1-50-4-M6), '
+                   'https://www.universal-robots.com/manuals/latest/en/datasheets/ur5e/, read 2026-11-06.',
+    'iso9409_1': 'ISO 9409-1:2004, Manipulating industrial robots — Mechanical interfaces — Part 1: Plates; public '
+                 'preview (clauses 4 and 5, Figure 1), https://cdn.standards.iteh.ai/samples/36578/'
+                 '348a837664f444bc83e2902c7a5acf4c/ISO-9409-1-2004.pdf, read 2026-11-06.',
+    # hand-eye calibration (checks_handeye.py, core/calib)
+    'tsai_lenz1989': 'R. Y. Tsai and R. K. Lenz, "A new technique for fully autonomous and efficient 3D robotics '
+                     'hand/eye calibration", IEEE Transactions on Robotics and Automation 5(3), 345–358, 1989.',
+    'park_martin1994': 'F. C. Park and B. J. Martin, "Robot sensor calibration: solving AX = XB on the Euclidean '
+                       'group", IEEE Transactions on Robotics and Automation 10(5), 717–721, 1994.',
+    'horaud_dornaika1995': 'R. Horaud and F. Dornaika, "Hand-eye calibration", The International Journal of Robotics '
+                           'Research 14(3), 195–210, 1995.',
+    'andreff1999': 'N. Andreff, R. Horaud and B. Espiau, "On-line hand-eye calibration", Second International '
+                   'Conference on 3-D Digital Imaging and Modeling (3DIM), 430–436, 1999.',
+    'daniilidis1999': 'K. Daniilidis, "Hand-eye calibration using dual quaternions", The International Journal of '
+                      'Robotics Research 18(3), 286–298, 1999.',
+    'shah2013': 'M. Shah, "Solving the robot-world/hand-eye calibration problem using the Kronecker product", Journal '
+                'of Mechanisms and Robotics 5(3), 031007, 2013.',
+    'li2010': 'A. Li, L. Wang and D. Wu, "Simultaneous robot-world and hand-eye calibration using dual-quaternions and '
+              'Kronecker product", International Journal of the Physical Sciences 5(10), 1530–1536, 2010.',
+    'opencv_handeye': 'OpenCV calib3d, calibrateHandEye and calibrateRobotWorldHandEye (conventions: gripper-to-base '
+                      'and target-to-camera in, camera-to-gripper out; world-to-camera and base-to-gripper in, '
+                      'base-to-world and gripper-to-camera out), https://docs.opencv.org/4.x/d9/d0c/'
+                      'group__calib3d.html.',
+    'triggs2000': 'B. Triggs, P. McLauchlan, R. Hartley and A. Fitzgibbon, "Bundle adjustment — a modern synthesis", '
+                  'Vision Algorithms: Theory and Practice, LNCS 1883, 298–372, Springer, 2000.',
+    'garrido2014': 'S. Garrido-Jurado, R. Muñoz-Salinas, F. J. Madrid-Cuevas and M. J. Marín-Jiménez, "Automatic '
+                   'generation and detection of highly reliable fiducial markers under occlusion", Pattern '
+                   'Recognition 47(6), 2280–2292, 2014.',
+    'opencv_charuco': 'OpenCV objdetect aruco module: CharucoBoard, CharucoDetector, ArucoDetector and the predefined '
+                      'dictionaries (DICT_APRILTAG_36h11 among them), https://docs.opencv.org/4.x/df/d4a/'
+                      'tutorial_charuco_detection.html.',
+    'wang_olson2016': 'J. Wang and E. Olson, "AprilTag 2: Efficient and robust fiducial detection", IEEE/RSJ IROS '
+                      '2016, 4193–4198.',
+    'kalibr': 'ethz-asl/kalibr: the "Calibration targets" wiki page (AprilGrid tagSize "edge to edge", tagSpacing '
+              'the ratio of the gap to tagSize, 0.3 in the example), aslam_cv/aslam_cameras_april/src/'
+              'GridCalibrationTargetAprilgrid.cpp and its header (point order, blackTagBorder 2, minTagsForValidObs '
+              '4) and kalibr_create_target_pdf (tag ids row by row from the bottom left, corner squares), '
+              'https://github.com/ethz-asl/kalibr, read 2026-11-06.',
+    # grasp self-occlusion (checks_grasp.py)
+    'efron1979': 'B. Efron, "Bootstrap methods: another look at the jackknife", The Annals of Statistics 7(1), 1–26, '
+                 '1979 (the percentile bootstrap interval).',
+    'wilson1927': 'E. B. Wilson, "Probable inference, the law of succession, and statistical inference", Journal of '
+                  'the American Statistical Association 22(158), 209–212, 1927 (the score interval of a proportion).',
 }
 
 

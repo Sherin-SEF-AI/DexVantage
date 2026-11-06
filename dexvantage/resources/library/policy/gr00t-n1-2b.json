@@ -1,0 +1,44 @@
+{
+  "id": "gr00t-n1-2b",
+  "kind": "policy",
+  "maker": "NVIDIA",
+  "name": "GR00T N1 2B",
+  "family": "Vision-language-action model for humanoids (Eagle-2 VLM, diffusion transformer action module)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2503.14734",
+      "title": "NVIDIA, GR00T N1: An Open Foundation Model for Generalist Humanoid Robots, arXiv:2503.14734",
+      "read": "2026-11-06",
+      "covers": "the 224 × 224 input, 64 image tokens per frame, H = 16, the inference time on an L40, the 10 Hz and 120 Hz rates, cameras per benchmark"
+    },
+    {
+      "url": "https://huggingface.co/nvidia/GR00T-N1-2B",
+      "title": "nvidia/GR00T-N1-2B · Hugging Face (model card)",
+      "read": "2026-11-06",
+      "covers": "\"Variable number of 224x224 uint8 image frames\", a varying number of views, the licence"
+    },
+    {
+      "url": "https://github.com/NVIDIA/Isaac-GR00T/tree/755876a9afdb41ca6eb6383b36f4a0adb085c73f",
+      "title": "NVIDIA/Isaac-GR00T (official code), branch n1-release, commit 755876a: gr00t/experiment/data_config.py, gr00t/data/transform/video.py",
+      "read": "2026-11-06",
+      "covers": "VideoCrop(scale=0.95) then VideoResize to 224 × 224; the centre crop in eval mode; action_indices"
+    }
+  ],
+  "note": "The official N1 data configurations crop each video frame to 95 % of each side (random in training, centred in eval) and then resize it to 224 × 224 without keeping the aspect ratio. The patch size of the SigLIP-2 encoder inside Eagle-2 is not stated; after pixel shuffle each frame is 64 tokens. The number of views varies by embodiment (three in RoboCasa, one egocentric camera on the GR-1 tabletop tasks). control_hz is the action module's rate (the VLM runs at 10 Hz). The model card gives the weights' licence as \"Nvidia License\", linking NVIDIA-OneWay-Noncommercial-License-22Mar2022 (re-read 2026-11-07); DexVantage bundles these figures only, not the model.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {"value": [224, 224], "source": 0, "quote": "\"Images are encoded at resolution 224×224 followed by pixel shuffle\"; model card: \"Variable number of 224x224 uint8 image frames\""},
+    "crop_rule": {"value": "center_crop_resize", "source": 2, "quote": "VideoCrop(apply_to=self.video_keys, scale=0.95), VideoResize(apply_to=self.video_keys, height=224, width=224, interpolation=\"linear\"); VideoCrop: \"If mode is \"eval\", return a center crop transform.\""},
+    "crop_side_fraction": {"value": 0.95, "source": 2, "quote": "size = (int(self.height * self.scale), int(self.width * self.scale)) with scale=0.95"},
+    "pre_resize": {"value": null, "source": null},
+    "patch_px": {"value": null, "source": null, "quote": "Not stated (the image encoder is SigLIP-2 inside Eagle-2)."},
+    "tokens_per_image": {"value": 64, "source": 0, "quote": "\"resulting in 64 image token embeddings per frame\""},
+    "n_cameras": {"value": null, "source": null, "quote": "Not fixed: it \"handles a varying number of views per embodiment\" (model card); RoboCasa uses three cameras, GR-1 tabletop one."},
+    "action_chunk": {"value": 16, "source": 0, "quote": "\"We set H=16 in our implementation.\" (data_config: action_indices = list(range(16)))"},
+    "execute_steps": {"value": null, "source": null, "quote": "Not stated."},
+    "temporal_ensemble_m": {"value": null, "source": null, "quote": "Not stated."},
+    "inference_ms": {"value": 63.9, "source": 0, "hardware": "NVIDIA L40, bf16", "quote": "\"The inference time for sampling a chunk of 16 actions is 63.9ms on an L40 GPU using bf16.\""},
+    "control_hz": {"value": 120, "source": 0, "quote": "the action module \"generates closed-loop motor actions at a higher frequency (120Hz)\"; the VLM \"runs at 10Hz\""}
+  }
+}

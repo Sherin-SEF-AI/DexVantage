@@ -104,7 +104,10 @@ class Outliner(QWidget):
         st.changed.connect(lambda _s: self.refill())
         st.project_replaced.connect(self.refill)
         st.selection_changed.connect(self._sync_sel)
-        THEME.changed.connect(lambda *_: self.refill())      # icons are tinted per theme
+        THEME.changed.connect(self._theme_changed)      # icons are tinted per theme; bound: dropped with the panel
+        self.refill()
+
+    def _theme_changed(self, *_):
         self.refill()
 
     def _group(self, text, icon, count):
@@ -263,7 +266,10 @@ class LibraryPanel(QWidget):
         v.addWidget(hline())
         v.addWidget(self.tree, 1)
         self.tree.itemActivated.connect(self._activated)
-        THEME.changed.connect(lambda *_: self.refill())
+        THEME.changed.connect(self._theme_changed)      # bound: dropped with the panel
+        self.refill()
+
+    def _theme_changed(self, *_):
         self.refill()
 
     def _entries(self, kind):

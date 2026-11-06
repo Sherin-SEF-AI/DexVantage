@@ -4,6 +4,9 @@
                                a third-person camera on a tripod, a tabletop task volume
     sample_project('ur5e')     UR5e with a Robotiq 2F-85 on its flange: a wrist depth camera ("Wrist D405") and an
                                overhead one ("Overhead D435"), a tabletop task volume
+    sample_project('dexhand')  UR5e with the right Shadow Hand on its flange: a palm micro camera, an angled dorsal
+                               wrist camera and a head camera (core/robot/dexhand_sample.py), for the multi-finger
+                               occlusion study (spec §7.14)
     list_samples()             every sample with whether this build has it (aloha, panda-bimanual and g1: Phase 11)
 
 The robots are read with core.robot.import_robot from dexvantage/resources/robots/, which holds only the MuJoCo
@@ -32,12 +35,13 @@ joint of its own), so a q that moves one finger joint alone poses the linkage in
 """
 from __future__ import annotations
 
+import json
 import os
 
 import numpy as np
 
 from ..frames import Pose, quat_from_matrix
-from ..project import Mount, Project, ProjectFormatError, Sensor, Volume
+from ..project import Mount, Policy, Project, ProjectFormatError, Sensor, Volume, new_uid
 
 ROBOTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                           'resources', 'robots')
@@ -53,8 +57,11 @@ BUNDLED = {
                               'folder_commit': 'fb36886b3023db08c198264e1e9956ab202c3e3b'},
     'robotiq_2f85': {'title': 'Robotiq 2F-85', 'main': '2f85.xml', 'license': 'BSD-2-Clause',
                      'folder_commit': '71f066ad0be9cd271f7ed58c030243ef157af9f4'},
+    'shadow_hand': {'title': 'Shadow Hand E3M5 (right)', 'main': 'right_hand.xml', 'license': 'Apache-2.0',
+                    'folder_commit': '71f066ad0be9cd271f7ed58c030243ef157af9f4'},
 }
 COMBINED_UR5E = 'ur5e_robotiq_2f85.xml'
+COMBINED_DEXHAND = 'ur5e_shadow_hand.xml'          # scripts/bundle_dexhand.py
 
 SO100_LIMITS_NOTE = ('Its joint limits are the ones Menagerie added to this model as "approximate joint limits" '
                      '(Menagerie trs_so_arm100/README.md, "URDF → MJCF derivation steps", step 7), not figures stated '
@@ -71,6 +78,7 @@ class SampleError(ProjectFormatError):
 SAMPLES = {
     'so100': ('LeRobot SO-100 arm with a wrist and a third-person camera', None),
     'ur5e': ('UR5e and Robotiq 2F-85 with a wrist D405 and an overhead D435', None),
+    'dexhand': ('UR5e and Shadow Hand with a palm, a dorsal wrist and a head camera', None),
     'aloha': ('ALOHA 2 bimanual', 11),
     'panda-bimanual': ('Franka Panda bimanual cell', 11),
     'g1': ('Unitree G1 humanoid upper body', 11),
@@ -137,6 +145,26 @@ def _tag_gripper(robot, names: set):
             j['gripper'] = True
 
 
+_GRASPS: dict = {}          # sample name -> (grasp set, robot uid, volume uid) of the first build in this process
+
+
+def _add_sample_grasps(p: Project, key: str, kinds: tuple, n: int, name: str):
+    """A sampled grasp set over the sample's task volume (core/grasps.sample, seed 0), so the grasp self-occlusion
+    and VLA token studies run on the sample as it opens. The poses depend only on the bundled robot and the volume,
+    so they are sampled once per process and given the new project's uids after that."""
+    from .. import grasps as GR
+    robot, vol = p.robots[0], p.workspace.volumes[0]
+    hit = _GRASPS.get(key)
+    if hit is None:
+        gs = GR.sample(p, robot.uid, kinds=kinds, n=n, rng_seed=0, volume_uid=vol.uid, name=name)
+        _GRASPS[key] = (json.dumps(gs), robot.uid, vol.uid)
+    else:
+        text, ru, vu = hit
+        gs = json.loads(text.replace(ru, robot.uid).replace(vu, vol.uid))
+        gs['uid'] = new_uid()
+    GR.add_set(p, gs)
+
+
 # ====================================================================== the samples
 def _so100() -> Project:
     robot, sources, model = _import(
@@ -167,6 +195,11 @@ def _so100() -> Project:
     p.variant.name = 'Wrist + third-person (sample)'
     p.variant.sensors = [wrist, third]
     p.variant.note = SAMPLE_NOTE
+    # a grasp set and a policy, so the grasp and VLA token studies run as the sample opens (sample choices: SmolVLA
+    # because its paper evaluates on SO-100 rigs ("For SO100, we use top and wrist cameras", quoted in the library
+    # entry); top-down pinches because the five-joint arm cannot hold most side grasps)
+    _add_sample_grasps(p, 'so100', ('top_down',), 100, 'Top-down pinches over the tabletop (sample)')
+    p.policies.append(Policy(name='SmolVLA (sample)', library_id='smolvla-base'))
     p.notes = (f'Sample (spec §14.2): the LeRobot SO-100 arm from MuJoCo Menagerie trs_so_arm100 (Apache-2.0). '
                f'{SAMPLE_NOTE} The cameras have no library device: no maker in the library states a camera for '
                'the SO-100, so both use the labelled default camera until you choose one. The SO-101 is in '
@@ -206,6 +239,9 @@ def _ur5e() -> Project:
     p.variant.name = 'Wrist D405 + overhead D435 (sample)'
     p.variant.sensors = [wrist, over]
     p.variant.note = SAMPLE_NOTE
+    # a grasp set and a policy, so the grasp and VLA token studies run as the sample opens (sample choices)
+    _add_sample_grasps(p, 'ur5e', ('top_down', 'side', 'angled'), 200, 'Tabletop grasps (sample)')
+    p.policies.append(Policy(name='π0 (sample)', library_id='pi0'))
     p.notes = ('Sample (spec §14.3): the UR5e and Robotiq 2F-85 from MuJoCo Menagerie (BSD-3-Clause and '
                f'BSD-2-Clause). {SAMPLE_NOTE} "Wrist D405" and "Overhead D435" name the intended Intel RealSense '
                'models; their lenses, depth range and minimum Z come from the library entries (Phase 2), read from '
@@ -214,7 +250,12 @@ def _ur5e() -> Project:
     return p
 
 
-_BUILD = {'so100': _so100, 'ur5e': _ur5e}
+def _dexhand() -> Project:
+    from .dexhand_sample import build
+    return build()
+
+
+_BUILD = {'so100': _so100, 'ur5e': _ur5e, 'dexhand': _dexhand}
 
 
 def sample_project(name: str) -> Project:

@@ -1,0 +1,36 @@
+{
+  "id": "newnex-high-flex-active-usb3",
+  "kind": "cable",
+  "maker": "Newnex",
+  "name": "High Flex Active USB3 cable (ULHLU11AC12)",
+  "family": "Newnex high-flex USB 3 cables",
+  "sources": [
+    {
+      "url": "https://newnex.com/high-flex-active-usb-3-cable.php",
+      "title": "High Flex Active USB3 Extension Cable (Newnex product page)",
+      "read": "2026-11-06",
+      "covers": "part numbers, connectors, lengths, outer diameter, dynamic bend radius, flex life and its test radius, jacket"
+    }
+  ],
+  "note": "An active high-flex USB 3 cable, A to C with USB3 Vision screw locks (ULHLU11AC12-5M 5 m, ULHLU11AC12-8M 8 m; the A-to-A-female extensions ULHL-EX-6M and ULHL-EX-8M are the same cable). Stated: outer diameter 6.3 mm; minimum dynamic bend radius \"12 x OD (approx. 75 mm)\" (min_bend_dynamic_mm 75 is the page's rounded figure; 12 x 6.3 mm is 75.6 mm); flex life \">= 6,000,000 cycles\", tested at a 75 mm bending radius; drag-chain, continuous motion and tick-tock rated; orange TPE jacket. Not stated: the static (fixed) bend radius, the mass, the power the active electronics draw. The page links no datasheet PDF.",
+  "interface": "USB 3 (active)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null,
+  "cable": {
+    "type": "usb3",
+    "diameter_mm": 6.3,
+    "min_bend_static_mm": null,
+    "min_bend_dynamic_mm": 75.0,
+    "flex_cycles": 6000000,
+    "lengths_m": [5, 8],
+    "connectors": ["USB-A with screw lock", "USB-C with screw lock"],
+    "active": true
+  }
+}

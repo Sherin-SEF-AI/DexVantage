@@ -45,9 +45,11 @@ MAX_RECENT = 10
 # workspace -> (docks shown, analysis tab, a line for the status bar)
 WORKSPACES = {
     'placement': (('outliner', 'library', 'inspector', 'camview', 'bottom'), 'summary', 'Place sensors and mounts'),
-    'grasp': (('outliner', 'inspector', 'camview', 'bottom'), 'summary', 'Grasp self-occlusion (Phase 3)'),
+    'grasp': (('outliner', 'inspector', 'camview', 'bottom'), 'summary',
+              'Grasp self-occlusion, VLA tokens and dexterous hands'),
     'teleop': (('outliner', 'inspector', 'bottom'), 'summary', 'Teleop overlap and dead zones (Phase 5)'),
-    'calibration': (('outliner', 'inspector', 'camview', 'bottom'), 'summary', 'Hand-eye calibration (Phase 7)'),
+    'calibration': (('outliner', 'inspector', 'camview', 'bottom'), 'summary',
+                    'Hand-eye calibration: plan, record, solve'),
     'audit': (('outliner', 'inspector', 'bottom'), 'log', 'Dataset and episode audit (Phase 8)'),
     'review': (('outliner', 'inspector', 'bottom'), 'log', 'Variants, requirements and the design log'),
 }
@@ -316,6 +318,7 @@ class MainWindow(QMainWindow):
         menu('&Robot', ['import_robot', 'import_menagerie', '-', 'joint_sliders', 'ik_drag'])
         menu('&Sensors', ['add_camera', '-', 'new_device'])
         menu('W&orkspace', ['add_volume', 'add_object'])
+        menu('&Tasks', [])                              # filled by the Tasks and Policies pages (ui/pages)
         menu('&Analysis', ['run_summary', 'live', 'cancel_jobs', '-', 'coverage', 'depth_validity', 'grasp_study',
                            'teleop_overlap'])
         menu('&Calibrate', ['handeye_plan', 'handeye_solve'])
@@ -451,7 +454,10 @@ class MainWindow(QMainWindow):
         an.stale_changed.connect(lambda _s: self._update_state())
         self.ctx.overlays_changed.connect(self.viewport.update)
         self.bottom.tabs.currentChanged.connect(lambda _i: self.viewport.update())
-        THEME.changed.connect(lambda *_: self.viewport.update())
+        THEME.changed.connect(self._theme_redraw)      # bound: dropped with the window (a lambda was not)
+
+    def _theme_redraw(self, *_):
+        self.viewport.update()
 
     # ------------------------------------------------------------------ status
     def msg(self, text, ms=3000):

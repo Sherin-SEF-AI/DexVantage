@@ -9,7 +9,7 @@
       "url": "https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf",
       "title": "RealSense Product Family D400 Series Datasheet, Revision 023, March 2026, document 337029-017 (formerly the Intel RealSense Product Family D400 Series Datasheet)",
       "read": "2026-11-06",
-      "covers": "module (D401), baseline, depth FOV, imager (Table 3-15) and colour (Table 3-20) properties, min-Z table, depth quality, range, stream modes, power, size, mass"
+      "covers": "module (D401), baseline, depth FOV, imager (Table 3-15) and colour (Table 3-20) properties, min-Z table, depth quality, range, stream modes, power, size, mass, mounting holes (Figure 10-14, Table 4-22)"
     },
     {
       "url": "https://store.realsenseai.com/buy-realsense-depth-camera-d405.html",
@@ -27,6 +27,32 @@
     42.0,
     42.0
   ],
+  "mounting": {
+    "holes": [
+      {
+        "thread": "M3",
+        "count": 2,
+        "face": "back",
+        "spacing_mm": 20.0,
+        "max_insert_mm": 4.0,
+        "x_mm": null,
+        "y_mm": null,
+        "z_mm": null,
+        "what": "Figure 10-14 (D405 drawing): \"2x M3x0.5, MAXIMUM INSERT 4.0mm\" on the back face, (20.00) apart; the pair's centre is not dimensioned (null; the drawing shows it above the face's middle)."
+      },
+      {
+        "thread": "1/4-20",
+        "count": 1,
+        "face": "bottom",
+        "spacing_mm": null,
+        "max_insert_mm": 5.0,
+        "x_mm": null,
+        "y_mm": -9.0,
+        "z_mm": null,
+        "what": "Figure 10-14: \"1/4-20, MAXIMUM INSERT 5.0MM\", (8.35) from one face of the 23 mm depth (which one is not clear: x null); Table 4-22: from the centreline of the 1/4-20 to the left imager 9 mm (y = -9 mm). The face is taken as the bottom, the tripod face (ASSUMPTION: the drawing view does not name it)."
+      }
+    ]
+  },
   "imagers": [
     {
       "name": "IR left",

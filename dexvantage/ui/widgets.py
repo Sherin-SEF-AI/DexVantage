@@ -238,7 +238,7 @@ class ScrubSpinBox(QDoubleSpinBox):
             w = fm.horizontalAdvance(self.unit_w.text()) + 6
             self.unit_w.setGeometry(self.width() - w - 2, 1, w, self.height() - 2)
             self.unit_w.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-            right = w + 2
+            right = w + 6                  # a gap between the number and its unit ("0.30 px", not "0.30px")
         le = self.lineEdit()
         le.setTextMargins(max(0, left - 6), 0, max(0, right - 6), 0)
 
@@ -294,9 +294,15 @@ class ScrubSpinBox(QDoubleSpinBox):
     def textFromValue(self, v):
         if self._mixed:
             return '—'
+        special = self.specialValueText()          # e.g. '—' for "not stated" at the minimum (setSpecialValueText)
+        if special and abs(float(v) - self.minimum()) < 10 ** -(self.decimals() + 2):
+            return special
         return fmt_num(v, self.decimals())
 
     def valueFromText(self, text):
+        special = self.specialValueText()
+        if special and text.strip() in (special, '—', ''):
+            return self.minimum()
         try:
             if self.kind == 'length':
                 return parse_number(text, 'length', self._display_unit)
@@ -308,6 +314,8 @@ class ScrubSpinBox(QDoubleSpinBox):
 
     def validate(self, text, pos):
         from PyQt6.QtGui import QValidator
+        if self.specialValueText() and text.strip() == self.specialValueText():
+            return QValidator.State.Acceptable, text, pos
         return QValidator.State.Intermediate if text.strip() in ('', '-', '—', '−') else QValidator.State.Acceptable, text, pos
 
     def fixup(self, text):

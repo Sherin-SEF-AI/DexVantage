@@ -1,0 +1,50 @@
+{
+  "id": "smolvla-base",
+  "kind": "policy",
+  "maker": "Hugging Face (LeRobot)",
+  "name": "SmolVLA base",
+  "family": "Vision-language-action flow model (SmolVLM2 500M backbone)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2506.01844",
+      "title": "M. Shukor et al., SmolVLA: A vision-language-action model for affordable and efficient robotics, arXiv:2506.01844 (v1)",
+      "read": "2026-11-06",
+      "covers": "the 512 × 512 resize, 64 visual tokens per frame, the cameras used, the chunk of 50 actions, the 30 fps frame rate"
+    },
+    {
+      "url": "https://huggingface.co/lerobot/smolvla_base",
+      "title": "lerobot/smolvla_base · Hugging Face (model card and config.json)",
+      "read": "2026-11-06",
+      "covers": "resize_imgs_with_padding, the three camera inputs, chunk_size, n_action_steps, the Apache-2.0 licence"
+    },
+    {
+      "url": "https://github.com/huggingface/lerobot/tree/d490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies",
+      "title": "LeRobot (official code), commit d490e47: policies/smolvla/modeling_smolvla.py and policies/common/vla_utils.py",
+      "read": "2026-11-06",
+      "covers": "the padding convention of resize_with_pad (left and top)"
+    },
+    {
+      "url": "https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct/blob/main/config.json",
+      "title": "HuggingFaceTB/SmolVLM2-500M-Video-Instruct config.json (the VLM SmolVLA builds on)",
+      "read": "2026-11-06",
+      "covers": "vision_config patch_size and image_size, scale_factor (pixel shuffle)"
+    }
+  ],
+  "note": "SmolVLA resizes each image to fit 512 × 512 keeping its aspect ratio and pads with zeros on the LEFT and TOP (LeRobot's resize_with_pad; π0 in openpi pads evenly instead), so a 4:3 image sits in the lower part of the square. The vision encoder takes 16 px patches of the 512 px image and a pixel shuffle (scale_factor 4) leaves 64 visual tokens per frame. The base checkpoint's config lists three camera inputs (camera1-3, recorded at 256 × 256 and then resized); the paper's SO100 and SO101 rigs use two. No inference time is stated: the paper reports task completion times only. Model card licence Apache-2.0. DexVantage bundles these figures only, not the model.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {"value": [512, 512], "source": 1, "quote": "\"resize_imgs_with_padding\": [512, 512]; the paper: \"Training is performed after resizing the images to 512×512, for consistency with the VLM input size.\""},
+    "crop_rule": {"value": "resize_pad_top_left", "source": 2, "quote": "vla_utils.resize_with_pad: \"Resize a (b, c, h, w) image without distortion, padding on the LEFT and TOP. This is the smolvla/xvla convention.\" (pad_value=0)"},
+    "crop_side_fraction": {"value": null, "source": null},
+    "pre_resize": {"value": null, "source": null},
+    "patch_px": {"value": 16, "source": 3, "quote": "vision_config: \"patch_size\": 16, \"image_size\": 512"},
+    "tokens_per_image": {"value": 64, "source": 0, "quote": "\"We use the global image only, in addition to a pixel shuffle operation, limiting the visual tokens to 64 per frame.\""},
+    "n_cameras": {"value": 3, "source": 1, "quote": "config.json input_features observation.images.camera1, camera2, camera3, \"empty_cameras\": 0; the paper: \"For SO100, we use top and wrist cameras, where for SO101 we use top and side cameras.\""},
+    "action_chunk": {"value": 50, "source": 1, "quote": "\"chunk_size\": 50; the paper: \"output chunks of n=50 actions\""},
+    "execute_steps": {"value": 50, "source": 1, "quote": "\"n_action_steps\": 50"},
+    "temporal_ensemble_m": {"value": null, "source": null, "quote": "Not stated: asynchronous inference \"aggregate[s] overlaps (if any)\" with no weighting given."},
+    "inference_ms": {"value": null, "source": null, "quote": "Not stated (task completion: asynchronous 9.7 s, synchronous 13.75 s)."},
+    "control_hz": {"value": 30, "source": 0, "quote": "\"With a real-world frame-rate of 30 frames per second, Δt=33 ms.\""}
+  }
+}

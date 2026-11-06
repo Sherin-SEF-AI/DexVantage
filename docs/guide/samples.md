@@ -1,6 +1,7 @@
 # Sample projects
 
-Two samples open in this build; the others of the specification arrive in Phase 11 and say so.
+Three samples open in this build (SO-100, UR5e + Robotiq 2F-85, and the UR5e with a Shadow Hand for the multi-finger
+occlusion study, [dexhand.md](dexhand.md)); the others of the specification arrive in Phase 11 and say so.
 
     dexvantage --sample so100                    # in the window (or File ▸ Open sample in a running window)
     dexvantage --sample ur5e --analyse -         # in batch mode: the project summary as JSON on standard output
@@ -23,6 +24,10 @@ something to analyse, not published figures: move them to where your cameras are
   the SO-100, so both use the labelled default camera (pinhole, 1280 × 720 px, 90° × 60°) until you choose one on
   the Sensors page.
 - **Workspace:** a 0.30 × 0.20 × 0.12 m tabletop volume under the jaw tips at home.
+- **Tasks and policy (sample choices):** the grasp set "Top-down pinches over the tabletop (sample)" (100 top-down
+  pinches sampled over the volume, seed 0; the five-joint arm cannot hold most side grasps) and the policy "SmolVLA
+  (sample)" (its paper evaluates on SO-100 rigs), so the grasp self-occlusion and VLA token studies run as the sample
+  opens (`--grasp`, `--vla-tokens`).
 
 Tour: open the sample and move a joint of the arm; the wrist camera rides with the gripper
 while the tripod camera stays put. The SO-101 is in Menagerie too (`robotstudio_so101`, Apache-2.0, 18 MB of
@@ -42,6 +47,10 @@ meshes, not bundled): Robot ▸ Import from MuJoCo Menagerie downloads it and sh
   minimum-Z table and the stated RMS error come from Intel's D400 series datasheet (Rev 023, read 2026-11-06). Where
   Intel states no offset (the D435's RGB imager, the projector) the entry places it as a labelled assumption.
 - **Workspace:** a 0.50 × 0.40 × 0.30 m tabletop volume under the gripper at home.
+- **Tasks and policy (sample choices):** the grasp set "Tabletop grasps (sample)" (200 grasps: top-down, side and
+  angled, seed 0) and the policy "π0 (sample)", so every Phase 3, 6 and 7 batch flag runs on it: `--grasp`,
+  `--vla-tokens`, `--bandwidth`, `--cables`, `--brackets`, `--handeye-plan`. There is no task object: add one to
+  count its tokens and its grasp region.
 - **Geometry:** the Menagerie UR5e rounds its link offsets to the millimetre, so its flange is up to 1.3 mm from
   the flange of Universal Robots' DH table ([robots.md](../models/robots.md#known-limits)).
 

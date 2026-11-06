@@ -59,7 +59,8 @@ def test_controller_runs_after_edits_and_caches(app):
     st = ProjectStore(blank_project())
     an = AnalysisController(st)
     got = []
-    an.finished.connect(lambda sid, doc: got.append(doc))
+    # the summary's results only: quick studies of later phases (bandwidth) run live after edits too
+    an.finished.connect(lambda sid, doc: got.append(doc) if sid == 'summary' else None)
     an.request(force=True)
     assert an.wait(5)
     _add(st, 'Shelf')

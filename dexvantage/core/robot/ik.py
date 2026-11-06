@@ -451,7 +451,7 @@ def solve_batch(model, link: str, targets, q0=None, seeds: int = 8, rng=None, po
                              f'{Q0.shape}.')
     elif Q0 is not None and Q0.size != n:
         raise ValueError(f'{model.name} has {n} moving joints; the IK start q0 has {Q0.size} values.')
-    hold = model.clip(Q0.reshape(N, n)) if per_target else \
+    hold = np.clip(Q0.reshape(N, n), model.lower, model.upper) if per_target else \
         np.tile(model.home if Q0 is None else model.clip(Q0), (N, 1))
     still = ~chain.active
     out_q = hold.copy()

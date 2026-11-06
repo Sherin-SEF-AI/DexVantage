@@ -75,10 +75,22 @@ class Ctx:
             self.progress(max(0.0, min(1.0, float(frac))), text)
 
 
+def library_ids(project) -> list:
+    """The library entry ids the project's newer sections name besides its sensors: policies (core/policies.py reads
+    the entry's input size, crop rule and patch when a study runs), the rig's hosts (core/studies/bandwidth.py reads
+    their controllers) and cables."""
+    ids = [str(getattr(p, 'library_id', '') or '') for p in getattr(project, 'policies', None) or []]
+    rig = getattr(project, 'rig', None) or {}
+    ids += [str(h.get('library_id') or '') for h in (rig.get('hosts') or []) if isinstance(h, dict)]
+    ids += [str(c.get('library_id') or '') for c in getattr(project, 'cables', None) or [] if isinstance(c, dict)]
+    return [i for i in ids if i]
+
+
 class ResultCache:
     """A small LRU of study results keyed by (study, project content hash, settings hash, library hash); thread-safe.
-    The library hash is the content of the library entries the project's sensors name: a result depends on the
-    entry's figures, and a custom device can be changed in place under the same id."""
+    The library hash is the content of the library entries the project names (its sensors, policies, hosts and
+    cables: library_ids): a result depends on the entry's figures, and a custom entry can be changed in place under
+    the same id."""
 
     def __init__(self, size=CACHE_SIZE):
         self.size = size
@@ -91,7 +103,7 @@ class ResultCache:
         from . import library as LB
         from . import provenance as PV
         settings = project.analysis.studies.get(sid, {})
-        ids = [s.model_id for v in project.variants for s in v.sensors]
+        ids = [s.model_id for v in project.variants for s in v.sensors] + library_ids(project)
         return (sid, PV.project_digest(project)['sha256'], PV.sha256(PV.canonical(settings)),
                 LB.entries_digest(ids))
 

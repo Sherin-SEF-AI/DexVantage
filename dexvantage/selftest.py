@@ -10,6 +10,11 @@ order a new user meets them.
                  get their imagers from it
     occlusion    a cube map of a small scripted scene agrees with exact ray casting (says which backend ran: the
                  GPU or numpy)
+    grasp        a 20-grasp run of the grasp self-occlusion study on the UR5e sample (batched IK, contact patches,
+                 cube-map visibility) gives a Contact Visibility Score with its bootstrap interval
+    brackets     the ISO 9409-1-50-4-M6 flange adapter disc meshes to one watertight, consistently wound STL that
+                 reads back
+    handeye      a synthetic AX = XB problem (exact poses) is solved back to the known camera-to-gripper transform
     opencv       the chessboard detector and the PNG codec
     fonts        the bundled IBM Plex fonts load
     opengl       the shader renderer draws a frame off-screen (a warning only: the 3D view falls back to QPainter)
@@ -237,6 +242,71 @@ def _check_occlusion(S):
                 f' of {len(pts)} points; the {int(diff.sum())} others lie at silhouettes')
 
 
+def _check_grasp(S):
+    """A 20-grasp run of the grasp self-occlusion study on the UR5e sample: batched IK, the contact patches carried to
+    each solution and their visibility from both cameras in cube maps, ending in a Contact Visibility Score with its
+    bootstrap interval. The sensitivity sweep, the gallery and the pre-contact steps are left out to keep it fast."""
+    from .core import grasps as GR, jobs
+    from .core.robot.samples import sample_project
+    p = sample_project('ur5e')
+    p.tasks.grasp_sets = []
+    GR.add_set(p, GR.sample(p, p.robots[0].uid, kinds=('top_down',), n=20, rng_seed=0))
+    p.analysis.studies['grasp_visibility'] = {'sensitivity': False, 'gallery': 0, 'precontact_steps': 0,
+                                              'bootstrap': 500, 'cube_n': 256}
+    t0 = time.perf_counter()
+    doc = jobs.run_study('grasp_visibility', p)
+    ms = (time.perf_counter() - t0) * 1000
+    s = doc.get('summary') or {}
+    if s.get('cvs_pct') is None or not s.get('feasible'):
+        return FAIL, f'no Contact Visibility Score ({s.get("feasible", 0)} of 20 grasps feasible)'
+    oc = doc.get('occlusion') or {}
+    who = oc.get('backend', '?') if oc.get('backend') != 'gl' else f'gl on {oc.get("renderer") or "the GPU"}'
+    return OK, (f'{s["feasible"]} of 20 grasps feasible, Contact Visibility Score {s["cvs_pct"]:.0f} % '
+                f'[{100 * s["ci_low"]:.0f}–{100 * s["ci_high"]:.0f}] (bootstrap 95 %); {oc.get("maps_built", 0)} '
+                f'cube maps ({who}), {ms:.0f} ms')
+
+
+def _check_handeye(S):
+    """AX = XB on synthetic motions: a known camera-to-gripper transform X, 12 random gripper poses and the board poses
+    they imply (exact), solved by Park-Martin (core/calib/axxb.py; OpenCV's calibrateHandEye when the installed
+    OpenCV has it) must give X back within 10⁻⁶ m and 10⁻⁶ rad."""
+    import numpy as np
+    from .core.calib import axxb as AX
+    rng = np.random.default_rng(3)
+    X = AX.T_of(AX.exp_so3([0.3, -0.2, 0.9]), [0.04, -0.03, 0.11])               # camera in the gripper
+    T_board = AX.T_of(AX.exp_so3([0.1, 0.4, -0.2]), [0.6, 0.1, 0.0])             # board in the base
+    G = [AX.T_of(AX.exp_so3(rng.normal(0, 0.6, 3)), rng.uniform(-0.3, 0.3, 3) + [0.4, 0, 0.4]) for _ in range(12)]
+    C = [AX.inv_T(g @ X) @ T_board for g in G]                                    # board in the camera
+    t0 = time.perf_counter()
+    Xs, backend = AX.hand_eye(G, C, 'park')
+    ms = (time.perf_counter() - t0) * 1000
+    dt, dr = AX.transform_error(Xs, X)
+    if not (dt < 1e-6 and dr < 1e-6):
+        return FAIL, f'Park-Martin ({backend}) is {dt:.1e} m and {dr:.1e} rad from the known X'
+    return OK, f'Park-Martin ({backend}) gives X back within {dt:.1e} m and {dr:.1e} rad from 12 exact poses ' \
+               f'({ms:.0f} ms)'
+
+
+def _check_brackets(S):
+    """One printable part: the ISO 9409-1-50-4-M6 flange adapter disc meshed at 0.5 mm must be a closed, consistently
+    wound 2-manifold with positive volume (core/meshing.check), and its STL bytes must read back with the same
+    triangle count."""
+    from .core import brackets as BR, meshing as M
+    t0 = time.perf_counter()
+    solid, fig = BR.flange_plate()
+    V, F = M.mesh(solid, 0.5)
+    chk = M.check(V, F)
+    data = M.stl_bytes(V, F, 'self-test')
+    back = M.read_stl(data)
+    ms = (time.perf_counter() - t0) * 1000
+    n_back = len(back[1]) if isinstance(back, tuple) else len(back)
+    if not chk['ok'] or n_back != chk['triangles']:
+        return FAIL, (f'the flange disc is not watertight (watertight {chk["watertight"]}, consistent '
+                      f'{chk["consistent"]}, {chk["degenerate"]} degenerate) or its STL does not read back')
+    return OK, (f'ISO 9409-1-50-4-M6 flange disc: {chk["triangles"]} triangles, watertight, {chk["shells"]} shell, '
+                f'{chk["volume_mm3"] / 1000:.1f} cm³, STL {len(data) / 1024:.0f} KB ({ms:.0f} ms)')
+
+
 def _check_opencv(S):
     import cv2
     import numpy as np
@@ -355,7 +425,8 @@ def _check_validation(S):
 
 
 CHECKS = (('project', _check_project), ('frames', _check_frames), ('mujoco', _check_mujoco), ('robots', _check_robots),
-          ('library', _check_library), ('occlusion', _check_occlusion), ('opencv', _check_opencv),
+          ('library', _check_library), ('occlusion', _check_occlusion), ('grasp', _check_grasp),
+          ('brackets', _check_brackets), ('handeye', _check_handeye), ('opencv', _check_opencv),
           ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
           ('software 3d', _check_software_3d), ('validation', _check_validation))
 NAMES = tuple(n for n, _ in CHECKS)

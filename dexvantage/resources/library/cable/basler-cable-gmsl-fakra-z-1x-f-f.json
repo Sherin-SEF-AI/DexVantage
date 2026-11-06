@@ -1,0 +1,36 @@
+{
+  "id": "basler-cable-gmsl-fakra-z-1x-f-f",
+  "kind": "cable",
+  "maker": "Basler",
+  "name": "Cable GMSL, FAKRA-Z, 1x F/F",
+  "family": "Basler GMSL cables",
+  "sources": [
+    {
+      "url": "https://docs.baslerweb.com/basler-cable-gmsl-fakra-z-1x-f-f",
+      "title": "Basler Cable GMSL, FAKRA-Z, 1x F/F (Basler product documentation)",
+      "read": "2026-11-06",
+      "covers": "article numbers and lengths, connectors, cable diameter, shielding, jacket, minimum bend radius fixed and moving, bending cycles, impedance, frequency range, insertion loss, voltage and current, operating temperature"
+    }
+  ],
+  "note": "A 50 ohm coaxial GMSL camera cable with a FAKRA-Z female connector at each end (colour water blue, RAL 5021), double-braided tinned copper shield, black polyurethane jacket. Stated: cable diameter \"3.45 mm max.\" (diameter_mm is that maximum); minimum bend radius \"13.8 mm\" fixed and \"34.5 mm\" moving; \"5 million\" bending cycles (the test radius and stroke are not stated); frequency range DC 0-6 GHz; insertion loss -1.15 dB/m nominal at 3 GHz and -1.7 dB/m at 6 GHz; 60 V and 3 A maximum; operating temperature -40 to 80 C fixed, -5 to 60 C moving. Lengths: 3 m (2200002798), 5 m (2200002799), 10 m (2200002800), 15 m (2200002801). The page says \"The cable is suitable for ace 2 GMSL cameras\" and lists it as suitable for drag chain and robotics applications; it does not name a GMSL generation, so type is 'gmsl'.",
+  "interface": "GMSL coax (FAKRA-Z)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null,
+  "cable": {
+    "type": "gmsl",
+    "diameter_mm": 3.45,
+    "min_bend_static_mm": 13.8,
+    "min_bend_dynamic_mm": 34.5,
+    "flex_cycles": 5000000,
+    "lengths_m": [3, 5, 10, 15],
+    "connectors": ["FAKRA-Z female", "FAKRA-Z female"],
+    "active": false
+  }
+}

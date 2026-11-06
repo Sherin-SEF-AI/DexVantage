@@ -229,6 +229,14 @@ def project_content(project) -> dict:
         'analysis': {k: v for k, v in d['analysis'].items() if k not in _UI_ONLY},
         'meshes': arrays_digest(project.meshes),
         'sources': {k: _bytes_digest(v) for k, v in sorted(project.sources.items())},
+        # the host topology (§7.6); left out while empty so the hashes of projects without one do not change
+        **({'rig': d['rig']} if any((d.get('rig') or {}).values()) else {}),
+        # cables across joints (§7.5); left out while there are none, for the same reason
+        **({'cables': d['cables']} if d.get('cables') else {}),
+        # the policies the data is for (§5, core/policies.py); left out while there are none, for the same reason
+        **({'policies': d['policies']} if d.get('policies') else {}),
+        # hand-eye boards and sessions (§8.1, core/calib/records.py); left out while empty, for the same reason
+        **({'calibration': d['calibration']} if any((d.get('calibration') or {}).values()) else {}),
     }
 
 
@@ -236,8 +244,14 @@ def project_digest(project) -> dict:
     """{'sha256': the content hash, 'sections': {section: its hash's first 16 hex digits}}."""
     content = plain(project_content(project))
     content = _renumber(content, _uid_places(content))
-    return {'sha256': sha256(canonical(content)),
-            'sections': {k: sha256(canonical(v))[:16] for k, v in content.items()}}
+    # each section canonicalised once (content is plain already: no second JSON round trip), and the whole document's
+    # canonical bytes joined from them: byte for byte canonical(content), sorted keys and no spaces, at half the cost
+    # (a 10 000-grasp set took 0.4 s per study key and per export)
+    sec = {k: json.dumps(_canon(v), sort_keys=True, separators=(',', ':'), ensure_ascii=False,
+                         allow_nan=True).encode('utf-8') for k, v in content.items()}
+    whole = b'{' + b','.join(json.dumps(k, ensure_ascii=False).encode('utf-8') + b':' + sec[k] for k in sorted(sec)) \
+        + b'}'
+    return {'sha256': sha256(whole), 'sections': {k: sha256(v)[:16] for k, v in sec.items()}}
 
 
 def variant_digest(variant, project=None) -> str:

@@ -37,7 +37,24 @@ from .frames import Pose
 FORMAT = 'dexvantage.project'
 VERSION = 1
 EXTENSION = '.dexv'
-SECTIONS = ('meta', 'robots', 'workspace', 'tasks', 'variants', 'requirements', 'analysis')
+SECTIONS = ('meta', 'robots', 'workspace', 'tasks', 'variants', 'requirements', 'analysis', 'rig', 'cables',
+            'policies', 'calibration')
+# sections whose section() is already a deep copy that shares nothing with the project (the undo stack need not copy
+# them again: a 10 000-grasp set was copied four times per edit)
+FRESH_SECTIONS = frozenset({'tasks', 'rig', 'cables', 'calibration'})
+
+
+def plain_copy(x):
+    """A deep copy of JSON-like data (dicts, lists, strings, numbers, None), about twice as fast as copy.deepcopy on
+    large grasp sets; anything else goes through copy.deepcopy."""
+    t = type(x)
+    if t is dict:
+        return {k: plain_copy(v) for k, v in x.items()}
+    if t is list:
+        return [plain_copy(v) for v in x]
+    if t is str or t is float or t is int or t is bool or x is None:
+        return x
+    return copy.deepcopy(x)
 
 SENSOR_KINDS = ('camera', 'depth', 'tactile')
 VOLUME_KINDS = ('tabletop', 'shelf', 'bin', 'handover', 'custom')
@@ -292,8 +309,8 @@ class Tasks:
     teleop_devices: list = field(default_factory=list)
 
     def to_dict(self):
-        return {'grasp_sets': copy.deepcopy(self.grasp_sets), 'trajectories': copy.deepcopy(self.trajectories),
-                'teleop_devices': copy.deepcopy(self.teleop_devices)}
+        return {'grasp_sets': plain_copy(self.grasp_sets), 'trajectories': plain_copy(self.trajectories),
+                'teleop_devices': plain_copy(self.teleop_devices)}
 
     @staticmethod
     def from_dict(d):
@@ -330,6 +347,29 @@ class Requirement:
 
 
 @dataclass
+class Policy:
+    """A policy the data is for (§5, §1.1.6): a policy library entry (core/library kind 'policy') and the cameras it
+    takes, with the user's own figures over the entry's. core/policies.py reads it (resolve)."""
+    uid: str = field(default_factory=new_uid)
+    name: str = 'Policy'
+    library_id: str = ''           # a library entry of kind 'policy'
+    cameras: list = field(default_factory=list)       # sensor uids of the rig; [] = every camera and depth sensor
+    overrides: dict = field(default_factory=dict)     # field -> {'value': ..., 'source': 'measured by the user ...'}
+
+    def to_dict(self):
+        return {'uid': self.uid, 'name': self.name, 'library_id': self.library_id, 'cameras': list(self.cameras),
+                'overrides': copy.deepcopy(self.overrides)}
+
+    @staticmethod
+    def from_dict(d):
+        d = d if isinstance(d, dict) else {}
+        ov = {str(k): {'value': copy.deepcopy(v.get('value')), 'source': str(v.get('source') or '')}
+              for k, v in (d.get('overrides') or {}).items() if isinstance(v, dict)}
+        return Policy(str(d.get('uid') or new_uid()), str(d.get('name') or 'Policy'), str(d.get('library_id') or ''),
+                      [str(c) for c in d.get('cameras') or [] if c], ov)
+
+
+@dataclass
 class AnalysisSettings:
     voxel_mm: float = 5.0          # default coverage voxel (§7.1)
     refine_mm: float = 2.0         # inside refinement regions
@@ -347,6 +387,58 @@ class AnalysisSettings:
                                 bool(d.get('live', True)), dict(d.get('studies') or {}))
 
 
+# ====================================================================== the rig's host topology (§7.6)
+CONTROLLER_KINDS = ('usb3', 'usb2', 'pcie', 'gmsl')
+
+
+def _num_or_none(v):
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return v if v == v and v not in (float('inf'), float('-inf')) and v > 0 else None
+
+
+def rig_from_dict(d) -> dict:
+    """The host topology (core/studies/bandwidth.py reads it), normalised: {'hosts': [{'uid', 'name', 'library_id',
+    'controllers': [{'uid', 'name', 'kind' (CONTROLLER_KINDS), 'practical_mbps' (a number or None: not stated),
+    'source' (where that figure comes from)}]}], 'hubs': [{'uid', 'name', 'powered', 'upstream' (a controller or hub
+    uid)}], 'links': [{'sensor_uid', 'stream_ids', 'via' (a controller or hub uid), 'cable_uid'}]}."""
+    d = d if isinstance(d, dict) else {}
+    hosts = []
+    for h in d.get('hosts') or []:
+        if not isinstance(h, dict):
+            continue
+        cs = []
+        for c in h.get('controllers') or []:
+            if not isinstance(c, dict):
+                continue
+            kind = str(c.get('kind') or 'usb3')
+            cs.append({'uid': str(c.get('uid') or new_uid()), 'name': str(c.get('name') or 'Controller'),
+                       'kind': kind if kind in CONTROLLER_KINDS else 'usb3',
+                       'practical_mbps': _num_or_none(c.get('practical_mbps')), 'source': str(c.get('source') or '')})
+        hosts.append({'uid': str(h.get('uid') or new_uid()), 'name': str(h.get('name') or 'Host'),
+                      'library_id': str(h.get('library_id') or ''), 'controllers': cs})
+    hubs = [{'uid': str(b.get('uid') or new_uid()), 'name': str(b.get('name') or 'Hub'),
+             'powered': bool(b.get('powered', False)), 'upstream': str(b.get('upstream') or '')}
+            for b in d.get('hubs') or [] if isinstance(b, dict)]
+    links = [{'sensor_uid': str(k.get('sensor_uid') or ''), 'stream_ids': [str(x) for x in k.get('stream_ids') or []],
+              'via': str(k.get('via') or ''), 'cable_uid': str(k.get('cable_uid') or '')}
+             for k in d.get('links') or [] if isinstance(k, dict) and k.get('sensor_uid')]
+    return {'hosts': hosts, 'hubs': hubs, 'links': links}
+
+
+def calibration_from_dict(d) -> dict:
+    """Hand-eye calibration records (core/calib/records.py writes them), normalised: {'boards': [{'uid', ...}],
+    'sessions': [{'uid', ...}]}; entries that are not objects are dropped, each keeps its fields."""
+    d = d if isinstance(d, dict) else {}
+    out = {}
+    for k in ('boards', 'sessions'):
+        out[k] = [dict(copy.deepcopy(x), uid=str(x.get('uid') or new_uid())) for x in d.get(k) or []
+                  if isinstance(x, dict)]
+    return out
+
+
 # ====================================================================== the project
 class Project:
     def __init__(self, name: str = 'Untitled'):
@@ -362,7 +454,11 @@ class Project:
         self.requirements: list[Requirement] = []
         self.analysis = AnalysisSettings()
         self.notes = ''
-        self.log: list[dict] = []                      # the design log: [{'t', 'kind', 'text'}]
+        self.rig: dict = rig_from_dict(None)              # the host topology (§7.6)
+        self.cables: list[dict] = []                   # cables across joints (§7.5, core/cables.py clean_cable)
+        self.policies: list[Policy] = []               # the policies the data is for (§5, core/policies.py)
+        self.calibration: dict = calibration_from_dict(None)  # hand-eye boards and sessions (§8.1, core/calib)
+        self.log: list[dict] = []                    # the design log: [{'t', 'kind', 'text'}]
         self.meshes: dict[str, np.ndarray] = {}        # key -> array (meshes.npz)
         self.sources: dict[str, bytes] = {}            # file name -> original bytes (sources/)
         self.thumb: bytes = b''
@@ -415,7 +511,15 @@ class Project:
             return [r.to_dict() for r in self.requirements]
         if key == 'analysis':
             return self.analysis.to_dict()
-        if key == 'sources':               # the stored model files (bytes are immutable: copies share them)
+        if key == 'rig':
+            return copy.deepcopy(self.rig)
+        if key == 'cables':
+            return copy.deepcopy(self.cables)
+        if key == 'policies':
+            return [x.to_dict() for x in self.policies]
+        if key == 'calibration':
+            return copy.deepcopy(self.calibration)
+        if key == 'sources':              # the stored model files (bytes are immutable: copies share them)
             return dict(self.sources)
         raise KeyError(key)
 
@@ -447,6 +551,14 @@ class Project:
             self.requirements = [Requirement.from_dict(d) for d in state]
         elif key == 'analysis':
             self.analysis = AnalysisSettings.from_dict(state)
+        elif key == 'rig':
+            self.rig = rig_from_dict(state)
+        elif key == 'cables':
+            self.cables = [dict(c) for c in copy.deepcopy(state or []) if isinstance(c, dict)]
+        elif key == 'policies':
+            self.policies = [Policy.from_dict(d) for d in state or []]
+        elif key == 'calibration':
+            self.calibration = calibration_from_dict(state)
         elif key == 'sources':
             self.sources = dict(state)
         else:
@@ -463,6 +575,10 @@ class Project:
             'variants': [v.to_dict() for v in self.variants], 'active_uid': self.active_uid,
             'requirements': [r.to_dict() for r in self.requirements],
             'analysis': self.analysis.to_dict(),
+            'rig': copy.deepcopy(self.rig),
+            'cables': copy.deepcopy(self.cables),
+            'policies': [x.to_dict() for x in self.policies],
+            'calibration': copy.deepcopy(self.calibration),
             'log': list(self.log),
             'meshes': sorted(self.meshes), 'sources': sorted(self.sources),
         }
@@ -481,7 +597,11 @@ class Project:
         p.active_uid = str(d.get('active_uid') or p.variants[0].uid)
         p.requirements = [Requirement.from_dict(r) for r in d.get('requirements') or []]
         p.analysis = AnalysisSettings.from_dict(d.get('analysis'))
-        p.log = [e for e in d.get('log') or [] if isinstance(e, dict)]
+        p.rig = rig_from_dict(d.get('rig'))
+        p.cables = [dict(c) for c in copy.deepcopy(d.get('cables') or []) if isinstance(c, dict)]
+        p.policies = [Policy.from_dict(x) for x in d.get('policies') or [] if isinstance(x, dict)]
+        p.calibration = calibration_from_dict(d.get('calibration'))
+        p.log =[e for e in d.get('log') or [] if isinstance(e, dict)]
         return p
 
     # ---------------------------------------------------------------- the file

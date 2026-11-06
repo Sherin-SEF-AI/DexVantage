@@ -1,0 +1,32 @@
+{
+  "id": "diffusion-policy-cnn",
+  "kind": "policy",
+  "maker": "Diffusion Policy (C. Chi et al.)",
+  "name": "Diffusion Policy (CNN, real-world setting)",
+  "family": "Imitation policy: ResNet-18 encoders, 1D temporal U-Net, DDIM",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2303.04137",
+      "title": "C. Chi et al., Diffusion Policy: Visuomotor Policy Learning via Action Diffusion, arXiv:2303.04137",
+      "read": "2026-11-06",
+      "covers": "Table 7 image and crop resolutions and horizons, Appendix A.3 cropping, Appendix D cameras and down-sampling, the inference latency, the 10 Hz command rate"
+    }
+  ],
+  "note": "The figures are the paper's real-world tasks with the CNN-based policy (Table 7): camera video down-sampled to 320 × 240, then a 288 × 216 crop, random in training and \"a static center crop with the same size\" at inference. How a 16:9 720p stream becomes 320 × 240 is not stated (stretched or cropped); DexVantage applies pre_resize as a stretch, an assumption. It is not a ViT (a ResNet-18 with spatial softmax pooling), so patch_px and tokens_per_image are null. Simulation tasks use other sizes (for example 96 × 96 cropped to 84 × 84 for Push-T): override input_resolution and pre_resize for them. To 2 observation steps; Tp 16 predicted, Ta 8 executed. Commands at 10 Hz are linearly interpolated to 125 Hz.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {"value": [288, 216], "source": 0, "quote": "Table 7 (CNN-based), real-world tasks: ImgRes 2x320x240, CropRes 2x288x216"},
+    "crop_rule": {"value": "center_crop", "source": 0, "quote": "\"we employed random crop augmentation during training\"; \"During inference, we take a static center crop with the same size.\" (Appendix A.3)"},
+    "crop_side_fraction": {"value": null, "source": null},
+    "pre_resize": {"value": [320, 240], "source": 0, "quote": "UR5 station: 720p RGB video \"down-sampled to 320x240 at 10fps\"; Franka station: VGA images \"downsampled to 320x240 at 10fps\" (Appendix D)"},
+    "patch_px": {"value": null, "source": null, "quote": "Not a ViT: \"We used a standard ResNet-18 (without pretraining) as the encoder\" with spatial softmax pooling."},
+    "tokens_per_image": {"value": null, "source": null, "quote": "Not a token model."},
+    "n_cameras": {"value": 2, "source": 0, "quote": "UR5 station: \"Only 2 of the cameras are used for policy observation\"; the Franka station \"has 2 realsense D415\""},
+    "action_chunk": {"value": 16, "source": 0, "quote": "Table 7: Tp (action prediction horizon) 16 for the real-world tasks"},
+    "execute_steps": {"value": 8, "source": 0, "quote": "Table 7: Ta 8 for Pour, Spread and Mug Flip (6 for real Push-T); \"the action horizon of 8 steps to be optimal for most tasks that we tested\""},
+    "temporal_ensemble_m": {"value": null, "source": null, "quote": "Not stated: the paper uses receding-horizon control."},
+    "inference_ms": {"value": 100, "source": 0, "hardware": "Nvidia 3080", "quote": "\"enables 0.1s inference latency on a Nvidia 3080 GPU\" (DDIM, 100 training and 10 inference iterations)"},
+    "control_hz": {"value": 10, "source": 0, "quote": "\"Diffusion Policy predicts robot commands at 10 Hz\" (linearly interpolated to 125 Hz)"}
+  }
+}

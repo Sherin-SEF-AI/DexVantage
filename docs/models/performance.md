@@ -56,6 +56,35 @@ Before these changes the shader renderer's frame after a joint change took 108 m
 - **Upload.** The mesh bounds were an axis-0 reduction of an (N, 3) array (20 ms); per column they take 1 ms. An
   all-opaque mesh is no longer copied to reorder it.
 
+## Phases 3, 6 and 7 pages
+
+Measured with `scripts/measure_ui_phase3.py` (`QT_QPA_PLATFORM=offscreen python scripts/measure_ui_phase3.py --json
+out/ui-timings-phase3.json`) on 2026-11-07, on an idle machine (the hardware and versions above; studies on the RTX
+5080 through EGL). Milliseconds on the UI thread, the median of 3 with the largest in brackets (Preview and Apply: one
+run); Apply is undone after it is timed. The hand-eye solve page is measured after importing 12 board images rendered
+at the plan's poses; the import itself took 230 ms when called directly (the Import button now runs it as a window
+job, so the UI thread does not wait for it).
+
+| Page (sample) | Show | Result arrives | 3D overlays | Camera view overlays | Preview | Apply | Largest stall after a step | Study (worker) |
+|---|---|---|---|---|---|---|---|---|
+| tasks (UR5e) | 1.3 [4.7] | — | 0.0 | 0.0 | 8.2 | 20.2 | 46.4 | — |
+| policies (UR5e) | 1.6 [4.5] | — | 0.0 | 0.0 [0.2] | — | — | 5.3 | — |
+| grasp (UR5e) | 1.5 [4.1] | 18.0 [18.1] | 0.0 | 0.4 [0.7] | 5.4 | 30.7 | 12.3 | 24.29 s |
+| vla (UR5e) | 1.5 [6.7] | 0.2 [0.3] | 0.0 [0.2] | 0.1 [0.2] | — | — | 11.9 | 0.08 s |
+| bandwidth (UR5e) | 2.1 [6.8] | 1.7 [1.8] | 0.3 [0.6] | 0.0 | 0.0 | 13.7 | 13.4 | 0.02 s |
+| cables (UR5e) | 5.5 [10.3] | 0.4 [0.5] | 0.0 [0.1] | 1.2 [1.5] | 0.1 | 26.7 | 12.4 | 0.38 s |
+| brackets (UR5e) | 1.8 [5.9] | 0.0 [0.1] | 0.0 [0.1] | 0.0 | 0.0 | 38.9 | 15.7 | 0.02 s |
+| handeye plan (UR5e) | 12.9 [21.0] | 3.1 [5.5] | 0.0 | 0.2 [0.5] | 1.9 | 32.9 | 26.0 | 5.80 s |
+| handeye solve (UR5e) | 3.1 [7.6] | 1.6 | 0.0 | 0.2 [0.6] | 0.9 | 46.6 | 29.7 | 1.41 s |
+| dexhand (dexhand) | 1.3 [3.6] | 0.4 [0.7] | 0.1 [34.2] | 36.9 [53.2] | 0.4 | 60.7 | 67.3 | 4.94 s |
+
+No UI-thread step is over 100 ms. The largest are on the dexhand sample (30 joints, about 4 900 pad triangles): its
+Apply 60.7 ms and the events after it 67.3 ms, and its Camera view overlay 53.2 ms worst. Building and showing the main
+window (once) takes 0.82 s on the UR5e sample and 0.41 s on the dexhand sample, with fourteen pages built at start
+(0.31 s in Phase 2). With the full test suite running on the same machine one run measured the brackets page's Apply
+at 146 ms (39 ms idle; profiled alone 46–64 ms, most of it the Sensors and Policies pages rebuilding their editors on
+the edit), so a loaded machine can push the heavier Apply steps past the budget.
+
 ## Known limits
 
 - The QPainter fallback, used only where OpenGL is missing, draws every triangle from Python: 0.16 s per frame for the

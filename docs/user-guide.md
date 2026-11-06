@@ -33,6 +33,20 @@ dexvantage --validate report/                      # validation report (exit 0 p
 dexvantage --self-test                             # check this installation
 ```
 
+Each study has its own flag writing its result as JSON with provenance ("-" for standard output). On the UR5e sample
+every one of them runs as the sample opens:
+
+```bash
+dexvantage --sample ur5e --grasp grasp.json              # grasp self-occlusion (200 grasps, about 30 s on a GPU)
+dexvantage --sample ur5e --vla-tokens vla.json           # VLA token resolution for the sample's π0
+dexvantage --sample dexhand --dex-occlusion dex.json     # the multi-finger occlusion matrix
+dexvantage --sample ur5e --bandwidth bw.json             # bandwidth, hosts and power
+dexvantage --sample ur5e --cables cables.json            # cable flex (suggested routes when there are no cables)
+dexvantage --sample ur5e --brackets brackets.json        # brackets and their clearance
+dexvantage --sample ur5e --handeye-plan plan.json        # a hand-eye calibration pose plan
+dexvantage cell.dexv --handeye-solve solve.json          # solve a recorded hand-eye session of the project
+```
+
 ## 3. Robots (Phase 1) {#robots}
 
 The models behind this chapter are in [models/robots.md](models/robots.md), [models/kinematics.md](models/kinematics.md)
@@ -244,3 +258,88 @@ wrist. Batch: `dexvantage cell.dexv --depth-validity dv.json`.
    7.2 % of it from one imager only. Both fingertip pads are 114 mm from it, beyond its 100 mm minimum Z.
 4. **Change one thing.** Move the elbow on the Robot page: the D405's frustum, its min-Z pyramid and the Camera view
    follow the wrist; press Run again to see the coverage at the new pose (the study uses the pose in the 3D view).
+
+## 5. Grasps, policies and dexterous hands (Phase 3)
+
+The models behind this chapter: [models/grasps.md](models/grasps.md), [models/grasp.md](models/grasp.md),
+[models/policies.md](models/policies.md), [models/vla.md](models/vla.md) and [models/dexhand.md](models/dexhand.md).
+
+### Grasp sets (Tasks ▸ Tasks) {#grasps}
+
+A grasp set is the input of the grasp studies: gripper poses at contact, each with its approach direction. On the
+**Tasks** page sample one over a task volume (top-down pinch, side grasp, angled, bimanual handoff in a handover
+volume; count and seed), **Preview** it as glyphs in the 3D view and the Camera view, then **Add set** (one undo
+step); or **Import file…** (CSV or JSON of gripper poses) or take one from a trajectory. The grasp centre and the
+gripper's axes are measured from the contact pads, not typed in. The UR5e and SO-100 samples come with a set.
+Worked example: [guide/grasps.md](guide/grasps.md).
+
+### Grasp self-occlusion (Analysis ▸ Grasp self-occlusion) {#grasp}
+
+Can the cameras see the fingertips at the moment the fingers close? **Run** solves the arm for every grasp (infeasible
+grasps are counted by reason), measures which share of each fingertip's contact patch every camera sees, and gives
+the **Contact Visibility Score**: the share of reachable grasps where your requirement holds (default: one camera sees
+every fingertip at 50 % or more), with its bootstrap 95 % interval and Wilson's interval. The page lists the cameras,
+"what to move" (each camera moved 2 cm or turned 5°, one at a time; **Apply** makes the best move, one undo step), a
+gallery of the worst grasps as Camera view renders (click one to pose the robot there) and every grasp. Sets above
+2 000 grasps run in the background with partial results. On the UR5e sample: 133 of 200 grasps reachable, CVS 100 %
+(Wilson 97.2–100 %); the Overhead D435 alone 34.6 % [26.3–42.9]. Worked example: [guide/grasp.md](guide/grasp.md).
+
+### Policies (Tasks ▸ Policies) {#policies}
+
+Name the policy your data is for: **Add policy** picks one of eight cited entries (OpenVLA 7B, π0, π0-FAST, SmolVLA,
+ACT, Diffusion Policy, Octo, GR00T N1). Each figure shows its source and quote; a figure no source states is "—" and
+can be replaced by your own with its source. Tick the cameras it takes. The Camera view outlines what part of the image
+the policy's input keeps. Worked example: [guide/policies.md](guide/policies.md).
+
+### VLA token resolution (Analysis ▸ VLA token resolution) {#vla}
+
+How many ViT tokens does each task object and fingertip cover in each camera the policy takes, at the pre-grasp and
+contact poses? The page warns below 2 × 2 tokens (a default) or when the crop cuts an object away, draws the patch
+grid and the crop in the Camera view and the patch footprints on the objects in 3D, suggests a change, and exports
+Plücker ray maps (`.npy` or `.safetensors`) at the policy's input resolution. Worked example: [guide/vla.md](guide/vla.md).
+
+### Multi-finger occlusion (Analysis ▸ Multi-finger occlusion) {#dexhand}
+
+For a dexterous hand (`dexvantage --sample dexhand`: a Shadow Hand on a UR5e with a palm micro camera, a dorsal
+wrist camera and a head camera): a finger × camera matrix of how much of each fingertip's contact patch the camera does
+not see over power, precision and tripod grasp sweeps (or a grasp set), what hides it, the mounts ranked, and a
+suggested turn of a camera. Worked example: [guide/dexhand.md](guide/dexhand.md).
+
+## 6. Hardware engineering (Phase 6)
+
+The models behind this chapter: [models/bandwidth.md](models/bandwidth.md), [models/cables.md](models/cables.md) and
+[models/brackets.md](models/brackets.md).
+
+### Bandwidth, hosts and power (Analysis ▸ Bandwidth, hosts and power) {#bandwidth}
+
+Every stream's data rate from its stated mode (width × height × fps × bits per pixel, plus a labelled 5 % protocol
+overhead); the host topology (add hosts, controllers and hubs, plug each sensor in) with the load and margin of each
+controller and link; disk per episode and campaign; USB bus power. On the UR5e sample **Apply** adds a host with one
+USB 3 controller (an assumption, labelled) and plugs both cameras in: 68 % of its capacity. A stream whose maker states
+no bits per pixel has no rate until you enter a measured one. Worked example: [guide/bandwidth.md](guide/bandwidth.md).
+
+### Cable flex across joints (Analysis ▸ Cable flex across joints) {#cables}
+
+Route a cable between attachment points on links (or Apply the suggested routes, one per link-mounted sensor): for
+each joint crossed, the slack it needs over the joint's range and along trajectories, the tightest bend against the
+cable's stated minimum, pulls and snags; a harness sheet (JSON, CSV, HTML) with cable, length, slack loops, connectors
+and strain relief. Worked example: [guide/cables.md](guide/cables.md).
+
+### Brackets (Analysis ▸ Brackets) {#brackets}
+
+Printable, watertight STL brackets: wrist-flange adapters on ISO 9409-1 patterns, 2020 and 4040 T-slot clamps, a
+pan-tilt neck plate, palm and dorsal micro-camera sleeves, with the camera's stated mounting holes. **Apply** sets the
+suggested bracket per sensor; **Run** meshes them and checks clearance against the robot over sampled joint states;
+**Export STL…** writes the STL with a JSON sidecar (dimensions, print orientation, provenance). Worked example:
+[guide/brackets.md](guide/brackets.md).
+
+## 7. Hand-eye calibration (Phase 7) {#handeye}
+
+The model: [models/handeye.md](models/handeye.md). **Calibrate ▸ Plan hand-eye poses…** picks 20 poses (a default)
+that the arm reaches without collision with the board in view, chosen to pin the camera down best, and predicts the
+1σ of the result in mm and degrees; **Save as session** keeps the plan, **Next pose** steps the robot through it, and
+**Print board…** writes the ChArUco or AprilGrid board as a PDF. **Calibrate ▸ Solve hand-eye…** imports a folder of
+board images with a `joint_states` file, detects the corners, solves (closed form, then one bundle adjustment; optional
+joint zero offsets and intrinsics), shows per-view residuals, outliers and the covariance, says which pose to take next
+(the coach), and **Apply** writes the calibrated mount (one undo step). ROS 2 topics and LeRobot episodes arrive in
+Phase 8. Worked example: [guide/handeye.md](guide/handeye.md).

@@ -3,8 +3,13 @@ for the SO-100 and UR5e samples, the main window, the Robot page and the import 
 Phase 2 (phase2-*): the Sensors and mounts page, the Coverage and Depth validity pages after a run, the Camera view
 of the UR5e sample's Wrist D405 and Overhead D435 (and the SO-100's two cameras), the Library panel and the New
 custom device dialog. Each Camera view image is also saved full size on its own (phase2-camview-*.png).
+Phases 3, 6 and 7 (phase3-*): on the UR5e sample the Tasks page (its grasp set previewed), the Policies page, the
+grasp self-occlusion page after a run (with its worst-case gallery), the VLA token page and the Camera view with the
+patch grid, the bandwidth page with a host topology, the cables page, the brackets page with the generated bracket in
+the 3D view, the hand-eye plan and solve pages (a synthetic capture rendered and imported); on the dexhand sample the
+multi-finger occlusion matrix.
 
-    QT_QPA_PLATFORM=offscreen python scripts/screens.py
+    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3]
 """
 import os
 import sys
@@ -49,6 +54,141 @@ def shot(widget, name):
     widget.grab().save(os.path.join(OUT, name))
     print(name)
 
+
+
+# ---------------------------------------------------------------- Phases 3, 6 and 7: the new pages
+def phase3():
+    import time
+
+    from dexvantage.core.robot.samples import sample_project as sp
+
+    def wait_sid(win, sid, timeout=300.0):
+        t0 = time.time()
+        while time.time() - t0 < timeout:
+            pump(5)
+            if sid in win.ctx.analysis.results and not win.ctx.analysis.busy():
+                return True
+            time.sleep(0.02)
+        return False
+
+    def window(name):
+        pw = MainWindow(sp(name), soft_3d=True, settings=settings)
+        pw.resize(1680, 1000)
+        pw.show()
+        pw.ctx.analysis.wait(5)
+        pw.resizeDocks([pw.docks['inspector'], pw.docks['camview']], [380, 460], Qt.Orientation.Vertical)
+        pw.resizeDocks([pw.docks['inspector']], [430], Qt.Orientation.Horizontal)
+        pw.resizeDocks([pw.docks['bottom']], [470], Qt.Orientation.Vertical)
+        pump()
+        pw.viewport.frame_box(*pw.scene.home_box(pw.viewport))
+        return pw
+
+    def run_page(pw, pid, tag, timeout=300.0):
+        pw.open_page(pid)
+        pump()
+        page = pw.pages[pid]
+        if page.STUDY:
+            pw.ctx.analysis.results.pop(page.STUDY, None)
+            page.run()
+            ok = wait_sid(pw, page.STUDY, timeout)
+        else:
+            ok = True
+        pump(40)
+        shot(pw, f'phase3-{tag}.png' if ok else f'phase3-{tag}-NOT-FINISHED.png')
+        return page
+
+    def camview(pw, sensor_name, tag):
+        s = next(s for s in pw.ctx.store.project.variant.sensors if s.name == sensor_name)
+        pw.ctx.store.select(('sensor', s.uid))
+        pump()
+        pw.camview.render_sync()
+        pw.camview.wait(20)
+        pump(40)
+        shot(pw.docks['camview'], f'phase3-camview-{tag}.png')
+
+    pw = window('ur5e')
+    # Tasks: the sample's grasp set, and a sampled set previewed in 3D
+    tasks = pw.pages['tasks']
+    pw.open_page('tasks')
+    tasks.set_form(kinds=['top_down', 'side', 'angled'], n=60, rng_seed=1)
+    tasks.preview()
+    shot(pw, 'phase3-ur5e-tasks-page.png')
+    tasks.preview()                                  # preview off again
+    run_page(pw, 'policies', 'ur5e-policies-page')
+    camview(pw, 'Overhead D435', 'policies-overhead')
+    # the grasp study (the sample's 200 grasps) and its worst-case gallery
+    g = run_page(pw, 'grasp', 'ur5e-grasp-page', timeout=600)
+    pw.resizeDocks([pw.docks['bottom']], [900], Qt.Orientation.Vertical)
+    pump()
+    sc = g.body.parentWidget().parentWidget()
+    sc.ensureWidgetVisible(g.gallery)
+    pump()
+    shot(g, 'phase3-ur5e-grasp-gallery.png')
+    pw.resizeDocks([pw.docks['bottom']], [470], Qt.Orientation.Vertical)
+    camview(pw, 'Wrist D405', 'grasp-wrist')
+    run_page(pw, 'vla', 'ur5e-vla-page')
+    camview(pw, 'Overhead D435', 'vla-overhead')
+    camview(pw, 'Wrist D405', 'vla-wrist')
+    # bandwidth: Apply the suggested host, then the topology and margins
+    bw = run_page(pw, 'bandwidth', 'ur5e-bandwidth-page-no-host')
+    if bw.b_apply.isEnabled():
+        bw.apply()
+        pump(20)
+        bw.run()
+        wait_sid(pw, bw.STUDY)
+        bw.topo.expandAll()
+        pump(40)
+    shot(pw, 'phase3-ur5e-bandwidth-topology.png')
+    cb = run_page(pw, 'cables', 'ur5e-cables-page')
+    camview(pw, 'Wrist D405', 'cables-wrist')
+    del cb
+    # brackets: Apply the suggested bracket kinds, run (meshes them), the bracket in the 3D view
+    br = run_page(pw, 'brackets', 'ur5e-brackets-page-before')
+    if br.b_apply.isEnabled():
+        br.apply()
+        pump(20)
+        br.run()
+        wait_sid(pw, br.STUDY, 300)
+        pump(40)
+    pw.viewport.frame_box(*pw.scene.home_box(pw.viewport))
+    shot(pw, 'phase3-ur5e-brackets-preview.png')
+    # hand-eye: plan, save it, render a synthetic capture at the planned poses, import, solve
+    hp = run_page(pw, 'handeye_plan', 'ur5e-handeye-plan')
+    camview(pw, 'Wrist D405', 'handeye-plan-wrist')
+    try:
+        sys.path.insert(0, os.path.join(ROOT, 'tests'))
+        from test_calib_planner import render_capture
+        from dexvantage.core.calib import planner as PL
+        p = pw.ctx.store.project
+        rig = PL.rig_from_project(p)
+        poses = (hp.doc or {}).get('poses') or []
+        tmp = tempfile.mkdtemp(prefix='dexvantage-screens-capture-')
+        render_capture(p, rig, poses[:12], os.path.join(tmp, 'img'), os.path.join(tmp, 'joints.csv'))
+        sv = pw.pages['handeye_solve']
+        pw.open_page('handeye_solve')
+        pump()
+        sv.source.setCurrentIndex(sv.source.findData('folder'))
+        sv.import_capture(os.path.join(tmp, 'img'), os.path.join(tmp, 'joints.csv'))
+        run_page(pw, 'handeye_solve', 'ur5e-handeye-solve')
+    except Exception:                                   # noqa: BLE001 — the other screens still matter
+        import traceback
+        traceback.print_exc()
+    pw.cancel_jobs()
+    pw.hide()
+
+    dw = window('dexhand')
+    run_page(dw, 'dexhand', 'dexhand-matrix-page', timeout=300)
+    first = dw.ctx.store.project.variant.sensors[0]
+    camview(dw, first.name, 'dexhand-first-camera')
+    dw.cancel_jobs()
+    dw.hide()
+
+
+if '--only' in sys.argv and sys.argv[sys.argv.index('--only') + 1] == 'phase3':
+    w.hide()
+    phase3()
+    QTimer.singleShot(0, app.quit)
+    sys.exit(0)
 
 w.viewport.frame_box(*w.scene.home_box(w.viewport))
 shot(w, 'main-dark.png')
@@ -191,5 +331,7 @@ ew.resizeDocks([ew.docks['inspector'], ew.docks['camview']], [420, 330], Qt.Orie
 pump()
 shot(ew.docks['camview'], 'phase2-camview-empty.png')
 ew.hide()
+
+phase3()
 
 QTimer.singleShot(0, app.quit)

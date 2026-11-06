@@ -9,7 +9,7 @@
       "url": "https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf",
       "title": "RealSense Product Family D400 Series Datasheet, Revision 023, March 2026, document 337029-017 (formerly the Intel RealSense Product Family D400 Series Datasheet)",
       "read": "2026-11-06",
-      "covers": "baseline, depth FOV, imager and projector FOV, imager sensor, shutter, f-number, focus, RGB sensor and FOV, min-Z table, depth quality, range, stream modes, power, size, mass"
+      "covers": "baseline, depth FOV, imager and projector FOV, imager sensor, shutter, f-number, focus, RGB sensor and FOV, min-Z table, depth quality, range, stream modes, power, size, mass, mounting holes (Figure 10-9, Table 4-20)"
     },
     {
       "url": "https://store.realsenseai.com/buy-realsense-depth-camera-d435i.html",
@@ -27,6 +27,32 @@
     90.0,
     25.0
   ],
+  "mounting": {
+    "holes": [
+      {
+        "thread": "M3",
+        "count": 2,
+        "face": "back",
+        "spacing_mm": 45.0,
+        "max_insert_mm": 3.0,
+        "x_mm": null,
+        "y_mm": null,
+        "z_mm": null,
+        "what": "Figure 10-9 (D435/D435i drawing): \"2X M3 MOUNTING POINTS, MAX INSERTION DEPTH 3MM\" on the back face, 45 apart; the pair's centre is not dimensioned (null). Note under the figure: \"Recommended torque for both M3 mounting points is 0.4 Nm\"."
+      },
+      {
+        "thread": "1/4-20",
+        "count": 1,
+        "face": "bottom",
+        "spacing_mm": null,
+        "max_insert_mm": null,
+        "x_mm": null,
+        "y_mm": -17.5,
+        "z_mm": null,
+        "what": "Table 4-20: \"From Centerline of 1/4-20 To Left Imager\" 17.5 mm for the D43x (the body origin is the left imager, so y = -17.5 mm, towards the right imager); its position front to back and its depth are not stated (null)."
+      }
+    ]
+  },
   "imagers": [
     {
       "name": "IR left",

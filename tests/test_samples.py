@@ -226,7 +226,7 @@ def test_sample_save_load_compiles_from_the_file(tmp_path, so100):
 
 def test_later_samples_say_their_phase_and_unknown_is_plain():
     names = {s['name']: s for s in S.list()}
-    assert set(names) == {'so100', 'ur5e', 'aloha', 'panda-bimanual', 'g1'}
+    assert set(names) == {'so100', 'ur5e', 'dexhand', 'aloha', 'panda-bimanual', 'g1'}
     for n in ('aloha', 'panda-bimanual', 'g1'):
         assert not names[n]['available']
         with pytest.raises(S.SampleError, match='arrives in Phase 11'):

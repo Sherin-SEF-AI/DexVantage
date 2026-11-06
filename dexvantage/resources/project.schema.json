@@ -19,6 +19,64 @@
     "active_uid": {"$ref": "#/$defs/uid"},
     "requirements": {"type": "array", "items": {"$ref": "#/$defs/requirement"}},
     "analysis": {"$ref": "#/$defs/analysis"},
+    "rig": {"type": "object", "description": "The host topology (core/studies/bandwidth.py, docs/models/bandwidth.md): hosts with their controllers, hubs, and the link of each sensor.",
+      "properties": {
+        "hosts": {"type": "array", "items": {"type": "object", "required": ["uid", "name", "controllers"], "properties": {
+          "uid": {"type": "string"}, "name": {"type": "string"}, "library_id": {"type": "string", "description": "a host library entry, or empty"},
+          "controllers": {"type": "array", "items": {"type": "object", "required": ["uid", "name", "kind"], "properties": {
+            "uid": {"type": "string"}, "name": {"type": "string"}, "kind": {"enum": ["usb3", "usb2", "pcie", "gmsl"]},
+            "practical_mbps": {"type": ["number", "null"], "exclusiveMinimum": 0, "description": "Mbit/s the controller carries in practice; null when no source states it"},
+            "source": {"type": "string", "description": "where practical_mbps comes from (a measurement or a document)"}}}}}}},
+        "hubs": {"type": "array", "items": {"type": "object", "required": ["uid", "name", "powered", "upstream"], "properties": {
+          "uid": {"type": "string"}, "name": {"type": "string"}, "powered": {"type": "boolean"},
+          "upstream": {"type": "string", "description": "the controller or hub uid it plugs into"}}}},
+        "links": {"type": "array", "items": {"type": "object", "required": ["sensor_uid", "via"], "properties": {
+          "sensor_uid": {"type": "string"}, "stream_ids": {"type": "array", "items": {"type": "string"}, "description": "imager|WxH|fps|format; empty = the default streams"},
+          "via": {"type": "string", "description": "the controller or hub uid"}, "cable_uid": {"type": "string"}}}}
+      }},
+    "cables": {"type": "array", "description": "Cables across the robot's joints (core/cables.py, docs/models/cables.md). Lengths and radii in metres; points in the link frame.",
+      "items": {"type": "object", "required": ["uid", "name", "attachments"], "properties": {
+        "uid": {"type": "string"}, "name": {"type": "string"}, "sensor_uid": {"type": "string"},
+        "type": {"enum": ["usb3", "usb2", "gmsl2", "gmsl", "coax", "ethernet", "power", "other"]},
+        "library_id": {"type": "string", "description": "a cable library entry, or empty"},
+        "min_bend_radius_m": {"oneOf": [{"type": "null"}, {"type": "object", "required": ["value", "source"], "properties": {
+          "value": {"type": "number", "exclusiveMinimum": 0}, "source": {"type": "string"},
+          "kind": {"enum": ["dynamic", "static", "unspecified"]}}}], "description": "null: not stated"},
+        "diameter_m": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "length_m": {"type": ["number", "null"], "exclusiveMinimum": 0, "description": "the cable's provided length"},
+        "wrap_radius_m": {"type": ["number", "null"], "minimum": 0, "description": "null: the default (the nearer attachment's distance from the axis)"},
+        "attachments": {"type": "array", "items": {"type": "object", "required": ["robot_uid", "link", "point"], "properties": {
+          "robot_uid": {"type": "string"}, "link": {"type": "string"}, "point": {"$ref": "#/$defs/vec3"},
+          "length_to_next_m": {"type": ["number", "null"], "exclusiveMinimum": 0, "description": "the cable laid to the next attachment; null: not set"}}}},
+        "connectors": {"type": "array", "items": {"type": "string"}},
+        "strain_relief": {"type": "string"}, "note": {"type": "string"}}}},
+    "policies": {"type": "array", "description": "The policies the data is for (core/policies.py, docs/models/policies.md): a policy library entry, the cameras it takes and the user's own figures over the entry's.",
+      "items": {"type": "object", "required": ["uid", "name", "library_id"], "properties": {
+        "uid": {"$ref": "#/$defs/uid"}, "name": {"type": "string"},
+        "library_id": {"type": "string", "description": "a library entry of kind policy"},
+        "cameras": {"type": "array", "items": {"type": "string"}, "description": "sensor uids; empty = every camera and depth sensor of the rig"},
+        "overrides": {"type": "object", "description": "field -> the user's figure and where it comes from",
+          "additionalProperties": {"type": "object", "required": ["value", "source"], "properties": {
+            "value": {}, "source": {"type": "string", "minLength": 1, "description": "e.g. measured by the user ..."}}}}}}},
+    "calibration": {"type": "object", "description": "Hand-eye calibration (core/calib/records.py, docs/models/handeye.md): boards with their placement, and capture sessions (planned or recorded poses, detections and the solve). Units: metres, radians, pixels (OpenCV pixel centres).",
+      "properties": {
+        "boards": {"type": "array", "items": {"type": "object", "required": ["uid", "board", "mount"], "properties": {
+          "uid": {"type": "string"}, "name": {"type": "string"},
+          "board": {"type": "object", "required": ["kind"], "properties": {"kind": {"enum": ["charuco", "aprilgrid"]}}, "description": "the board's figures (core/calib/boards.py to_dict)"},
+          "mount": {"type": "object", "properties": {"parent_frame": {"type": "string"}, "robot_uid": {"type": "string"}, "pose": {"$ref": "#/$defs/pose"}}, "description": "the board frame in the world, a static frame or a robot link"},
+          "default": {"type": "boolean", "description": "the placement is DexVantage's default, not the user's"}}}},
+        "sessions": {"type": "array", "items": {"type": "object", "required": ["uid", "sensor_uid", "mode", "poses"], "properties": {
+          "uid": {"type": "string"}, "name": {"type": "string"}, "sensor_uid": {"type": "string"}, "imager": {"type": "string"},
+          "mode": {"enum": ["eye_in_hand", "eye_to_hand"]}, "board_uid": {"type": "string"}, "robot_uid": {"type": "string"}, "link": {"type": "string"},
+          "created": {"type": "string"}, "source": {"type": "object"}, "settings": {"type": "object"},
+          "poses": {"type": "array", "items": {"type": "object", "properties": {
+            "name": {"type": "string"}, "q": {"type": "array", "items": {"type": "number"}, "description": "the robot's joint vector, its model's joint order"},
+            "joint_names": {"type": "array", "items": {"type": "string"}}, "image": {"type": "string", "description": "file name, no folder"},
+            "t_image": {"type": ["number", "null"]}, "t_joints": {"type": ["number", "null"]}, "dt_s": {"type": ["number", "null"]},
+            "ids": {"type": "array", "items": {"type": "integer"}}, "uv": {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}},
+            "note": {"type": "string"}}}},
+          "result": {"type": "object", "description": "the solve (schema dexvantage.handeye/1) and whether it was applied"}}}}
+      }},
     "log": {"type": "array", "items": {"type": "object", "properties": {"t": {"type": "string"}, "kind": {"type": "string"}, "text": {"type": "string"}}, "required": ["t", "kind", "text"]}},
     "meshes": {"type": "array", "items": {"type": "string"}, "description": "keys of the arrays in meshes.npz"},
     "sources": {"type": "array", "items": {"type": "string"}, "description": "file names under sources/"}

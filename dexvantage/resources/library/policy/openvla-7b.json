@@ -1,0 +1,50 @@
+{
+  "id": "openvla-7b",
+  "kind": "policy",
+  "maker": "OpenVLA",
+  "name": "OpenVLA 7B",
+  "family": "Vision-language-action model (Prismatic VLM, Llama 2 7B)",
+  "sources": [
+    {
+      "url": "https://huggingface.co/openvla/openvla-7b",
+      "title": "openvla/openvla-7b · Hugging Face (model card)",
+      "read": "2026-11-06",
+      "covers": "the vision backbones (\"DINOv2 ViT-L/14 and SigLIP ViT-So400M/14\"), the inputs, the MIT licence"
+    },
+    {
+      "url": "https://huggingface.co/openvla/openvla-7b/blob/main/config.json",
+      "title": "openvla-7b config.json and preprocessor_config.json (the official checkpoint's configuration)",
+      "read": "2026-11-06",
+      "covers": "image_sizes, image_resize_strategy, timm_model_ids (patch size), tvf_resize_params, tvf_do_letterbox"
+    },
+    {
+      "url": "https://arxiv.org/abs/2406.09246",
+      "title": "M. J. Kim et al., OpenVLA: An Open-Source Vision-Language-Action Model, arXiv:2406.09246 (v3)",
+      "read": "2026-11-06",
+      "covers": "the 224 px choice, single-image observations, inference rate on an RTX 4090, the controller rates of the evaluations"
+    },
+    {
+      "url": "https://github.com/openvla/openvla",
+      "title": "openvla/openvla on GitHub (README)",
+      "read": "2026-11-06",
+      "covers": "the centre crop at test time for augmented fine-tunes, no action chunking, the suggested control rate"
+    }
+  ],
+  "note": "OpenVLA resizes each image to 224 × 224 without keeping its aspect ratio (\"resize-naive\", no letterbox) and feeds it to two ViTs with 14 px patches (DINOv2 and SigLIP, features concatenated channel-wise). The README adds that a model fine-tuned with image augmentation (--image_aug True) expects \"the center 90% crop\" at test time (90 % of the area: about 94.9 % of each side); for such a model, override crop_rule with center_crop_resize and crop_side_fraction 0.949. Tokens per image are not stated (the paper says only that \"higher-resolution images result in more image patch tokens\"). The control rate is not one figure: the paper uses 5 Hz and 15 Hz controllers. Code MIT; the weights may carry the Llama 2 Community License (README). DexVantage bundles these figures only, not the model.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {"value": [224, 224], "source": 1, "quote": "\"image_sizes\": [224, 224]; the paper: \"We thus opt for a resolution of 224×224px for the final OpenVLA model.\""},
+    "crop_rule": {"value": "resize", "source": 1, "quote": "\"image_resize_strategy\": \"resize-naive\"; preprocessor_config.json: tvf_resize_params size [224, 224], \"tvf_do_letterbox\": false"},
+    "crop_side_fraction": {"value": null, "source": null, "quote": "No crop for the released model; see the note for augmented fine-tunes."},
+    "pre_resize": {"value": null, "source": null},
+    "patch_px": {"value": 14, "source": 1, "quote": "\"timm_model_ids\": [\"vit_large_patch14_reg4_dinov2.lvd142m\", \"vit_so400m_patch14_siglip_224\"]"},
+    "tokens_per_image": {"value": null, "source": null, "quote": "Not stated."},
+    "n_cameras": {"value": 1, "source": 2, "quote": "the model \"currently only supports single-image observations\""},
+    "action_chunk": {"value": 1, "source": 3, "quote": "\"OpenVLA is not trained with action chunking\"; the paper calls it a \"single-step policy\""},
+    "execute_steps": {"value": 1, "source": 3, "quote": "one action per inference (no action chunking)"},
+    "temporal_ensemble_m": {"value": null, "source": null, "quote": "Not stated (one action per inference)."},
+    "inference_ms": {"value": 166.7, "source": 2, "hardware": "one NVIDIA RTX 4090, bfloat16", "quote": "\"runs at approximately 6Hz on one NVIDIA RTX 4090 GPU\" (1000 / 6 = 166.7 ms); with 4-bit quantisation \"can run at 3Hz on the A5000\""},
+    "control_hz": {"value": null, "source": null, "quote": "Not one figure: \"5Hz and 15 Hz non-blocking controllers\" (Franka-Tabletop, Franka-DROID) and a 5 Hz controller for BridgeData V2 (paper); \"Collect at a control frequency around 5-10Hz\" (README)."}
+  }
+}

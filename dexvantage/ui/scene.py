@@ -58,13 +58,16 @@ class SceneProvider(QObject):
         ctx.store.project_replaced.connect(self.changed.emit)
         ctx.store.selection_changed.connect(self.changed.emit)
         ctx.store.pose_changed.connect(lambda _uid: self.changed.emit())
-        THEME.changed.connect(lambda *_: self.changed.emit())
+        THEME.changed.connect(self._theme_changed)     # a bound slot: dropped with the provider (a lambda was not)
         self._mesh_key = None
         self._mesh_draw = None
         self._mesh_version = 0
         self._reported: set = set()
         self._frustum_cache: dict = {}
         self._vnormal_cache: dict = {}
+
+    def _theme_changed(self, *_):
+        self.changed.emit()
 
     @property
     def project(self):

@@ -74,8 +74,11 @@ def main(argv=None):
     ap.add_argument('--theme', choices=['dark', 'light', 'system'])
     ap.add_argument('--scale', type=float, help='UI scale, e.g. 1.15')
     ap.add_argument('--software-3d', action='store_true', help='draw the 3D view with QPainter instead of OpenGL')
-    ap.add_argument('--sample', metavar='NAME', help='open a sample project, in the window or in batch mode: so100, '
-                                                     'ur5e (aloha, panda-bimanual and g1 arrive in Phase 11)')
+    from .core.robot.samples import SAMPLES
+    have = ', '.join(k for k, (_t, ph) in SAMPLES.items() if ph is None)
+    later = ', '.join(k for k, (_t, ph) in SAMPLES.items() if ph is not None)
+    ap.add_argument('--sample', metavar='NAME', help=f'open a sample project, in the window or in batch mode: {have}'
+                                                     + (f' ({later} arrive in a later phase)' if later else ''))
     from . import batch
     batch.add_arguments(ap)
     args = ap.parse_args(argv)

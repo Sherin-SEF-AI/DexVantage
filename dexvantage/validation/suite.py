@@ -48,7 +48,7 @@ MODELS = (
     ('lighting', 'Lighting, glare and IR', 'dexvantage.core.studies.lighting', 'lighting'),
     ('vla', 'VLA tokens, Plücker rays and canonical warps', 'dexvantage.core.studies.vla_tokens', 'vla'),
     ('dexhand', 'Multi-finger occlusion and tactile handoff', 'dexvantage.core.studies.dex_hand_tactile', 'dexhand'),
-    ('cables', 'Cable flex', 'dexvantage.core.studies.cable_flex', 'cables'),
+    ('cables', 'Cable flex', 'dexvantage.core.cables, dexvantage.core.studies.cables', 'cables'),
     ('data', 'Dataset readers and the auditor', 'dexvantage.core.data', 'data'),
     ('experiments', 'Tolerance, experiments and optimisation', 'dexvantage.core.studies', 'experiments'),
     ('formats', 'Project and export formats', 'dexvantage.core.project, dexvantage.core.exporters', 'formats'),

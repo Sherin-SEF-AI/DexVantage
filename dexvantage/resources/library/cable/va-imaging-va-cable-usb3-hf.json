@@ -1,0 +1,36 @@
+{
+  "id": "va-imaging-va-cable-usb3-hf",
+  "kind": "cable",
+  "maker": "VA Imaging",
+  "name": "VA-CABLE-USB3-xxm-HF",
+  "family": "VA Imaging active high-flex USB 3.0 cables",
+  "sources": [
+    {
+      "url": "https://hs.va-imaging.com/hubfs/Supportshare/Documentation/Datasheet%20Cables/VA-CABLE-USB3-xxm-HF.pdf",
+      "title": "VA-CABLE-USB3-xxm-HF datasheet: USB 3.0 Cable Type A To Micro-B with Screw Lock, active high flex cable series (VA Imaging, 3 pages)",
+      "read": "2026-11-06",
+      "covers": "connectors, cable diameter, bend radius dynamic and static, tensile and crush strength, temperature, power, the bending test, part numbers and lengths, construction"
+    }
+  ],
+  "note": "An active optical USB 3.0 cable (optical transceivers at each end, OM1 fibre plus copper power pairs, Kevlar strength member, black TPU jacket): USB3.0 Standard-A plug at the host, USB3.0 Micro-B plug with locking screws at the device. Stated: cable diameter 4.8 mm (drawing: 4.80 +/- 0.2 mm); bend radius \"50mm (dynamic)\" and \"20mm (static)\"; bending test at a 50 mm radius, 1000 mm stroke, 80 cycles/min, 25 C, \">20million cycles\" without bit errors (flex_cycles 20000000 is that lower bound); tensile strength 150 N long term, 300 N short term; operating temperature -10 to +50 C; host-side input 4.75-5.25 V, 200 mA, 0.94 W maximum. Lengths: 3, 5, 10, 15, 20, 30, 34 and 50 m. Being active, the cable has a host and a device end. Revision and date of the datasheet are not printed on it.",
+  "interface": "USB 3.0 (5 Gbit/s), active optical",
+  "power_w": 0.94,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null,
+  "cable": {
+    "type": "usb3",
+    "diameter_mm": 4.8,
+    "min_bend_static_mm": 20.0,
+    "min_bend_dynamic_mm": 50.0,
+    "flex_cycles": 20000000,
+    "lengths_m": [3, 5, 10, 15, 20, 30, 34, 50],
+    "connectors": ["USB 3.0 Standard-A plug (host)", "USB 3.0 Micro-B plug with locking screws (device)"],
+    "active": true
+  }
+}

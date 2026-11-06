@@ -157,6 +157,8 @@ class _Image(QWidget):
         if rows:
             # a translucent plate behind the legend, so it reads over any image (a floor grid, a bright table)
             fm = QFontMetricsF(f)
+            avail = max(r.width() - 20, 40.0)           # a long label is elided to the image (full text: the page)
+            rows = [(c, fm.elidedText(t, Qt.TextElideMode.ElideRight, avail)) for c, t in rows]
             w = max(fm.horizontalAdvance(t) for _c, t in rows) + 12
             plate = QRectF(r.left() + 4, r.top() + 4, min(w, r.width() - 8), 15 * len(rows) + 6)
             p.setPen(Qt.PenStyle.NoPen)

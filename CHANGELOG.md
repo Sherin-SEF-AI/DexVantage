@@ -4,6 +4,91 @@ All notable changes to DexVantage. The format follows Keep a Changelog; versions
 
 ## [Unreleased]
 
+### Phases 3, 6 and 7: grasps, VLA tokens, dexterous hands; hardware engineering; hand-eye calibration
+- Grasp sets (`core/grasps.py`, the Tasks page): sampled over a task volume (top-down pinch, side, angled, bimanual
+  handoff), imported from CSV or JSON, or taken from a trajectory; contact pads and the grasp centre measured from the
+  gripper's geometry. The UR5e and SO-100 samples now carry a grasp set and a policy, so every study runs as they open.
+- Grasp self-occlusion (`core/studies/grasp_visibility.py`, `--grasp`, the hero study of spec §7.3): batched IK with
+  reasons for infeasible grasps, contact visibility per fingertip and camera through cube maps cached by q-bucket,
+  the Contact Visibility Score with its bootstrap 95 % interval and Wilson's interval, pre-contact visibility, a
+  worst-case gallery and "what to move". 2 000 grasps on the UR5e sample in 111.6 s on an NVIDIA GeForce RTX 5080
+  (131.3 s on the integrated Radeon); optional pinocchio and cuRobo IK backends (untested here).
+- Policies (`core/policies.py`, `project.policies`, the Policies page): 8 cited entries (OpenVLA 7B, π0, π0-FAST,
+  SmolVLA base, ACT, Diffusion Policy, Octo-Base, GR00T N1 2B), every figure with its source and quote, null where no
+  source states it; user overrides with their source; six crop rules.
+- VLA token resolution (`core/studies/vla_tokens.py`, `--vla-tokens`): tokens per task object and fingertip at
+  pre-grasp and contact, crop warnings, the patch grid in the Camera view; Plücker ray-map export as `.npy` or
+  `.safetensors` (`core/plucker.py`, ported from Vantage).
+- Multi-finger occlusion (`core/studies/dex_hand_tactile.py`, `--dex-occlusion`): the finger × camera matrix and
+  mount comparison; the `dexhand` sample (MuJoCo Menagerie's Shadow Hand, Apache-2.0, on the UR5e).
+- Bandwidth, hosts and power (`core/studies/bandwidth.py`, `--bandwidth`, `project.rig`): data rates from stated
+  stream modes, the host topology editor, controller and link margins, disk and USB bus power.
+- Cable flex across joints (`core/cables.py`, `core/studies/cables.py`, `--cables`, `project.cables`): the routed
+  arc model, slack, bend, pull and snag flags, the harness sheet; 3 cited cable entries.
+- Brackets (`core/meshing.py`, `core/brackets.py`, ported from Vantage; `core/studies/brackets.py`, `--brackets`):
+  watertight STL for ISO 9409-1 flange adapters, 2020/4040 T-slot clamps, pan-tilt plates, palm and dorsal sleeves,
+  with the clearance check; mounting holes added to the RealSense D405, D435 and D435i entries from Intel's datasheet.
+- Hand-eye calibration (`core/calib/`, the Calibrate menu's two pages, `--handeye-plan`, `--handeye-solve`,
+  `project.calibration`): ChArUco and AprilGrid boards, detection and PnP, seven closed-form solvers written from the
+  papers (OpenCV 5.0.0's bindings have none), one sparse bundle adjustment with covariance, the D-optimal pose planner,
+  recording from image folders and joint-state files, and the coach.
+- The window: a Tasks menu (Tasks, Policies); the Grasp study and Calibration workspaces open their pages.
+- Validation: 32 new checks, 72 in all, 72 of 72 pass (grasp 7, VLA tokens and policies 4, multi-finger 3,
+  bandwidth 3, cables 4, brackets 3, hand-eye 8).
+- `--self-test`: "grasp" (a 20-grasp run on the UR5e sample), "brackets" (one watertight STL), "handeye" (a synthetic
+  AX = XB solve).
+- `scripts/screens.py --only phase3` (every new page), `scripts/measure_ui_phase3.py` (no UI-thread step over 100 ms),
+  `scripts/measure_grasp.py` (the 2 000-grasp budget), `scripts/bundle_dexhand.py`.
+- Docs: `docs/models/grasps.md`, `grasp.md`, `policies.md`, `vla.md`, `dexhand.md`, `bandwidth.md`, `cables.md`,
+  `brackets.md`, `handeye.md` and their worked examples in `docs/guide/`; overview sections and user-guide chapters 5
+  to 7.
+
+### Fixed (Phases 3, 6 and 7 integration)
+- `ik.solve_batch` with one start per target (q0 of shape (N, nq)) raised: it clipped the stack with
+  `RobotModel.clip`, which takes one joint vector.
+- Memory: robot models compiled from the same files are shared whatever the robot's uid (each opening of a sample
+  compiled its own), the model cache holds 12 models, and the digest cache at most 256 MB of file bytes.
+- Number fields: a gap between the number and its unit ("0.30 px", not "0.30px"); the Brackets page's standoff,
+  tilt and wall fields were invisible (a plain spin box under Qt 6.12, decision 3 of Phase 0); the Camera view's
+  legend is elided to the image.
+- The hand-eye Import button detects the board on a worker thread (it blocked the window for seconds).
+- Lambdas on the global theme signal outlived their window; closing a window and changing the theme then aborted.
+- Pages: the grasp gallery packs each grasp's views in a row; the VLA headline names a fingertip count in the
+  singular; "not stated" figures on the Bandwidth and Cables pages show "—" instead of 0; the multi-finger matrix's
+  legend follows the theme (lighter is more hidden in the dark theme).
+
+### Added (Phases 3, 6 and 7 reviews)
+- Grasp sets from a trajectory take the grasps where the gripper closes (`grasp.trajectory_closures` check).
+- Several hand-eye sessions solve in one bundle adjustment, which locates a fixed camera through a board a wrist
+  camera sees; the solve page applies every camera as one undo step (`handeye.sessions_joint` check).
+- The Tasks page draws a trajectory's swept volume as ghosts (`core/robot/swept.py`, `docs/models/swept.md`).
+- Calibrate ▸ Hand-eye solve ▸ "Simulate a capture…" renders a capture with a known offset, so the loop can be tried
+  without a rig.
+- The hand-eye planner works on 5-joint arms such as the SO-100 (position first).
+- Validation: 74 checks, 74 of 74 pass. Tests: 1 538 pass.
+
+### Fixed (Phases 3, 6 and 7 reviews)
+- Grasp IK targets use the TCP the set was sampled with (they used the pads' TCP: 69 mm off on the UR5e with a TCP
+  override).
+- The grasp study's cached occluders follow a moved robot base; the result cache misses when a policy or host
+  library entry changes.
+- Brackets check clearance to the project's cables (the check never ran: it imported a module that does not exist).
+- Bandwidth: a host with mixed USB generations is taken at its lowest and the page says so; "PCIe Gen4" is not read
+  as a USB generation.
+- Cables: a negative wrap radius means the default; a zero-length run no longer makes NaN; the headline names the
+  cable.
+- Hand-eye: joint-state files in degrees leave prismatic joints in metres.
+- Multi-finger: gripper pads are named at word boundaries ("right", not "righ"), the SO-100's fixed jaw has its links
+  (the study stopped with "Fixed has no contact patch"), the headline names the best mount once.
+- VLA: the headline is a warning ("no task object") when no task object is counted, not a green "resolved"; a ViT
+  patch larger than the input is explained instead of counted as 0 tokens; policy messages keep acronyms.
+- Number fields show "—" for figures not stated (they showed "0.00 mm").
+- Bracket STL export checks the folder first and meshes as a window job; large grasp sets are sampled on a worker.
+- `--sample`'s help lists the dexhand sample.
+- Sources: the bracket mass density cites Prusament PETG's data sheet; the T-slot suggestion makes no survey claim;
+  the NanEyeC check reports where the 5 % overhead default disagrees with the maker's framing. The hand-eye solvers
+  were compared once with OpenCV 4.10.0 (`docs/models/handeye.md`).
+
 ### Phase 2: sensors and coverage
 - The hardware library (`core/library`, schema `resources/library.schema.json`): 40 entries from makers' datasheets
   and product pages, each with its source URL, title and the date read (2026-11-06): 21 depth cameras (Intel

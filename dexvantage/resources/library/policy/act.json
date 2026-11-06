@@ -1,0 +1,44 @@
+{
+  "id": "act",
+  "kind": "policy",
+  "maker": "ACT (T. Z. Zhao, V. Kumar, S. Levine, C. Finn)",
+  "name": "ACT (Action Chunking with Transformers)",
+  "family": "Imitation policy: ResNet18 encoders, CVAE transformer",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2304.13705",
+      "title": "T. Z. Zhao, V. Kumar, S. Levine, C. Finn, Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware, arXiv:2304.13705 (v1)",
+      "read": "2026-11-06",
+      "covers": "four 480 × 640 cameras, the 15 × 20 feature maps, chunk size 100, the exponential ensembling weights, the inference time, 50 Hz"
+    },
+    {
+      "url": "https://github.com/tonyzhaozh/act/tree/742c753c0d4a5d87076c8f69e5628c79a8cc5488",
+      "title": "tonyzhaozh/act (official code), commit 742c753: imitate_episodes.py",
+      "read": "2026-11-06",
+      "covers": "images used as captured (get_image), the ensembling constant k = 0.01, query frequency"
+    },
+    {
+      "url": "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies/act/configuration_act.py",
+      "title": "LeRobot ACT configuration, commit d490e47",
+      "read": "2026-11-06",
+      "covers": "cross-check: chunk_size 100, the ensembling coefficient ACT uses"
+    }
+  ],
+  "note": "ACT takes the camera images as captured (480 × 640, height × width, in the paper's ALOHA rig): no resize or crop in the official code. It is not a ViT: each ResNet18 turns a 480 × 640 image into a 15 × 20 feature map, 300 tokens per image, so patch_px is null. The paper defines the ensembling weights w_i = exp(-m·i) (w_0 the oldest action) without a value for m; the official code uses k = 0.01, entered here. With ensembling the policy is queried every step (execute_steps 1); without it, the whole chunk of 100 is executed. The 10 ms inference time is on the training machine's 11 GB RTX 2080 Ti. Code MIT.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {"value": [640, 480], "source": 0, "quote": "\"The observation includes 4 RGB images, each at 480×640 resolution\" (height × width); \"All cameras steam at 480×640 and 30fps\""},
+    "crop_rule": {"value": "none", "source": 1, "quote": "get_image(): rearrange(ts.observation['images'][cam_name], 'h w c -> c h w'), then / 255.0 (no resize, no crop)"},
+    "crop_side_fraction": {"value": null, "source": null},
+    "pre_resize": {"value": null, "source": null},
+    "patch_px": {"value": null, "source": null, "quote": "Not a ViT: ResNet18 backbones turn \"480×640×3 RGB images into 15×20×512 feature maps\"."},
+    "tokens_per_image": {"value": 300, "source": 0, "quote": "15×20×512 feature maps flattened into 300 tokens of 512 per image (1200 for four images)"},
+    "n_cameras": {"value": 4, "source": 0, "quote": "\"There is a total of four Logitech C922x webcams\""},
+    "action_chunk": {"value": 100, "source": 0, "quote": "Table III: chunk size 100"},
+    "execute_steps": {"value": 1, "source": 1, "quote": "with --temporal_agg: query_frequency = 1 (a new chunk every step); without it query_frequency = num_queries"},
+    "temporal_ensemble_m": {"value": 0.01, "source": 1, "quote": "k = 0.01; exp_weights = np.exp(-k * np.arange(len(actions_for_curr_step))); LeRobot: \"the value used in ACT when temporal ensembling is enabled is 0.01\""},
+    "inference_ms": {"value": 10, "source": 0, "hardware": "11 GB NVIDIA RTX 2080 Ti (the training machine)", "quote": "\"the inference time is around 0.01 seconds on the same machine\""},
+    "control_hz": {"value": 50, "source": 0, "quote": "\"Both the teleoperation and data recording happen at 50Hz\""}
+  }
+}

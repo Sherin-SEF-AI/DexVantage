@@ -130,10 +130,15 @@ class ProjectStore(QObject):
         if isinstance(keys, str):
             keys = [keys]
         keys = [k if k != 'variant' else f'variant:{self.project.active_uid}' for k in keys]
-        before = {k: copy.deepcopy(self.project.section(k)) for k in keys}
+        from ..core.project import FRESH_SECTIONS
+
+        def state(k):              # section() of a FRESH section is already an independent deep copy
+            sec = self.project.section(k)
+            return sec if k in FRESH_SECTIONS else copy.deepcopy(sec)
+        before = {k: state(k) for k in keys}
         result = fn(self.project)
         self.revision += 1
-        after = {k: copy.deepcopy(self.project.section(k)) for k in keys}
+        after = {k: state(k) for k in keys}
         self.undo.push(EditCommand(self, keys, before, after, text, merge_key))
         self.project.add_log('edit', text)
         self._sync_q()

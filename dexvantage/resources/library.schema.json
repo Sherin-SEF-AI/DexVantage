@@ -6,7 +6,7 @@
   "required": ["id", "kind", "maker", "name", "sources", "note"],
   "properties": {
     "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$", "description": "Unique, lower case, e.g. intel-realsense-d435."},
-    "kind": {"enum": ["depth", "camera", "tactile", "host"]},
+    "kind": {"enum": ["depth", "camera", "tactile", "host", "policy", "cable"]},
     "maker": {"type": "string", "minLength": 1},
     "name": {"type": "string", "minLength": 1},
     "family": {"type": ["string", "null"]},
@@ -29,6 +29,16 @@
     "size_mm": {
       "description": "[x, y, z] in the device body frame: x along the optical axis (the maker's depth or thickness), y across (width), z up (height).",
       "oneOf": [{"type": "null"}, {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": 0}}]
+    },
+    "mounting": {
+      "description": "Mounting holes on the body as the maker's drawing states them (core/brackets.py): per group the thread as written, count, face (back, bottom, top, left, right, front), spacing_mm between the holes (along y on the back, bottom and top faces), max_insert_mm, the group's centre x_mm, y_mm, z_mm in the body frame (null: not dimensioned) and what the source says.",
+      "type": "object",
+      "properties": {"holes": {"type": "array", "items": {"type": "object", "required": ["thread", "count", "face"],
+        "properties": {"thread": {"type": "string"}, "count": {"type": "integer", "minimum": 1},
+                       "face": {"enum": ["back", "bottom", "top", "left", "right", "front"]},
+                       "spacing_mm": {"$ref": "#/$defs/num"}, "max_insert_mm": {"$ref": "#/$defs/num"},
+                       "x_mm": {"type": ["number", "null"]}, "y_mm": {"type": ["number", "null"]},
+                       "z_mm": {"type": ["number", "null"]}, "what": {"type": "string"}}}}}
     },
     "imagers": {"type": "array", "items": {"$ref": "#/$defs/imager"}},
     "projector": {
@@ -91,6 +101,21 @@
                         "taxels": {"type": ["integer", "null"], "minimum": 0}}}
       ]
     },
+    "cable": {
+      "description": "A cable (kind 'cable'): figures from the maker's datasheet; null when not stated. Radii and diameter in mm.",
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object",
+         "properties": {"type": {"enum": ["usb3", "usb2", "gmsl2", "gmsl", "coax", "ethernet", "power", "other"]},
+                        "diameter_mm": {"$ref": "#/$defs/num"},
+                        "min_bend_static_mm": {"$ref": "#/$defs/num", "description": "fixed installation"},
+                        "min_bend_dynamic_mm": {"$ref": "#/$defs/num", "description": "moving / continuous flexing"},
+                        "flex_cycles": {"type": ["integer", "null"], "minimum": 0},
+                        "lengths_m": {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}},
+                        "connectors": {"type": "array", "items": {"type": "string"}},
+                        "active": {"type": ["boolean", "null"]}}}
+      ]
+    },
     "host": {
       "oneOf": [
         {"type": "null"},
@@ -102,9 +127,42 @@
                         "practical_mbps": {"$ref": "#/$defs/num", "description": "Only when a source states it."},
                         "gmsl_links": {"type": ["integer", "null"], "minimum": 0}}}
       ]
+    },
+    "policy": {
+      "description": "Kind 'policy' only (dexvantage/core/policies.py, docs/models/policies.md): the input a robot-learning policy takes, each field {value, source: an index into sources or null}, value null when no source states it.",
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "additionalProperties": false,
+         "properties": {
+           "input_resolution": {"$ref": "#/$defs/pfield", "description": "[width, height] px of each image the model takes."},
+           "crop_rule": {"$ref": "#/$defs/pfield", "description": "none | resize | resize_pad | resize_pad_top_left | center_crop | center_crop_resize (core/policies.py CROP_RULES)."},
+           "crop_side_fraction": {"$ref": "#/$defs/pfield", "description": "center_crop_resize: the fraction of each image side the centred crop keeps."},
+           "pre_resize": {"$ref": "#/$defs/pfield", "description": "center_crop: [width, height] px the image is resized to before the crop."},
+           "patch_px": {"$ref": "#/$defs/pfield", "description": "ViT patch edge in input pixels."},
+           "tokens_per_image": {"$ref": "#/$defs/pfield"},
+           "wrist_input_resolution": {"$ref": "#/$defs/pfield", "description": "[width, height] px when wrist images are sized differently."},
+           "wrist_tokens_per_image": {"$ref": "#/$defs/pfield"},
+           "n_cameras": {"$ref": "#/$defs/pfield"},
+           "action_chunk": {"$ref": "#/$defs/pfield", "description": "H: actions predicted per inference."},
+           "execute_steps": {"$ref": "#/$defs/pfield", "description": "Actions executed before the next inference."},
+           "temporal_ensemble_m": {"$ref": "#/$defs/pfield", "description": "m in the weights exp(-m i); false when the source says it uses none."},
+           "inference_ms": {"$ref": "#/$defs/pfield", "description": "Time for one inference; 'hardware' names what it was measured on."},
+           "control_hz": {"$ref": "#/$defs/pfield"}
+         }}
+      ]
     }
   },
   "$defs": {
+    "pfield": {
+      "type": "object", "required": ["value", "source"],
+      "properties": {
+        "value": {"type": ["number", "integer", "string", "boolean", "array", "null"]},
+        "source": {"type": ["integer", "null"], "minimum": 0},
+        "quote": {"type": "string", "description": "What the source says, verbatim where possible."},
+        "hardware": {"type": ["string", "null"]},
+        "note": {"type": "string"}
+      }
+    },
     "num": {"type": ["number", "null"], "minimum": 0},
     "angle": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 360},
     "pair_or_null": {"oneOf": [{"type": "null"}, {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number", "minimum": 0}}]},
