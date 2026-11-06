@@ -6,19 +6,19 @@ __pycache__/
 venv/
 .pytest_cache/
 .ruff_cache/
-build/
-dist/
+/build/
+/dist/
 
 # generated output: renders, reports, screenshots, videos
-out/
-validation/
+/out/
+/validation/
 *.mp4
 *.webm
 *.rrd
 *.part
 
 # local demo and video-recording scripts stay local (spec §1.4)
-demo/
+/demo/
 scripts/record_*.py
 scripts/video_*.py
 
