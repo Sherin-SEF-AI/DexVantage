@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use DexVantage in your research, please cite it as below."
+type: software
+title: "DexVantage: camera, depth and teleop planning for robot-learning data collection"
+abstract: >-
+  DexVantage is a desktop application for planning and checking the camera, depth and tactile sensing of robot
+  manipulation and humanoid data-collection rigs: where cameras go so fingertips, objects and contacts stay visible at
+  the grasp, where depth is valid, what the teleoperator can reach, and whether recorded datasets meet the plan.
+authors:
+  - name: "Sherin Joseph Roy"
+    website: "https://github.com/Sherin-SEF-AI"
+version: "0.1.0.dev0"
+license: GPL-3.0-or-later
+repository-code: "https://github.com/Sherin-SEF-AI/DexVantage"
+keywords:
+  - robot learning
+  - manipulation
+  - camera placement
+  - hand-eye calibration
+  - data collection
+  - LeRobot
