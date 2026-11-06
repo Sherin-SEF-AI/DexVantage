@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sherin-sef-ai.github.io/DexVantage/project.schema.json",
+  "title": "DexVantage project (project.json inside a .dexv archive)",
+  "description": "Version 1. Units are SI (metres, seconds, kilograms); joint values in radians; quaternions (x, y, z, w); frames follow REP-103. See docs/project-format.md.",
+  "type": "object",
+  "required": ["format", "version", "name", "robots", "workspace", "tasks", "variants", "active_uid", "requirements", "analysis"],
+  "properties": {
+    "format": {"const": "dexvantage.project"},
+    "version": {"type": "integer", "minimum": 1},
+    "name": {"type": "string"},
+    "notes": {"type": "string"},
+    "created": {"type": "string"},
+    "saved_at": {"type": "string"},
+    "robots": {"type": "array", "items": {"$ref": "#/$defs/robot"}},
+    "workspace": {"$ref": "#/$defs/workspace"},
+    "tasks": {"$ref": "#/$defs/tasks"},
+    "variants": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/variant"}},
+    "active_uid": {"$ref": "#/$defs/uid"},
+    "requirements": {"type": "array", "items": {"$ref": "#/$defs/requirement"}},
+    "analysis": {"$ref": "#/$defs/analysis"},
+    "log": {"type": "array", "items": {"type": "object", "properties": {"t": {"type": "string"}, "kind": {"type": "string"}, "text": {"type": "string"}}, "required": ["t", "kind", "text"]}},
+    "meshes": {"type": "array", "items": {"type": "string"}, "description": "keys of the arrays in meshes.npz"},
+    "sources": {"type": "array", "items": {"type": "string"}, "description": "file names under sources/"}
+  },
+  "$defs": {
+    "uid": {"type": "string", "pattern": "^[0-9a-f]{10}$"},
+    "vec3": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+    "quat": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4, "description": "(x, y, z, w), unit length"},
+    "pose": {
+      "type": "object", "required": ["position", "quaternion"],
+      "properties": {"position": {"$ref": "#/$defs/vec3"}, "quaternion": {"$ref": "#/$defs/quat"}}
+    },
+    "robot": {
+      "type": "object", "required": ["uid", "name", "source", "base", "primary", "links", "joints"],
+      "properties": {
+        "uid": {"$ref": "#/$defs/uid"},
+        "name": {"type": "string"},
+        "source": {"type": "object", "properties": {
+          "kind": {"enum": ["", "urdf", "mjcf", "usd"]}, "file": {"type": "string"}, "sha256": {"type": "string"},
+          "license": {"type": "string"}, "note": {"type": "string"}}},
+        "base": {"$ref": "#/$defs/pose"},
+        "primary": {"type": "boolean"},
+        "links": {"type": "array", "items": {"type": "object"}},
+        "joints": {"type": "array", "items": {"type": "object"}},
+        "home": {"type": "object", "additionalProperties": {"type": "number"}},
+        "gripper_frame": {"type": "string"},
+        "fingertip_frames": {"type": "array", "items": {"type": "string"}},
+        "contact_pads": {"type": "array", "items": {"type": "object"}},
+        "locked": {"type": "boolean"}
+      }
+    },
+    "mount": {
+      "type": "object", "required": ["parent_frame", "robot_uid", "pose", "tolerance"],
+      "properties": {
+        "parent_frame": {"type": "string", "description": "world, a static frame (cage, tripod, table) or a link name"},
+        "robot_uid": {"type": "string"},
+        "pose": {"$ref": "#/$defs/pose"},
+        "tolerance": {"type": "object", "properties": {"position_mm": {"type": "number", "minimum": 0}, "rotation_deg": {"type": "number", "minimum": 0}}},
+        "bracket": {"type": "string"}
+      }
+    },
+    "sensor": {
+      "type": "object", "required": ["uid", "name", "kind", "mount"],
+      "properties": {
+        "uid": {"$ref": "#/$defs/uid"},
+        "name": {"type": "string"},
+        "kind": {"enum": ["camera", "depth", "tactile"]},
+        "model_id": {"type": "string"},
+        "calibration": {"type": "object"},
+        "mount": {"$ref": "#/$defs/mount"},
+        "slot": {"type": "integer", "minimum": 0},
+        "locked": {"type": "boolean"},
+        "enabled": {"type": "boolean"}
+      }
+    },
+    "variant": {
+      "type": "object", "required": ["uid", "name", "sensors"],
+      "properties": {
+        "uid": {"$ref": "#/$defs/uid"}, "name": {"type": "string"},
+        "sensors": {"type": "array", "items": {"$ref": "#/$defs/sensor"}},
+        "note": {"type": "string"}, "created": {"type": "string"}
+      }
+    },
+    "volume": {
+      "type": "object", "required": ["uid", "name", "kind", "center", "size"],
+      "properties": {
+        "uid": {"$ref": "#/$defs/uid"}, "name": {"type": "string"},
+        "kind": {"enum": ["tabletop", "shelf", "bin", "handover", "custom"]},
+        "center": {"$ref": "#/$defs/vec3"},
+        "size": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 3, "maxItems": 3},
+        "refine": {"type": "boolean"}
+      }
+    },
+    "object": {
+      "type": "object", "required": ["uid", "name", "shape", "size", "pose", "materials"],
+      "properties": {
+        "uid": {"$ref": "#/$defs/uid"}, "name": {"type": "string"},
+        "shape": {"enum": ["box", "cylinder", "sphere", "mesh"]},
+        "size": {"$ref": "#/$defs/vec3"}, "pose": {"$ref": "#/$defs/pose"}, "mesh_key": {"type": "string"},
+        "materials": {"type": "array", "items": {"enum": ["matte", "glossy", "metallic", "transparent", "black", "ir_absorbing"]}}
+      }
+    },
+    "workspace": {
+      "type": "object", "required": ["volumes", "objects"],
+      "properties": {
+        "volumes": {"type": "array", "items": {"$ref": "#/$defs/volume"}},
+        "objects": {"type": "array", "items": {"$ref": "#/$defs/object"}},
+        "lights": {"type": "array", "items": {"type": "object"}},
+        "surfaces": {"type": "array", "items": {"type": "object"}},
+        "background": {"type": "string"}
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "properties": {
+        "grasp_sets": {"type": "array", "items": {"type": "object"}},
+        "trajectories": {"type": "array", "items": {"type": "object"}},
+        "teleop_devices": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "requirement": {
+      "type": "object", "required": ["uid", "metric", "op", "threshold", "is_default"],
+      "properties": {
+        "uid": {"$ref": "#/$defs/uid"}, "name": {"type": "string"}, "metric": {"type": "string"},
+        "op": {"enum": [">=", "<=", "<", ">", "=="]}, "threshold": {"type": "number"}, "unit": {"type": "string"},
+        "study": {"type": "string"}, "is_default": {"type": "boolean"}, "note": {"type": "string"}
+      }
+    },
+    "analysis": {
+      "type": "object", "required": ["voxel_mm", "refine_mm"],
+      "properties": {
+        "voxel_mm": {"type": "number", "exclusiveMinimum": 0},
+        "refine_mm": {"type": "number", "exclusiveMinimum": 0},
+        "live": {"type": "boolean"},
+        "studies": {"type": "object"}
+      }
+    }
+  }
+}

@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dexvantage"
+dynamic = ["version"]
+description = "Camera, depth and teleop planning for robot-learning data collection: place the cameras, prove what they see at the grasp, check the recorded data"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "PyQt6>=6.5",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "PyOpenGL>=3.1",
+    "PyYAML>=6.0",
+    "opencv-python>=4.7",
+    "mujoco>=3.1",
+    "certifi",
+]
+
+[project.optional-dependencies]
+pin = ["pin"]                     # pinocchio: a second kinematics backend and a validation reference (Phase 1)
+usd = ["usd-core"]                # OpenUSD import and export
+lerobot = ["pyarrow", "av"]       # LeRobot Parquet and AV1/MP4 (Phase 8)
+bags = ["zstandard", "lz4"]       # compressed ROS 2 bags (MCAP chunks)
+claude = ["anthropic>=2.3,<3"]    # the assistant's Claude provider (Phase 10)
+keyring = ["keyring"]
+rerun = ["rerun-sdk"]             # the Rerun bridge (Phase 10)
+test = ["pytest", "jsonschema", "ruff"]
+
+[project.urls]
+Source = "https://github.com/Sherin-SEF-AI/DexVantage"
+Changelog = "https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CHANGELOG.md"
+
+[project.scripts]
+dexvantage = "dexvantage.app:main"
+
+[project.gui-scripts]
+dexvantage-gui = "dexvantage.app:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "dexvantage.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["dexvantage", "dexvantage.*"]
+
+[tool.setuptools.package-data]
+dexvantage = ["resources/fonts/*.ttf", "resources/fonts/OFL.txt", "resources/icons/*.png", "resources/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E741", "E731"]
+
+[tool.ruff.lint.per-file-ignores]
+# ported from Vantage with their formatting kept (spec §2: copy, adapt only what is automotive)
+"dexvantage/ui/{theme,icon_data,charts,widgets,viewport3d,render_gl,navigation,colormaps}.py" = ["E501", "E702", "F841"]
+"dexvantage/ui/dialogs/{base,palette}.py" = ["E501"]
+"dexvantage/core/{mathutil,provenance}.py" = ["E501"]
+"dexvantage/workdir.py" = ["E501"]
