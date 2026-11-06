@@ -240,10 +240,16 @@ def project_digest(project) -> dict:
             'sections': {k: sha256(canonical(v))[:16] for k, v in content.items()}}
 
 
-def variant_digest(variant) -> str:
-    """The variant's own content hash: its uids by their place inside the variant, its creation time left out."""
+def variant_digest(variant, project=None) -> str:
+    """The variant's own content hash: its uids by their place inside the variant, its creation time left out.
+    project: the project it belongs to, so uids the variant refers to outside itself (the robot a sensor is mounted
+    on) are replaced by their place in the project too; without it they stay as they are (random per import)."""
     d = plain({k: v for k, v in variant.to_dict().items() if k != 'created'})
-    places = {u: 'variant' + (p if p == '.' else '.' + p) for u, p in _uid_places(d).items()}
+    places = {}
+    if project is not None:
+        pd = project.to_dict()
+        places = _uid_places(plain({k: pd[k] for k in ('robots', 'workspace', 'tasks') if k in pd}))
+    places.update({u: 'variant' + (p if p == '.' else '.' + p) for u, p in _uid_places(d).items()})
     return sha256(canonical(_renumber(d, places)))
 
 
@@ -458,6 +464,8 @@ def study_settings(project, study: str, export: dict | None = None) -> dict:
     out = {'analysis': plain({k: getattr(a, k, None) for k in _BASE_ANALYSIS})}
     for k in STUDY_SETTINGS.get(study, ()):
         out[k] = effective_settings(project, k)
+    if study and study not in out and isinstance(project.analysis.studies.get(study), dict):
+        out[study] = effective_settings(project, study)        # a study's own settings, wherever it registers
     if export:
         out['export'] = dict(export)
     return out
@@ -674,7 +682,7 @@ def block(project, doc=None, *, variant=None, study: str | None = None, export: 
         if v is not None:
             idx = next((i for i, x in enumerate(project.variants) if x is v or x.uid == v.uid), None)
             var = {'name': v.name, 'index': None if idx is None else idx + 1, 'uid': v.uid,
-                   'sha256': variant_digest(v)}
+                   'sha256': variant_digest(v, project)}
         settings = study_settings(project, study, export)
     elif export:
         settings = {'export': dict(export)}

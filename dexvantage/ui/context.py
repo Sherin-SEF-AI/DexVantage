@@ -23,6 +23,8 @@ class AppContext(QObject):
         self.analysis = AnalysisController(store)
         self.window = None
         self.overlays = {k: v[1] for k, v in OVERLAYS.items()}
+        self.overlay_sources = []          # fn(vp) -> [LineDraw | TriDraw]: always-on scene content (robots, frusta…)
+        self.robots = None                 # the robot runtime (core.robot), set up by the window
 
     def overlay(self, key) -> bool:
         return bool(self.overlays.get(key, False))

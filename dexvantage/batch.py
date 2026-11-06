@@ -29,14 +29,26 @@ def add_arguments(ap):
     g.add_argument('--reproduce', metavar='RESULT.json', help='re-run the study that wrote RESULT.json and compare')
     g.add_argument('--tolerance', action='append', metavar='[PATTERN=]VALUE[%]',
                    help='with --reproduce: allowed differences, e.g. 1e-9 or voxels*=0')
+    from .core import jobs
+    jobs.load_studies()
+    s = ap.add_argument_group('studies (each writes its result as JSON with provenance; "-" for stdout)')
+    for info in jobs.STUDIES.values():
+        if info.batch:
+            s.add_argument(f'--{info.batch}', metavar='OUT.json', dest=f'study__{info.id}', help=info.title)
+
+
+def _study_flags(args) -> list:
+    return [(k[len('study__'):], v) for k, v in vars(args).items() if k.startswith('study__') and v]
 
 
 def wanted(args) -> bool:
-    return bool(args.analyse or args.validate or args.reproduce)
+    return bool(args.analyse or args.validate or args.reproduce or _study_flags(args))
 
 
 def _load(args):
     from .core.project import Project, ProjectFormatError
+    if getattr(args, '_project', None) is not None:     # --sample (app.py)
+        return args._project
     if not args.path:
         return None
     try:
@@ -89,8 +101,22 @@ def run(args) -> int:
             _write(doc, args.analyse)
             if args.analyse != '-':
                 vols = doc['volumes']
-                print(f'{project.name}: {len(vols)} task volumes, '
+                print(f'{project.name}: {len(vols)} task volume{"" if len(vols) == 1 else "s"}, '
                       f'{sum(v["voxels_dense"] for v in vols):,} voxels at {doc["voxel_mm"]:g} mm → {args.analyse}')
+        for sid, dest in _study_flags(args):
+            from .core import jobs
+            if project is None:
+                return _err(f'--{jobs.STUDIES[sid].batch} needs a project file')
+            try:
+                doc = jobs.run_study(sid, project.snapshot())
+            except jobs.StudyError as e:
+                return _err(str(e))
+            doc = {k: v for k, v in doc.items() if k != 'cached'}
+            option = jobs.STUDIES[sid].batch.replace('-', '_')
+            doc = PV.stamp(doc, project, output=PV.batch_output(doc, dest, option=option))
+            _write(doc, dest)
+            if dest != '-':
+                print(f'{jobs.STUDIES[sid].title} → {dest}')
         if args.validate:
             from . import validation as VA
             from .validation.suite import qt_app
@@ -129,13 +155,16 @@ def _reproduce(args, project) -> int:
         tol = PV.parse_tolerances(args.tolerance)
     except ValueError as e:
         return _err(str(e))
-    if study != 'summary':
+    from .core import jobs
+    jobs.load_studies()
+    if study not in jobs.STUDIES:
         rep = PV.report(os.path.basename(args.reproduce), recorded, None, tol,
                         error=f'this build cannot re-run the study "{study}" yet')
     elif project is None:
         return _err('--reproduce needs the project file the result was made from')
     else:
-        doc = _summary(project, '-')
+        doc = _summary(project, '-') if study == 'summary' else PV.stamp(
+            {k: v for k, v in jobs.run_study(study, project.snapshot()).items() if k != 'cached'}, project)
         rep = PV.report(os.path.basename(args.reproduce), recorded, doc, tol, now_provenance=doc[PV.KEY],
                         project_now=PV.project_digest(project))
     print(rep['message'] if 'message' in rep else rep.get('verdict_text', ''))

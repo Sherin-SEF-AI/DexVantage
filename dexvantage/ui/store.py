@@ -64,6 +64,7 @@ class ProjectStore(QObject):
     selection_changed = pyqtSignal()
     status = pyqtSignal(str, int)          # transient message, ms
     dirty_changed = pyqtSignal(bool)
+    pose_changed = pyqtSignal(str)         # robot uid whose joint state q changed (view state, not undoable)
 
     def __init__(self, project: Project):
         super().__init__()
@@ -74,6 +75,10 @@ class ProjectStore(QObject):
         self.gesture = 0                   # bumped when a drag starts
         self.revision = 0                  # bumped by every change to the project (edits, undo, redo, replace)
         self._dragging = False
+        # view state, not project content: each robot's current joint values (radians / metres), in its model's
+        # joint_names order; reset to the robot's home when the project is replaced or the robot is added
+        self.q: dict = {}
+        self._sync_q()
 
     def _clean_changed(self, clean):
         self.dirty_changed.emit(not clean)
@@ -94,6 +99,8 @@ class ProjectStore(QObject):
         self.project = project
         self.undo.clear()
         self.sel = ()
+        self.q = {}
+        self._sync_q()
         self.project_replaced.emit()
         self.selection_changed.emit()
 
@@ -106,11 +113,13 @@ class ProjectStore(QObject):
         self.selection_changed.emit()
 
     def selected(self):
-        """The selected object (a Robot, Sensor, Volume or TaskObject), or None."""
+        """The selected object (a Robot, Sensor, Volume or TaskObject, or a trajectory's dict), or None."""
         if len(self.sel) < 2:
             return None
         kind, uid = self.sel[0], self.sel[1]
         p = self.project
+        if kind == 'trajectory':
+            return next((t for t in p.tasks.trajectories if isinstance(t, dict) and t.get('uid') == uid), None)
         pool = {'robot': p.robots, 'sensor': p.variant.sensors, 'volume': p.workspace.volumes,
                 'object': p.workspace.objects}.get(kind, [])
         return next((o for o in pool if o.uid == uid), None)
@@ -127,6 +136,7 @@ class ProjectStore(QObject):
         after = {k: copy.deepcopy(self.project.section(k)) for k in keys}
         self.undo.push(EditCommand(self, keys, before, after, text, merge_key))
         self.project.add_log('edit', text)
+        self._sync_q()
         self.changed.emit(set(sections or self._sections(keys)))
         return result
 
@@ -139,8 +149,42 @@ class ProjectStore(QObject):
         self.revision += 1
         if self.sel and self.selected() is None and self.sel[0] != 'project':
             self.sel = ()
+        self._sync_q()
         self.changed.emit(self._sections(keys))
         self.selection_changed.emit()
+
+    # ------------------------------------------------------------------ joint state (view state)
+    def _sync_q(self):
+        """Give every robot a joint vector (its home) and drop those of removed robots; keep the rest."""
+        uids = {r.uid for r in self.project.robots}
+        for k in [k for k in self.q if k not in uids]:
+            del self.q[k]
+        if not self.project.robots:
+            return
+        from ..core.robot.model import RobotModelError, get_model
+        for r in self.project.robots:
+            try:
+                m = get_model(self.project, r.uid)
+            except RobotModelError:
+                self.q.pop(r.uid, None)
+                continue
+            cur = self.q.get(r.uid)
+            self.q[r.uid] = m.home.copy() if cur is None or len(cur) != m.nq else m.clip(cur)
+
+    def set_q(self, uid: str, q):
+        """Set a robot's joint values, clipped to its joint limits; emits pose_changed(uid) when they change.
+        Returns the values kept."""
+        import numpy as np
+
+        from ..core.robot.model import get_model
+        m = get_model(self.project, uid)
+        q = m.clip(q)
+        cur = self.q.get(uid)
+        if cur is not None and len(cur) == len(q) and np.array_equal(cur, q):
+            return cur
+        self.q[uid] = q
+        self.pose_changed.emit(uid)
+        return q
 
     def cancel_gesture(self) -> bool:
         """Undo the edits of the drag in progress and drop them from the history (Esc during a drag)."""

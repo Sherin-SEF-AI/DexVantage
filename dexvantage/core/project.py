@@ -413,6 +413,8 @@ class Project:
             return [r.to_dict() for r in self.requirements]
         if key == 'analysis':
             return self.analysis.to_dict()
+        if key == 'sources':               # the stored model files (bytes are immutable: copies share them)
+            return dict(self.sources)
         raise KeyError(key)
 
     def restore(self, key: str, state):
@@ -443,6 +445,8 @@ class Project:
             self.requirements = [Requirement.from_dict(d) for d in state]
         elif key == 'analysis':
             self.analysis = AnalysisSettings.from_dict(state)
+        elif key == 'sources':
+            self.sources = dict(state)
         else:
             raise KeyError(key)
 

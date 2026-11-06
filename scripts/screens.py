@@ -1,4 +1,5 @@
-"""Offscreen screenshots of the Phase 0 window for the review gate: out/screens/*.png.
+"""Offscreen screenshots for the review gates: out/screens/*.png. Phase 0: the window, dialogs and palette. Phase 1:
+for the SO-100 and UR5e samples, the main window, the Robot page and the import wizard (each of its six steps).
 
     QT_QPA_PLATFORM=offscreen python scripts/screens.py
 """
@@ -12,7 +13,7 @@ os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 for k in ('XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME'):
     os.environ[k] = tempfile.mkdtemp(prefix='dexvantage-screens-')
 
-from PyQt6.QtCore import QTimer  # noqa: E402
+from PyQt6.QtCore import Qt, QTimer  # noqa: E402
 
 from dexvantage.app import make_app  # noqa: E402
 from dexvantage.core import project as P  # noqa: E402
@@ -67,4 +68,32 @@ cp.hide()
 w.workspace('review')
 shot(w, 'workspace-review.png')
 w.hide()
+
+# ---------------------------------------------------------------- Phase 1: the samples, the Robot page, the wizard
+from dexvantage.core.robot.samples import ROBOTS_DIR, sample_project  # noqa: E402
+from dexvantage.ui.dialogs.import_wizard import ImportWizard  # noqa: E402
+
+SAMPLE_FILES = {'so100': os.path.join(ROBOTS_DIR, 'trs_so_arm100', 'so_arm100.xml'),
+                'ur5e': os.path.join(ROBOTS_DIR, 'ur5e_robotiq_2f85.xml')}
+for name, path in SAMPLE_FILES.items():
+    sw = MainWindow(sample_project(name), soft_3d=True, settings=settings)
+    sw.resize(1680, 1000)
+    sw.show()
+    sw.ctx.analysis.wait(5)
+    pump()
+    sw.viewport.frame_box(*sw.scene.home_box(sw.viewport))
+    shot(sw, f'sample-{name}-main.png')
+    sw.open_page('robot')
+    sw.resizeDocks([sw.docks['bottom']], [520], Qt.Orientation.Vertical)     # room for the sliders
+    pump()
+    sw.viewport.frame_box(*sw.scene.home_box(sw.viewport))
+    shot(sw, f'sample-{name}-robot-page.png')
+    wiz = ImportWizard(sw.ctx, sw, soft_3d=True)
+    wiz.show()
+    wiz.load(path, background=False)
+    for i in range(6):
+        wiz.go(i)
+        shot(wiz, f'sample-{name}-wizard-{i + 1}.png')
+    wiz.hide()
+    sw.hide()
 QTimer.singleShot(0, app.quit)

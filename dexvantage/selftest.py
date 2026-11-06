@@ -4,6 +4,8 @@ order a new user meets them.
     project      a project built, saved as .dexv, read back with the same content hash, and summarised
     frames       quaternion and rotation conversions agree with scipy's
     mujoco       MuJoCo loads a small model and computes its kinematics (the primary kinematics engine)
+    robots       the bundled SO-100 and UR5e samples import, and MuJoCo and the independent product-of-exponentials
+                 forward kinematics agree on every link
     opencv       the chessboard detector and the PNG codec
     fonts        the bundled IBM Plex fonts load
     opengl       the shader renderer draws a frame off-screen (a warning only: the 3D view falls back to QPainter)
@@ -155,6 +157,32 @@ def _check_mujoco(S):
     return OK, f'MuJoCo {mujoco.__version__}: 2R arm forward kinematics matches the closed form ({err:.0e} m)'
 
 
+def _check_robots(S):
+    """The bundled samples import from their files, MuJoCo compiles them, and the independent product-of-exponentials
+    chain (core/robot/kinematics.py, its own XML reader) places every link where MuJoCo does at a few random poses."""
+    import numpy as np
+    from .core.robot.kinematics import PoEChain
+    from .core.robot.model import RobotModel
+    from .core.robot.samples import sample_project
+    rng = np.random.default_rng(11)
+    said, worst = [], 0.0
+    for name in ('so100', 'ur5e'):
+        p = sample_project(name)
+        r = p.robots[0]
+        model, chain = RobotModel(r, p.sources), PoEChain(r, p.sources)
+        if set(model.joint_names) != set(chain.joint_names) or set(model.link_names) - set(chain.link_names):
+            return FAIL, f'{r.name}: MuJoCo and the independent reader find different links or joints'
+        lo, hi = np.maximum(model.lower, -np.pi), np.minimum(model.upper, np.pi)
+        for q in rng.uniform(lo, hi, (5, model.nq)):
+            d = dict(zip(model.joint_names, q))
+            A, B = model.fk(q), chain.fk(np.array([d[n] for n in chain.joint_names]))
+            worst = max(worst, max(float(np.abs(A[ln] - B[ln]).max()) for ln in model.link_names))
+        said.append(f'{name} ({model.nq} joints)')
+    if worst > 1e-9:
+        return FAIL, f'MuJoCo and the product-of-exponentials chain differ by {worst:.1e} on a bundled sample'
+    return OK, f'samples {", ".join(said)} import; MuJoCo and product-of-exponentials FK agree within {worst:.0e}'
+
+
 def _check_opencv(S):
     import cv2
     import numpy as np
@@ -272,8 +300,8 @@ def _check_validation(S):
     return OK, f'{res.passed} of {len(res.checks)} checks passed (quick run, {res.seconds:.1f} s)'
 
 
-CHECKS = (('project', _check_project), ('frames', _check_frames), ('mujoco', _check_mujoco), ('opencv', _check_opencv),
-          ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
+CHECKS = (('project', _check_project), ('frames', _check_frames), ('mujoco', _check_mujoco), ('robots', _check_robots),
+          ('opencv', _check_opencv), ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
           ('software 3d', _check_software_3d), ('validation', _check_validation))
 NAMES = tuple(n for n, _ in CHECKS)
 BUNDLE_MAY_WARN = ('opengl',)

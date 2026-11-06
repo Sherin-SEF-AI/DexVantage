@@ -10,11 +10,13 @@ from __future__ import annotations
 import numpy as np
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (QAbstractItemView, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QPlainTextEdit,
-                             QScrollArea, QSlider, QTabWidget, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                             QScrollArea, QTabWidget, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from . import icons
+from ..core.jobs import MOVING_JOINTS
 from .theme import THEME, STATUS, mono, sans
-from .widgets import ScrubSpinBox, Section, StatusLine, button, hline, label, tool_button
+from .scrubber import PoseScrubber  # noqa: F401  (the joint-state timeline, re-exported for the window)
+from .widgets import ScrubSpinBox, Section, StatusLine, button, hline, label
 
 ROLE = Qt.ItemDataRole.UserRole
 
@@ -133,8 +135,8 @@ class Outliner(QWidget):
         top.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
         g = self._group('Robots', 'robot-arm', len(p.robots))
         for r in p.robots:
-            self._item(g, r.name + (' · primary' if r.primary else ''), f'{len(r.joints)} joints', ('robot', r.uid),
-                       'robot-arm')
+            nj = sum(j.get('type') in MOVING_JOINTS for j in r.joints)
+            self._item(g, r.name + (' · primary' if r.primary else ''), f'{nj} joints', ('robot', r.uid), 'robot-arm')
         g = self._group(f'Sensors · {p.variant.name}', 'camera-wide', len(p.variant.sensors))
         for s in p.variant.sensors:
             where = s.mount.parent_frame
@@ -147,7 +149,16 @@ class Outliner(QWidget):
         for o in p.workspace.objects:
             self._item(g, o.name, ', '.join(o.materials), ('object', o.uid), 'cube')
         t = p.tasks
-        self._group('Tasks', 'grasp', len(t.grasp_sets) + len(t.trajectories) + len(t.teleop_devices))
+        g = self._group('Tasks', 'grasp', len(t.grasp_sets) + len(t.trajectories) + len(t.teleop_devices))
+        for tr in t.trajectories:
+            ts = tr.get('t') or [0.0]
+            it = self._item(g, str(tr.get('name') or 'Trajectory'), f'{len(ts)} · {ts[-1] - ts[0]:.2f} s',
+                            ('trajectory', tr.get('uid')), 'timeline')
+            if it is not None:
+                r = p.robot(tr.get('robot_uid'))
+                it.setToolTip(0, f'Joint trajectory for {r.name if r else "a robot no longer in the project"}: '
+                                 f'{len(ts)} samples over {ts[-1] - ts[0]:.2f} s. Select it to play it in the pose '
+                                 'scrubber; Delete removes it.')
         self.tree.expandAll()
         self.tree.blockSignals(False)
         self._sync_sel()
@@ -174,15 +185,22 @@ class Outliner(QWidget):
 
 
 # =============================================================================== library
+# (title, icon, phase it arrives in or None when this build has it, what it holds, [(entry, action id)])
+LIBRARY_ENTRIES = {
+    'Robots': [('Import a URDF or MJCF file…', 'import_robot'),
+               ('Import from MuJoCo Menagerie…', 'import_menagerie')],
+    'Grippers': [('Import an arm whose model file includes its gripper…', 'import_robot')],
+}
 LIBRARY_GROUPS = (
-    ('Robots', 'robot-arm', 1, 'Robots are read from their official model files (URDF or MJCF). Joint limits come '
-                              'from the file; nothing is retyped.'),
+    ('Robots', 'robot-arm', None, 'Robots are read from their official model files (URDF or MJCF). Joint limits '
+                                 'come from the file; nothing is retyped.'),
     ('Cameras', 'camera-wide', 2, 'Global-shutter USB and GMSL cameras, each figure from the maker\'s datasheet with '
                                   'its source and the date it was read.'),
     ('Depth sensors', 'depth', 2, 'RealSense, ZED, OAK-D and Orbbec units: baseline, depth FOV, min-Z per resolution '
                                   'and stream modes, from datasheets only.'),
     ('Tactile sensors', 'tactile', 2, 'GelSight Mini and DIGIT: pad size, internal camera and interface.'),
-    ('Grippers', 'gripper', 1, 'From their official model files.'),
+    ('Grippers', 'gripper', None, 'From their official model files, as part of the arm\'s file (an MJCF attach or '
+                                  'a URDF fixed joint); the UR5e sample has the Robotiq 2F-85 on its flange.'),
     ('Mounts', 'bracket', 6, 'ISO 9409-1 flange adapters and 2020/4040 T-slot clamps, generated as printable STL.'),
 )
 
@@ -208,23 +226,37 @@ class LibraryPanel(QWidget):
         v.addWidget(s)
         v.addWidget(hline())
         v.addWidget(self.tree, 1)
+        self.tree.itemActivated.connect(self._activated)
         THEME.changed.connect(lambda *_: self.refill())
         self.refill()
 
     def refill(self):
         self.tree.clear()
         for title, icon, phase, text in LIBRARY_GROUPS:
-            it = QTreeWidgetItem([title, '0'])
+            it = QTreeWidgetItem([title, '' if phase is None else '0'])
             it.setIcon(0, icons.icon(icon, 12))
             it.setFont(1, mono(11))
             it.setForeground(1, THEME.color('muted'))
-            it.setToolTip(0, f'{text}\nArrives in Phase {phase}.')
-            note = QTreeWidgetItem([f'Arrives in Phase {phase}', ''])
-            note.setForeground(0, THEME.color('muted'))
-            note.setToolTip(0, text)
-            note.setFlags(Qt.ItemFlag.ItemIsEnabled)
-            it.addChild(note)
+            it.setToolTip(0, text if phase is None else f'{text}\nArrives in Phase {phase}.')
+            if phase is None:
+                for entry, aid in LIBRARY_ENTRIES.get(title, []):
+                    e = QTreeWidgetItem([entry, ''])
+                    e.setData(0, ROLE, aid)
+                    e.setToolTip(0, f'{text}\nDouble-click to open.')
+                    it.addChild(e)
+            else:
+                note = QTreeWidgetItem([f'Arrives in Phase {phase}', ''])
+                note.setForeground(0, THEME.color('muted'))
+                note.setToolTip(0, text)
+                note.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                it.addChild(note)
             self.tree.addTopLevelItem(it)
+
+    def _activated(self, item, _col=0):
+        win = self.ctx.window
+        a = getattr(win, 'actions_by_id', {}).get(item.data(0, ROLE) or '') if win is not None else None
+        if a is not None and a.isEnabled():
+            a.trigger()
 
 
 # =============================================================================== inspector
@@ -260,6 +292,12 @@ class Inspector(QWidget):
         elif kind == 'sensor' and obj is not None:
             self.titleChanged.emit('Sensor')
             v.addWidget(self._sensor(obj))
+        elif kind == 'robot' and obj is not None:
+            self.titleChanged.emit('Robot')
+            v.addWidget(self._robot(obj))
+        elif kind == 'trajectory' and obj is not None:
+            self.titleChanged.emit('Trajectory')
+            v.addWidget(self._trajectory(obj))
         elif kind == 'object' and obj is not None:
             self.titleChanged.emit('Task object')
             sec = Section(obj.name)
@@ -292,6 +330,69 @@ class Inspector(QWidget):
         sec.row('Variant', p.variant.name)
         sec.row('Voxel', f'{p.analysis.voxel_mm:g} mm', tip='Coverage voxel size (default 5 mm; 1–2 mm only inside a '
                                                              'refinement region)')
+        return sec
+
+    def _robot(self, r):
+        """A robot: its name (editable), role, source file and licence, links and joints, and its tags."""
+        p = self.ctx.store.project
+        sec = Section(r.name)
+        name = QLineEdit(r.name)
+
+        def rename():
+            t = name.text().strip()
+            if t and t != r.name:
+                uid = r.uid
+                self.ctx.store.edit('robots', lambda q: setattr(q.robot(uid), 'name', t), f'Renamed the robot to {t}')
+        name.editingFinished.connect(rename)
+        sec.row('Name', name)
+
+        def kv(k, v, tip=''):
+            w = label(v, muted=True, mono_=True, small=True)
+            w.setToolTip(tip or v)
+            sec.row(k, w)
+        kv('Role', 'primary' if r.primary else 'further robot',
+           'The primary robot\'s base is the world frame' if r.primary else
+           'Placed by its base pose in the world frame')
+        src = r.source
+        kv('File', f'{(src.file or "").rsplit("/", 1)[-1] or "—"} ({(src.kind or "?").upper()})',
+           f'sha256 {src.sha256}' if src.sha256 else '')
+        lic = getattr(src, 'license', '') or ''
+        kv('Licence', lic or 'not recorded', lic or 'Imported from a file on disk: its licence is the one that came '
+                                                    'with that file')
+        nj = sum(j.get('type') in MOVING_JOINTS for j in r.joints)
+        kv('Links', str(len(r.links)))
+        kv('Moving joints', str(nj))
+        grip = [j['name'] for j in r.joints if j.get('gripper')]
+        kv('Gripper joints', ', '.join(grip) or 'none tagged')
+        kv('Gripper frame', r.gripper_frame or 'none: IK drag uses the last link')
+        kv('Fingertips', ', '.join(r.fingertip_frames) or 'none tagged')
+        kv('Contact pads', str(len(r.contact_pads)))
+        trajs = [t for t in p.tasks.trajectories if t.get('robot_uid') == r.uid]
+        kv('Trajectories', str(len(trajs)))
+        win = self.ctx.window
+        if win is not None and hasattr(win, 'open_page'):
+            b = button('Joint sliders', icon_name='joint', tip='Move its joints and read the gripper frame\'s pose, '
+                                                               'manipulability and self-collision')
+            b.clicked.connect(lambda: win.open_page('robot'))
+            sec.add(b)
+        if src.note:
+            sec.add(label(src.note, muted=True, wrap=True, small=True))
+        return sec
+
+    def _trajectory(self, tr):
+        """A joint trajectory q(t): its robot, samples, duration and joints (values as the CSV gave them)."""
+        p = self.ctx.store.project
+        ts = tr.get('t') or [0.0]
+        r = p.robot(tr.get('robot_uid'))
+        sec = Section(str(tr.get('name') or 'Trajectory'))
+        joints = list(tr.get('joints') or [])
+        for k, v in (('Robot', r.name if r else 'not in the project'), ('Samples', str(len(ts))),
+                     ('Duration', f'{ts[-1] - ts[0]:.3f} s'), ('Joints', f'{len(joints)}: {", ".join(joints)}')):
+            w = label(v, muted=True, mono_=True, small=True)
+            w.setToolTip(v)
+            sec.row(k, w)
+        sec.add(label('Play or scrub it under the 3D view. Joints the file does not name keep their current value.',
+                      muted=True, wrap=True, small=True))
         return sec
 
     def _vec(self, sec, title, values, apply, minimum=None):
@@ -472,8 +573,15 @@ class AnalysisPanel(QWidget):
         self.tabs.addTab(self.log, 'Design log')
         v.addWidget(self.tabs)
 
+        self.extra = {}
+
+    def add_page(self, pid, title, widget):
+        self.extra[pid] = widget
+        self.tabs.insertTab(self.tabs.count() - 1, widget, title)      # the design log stays last
+
     def show_tab(self, name):
-        self.tabs.setCurrentWidget({'summary': self.summary, 'log': self.log}.get(name, self.summary))
+        w = {'summary': self.summary, 'log': self.log, **self.extra}.get(name, self.summary)
+        self.tabs.setCurrentWidget(w)
 
 
 # =============================================================================== assistant
@@ -495,52 +603,6 @@ class AssistantPanel(QWidget):
                                 'The assistant reads the page you are on and cites the figures shown; it never invents '
                                 'numbers. It arrives with the MCP server in Phase 10 (Groq or Claude, with keys kept '
                                 'in the system keyring).'), 1)
-
-
-# =============================================================================== pose scrubber
-class PoseScrubber(QWidget):
-    """The joint-state timeline along the 3D view's bottom edge: scrubs a trajectory or a grasp set."""
-
-    def __init__(self, ctx):
-        super().__init__()
-        self.ctx = ctx
-        self.setFixedHeight(30)
-        self.setObjectName('panel')
-        h = QHBoxLayout(self)
-        h.setContentsMargins(6, 0, 8, 0)
-        h.setSpacing(4)
-        self.b_back = tool_button('step-back', 'Previous pose', size=22, icon_size=12)
-        self.b_play = tool_button('play', 'Play', size=22, icon_size=12)
-        self.b_step = tool_button('step', 'Next pose', size=22, icon_size=12)
-        self.slider = QSlider(Qt.Orientation.Horizontal)
-        self.slider.setRange(0, 0)
-        self.where = label('', muted=True, small=True)
-        self.where.setFont(mono(11))
-        for w in (self.b_back, self.b_play, self.b_step):
-            h.addWidget(w)
-        h.addWidget(self.slider, 1)
-        h.addWidget(self.where)
-        ctx.store.changed.connect(lambda _s: self.refresh())
-        ctx.store.project_replaced.connect(self.refresh)
-        self.refresh()
-
-    def refresh(self):
-        p = self.ctx.store.project
-        n = sum(len(t.get('q') or []) for t in p.tasks.trajectories)
-        on = bool(p.robots) and n > 0
-        for w in (self.b_back, self.b_play, self.b_step, self.slider):
-            w.setEnabled(on)
-        self.where.setText('pose 0 / 0' if not on else f'pose 1 / {n}')
-        self.setToolTip('' if on else 'No trajectory or grasp set yet: the scrubber moves through joint states once a '
-                                      'robot is imported (Phase 1).')
-
-    def paintEvent(self, e):
-        from PyQt6.QtGui import QPainter
-        p = QPainter(self)
-        p.fillRect(self.rect(), THEME.color('panel'))
-        p.setPen(THEME.color('hair'))
-        p.drawLine(0, 0, self.width(), 0)
-        p.end()
 
 
 __all__ = ['Outliner', 'LibraryPanel', 'Inspector', 'CameraViewPanel', 'AnalysisPanel', 'AssistantPanel',

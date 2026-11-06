@@ -198,9 +198,17 @@ class Ctx:
         self.cache = {}
 
     def sample(self):
-        """The built-in sample project (a fresh copy per call). Phase 0 has no robot samples yet: an empty project."""
-        from ..core.project import blank_project
-        return blank_project('Validation (built in)')
+        """The built-in sample project (a fresh copy per call): the bundled SO-100 sample with the UR5e + Robotiq
+        2F-85 sample's robot added, so the project-dependent checks see both bundled robots."""
+        from ..core.robot.samples import sample_project
+        p = sample_project('so100')
+        ur = sample_project('ur5e')
+        for r in ur.robots:
+            r.primary = False
+        p.robots += ur.robots
+        p.sources.update(ur.sources)
+        p.name = 'Validation (built in: the SO-100 and UR5e samples)'
+        return p
 
     def rng(self, cid: str, k: int = 0) -> np.random.Generator:
         """The generator of check cid: seeded with the suite's seed and the check's id, so a check's draws do not

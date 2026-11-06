@@ -52,7 +52,8 @@ version = { attr = "dexvantage.__version__" }
 include = ["dexvantage", "dexvantage.*"]
 
 [tool.setuptools.package-data]
-dexvantage = ["resources/fonts/*.ttf", "resources/fonts/OFL.txt", "resources/icons/*.png", "resources/*.json"]
+dexvantage = ["resources/fonts/*.ttf", "resources/fonts/OFL.txt", "resources/icons/*.png", "resources/*.json",
+              "resources/robots/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

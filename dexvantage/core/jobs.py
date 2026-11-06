@@ -23,6 +23,7 @@ import numpy as np
 STUDIES: dict = {}
 CACHE_SIZE = 32
 DENSE_LIMIT = 50_000_000         # voxels: above this a dense grid is not built (memory and time); adaptive refinement
+MOVING_JOINTS = ('revolute', 'continuous', 'prismatic')     # joint types that are entries of q (ball/free are held)
 
 
 @dataclass
@@ -31,13 +32,32 @@ class StudyInfo:
     title: str
     fn: object
     quick: bool = True            # quick enough to re-run after each edit (live)
+    batch: str = ''               # batch flag without dashes ('grasp-study' → --grasp-study OUT.json); '' = none
+    needs_robot: bool = False     # refuses (a clear message) on a project without a robot
 
 
-def study(sid: str, title: str, quick: bool = True):
+def study(sid: str, title: str, quick: bool = True, batch: str = '', needs_robot: bool = False):
+    """Register a study. fn(project, ctx) -> dict (JSON-able). batch: the CLI flag that writes its result."""
     def deco(fn):
-        STUDIES[sid] = StudyInfo(sid, title, fn, quick)
+        STUDIES[sid] = StudyInfo(sid, title, fn, quick, batch, needs_robot)
         return fn
     return deco
+
+
+def load_studies():
+    """Import every module of core/studies/ (and any other module that registers studies) once."""
+    import importlib
+    import os
+    import pkgutil
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'studies')
+    if os.path.isdir(base):
+        for m in pkgutil.iter_modules([base]):
+            if not m.name.startswith('_'):
+                importlib.import_module(f'{__package__}.studies.{m.name}')
+
+
+class StudyError(ValueError):
+    """A study cannot run on this project; the message says why in plain words (shown in the UI, never a traceback)."""
 
 
 @dataclass
@@ -90,8 +110,12 @@ class ResultCache:
 def run_study(sid: str, project, ctx: Ctx | None = None, cache: ResultCache | None = None) -> dict:
     """Run study sid on project (a snapshot), from the cache when it has the same inputs. The result carries
     'schema', 'study', 'seconds', 'cancelled' and 'cached'."""
+    if sid not in STUDIES:
+        load_studies()
     info = STUDIES[sid]
     ctx = ctx or Ctx()
+    if info.needs_robot and not project.robots:
+        raise StudyError(f'{info.title} needs a robot: import one first (Robot ▸ Import robot…) or open a sample.')
     key = cache.key(sid, project) if cache is not None else None
     if key is not None:
         hit = cache.get(key)
@@ -113,7 +137,7 @@ def voxel_count(size_m, voxel_m: float) -> int:
     return int(np.prod([max(1, math.ceil(float(s) / voxel_m - 1e-9)) for s in size_m]))
 
 
-@study('summary', 'Project summary')
+@study('summary', 'Project summary', batch='')
 def summary(project, ctx: Ctx) -> dict:
     """What the project holds, and the dense voxel counts of its task volumes."""
     a = project.analysis
@@ -131,7 +155,7 @@ def summary(project, ctx: Ctx) -> dict:
     return {
         'project': project.name,
         'robots': len(project.robots),
-        'joints': sum(len(r.joints) for r in project.robots),
+        'joints': sum(j.get('type') in MOVING_JOINTS for r in project.robots for j in r.joints),     # those in q
         'sensors': {'total': len(sensors), **{k: sum(s.kind == k for s in sensors) for k in ('camera', 'depth',
                                                                                               'tactile')}},
         'sensors_on_links': sum(s.mount.on_link for s in sensors),

@@ -28,13 +28,14 @@ from .suite import (SCHEMA, MODELS, MODEL_IDS, ValidationSettings, ValidationRes
                     environment, available_models)
 from . import report as _report
 
-FRAME = 'world: the primary robot\'s base, REP-103 (x forward, y left, z up), metres; each check states its error\'s unit'
+FRAME = ('world: the primary robot\'s base, REP-103 (x forward, y left, z up), metres; '
+         'each check states its error\'s unit')
 LIMITS_TEXT = ('The suite checks the models against references for the cases it builds; it does not show that a '
                'model describes a real robot, lens or sensor. Monte Carlo checks are statistical: their tolerance '
                'is 4.5 standard errors of the estimated spread, at a fixed seed.')
 
-__all__ = ['SCHEMA', 'MODELS', 'MODEL_IDS', 'available_models', 'ValidationSettings', 'ValidationResult', 'Check',
-           'check', 'specs',
+__all__ = ['SCHEMA', 'MODELS', 'MODEL_IDS', 'available_models', 'environment', 'ValidationSettings',
+           'ValidationResult', 'Check', 'check', 'specs',
            'run', 'summary', 'to_doc', 'files', 'export', 'catalogue', 'REFERENCES', 'cite', 'exit_code']
 
 

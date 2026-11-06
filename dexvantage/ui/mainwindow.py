@@ -79,6 +79,7 @@ class MainWindow(QMainWindow):
         self._build_docks()
         self._build_actions()
         self._build_menus()
+        self._build_pages()
         self._build_toolbar()
         self._build_statusbar()
         self._wire()
@@ -225,8 +226,11 @@ class MainWindow(QMainWindow):
         self.actions_by_id[f'theme_{self.ctx.settings.value("ui/theme", "dark")}'].setChecked(True)
         A('frames_help', 'Coordinate frames', self.frames_help, category='Help', icon='axes')
         # robot
-        A('import_robot', 'Import robot…', category='Robot', icon='robot-arm', phase=1,
-          tip='URDF or MJCF (USD optional), with a mesh check, joint tagger and contact-pad tagger.')
+        A('import_robot', 'Import robot…', lambda: self.import_robot(), category='Robot', icon='robot-arm',
+          tip='A URDF or MuJoCo MJCF file, with the meshes it names. The first robot becomes the primary one.')
+        A('import_menagerie', 'Import from MuJoCo Menagerie…',
+          lambda: __import__('dexvantage.ui.dialogs.menagerie', fromlist=['open_dialog']).open_dialog(self),
+          category='Robot', icon='robot-arm', tip='Download a Menagerie model, read its own licence, accept, import.')
         A('joint_sliders', 'Joint sliders', category='Robot', icon='joint', phase=1)
         A('ik_drag', 'Drag the end effector (IK)', category='Robot', icon='gripper', phase=1)
         # sensors
@@ -275,8 +279,11 @@ class MainWindow(QMainWindow):
     def _build_menus(self):
         mb = self.menuBar()
 
+        self.menus = {}
+
         def menu(title, ids):
             m = mb.addMenu(title)
+            self.menus[title.replace('&', '')] = m
             for i in ids:
                 if i == '-':
                     m.addSeparator()
@@ -291,11 +298,19 @@ class MainWindow(QMainWindow):
         self.m_recent = self.m_file.addMenu('Open recent')
         self.m_file.insertMenu(self.actions_by_id['save'], self.m_recent)
         self.m_recent.aboutToShow.connect(self._fill_recent)
+        self.m_samples = self.m_file.addMenu('Open sample')
+        self.m_file.insertMenu(self.actions_by_id['save'], self.m_samples)
+        from ..core.robot.samples import list_samples
+        for smp in list_samples():
+            a = self.m_samples.addAction(smp['title'], lambda n=smp['name']: self.open_sample(n))
+            a.setEnabled(smp['available'])
+            a.setToolTip(f'dexvantage --sample {smp["name"]}' if smp['available'] else
+                         f'Arrives in Phase {smp["phase"]}.')
         menu('&Edit', ['undo', 'redo', '-', 'palette', 'find', '-', 'delete'])
         menu('&View', ['view_persp', 'view_top', 'view_front', 'view_side', 'frame_all', '-',
                        ('Overlays', [f'ov_{k}' for k in OVERLAYS]), ('Theme', ['theme_dark', 'theme_light',
                                                                              'theme_system'])])
-        menu('&Robot', ['import_robot', '-', 'joint_sliders', 'ik_drag'])
+        menu('&Robot', ['import_robot', 'import_menagerie', '-', 'joint_sliders', 'ik_drag'])
         menu('&Sensors', ['add_camera', '-', 'new_device'])
         menu('W&orkspace', ['add_volume', 'add_object'])
         menu('&Analysis', ['run_summary', 'live', 'cancel_jobs', '-', 'coverage', 'depth_validity', 'grasp_study',
@@ -306,6 +321,55 @@ class MainWindow(QMainWindow):
         menu('E&xport', ['export_summary', 'export_formats'])
         menu('&Window', [f'ws_{k}' for k in WORKSPACE_TITLES] + ['-', 'ws_save', 'ws_reset', '-', 'assistant'])
         menu('&Help', ['frames_help', 'shortcuts', '-', 'validate', '-', 'about'])
+
+    def _build_pages(self):
+        """Every registered analysis page (ui/pages): a tab in the Analysis dock and a command that opens it."""
+        from .pages import load_pages
+        self.pages = {}
+        for info in load_pages():
+            try:
+                w = info.cls(self.ctx)
+            except Exception:                           # noqa: BLE001 — one broken page must not stop the window
+                traceback.print_exc()
+                continue
+            self.pages[info.id] = w
+            self.bottom.add_page(info.id, info.title, w)
+            a = self.actions_by_id.get(info.action_id or '')
+            if a is not None:
+                a.setEnabled(True)
+                d = dict(a.data() or {})
+                d['phase'] = None
+                a.setData(d)
+                a.setToolTip(info.title)
+                a.triggered.connect(lambda _=False, pid=info.id: self.open_page(pid))
+            else:
+                a = self.act(f'page_{info.id}', info.title, lambda pid=info.id: self.open_page(pid), info.shortcut,
+                             info.icon, category=info.menu)
+                m = self.menus.get(info.menu) or self.menus['Analysis']
+                m.addAction(a)
+
+    def open_page(self, pid):
+        self.docks['bottom'].show()
+        self.bottom.show_tab(pid)
+        w = self.pages.get(pid)
+        if w is not None and hasattr(w, 'activate'):
+            w.activate()
+        self.viewport.update()
+
+    def current_page(self):
+        w = self.bottom.tabs.currentWidget()
+        return w if w in self.pages.values() else None
+
+    def page_overlays(self, vp) -> list:
+        """The current analysis page's 3D overlays (LineDraw / TriDraw items)."""
+        w = self.current_page()
+        if w is None or not self.docks['bottom'].isVisible():
+            return []
+        try:
+            return list(w.overlays(vp) or [])
+        except Exception:                               # noqa: BLE001 — an overlay must not take the view down
+            traceback.print_exc()
+            return []
 
     def _build_toolbar(self):
         tb = QToolBar('Main')
@@ -382,6 +446,7 @@ class MainWindow(QMainWindow):
         an.failed.connect(self._study_failed)
         an.stale_changed.connect(lambda _s: self._update_state())
         self.ctx.overlays_changed.connect(self.viewport.update)
+        self.bottom.tabs.currentChanged.connect(lambda _i: self.viewport.update())
         THEME.changed.connect(lambda *_: self.viewport.update())
 
     # ------------------------------------------------------------------ status
@@ -395,7 +460,8 @@ class MainWindow(QMainWindow):
 
     def _on_selection(self):
         o = self.store.selected()
-        self.sel_label.setText(f'Selected: {o.name}' if o is not None else '')
+        name = o.get('name') if isinstance(o, dict) else getattr(o, 'name', None)
+        self.sel_label.setText(f'Selected: {name}' if o is not None else '')
 
     def _update_state(self):
         an = self.ctx.analysis
@@ -428,6 +494,8 @@ class MainWindow(QMainWindow):
         self.current_workspace = name
         saved = self.ctx.settings.value(f'workspaces/{name}')
         docks, tab, _ = WORKSPACES[name]
+        from .pages import PAGES
+        tab = next((pid for pid in getattr(self, 'pages', {}) if PAGES[pid].workspace == name), tab)
         if saved is not None and self.restoreState(saved):
             pass
         else:
@@ -495,6 +563,36 @@ class MainWindow(QMainWindow):
         return bytes(buf)
 
     # ------------------------------------------------------------------ edits
+    def import_robot(self, path=None) -> bool:
+        """Robot ▸ Import robot…: read a URDF or MJCF and its meshes into the project, one undo step. Without a path
+        the import wizard opens (ui/dialogs/import_wizard.py: mesh check, units, joint and gripper taggers)."""
+        from ..core.robot import import_robot
+        if not path:
+            from .dialogs.import_wizard import ImportWizard
+            return ImportWizard.run(self)
+        try:
+            robot, sources = import_robot(path)
+        except P.ProjectFormatError as e:
+            QMessageBox.warning(self, 'Could not import the robot', str(e))
+            return False
+        except Exception as e:                          # noqa: BLE001 — explained, the traceback logged
+            traceback.print_exc()
+            QMessageBox.warning(self, 'Could not import the robot',
+                                f'{os.path.basename(path)} could not be read ({type(e).__name__}). Details are in '
+                                'the log.')
+            return False
+
+        def fn(p):
+            robot.primary = not p.robots          # the first robot is the primary one: its base is the world frame
+            p.robots.append(robot)
+            p.sources.update(sources)
+        self.store.edit(['robots', 'sources'], fn, f'Imported robot {robot.name}')
+        self.store.select(('robot', robot.uid))
+        self.frame_all()
+        nj = len(self.store.q.get(robot.uid, ()))
+        self.msg(f'Imported {robot.name}: {len(robot.links)} links, {nj} moving joints')
+        return True
+
     def add_volume(self):
         def fn(p):
             v = P.Volume(name=f'Task volume {len(p.workspace.volumes) + 1}', kind='custom')
@@ -547,9 +645,44 @@ class MainWindow(QMainWindow):
         elif kind == 'object':
             st.edit('workspace', lambda p: setattr(p.workspace, 'objects', [v for v in p.workspace.objects
                                                                               if v.uid != uid]), f'Deleted {o.name}')
+        elif kind == 'robot':
+            if not self._delete_robot(o):
+                return
+        elif kind == 'trajectory':
+            st.edit('tasks', lambda p: setattr(p.tasks, 'trajectories', [t for t in p.tasks.trajectories
+                                                                          if t.get('uid') != uid]),
+                    f'Deleted trajectory {o.get("name")}')
         else:
             return
         st.select(())
+
+    def _delete_robot(self, robot) -> bool:
+        """Delete a robot with its stored files and trajectories (one undo step); refused, with the reason, while it is
+        locked or a sensor in any variant is mounted on it."""
+        st = self.store
+        uid = robot.uid
+        if robot.locked:
+            self.msg(f'{robot.name} is locked: unlock it to delete it.', 6000)
+            return False
+        mounted = [s.name for v in st.project.variants for s in v.sensors if s.mount.robot_uid == uid]
+        if mounted:
+            one = len(mounted) == 1
+            QMessageBox.information(self, 'Robot not deleted',
+                                    f'{", ".join(mounted[:3])}{" …" if len(mounted) > 3 else ""} '
+                                    f'{"is" if one else "are"} mounted on {robot.name}: delete '
+                                    f'{"it" if one else "them"} or mount {"it" if one else "them"} elsewhere first, '
+                                    'then delete the robot.')
+            return False
+
+        def fn(p):
+            was_primary = robot.primary
+            p.robots = [r for r in p.robots if r.uid != uid]
+            p.sources = {k: v for k, v in p.sources.items() if not k.startswith(uid + '/')}
+            p.tasks.trajectories = [t for t in p.tasks.trajectories if t.get('robot_uid') != uid]
+            if was_primary and p.robots:
+                p.robots[0].primary = True
+        st.edit(['robots', 'sources', 'tasks'], fn, f'Deleted {robot.name}')
+        return True
 
     # ------------------------------------------------------------------ files
     def recent_files(self):
@@ -577,6 +710,26 @@ class MainWindow(QMainWindow):
         if r == QMessageBox.StandardButton.Save:
             return self.save()
         return r == QMessageBox.StandardButton.Discard
+
+    def open_sample(self, name) -> bool:
+        """File ▸ Open sample: a bundled sample project (core/robot/samples.py), unsaved."""
+        from ..core.robot.samples import sample_project
+        if not self._maybe_save():
+            return False
+        try:
+            proj = sample_project(name)
+        except P.ProjectFormatError as e:
+            QMessageBox.warning(self, 'Could not open the sample', str(e))
+            return False
+        except Exception as e:                          # noqa: BLE001 — explained, the traceback logged
+            traceback.print_exc()
+            QMessageBox.warning(self, 'Could not open the sample',
+                                f'The sample could not be built ({type(e).__name__}). Details are in the log.')
+            return False
+        self.store.set_project(proj)
+        self.frame_all()
+        self.msg(f'Opened the {proj.name}: save it under a name of your own to keep changes.', 6000)
+        return True
 
     def new_project(self):
         if not self._maybe_save():

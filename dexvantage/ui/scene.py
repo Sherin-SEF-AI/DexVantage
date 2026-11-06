@@ -1,8 +1,9 @@
 """What the 3D view draws: the SceneProvider the viewport asks for meshes, lines and overlays (ui/viewport3d.py).
 
-Phase 0 draws the world frame (REP-103 axes at the primary robot's base), the floor grid, the task volumes, the task
-objects and the sensors mounted on static frames (as a small body and a frustum outline). Robots, link-mounted sensors
-(posed at the current joint state) and the study overlays arrive with the phases that build them.
+It draws the world frame (REP-103 axes at the primary robot's base), the floor grid, the task volumes, the task
+objects, every robot posed at the store's joint state (store.q) as the lit and shadowed mesh(), and the sensors (as a
+small body and a frustum outline): those on static frames where they are, those on a link at the link's pose for the
+current q composed with the mount pose.
 
 The provider interface follows Vantage ui/scene.py, so the ported viewport, renderer and navigation work unchanged.
 """
@@ -13,8 +14,9 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtGui import QColor
 
 from ..core.frames import quat_to_matrix
+from ..core.robot.model import RobotModelError, get_model
 from .theme import THEME
-from .viewport3d import LineDraw, TriDraw
+from .viewport3d import LineDraw, MeshDraw, TriDraw
 
 FRUSTUM_DEPTH = 0.12              # m: how far the sensor glyph's outline reaches (a symbol, not the field of view)
 GLYPH_FOV = (60.0, 45.0)          # degrees: the glyph's shape until a lens model is assigned (Phase 2)
@@ -48,21 +50,76 @@ class SceneProvider(QObject):
         ctx.store.changed.connect(lambda _s: self.changed.emit())
         ctx.store.project_replaced.connect(self.changed.emit)
         ctx.store.selection_changed.connect(self.changed.emit)
+        ctx.store.pose_changed.connect(lambda _uid: self.changed.emit())
         THEME.changed.connect(lambda *_: self.changed.emit())
+        self._mesh_key = None
+        self._mesh_draw = None
+        self._mesh_version = 0
+        self._reported: set = set()
 
     @property
     def project(self):
         return self.ctx.store.project
 
     # ---------------------------------------------------------------- geometry
+    def robot_models(self) -> list:
+        """[(robot, RobotModel, q)] for every robot that compiles, q the store's joint state (else its home)."""
+        out = []
+        for r in self.project.robots:
+            try:
+                m = get_model(self.project, r.uid)
+            except RobotModelError as e:
+                if (r.uid, str(e)) not in self._reported:          # said once, not on every frame
+                    self._reported.add((r.uid, str(e)))
+                    print('Robot not drawn:', e)
+                continue
+            q = self.ctx.store.q.get(r.uid)
+            out.append((r, m, m.home if q is None or len(q) != m.nq else q))
+        return out
+
     def mesh(self):
-        return None                         # the posed robot meshes (Phase 1)
+        """Every robot's visual meshes posed at store.q, one MeshDraw (cached until q or the project changes)."""
+        rm = self.robot_models()
+        # the shared models stay the same objects until a robot's files, records or base change (get_model's cache)
+        key = tuple((m, q.tobytes()) for _r, m, q in rm)
+        if key == self._mesh_key:
+            return self._mesh_draw
+        tris, nrms, cols = [], [], []
+        for _r, m, q in rm:
+            if not m.n_triangles:
+                continue
+            t, n, _li = m.posed_triangles(q)
+            tris.append(t)
+            nrms.append(n)
+            cols.append(m.triangle_rgba())
+        self._mesh_key = key
+        if not tris:
+            self._mesh_draw = None
+            return None
+        self._mesh_version += 1
+        rgba = np.concatenate(cols)
+        self._mesh_draw = MeshDraw(np.concatenate(tris).astype(np.float32), np.concatenate(nrms).astype(np.float32),
+                                   rgba[:, :3].astype(float), rgba[:, 3].astype(float), version=self._mesh_version)
+        return self._mesh_draw
 
     def ground(self):
         return None
 
     def static_sensors(self):
         return [s for s in self.project.variant.sensors if s.enabled and not s.mount.on_link]
+
+    def posed_sensors(self) -> list:
+        """[(sensor, R, t)] of every enabled sensor that can be placed: static ones at their mount pose, link-mounted
+        ones at the link's pose for the current q composed with the mount pose (skipped while their robot or link is
+        missing)."""
+        out = []
+        for s in self.project.variant.sensors:
+            if not s.enabled:
+                continue
+            p = self._sensor_pose(s)
+            if p is not None:
+                out.append((s, *p))
+        return out
 
     def lines(self, vp):
         out = []
@@ -80,9 +137,8 @@ class SceneProvider(QObject):
                 on = sel[:2] == ('volume', v.uid)
                 out.append(LineDraw(box_edges(lo, hi), THEME.color('ink' if on else 'ink2', 0.95 if on else 0.6),
                                     1.6 if on else 1.0, dash=not on and v.refine, segments=True, dash_len=0.02))
-        for s in self.static_sensors():
+        for s, R, t in self.posed_sensors():
             col = THEME.cam(s.slot)
-            R, t = self._sensor_pose(s)
             hx = np.tan(np.radians(GLYPH_FOV[0] / 2)) * FRUSTUM_DEPTH
             hy = np.tan(np.radians(GLYPH_FOV[1] / 2)) * FRUSTUM_DEPTH
             # body frame: x forward (the optical axis), y left, z up
@@ -91,6 +147,21 @@ class SceneProvider(QObject):
             segs = [[t, f] for f in far] + [[far[i], far[(i + 1) % 4]] for i in range(4)]
             on = sel[:2] == ('sensor', s.uid)
             out.append(LineDraw(np.array(segs), col, 1.8 if on else 1.2, segments=True))
+        out += [d for d in self._extra(vp) if isinstance(d, LineDraw)]
+        return out
+
+    def _extra(self, vp) -> list:
+        """Draw items from the registered sources (ctx.overlay_sources: fn(vp) -> [LineDraw | TriDraw]) and the
+        current analysis page's overlays."""
+        out = []
+        for fn in list(getattr(self.ctx, 'overlay_sources', [])):
+            try:
+                out += list(fn(vp) or [])
+            except Exception as ex:                      # noqa: BLE001
+                print('3D overlay failed:', ex)
+        win = self.ctx.window
+        if win is not None and hasattr(win, 'page_overlays'):
+            out += win.page_overlays(vp)
         return out
 
     def _grid_lines(self):
@@ -101,7 +172,17 @@ class SceneProvider(QObject):
         return [LineDraw(np.array(segs), THEME.color('ink', 0.08), 1.0, segments=True)]
 
     def _sensor_pose(self, s):
-        return quat_to_matrix(s.mount.pose.quaternion), np.asarray(s.mount.pose.position, float)
+        """(R, t) of the sensor body frame in the world, or None when its link cannot be posed."""
+        R, t = quat_to_matrix(s.mount.pose.quaternion), np.asarray(s.mount.pose.position, float)
+        if not s.mount.on_link:
+            return R, t
+        try:
+            m = get_model(self.project, s.mount.robot_uid)
+            q = self.ctx.store.q.get(s.mount.robot_uid)
+            T = m.link_pose(m.home if q is None or len(q) != m.nq else q, s.mount.parent_frame)
+        except (RobotModelError, KeyError):
+            return None
+        return T[:3, :3] @ R, T[:3, :3] @ t + T[:3, 3]
 
     def tris_extra(self, vp):
         out = []
@@ -122,11 +203,11 @@ class SceneProvider(QObject):
             on = self.ctx.store.sel[:2] == ('object', o.uid)
             out.append(TriDraw(tri, np.tile(base, (len(tri), 1)),
                                outline=tuple(THEME.color('ink').getRgbF()) if on else None))
-        for s in self.static_sensors():
-            R, t = self._sensor_pose(s)
+        for s, R, t in self.posed_sensors():
             tri = box_tris((-0.02, -0.045, -0.015), (0.0, 0.045, 0.015), R, t)
             col = np.array(THEME.cam(s.slot).getRgbF())
             out.append(TriDraw(tri, np.tile(col, (len(tri), 1))))
+        out += [d for d in self._extra(vp) if isinstance(d, TriDraw)]
         return out
 
     def render_style(self, vp):
@@ -152,31 +233,48 @@ class SceneProvider(QObject):
         p = self.project
         n = len(p.variant.sensors)
         if not p.robots:
-            return f'{p.variant.name} · no robot yet: Robot ▸ Import arrives in Phase 1 · {n} sensors'
-        return f'{p.variant.name} · {len(p.robots)} robots · {n} sensors'
+            return f'{p.variant.name} · no robot yet: Robot ▸ Import robot… · {n} sensors'
+        nj = sum(m.nq for _r, m, _q in self.robot_models())
+        nr = len(p.robots)
+        return (f'{p.variant.name} · {nr} robot{"s" if nr != 1 else ""} · {nj} joint{"s" if nj != 1 else ""} · '
+                f'{n} sensors')
 
     def overlay(self, p, vp):
-        return None
+        ik = getattr(self.ctx, 'ik_drag', None)
+        if ik is not None:
+            ik.paint(p, vp)
 
     def home_box(self, vp):
-        lo, hi = np.array([-0.3, -0.6, 0.0]), np.array([0.9, 0.6, 0.8])
-        for v in self.project.workspace.volumes:
-            a, b = v.bounds()
-            lo, hi = np.minimum(lo, a), np.maximum(hi, b)
+        """What the frame button shows: the robots at q, the task volumes and the sensors; the default 1.2 m cell only
+        while there are no robots or volumes (an SO-100 is 0.4 m tall and would be lost in it)."""
+        boxes = [v.bounds() for v in self.project.workspace.volumes]
+        boxes += [m.bounds(q) for _r, m, q in self.robot_models()]
+        if not boxes:
+            return np.array([-0.3, -0.6, 0.0]), np.array([0.9, 0.6, 0.8]), 1.05
+        boxes += [(t, t) for _s, _R, t in self.posed_sensors()]
+        lo = np.min([np.asarray(a, float) for a, _ in boxes], axis=0)
+        hi = np.max([np.asarray(b, float) for _, b in boxes], axis=0)
+        lo[2] = min(lo[2], 0.0)                                   # keep the floor in view
         return lo, hi, 1.05
 
     def pick_point(self, vp, pos):
         return None
 
     # ---------------------------------------------------------------- interaction
+    # IK drag (ui/ikdrag.py) sees the mouse first while its mode is on
     def mouse_press(self, vp, e):
-        return False
+        ik = getattr(self.ctx, 'ik_drag', None)
+        return bool(ik is not None and ik.press(vp, e))
 
     def mouse_move(self, vp, e):
-        pass
+        ik = getattr(self.ctx, 'ik_drag', None)
+        if ik is not None:
+            ik.move(vp, e)
 
     def mouse_release(self, vp, e):
-        pass
+        ik = getattr(self.ctx, 'ik_drag', None)
+        if ik is not None:
+            ik.release(vp, e)
 
     def hover(self, vp, pos):
         win = self.ctx.window
@@ -197,7 +295,8 @@ class SceneProvider(QObject):
         pass
 
     def key_press(self, vp, e):
-        return False
+        ik = getattr(self.ctx, 'ik_drag', None)
+        return bool(ik is not None and ik.key(vp, e))
 
     def drag_enter(self, vp, e):
         return False

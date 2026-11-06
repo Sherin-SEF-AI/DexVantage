@@ -29,3 +29,4 @@ scripts/video_*.py
 .DS_Store
 .claude/
 scripts/demo-*.sh
+MUJOCO_LOG.TXT

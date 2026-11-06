@@ -44,6 +44,21 @@ A `.dexv` file is a zip archive (written atomically: a `.part` file renamed over
 Units are SI (metres; joint values in radians); quaternions are (x, y, z, w); frames follow REP-103. A uid is ten
 lowercase hex digits. Mount tolerances default to ±1 mm and ±0.5° (labelled defaults, set per mount).
 
+## Robots (Phase 1)
+
+- `sources/<robot uid>/<path in the robot's folder>`: the robot's model file and every file it names; a file outside
+  the robot's folder is under `sources/<uid>/_ext/<name>`. `sources/<uid>/.dexvantage/refs.json` (format
+  `dexvantage.robot-refs`) maps each reference in the model files to its stored file. A Menagerie import also stores
+  the model's `sources/<uid>/LICENSE`.
+- `links`: `[{"name", "parent", "parent_joint", "mesh_keys", "collision_keys"}]`.
+- `joints`: `[{"name", "type": "revolute|continuous|prismatic|fixed|ball|free", "parent", "child", "axis",
+  "origin": {"position", "quaternion"}, "lower", "upper", "velocity", "effort"}]`, the file's own figures (`null`
+  where it states none); a gripper joint carries `"gripper": true`.
+- `home`: `{joint name: value}`; `gripper_frame` and `fingertip_frames` name links.
+- `contact_pads`: `[{"link", "name", "box": {"center": [m], "size": [m]}}]`, an axis-aligned box in the link frame.
+- `tasks.trajectories`: `[{"uid", "name", "robot_uid", "joints": [names], "t": [s], "q": [[value per joint] per
+  sample]}]` in radians and metres.
+
 ## Versions and migrations
 
 `version` is 1. A file of an older version is migrated one version at a time (`core/project.py`, `MIGRATIONS`); a

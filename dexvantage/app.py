@@ -74,6 +74,8 @@ def main(argv=None):
     ap.add_argument('--theme', choices=['dark', 'light', 'system'])
     ap.add_argument('--scale', type=float, help='UI scale, e.g. 1.15')
     ap.add_argument('--software-3d', action='store_true', help='draw the 3D view with QPainter instead of OpenGL')
+    ap.add_argument('--sample', metavar='NAME', help='open a sample project, in the window or in batch mode: so100, '
+                                                     'ur5e (aloha, panda-bimanual and g1 arrive in Phase 11)')
     from . import batch
     batch.add_arguments(ap)
     args = ap.parse_args(argv)
@@ -81,6 +83,22 @@ def main(argv=None):
     if args.self_test:
         from . import selftest
         return selftest.run()
+    if args.path and os.path.splitext(args.path)[1].lower() in ('.urdf', '.xacro', '.xml', '.usd', '.usda', '.usdc'):
+        print(f'dexvantage: {os.path.basename(args.path)} is a robot model file, not a project (.dexv). Start '
+              'DexVantage and import it with Robot ▸ Import robot…, or open a sample with --sample so100.',
+              file=sys.stderr)
+        return 2
+    if args.sample:
+        if args.path:
+            print('dexvantage: give a project file or --sample, not both', file=sys.stderr)
+            return 2
+        from .core.project import ProjectFormatError
+        from .core.robot.samples import sample_project
+        try:
+            args._project = sample_project(args.sample)        # batch._load and the window use it
+        except ProjectFormatError as e:
+            print(f'dexvantage: {e}', file=sys.stderr)
+            return 2
     if batch.wanted(args):
         return batch.run(args)
     if args.software_3d:
@@ -92,7 +110,7 @@ def main(argv=None):
     from .core.project import Project, ProjectFormatError, blank_project
     from .ui.mainwindow import MainWindow
     from .ui.viewport3d import gl_available
-    project = None
+    project = getattr(args, '_project', None)
     if args.path:
         try:
             project = Project.load(args.path)
