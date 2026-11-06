@@ -1,0 +1,92 @@
+{
+  "id": "e-con-sturdecam25-cuoagx",
+  "kind": "camera",
+  "maker": "e-con Systems",
+  "name": "STURDeCAM25_CUOAGX",
+  "family": "STURDeCAM GMSL2 cameras",
+  "sources": [
+    {
+      "url": "https://www.e-consystems.com/nvidia-cameras/jetson-agx-orin-cameras/fhd-ar0234-IP67-global-shutter-gmsl2-multi-camera.asp",
+      "title": "STURDeCAM25_CUOAGX - FHD AR0234 IP67 Global Shutter GMSL2 Multi Camera for NVIDIA Jetson AGX Orin / AGX Xavier (up to 8 cameras) (e-con Systems product page)",
+      "read": "2026-11-06",
+      "covers": "sensor, shutter, pixel size, optical format, active area, FOV with e-con's lens, focus, interface, cable length, frame rates, output format, power (6 cameras), serializer and deserializer board sizes"
+    }
+  ],
+  "note": "A GMSL2 camera for NVIDIA Jetson AGX Orin and AGX Xavier, up to 8 cameras on e-con's deserializer board (75 x 55 mm, its other figures not stated). The FOV 111.1 (H) x 68.3 (V) x 132.8 (D) degrees is stated \"with the lens provided by e-con\", taken to refer to the full 1920 x 1200 array (not said). The lens model is pinhole, a labelled assumption: the maker states no projection or distortion, and the stated horizontal, vertical and diagonal angles do not fit one distortion-free pinhole with square pixels (a wide lens with barrel distortion), so a pinhole fitted to the horizontal and vertical angles has non-square pixels and misplaces the corners; calibrate a unit and store its K and D in the sensor calibration. Frame rates are stated as \"2.3 MP @ 60 fps\", \"Full HD @ 65 fps\" and \"HD @ 120 fps\", uncompressed UYVY; 2.3 MP is the 1920 x 1200 active area, and Full HD and HD are entered as 1920 x 1080 and 1280 x 720, the sizes e-con's See3CAM_24CUG datasheet gives for those names (an interpretation: this page does not give the pixel sizes). power_w is null: the page states only \"10.681W (6 cameras streaming condition)\" for the system, not per camera. mass_g is not stated. size_mm is the serializer (camera) housing, 42 x 42 x 45.22 mm, entered as [45.22, 42, 42] on the reading that the longest side is along the optical axis (an assumption). Not stated: f-number, focal length, distortion. Cable length \"15m\" (FAKRA); operating voltage 5 to 15 V; IP67.",
+  "interface": "GMSL2 (FAKRA); \"High speed 4-lane MIPI CSI-2 interface\" on the Jetson side",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": [
+    45.22,
+    42.0,
+    42.0
+  ],
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 111.1,
+      "vfov_deg": 68.3,
+      "dfov_deg": 132.8,
+      "pixel_um": 3.0,
+      "resolution": [
+        1920,
+        1200
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed"
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1200,
+      "fps": [
+        60
+      ],
+      "format": "UYVY",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        65
+      ],
+      "format": "UYVY",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "Colour",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        120
+      ],
+      "format": "UYVY",
+      "bits_per_pixel": 16
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

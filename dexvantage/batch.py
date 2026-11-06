@@ -68,9 +68,13 @@ def _write(doc, dest):
         sys.stdout.write(text)
         return
     tmp = dest + '.part'
-    with open(tmp, 'w', encoding='utf-8') as fh:
-        fh.write(text)
-    os.replace(tmp, dest)
+    try:
+        with open(tmp, 'w', encoding='utf-8') as fh:
+            fh.write(text)
+        os.replace(tmp, dest)
+    except OSError as e:                  # a folder that does not exist, no permission, a full disk: say so, exit 2
+        raise SystemExit(_err(f'could not write {dest}: {e.strerror or e}. Choose a folder that exists and that you '
+                              'can write to.'))
 
 
 def _summary(project, dest) -> dict:

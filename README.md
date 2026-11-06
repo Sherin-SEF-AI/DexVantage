@@ -17,9 +17,10 @@ It is the sibling of Vantage, the sensor-rig planner for autonomous-driving data
 language and engineering standards: every number comes from a model that a validation check compares with an
 independent reference, and every export carries a provenance block.
 
-> **Status: Phase 1 of 12 (robots and kinematics).** Robots import from URDF, MJCF and MuJoCo Menagerie, with
-> forward and inverse kinematics, joint sliders, IK drag and two bundled samples; sensors and the studies arrive phase
-> by phase. See [docs/BUILD_STATE.md](docs/BUILD_STATE.md) for what is done and what is next.
+> **Status: Phase 2 of 12 (sensors and coverage).** Robots import from URDF, MJCF and MuJoCo Menagerie, with
+> forward and inverse kinematics, joint sliders, IK drag and two bundled samples; a datasheet library of cameras,
+> depth cameras, tactile sensors and hosts; sensors mounted on any link, a Camera view through each lens model, and
+> the coverage and depth-validity studies against the posed robot. The grasp study arrives in Phase 3. See [docs/BUILD_STATE.md](docs/BUILD_STATE.md) for what is done and what is next.
 
 ## Install (from source)
 
@@ -37,6 +38,8 @@ Python 3.10 or newer. Packaged bundles (PyInstaller) arrive in Phase 11.
 dexvantage                          # the window, with an empty project
 dexvantage --sample ur5e            # the UR5e + Robotiq 2F-85 sample (or so100 for the SO-100 arm)
 dexvantage --sample so100 --analyse -   # a sample's summary as JSON, in batch mode
+dexvantage --sample ur5e --coverage cov.json        # coverage and resolution of the task volume
+dexvantage --sample ur5e --depth-validity dv.json   # depth validity of the wrist D405 and overhead D435
 dexvantage --self-test              # check this installation without a window
 dexvantage cell.dexv --analyse -    # the project summary as JSON, with provenance
 dexvantage --validate report/       # the validation suite and its HTML report
@@ -58,13 +61,24 @@ python -m pytest tests              # the tests (offscreen)
 | Manipulability, self-collision distances | done | 2R closed form 1.1 × 10⁻¹⁶ m²; sphere and capsule distances 1.1 × 10⁻¹⁶ m |
 | Joint sliders, pose scrubber, trajectories from CSV | done | — |
 | Samples: SO-100, UR5e + Robotiq 2F-85 (MuJoCo Menagerie, licences checked) | done | — |
-| Validation suite | 18 checks | 18 of 18 pass; worst relative to tolerance: IK round trip 0.0997 mm of 0.1 mm |
-| Sensors, coverage, grasp visibility, … | Phases 2–12 | — |
+| Hardware library from datasheets: 21 depth cameras, 9 cameras, 2 tactile sensors, 8 hosts; every figure with its source and date, gaps "not stated by the maker" | done | 40 of 40 entries validate against the schema |
+| Lens models: pinhole, Brown-Conrady, Kannala-Brandt, equidistant, equisolid, stereographic; pixel density and defocus | done | against OpenCV `projectPoints` 1.8 × 10⁻¹² px, `fisheye.projectPoints` 5.7 × 10⁻¹³ px; MuJoCo-rendered fiducials 0.17 px |
+| Sensors and mounts: any robot link, pose in mm and degrees, stream modes, custom devices | done | — |
+| Articulated cube-map occlusion against the posed robot (GPU through EGL, or numpy) | done | 0.19 % of 480 000 points disagree with exact ray casting, all at silhouettes; MuJoCo segmentation on the UR5e 99.81 %; 13–16 ms per map on an RTX 5080 |
+| Coverage and resolution study (`--coverage`): visibility, px/mm, viewing angle, defocus, redundancy on sparse voxels | done | UR5e sample, 480 000 voxels: 0.6 s; against exact ray casting 0.09 % of the volume |
+| Depth validity study (`--depth-validity`): stereo FOV overlap, min-Z per resolution, finger shadows, projector cone, materials, σ_z | done | Intel's min-Z and FOV tables exact; σ_z against Monte Carlo 0.7 %; UR5e sample 0.34 s |
+| Camera view: the selected sensor's image through its lens model, posed with the robot | done | UR5e image 78 ms on a worker thread; UI thread 0.2 ms |
+| UI-thread budget (no step over 100 ms on the samples) | met | worst: a UR5e frame after a joint change, 68 ms median, 96 ms worst ([performance](docs/models/performance.md)) |
+| Validation suite | 40 checks | 40 of 40 pass |
+| Grasp self-occlusion, VLA tokens, multi-finger matrix, … | Phases 3–12 | — |
 
 ## Known limits
 
-There is no sensor library or study yet beyond the project summary (dense voxel counts of the task volumes);
-commands for them are in the menus, disabled, with the phase that brings them. Robots: xacro must be expanded to URDF
+Studies after Phase 2 (grasp visibility, teleop, cables, bandwidth, calibration, data) are in the menus, disabled,
+with the phase that brings them. Sensors: most makers state no lens distortion, so built-in imagers are pinhole
+models fitted to the stated FOV until you calibrate a unit; defocus is computed only where a lens's focus distance
+and f-number are stated or entered; sensor housings do not occlude; the Camera view has no study overlays yet.
+Robots: xacro must be expanded to URDF
 first and USD is not read; mimic joints and the 2F-85's linkage move independently; free and ball joints are held at
 the home pose; the gripper frame must be a link. ALOHA 2, the bimanual Panda and the G1 samples arrive in Phase 11.
 

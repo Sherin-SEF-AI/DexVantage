@@ -1,0 +1,33 @@
+{
+  "id": "nvidia-jetson-orin-nano-8gb",
+  "kind": "host",
+  "maker": "NVIDIA",
+  "name": "Jetson Orin Nano 8GB (module)",
+  "family": "Jetson Orin Nano",
+  "sources": [
+    {
+      "url": "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/",
+      "title": "Jetson AGX Orin for Next-Gen Robotics | NVIDIA (Jetson Orin page, \"Jetson Orin Technical Specifications\" table)",
+      "read": "2026-11-06",
+      "covers": "CSI camera, PCIe, USB, power, mechanical for each Orin module and developer kit"
+    }
+  ],
+  "note": "CSI camera: \"Up to 4 cameras (8 via virtual channels***)\", 8 lanes MIPI CSI-2, \"D-PHY 2.1 (up to 20Gbps)\" (aggregate); NVIDIA: \"Virtual Channels for Jetson Orin NX and Jetson Orin Nano are subject to change\". USB: 3x USB 3.2 Gen2 (10 Gbps) and 3x USB 2.0. PCIe: \"1 x4 + 3 x1 (PCIe Gen3, Root Port, & Endpoint)\". Power: 7 W - 15 W - 25 W (power_w 25, the upper end of the configurable modes as listed). Mechanical: 69.6 mm x 45 mm, 260-pin SO-DIMM connector; height not stated (size_mm null); mass not stated. Host fields for a Jetson: ports = USB 3.2 Gen 2 ports, stated_mbps = 10000 (the per-port USB 3.2 Gen 2 signalling rate, USB-IF; not an aggregate), lanes = MIPI CSI-2 lanes, gmsl_links = null (GMSL needs a deserializer board). practical_mbps is null (not stated). NVIDIA's footnote: \"USB 3.2, MGBE, and PCIe share UPHY Lanes. See the Product Design Guide for supported UPHY configurations\", so not every listed USB and PCIe port is available together. The full module data sheet (a download from NVIDIA's developer site) was not read; the figures are the specifications table on the page.",
+  "interface": "USB 3.2 Gen 2, MIPI CSI-2 (D-PHY 2.1), PCIe Gen3",
+  "power_w": 25.0,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "compute",
+    "ports": 3,
+    "lanes": 8,
+    "stated_mbps": 10000.0,
+    "practical_mbps": null,
+    "gmsl_links": null
+  }
+}

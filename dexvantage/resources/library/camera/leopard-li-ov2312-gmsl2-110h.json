@@ -1,0 +1,72 @@
+{
+  "id": "leopard-li-ov2312-gmsl2-110h",
+  "kind": "camera",
+  "maker": "Leopard Imaging",
+  "name": "LI-OV2312-GMSL2-110H",
+  "family": "GMSL2 cameras",
+  "sources": [
+    {
+      "url": "https://leopardimaging.com/wp-content/uploads/pdf/LI-OV2312-GMSL2-xxxH_datasheet.pdf",
+      "title": "LI-OV2312-GMSL2-xxxH Data Sheet, revision 1.1, 7 Mar 2021 (Leopard Imaging)",
+      "read": "2026-11-06",
+      "covers": "sensor, optical format, resolution, pixel size, shutter, output, power supply range, lens (EFL, F/#, FOV H and V, filter), connector, size, mass, USB 3.0 kit frame rate"
+    }
+  ],
+  "note": "An RGB-IR global-shutter GMSL2 camera (OmniVision OV2312, 650 nm + 940 nm dual-band filter), for in-cabin monitoring in the maker's words; listed for wide RGB plus NIR views. The 110H lens: EFL 2.666 mm, F/2.4, FOV 110 degrees (H) x 87 degrees (V), M12. The FOV is taken to refer to the full 1600 x 1300 array (not said). The lens model is pinhole, a labelled assumption: with 3.0 um pixels the stated EFL gives 889 px, for which a pinhole would show about 84 degrees across 1600 px, not the stated 110, so the lens has strong barrel distortion the maker does not state; calibrate a unit. The only frame rate stated is through Leopard's USB 3.0 kit (LI-USB30-OV2312-GMSL2-xxxH): 1600 x 1300 @ 30 fps, 10-bit RAW; the GMSL2 frame rate is not stated. power_w is null: only the supply range (9 to 19 V) is stated, and the USB kit's consumption is \"TBD\". size_mm is the stated 30 (L) x 30 (W) x 29.2 (D) mm, entered as [29.2, 30, 30] with D along the optical axis. The role is rgb (the sensor is RGB-IR). IPX9K.",
+  "interface": "GMSL2 (FAKRA Z); 10-bit RAW",
+  "power_w": null,
+  "mass_g": 45.0,
+  "size_mm": [
+    29.2,
+    30.0,
+    30.0
+  ],
+  "imagers": [
+    {
+      "name": "RGB-IR",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 110.0,
+      "vfov_deg": 87.0,
+      "dfov_deg": null,
+      "pixel_um": 3.0,
+      "resolution": [
+        1600,
+        1300
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.4,
+      "focus": null
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "RGB-IR",
+      "width": 1600,
+      "height": 1300,
+      "fps": [
+        30
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

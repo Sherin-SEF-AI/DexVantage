@@ -1,0 +1,69 @@
+{
+  "id": "ams-osram-naneyec",
+  "kind": "camera",
+  "maker": "ams OSRAM",
+  "name": "NanEyeC",
+  "family": "NanEye",
+  "sources": [
+    {
+      "url": "https://look.ams-osram.com/m/19863b4335e67f1b/original/NanEyeC-Miniature-Camera-Module.pdf",
+      "title": "NanEyeC Datasheet, DS000503 v5-00, 2024-Oct-14 (ams-OSRAM AG)",
+      "read": "2026-11-06",
+      "covers": "resolution, pixel size, optical format, shutter, lens stack (EFL, DOF), ADC, frame rates, interfaces and their data rates, module footprint, power, ordering options (FOV, F#)"
+    }
+  ],
+  "note": "A 1 mm-footprint camera module (1040 x 1040 um +/- 60 um including sensor, lens stack and side-wall painting); its height is only in the package drawing, so size_mm is null and mass is not stated. 320 x 320, 2.4 um pixels, 1/15\", rolling shutter, colour (RGB Bayer, NEC_HLBX-00) or B&W (NEC_HLCX-00), 10-bit column ADC. Frame rate 0-58 fps over the single-ended SEIM interface (75 Mbps at 58 Hz) or 4-38 fps (5-49 fps in HS mode) over LVDS (63 Mbps at 49 Hz); the stream lists the two stated maxima. Lens stack: triple element, EFL 367 um, depth of field 4 mm to infinity; the ordering table gives \"FOV120; F4\" without saying whether 120 degrees is horizontal or diagonal, so no FOV is entered and the library shows its labelled default until the user chooses (for reference, not entered: a pinhole of the stated EFL over the 768 um optical area would show about 93 degrees horizontally and 112 diagonally). f_number 4.0 from the ordering table. The lens model is pinhole, a labelled assumption. power_w 0.012 is the stated total for LVDS (9.7 mW with SEIM, 3.2 mW idle).",
+  "interface": "SEIM single-ended serial (75 Mbps) or LVDS (63 Mbps), 4 pads",
+  "power_w": 0.012,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "rolling",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 2.4,
+      "resolution": [
+        320,
+        320
+      ],
+      "lens_model": "pinhole",
+      "f_number": 4.0,
+      "focus": null
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 320,
+      "height": 320,
+      "fps": [
+        49,
+        58
+      ],
+      "format": "RAW10 (LVDS 49 fps, SEIM 58 fps)",
+      "bits_per_pixel": 10
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

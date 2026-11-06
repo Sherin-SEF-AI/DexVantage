@@ -170,11 +170,12 @@ class Sensor:
     slot: int = 0                  # its colour (theme CAMERA palette)
     locked: bool = False
     enabled: bool = True
+    stream: list = field(default_factory=list)        # [width, height] of the chosen stream mode; [] = the largest
 
     def to_dict(self):
         return {'uid': self.uid, 'name': self.name, 'kind': self.kind, 'model_id': self.model_id,
                 'calibration': copy.deepcopy(self.calibration), 'mount': self.mount.to_dict(), 'slot': self.slot,
-                'locked': self.locked, 'enabled': self.enabled}
+                'locked': self.locked, 'enabled': self.enabled, 'stream': [int(v) for v in self.stream]}
 
     @staticmethod
     def from_dict(d):
@@ -183,7 +184,8 @@ class Sensor:
         return Sensor(str(d.get('uid') or new_uid()), str(d.get('name', 'Camera')),
                       kind if kind in SENSOR_KINDS else 'camera', str(d.get('model_id') or ''),
                       dict(d.get('calibration') or {}), Mount.from_dict(d.get('mount')), int(d.get('slot', 0)),
-                      bool(d.get('locked', False)), bool(d.get('enabled', True)))
+                      bool(d.get('locked', False)), bool(d.get('enabled', True)),
+                      [int(v) for v in (d.get('stream') or [])][:2])
 
 
 @dataclass

@@ -1,0 +1,33 @@
+{
+  "id": "usb-3.2-gen2-host",
+  "kind": "host",
+  "maker": "USB-IF (specification)",
+  "name": "USB 3.2 Gen 2 host port (10 Gbit/s)",
+  "family": "USB 3.2",
+  "sources": [
+    {
+      "url": "https://www.usb.org/sites/default/files/usb_3_2_language_product_and_packaging_guidelines_final.pdf",
+      "title": "USB 3.2 Specification Language Usage Guidelines from USB-IF",
+      "read": "2026-11-06",
+      "covers": "signalling rate of USB 3.2 Gen 1, Gen 2 and Gen 2x2; multi-lane operation"
+    }
+  ],
+  "note": "A user-editable reference, not a device: the USB-IF guidelines give the signalling rate of the link, \"product signals at 10Gbps\" (marketing name \"SuperSpeed USB 10Gbps\"). practical_mbps is null: the specification states no practical throughput, which depends on the host controller, the hub tree, protocol overhead and the camera's transfer type, and several ports often share one controller. Measure the controller you use and enter the figure (with its source) in a custom copy of this entry. ports is null (depends on the machine). lanes 1: only Gen 2x2 uses two lanes of 10Gbps (USB-IF). \"The USB 3.2 specification absorbed all prior 3.x specifications\" (USB-IF), so USB 3.1 Gen 2 ports are this rate.",
+  "interface": "USB 3.2 Gen 2",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "usb_controller",
+    "ports": null,
+    "lanes": 1,
+    "stated_mbps": 10000.0,
+    "practical_mbps": null,
+    "gmsl_links": null
+  }
+}

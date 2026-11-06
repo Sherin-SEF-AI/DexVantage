@@ -1,0 +1,74 @@
+{
+  "id": "leopard-li-ar0234cs-gmsl2-owl",
+  "kind": "camera",
+  "maker": "Leopard Imaging",
+  "name": "LI-AR0234CS-GMSL2-OWL",
+  "family": "GMSL2 cameras",
+  "sources": [
+    {
+      "url": "https://leopardimaging.com/wp-content/uploads/2023/12/LI-AR0234CS-GMSL2-OWL_Datasheet.pdf",
+      "title": "LI-AR0234CS-GMSL2-OWL datasheet, revision 1.2, 01 Nov 2023 (Leopard Imaging)",
+      "read": "2026-11-06",
+      "covers": "sensor, optical format, resolution, pixel size, output format, frame rate, shutter, serializer, power supply and current, mass, lens focal length, f-number, FOV, mount, USB 3.0 kit"
+    },
+    {
+      "url": "https://leopardimaging.com/product/automotive-cameras/cameras-by-interface/adi-gmsl2-cameras/li-ar0234cs-gmsl2-owl/li-ar0234cs-gmsl2-owl/",
+      "title": "LI-AR0234CS-GMSL2-OWL - Leopard Imaging Inc. (product page)",
+      "read": "2026-11-06",
+      "covers": "cross-check of FOV, frame rate, focusing distance (50 cm, lens glued)"
+    }
+  ],
+  "note": "A fisheye GMSL2 camera: the datasheet states a field of view of 202.0 +/- 3 degrees horizontal and 127.2 +/- 2 degrees vertical (no diagonal), focal length 1.34 mm +/- 5 % and F/2.0. The word \"fisheye\" is not used by the maker; a horizontal FOV above 180 degrees cannot be a pinhole, so the lens model is Kannala-Brandt (kb, OpenCV fisheye) fitted to the stated angles - the projection between them is a model, not a maker figure (the maker states no distortion coefficients). The stated focal length is not used by the fit: with 3.0 um pixels it gives 447 px, and an equidistant lens of that focal length would show about 246 degrees across 1920 px, so the stated focal length and FOV disagree with a pure equidistant projection; calibrate a unit. The FOV is taken to refer to the full 1920 x 1200 array (not said). power_w is computed from the stated \"70 mA @ 12 VDC\" (0.84 W), arithmetic on stated figures. size_mm is null: the dimensions are only in a drawing. The 120 fps is \"@ full resolution\" over GMSL2 (10-bit RAW, serializer Maxim MAX9295A/B); through Leopard's USB 3.0 kit (LI-GMSL2-USB) the datasheet gives 1920 x 1200 @ 30 fps. Focus: the product page gives a focusing distance of 50 cm with the lens glued. IP65.",
+  "interface": "GMSL2 (FAKRA Z, power over coax); 10-bit RAW",
+  "power_w": 0.84,
+  "mass_g": 37.0,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 202.0,
+      "vfov_deg": 127.2,
+      "dfov_deg": null,
+      "pixel_um": 3.0,
+      "resolution": [
+        1920,
+        1200
+      ],
+      "lens_model": "kb",
+      "f_number": 2.0,
+      "focus": "fixed"
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1200,
+      "fps": [
+        120
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

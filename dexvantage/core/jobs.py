@@ -76,7 +76,9 @@ class Ctx:
 
 
 class ResultCache:
-    """A small LRU of study results keyed by (study, project content hash, settings hash); thread-safe."""
+    """A small LRU of study results keyed by (study, project content hash, settings hash, library hash); thread-safe.
+    The library hash is the content of the library entries the project's sensors name: a result depends on the
+    entry's figures, and a custom device can be changed in place under the same id."""
 
     def __init__(self, size=CACHE_SIZE):
         self.size = size
@@ -86,9 +88,12 @@ class ResultCache:
         self.misses = 0
 
     def key(self, sid: str, project) -> tuple:
+        from . import library as LB
         from . import provenance as PV
         settings = project.analysis.studies.get(sid, {})
-        return sid, PV.project_digest(project)['sha256'], PV.sha256(PV.canonical(settings))
+        ids = [s.model_id for v in project.variants for s in v.sensors]
+        return (sid, PV.project_digest(project)['sha256'], PV.sha256(PV.canonical(settings)),
+                LB.entries_digest(ids))
 
     def get(self, key):
         with self._lock:

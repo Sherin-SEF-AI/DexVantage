@@ -71,7 +71,8 @@
         "mount": {"$ref": "#/$defs/mount"},
         "slot": {"type": "integer", "minimum": 0},
         "locked": {"type": "boolean"},
-        "enabled": {"type": "boolean"}
+        "enabled": {"type": "boolean"},
+        "stream": {"type": "array", "items": {"type": "integer", "minimum": 1}, "maxItems": 2}
       }
     },
     "variant": {

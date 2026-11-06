@@ -203,6 +203,21 @@ def _closed(e) -> bool:
     return isinstance(e, RuntimeError) and 'has been deleted' in str(e)
 
 
+# errors whose message is written for the user (a plain sentence that says why and what to do)
+EXPLAINED_ERRORS = ('StudyError', 'DepthSetupError', 'LibraryError', 'OcclusionError', 'ProjectFormatError',
+                    'RobotModelError', 'KinematicsError', 'TrajectoryError', 'SampleError')
+
+
+def failure_text(message: str, title: str = 'The study') -> tuple[str, bool]:
+    """(the sentence to show, explained) for AnalysisController.failed's message ('Type: text' + traceback): an
+    explained error's own sentence, else a plain sentence pointing at the log (the caller logs the traceback)."""
+    first = (message or '').splitlines()[0] if message else ''
+    kind, _, text = first.partition(': ')
+    if kind in EXPLAINED_ERRORS and text.strip():
+        return text.strip(), True
+    return f'{title} stopped with an unexpected error ({kind or "unknown"}). The details are in the log.', False
+
+
 class AnalysisController(QObject):
     """Runs studies on worker threads: the quick ones debounced after each edit (live), the long ones on request with
     progress, cancel and partial results. One run per study at a time; a request during a run queues one more."""
@@ -222,6 +237,7 @@ class AnalysisController(QObject):
         self.stale = False
         self._busy: dict = {}              # study id -> threading.Event (cancel)
         self._pending: set = set()
+        self._run_settings: dict = {}      # study id -> settings for its next run (AnalysisController.run)
         self._lock = threading.Lock()
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
@@ -255,16 +271,23 @@ class AnalysisController(QObject):
         with self._lock:
             return bool(self._busy) if sid is None else sid in self._busy
 
-    def run(self, sid: str) -> bool:
-        """Start study sid on a snapshot of the project; False (and one more run queued) when it is running."""
+    def run(self, sid: str, settings: dict | None = None) -> bool:
+        """Start study sid on a snapshot of the project; False (and one more run queued) when it is running.
+        settings: keys merged into the snapshot's project.analysis.studies[sid] for the next run only (view state
+        such as the current joint state q, which is not project content); the project itself is not changed."""
         with self._lock:
+            if settings is not None:
+                self._run_settings[sid] = dict(settings)
             if sid in self._busy:
                 self._pending.add(sid)
                 return False
             cancel = threading.Event()
             self._busy[sid] = cancel
+            extra = self._run_settings.pop(sid, None)
         self.started.emit(sid)
         project = self.store.project.snapshot()
+        if extra:
+            project.analysis.studies[sid] = {**(project.analysis.studies.get(sid) or {}), **extra}
         threading.Thread(target=self._work, args=(sid, project, cancel, self.store.revision), daemon=True).start()
         return True
 

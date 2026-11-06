@@ -19,7 +19,7 @@ def test_menus_docks_and_shortcuts(win):
 
 def test_later_phase_commands_are_disabled_and_say_when(win):
     later = [a for a in win.actions_by_id.values() if (a.data() or {}).get('phase')]
-    assert len(later) >= 10
+    assert len(later) >= 5                # the placeholders are enabled as their phases land
     for a in later:
         assert not a.isEnabled() and f'Phase {a.data()["phase"]}' in a.toolTip()
 
@@ -130,7 +130,7 @@ def test_light_theme_and_back(app, win):
 
 def test_validation_job_runs_in_the_background(app, win, tmp_path):
     assert win.validate_models(folder=str(tmp_path), open_report=False, quick=True)
-    for _ in range(400):
+    for _ in range(3000):               # up to 60 s: the quick run is about 8 s with the Phase 2 checks
         pump(app, 0.02)
         if 'validation' not in win._jobs:
             break

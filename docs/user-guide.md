@@ -134,8 +134,8 @@ t,shoulder_pan_joint,shoulder_lift_joint,elbow_joint
 
 1. **Open.** The UR5e (BSD-3-Clause) with the 2F-85 gripper (BSD-2-Clause) on its flange, from MuJoCo Menagerie, at
    the file's home keyframe. "Wrist D405" is a depth camera on the flange looking at the pinch point; "Overhead D435"
-   looks down from 0.85 m above the 500 × 400 × 300 mm tabletop volume. The camera models' datasheet figures arrive
-   with the Phase 2 library.
+   looks down from 0.85 m above the 500 × 400 × 300 mm tabletop volume. Both take their lenses, depth FOV and
+   minimum Z from the library's Intel entries (chapter 4).
 2. **Read the headline figures.** The caption reads "1 robot · 14 joints · 2 sensors" (6 arm joints, 8 gripper
    linkage hinges); the Summary tab 480 000 voxels at 5 mm, and a dense 1 mm grid would need 6 × 10⁷ voxels, marked
    not feasible.
@@ -148,4 +148,99 @@ t,shoulder_pan_joint,shoulder_lift_joint,elbow_joint
    effector (IK) on, drag the gripper's handle far beyond the arm: it turns red with "out of reach".
 
 **Known limits of the samples:** the 2F-85's linkage joints are independent entries of q, so moving one alone poses
-the linkage in a way the real gripper cannot; the cameras have no lens or depth model until Phase 2.
+the linkage in a way the real gripper cannot. The SO-100's cameras have no library device (no maker in the library
+states a camera for it), so they use the labelled default camera until you choose one (chapter 4).
+
+## 4. Sensors and coverage (Phase 2) {#sensors}
+
+The models behind this chapter: [models/library.md](models/library.md), [models/optics.md](models/optics.md),
+[models/occlusion.md](models/occlusion.md), [models/voxels.md](models/voxels.md),
+[models/coverage.md](models/coverage.md), [models/depth.md](models/depth.md) and
+[models/camview.md](models/camview.md). Longer worked examples: [guide/sensors.md](guide/sensors.md),
+[guide/coverage.md](guide/coverage.md) and [guide/depth.md](guide/depth.md).
+
+### The library
+
+The **Library** panel (left) lists the hardware library by kind: 9 cameras, 21 depth sensors, 2 tactile sensors and
+8 hosts in this build, each from its maker's datasheet or product page. Hover over a device for its figures and its
+sources (URL, title, the date read). A figure the maker does not state shows "—" with the tooltip "not stated by the
+maker"; nothing is filled in. Where an entry needs an assumption (the D435's RGB imager position, which Intel does
+not give, or a stream whose FOV is derived by a centred crop) the figure is marked and the entry's note says why.
+
+**Sensors ▸ New custom device…** (also on the Sensors page and in the Library panel's right-click menu) opens a form in which every figure is ticked "given" or
+left "not given"; a source and the date you read it are required. *Start from a library device…* copies an entry
+for you to change (a unit you measured, say). Custom devices are saved in your own library folder, never in the
+built-in one.
+
+### Adding sensors and mounting them on links
+
+1. **Add a device:** double-click it in the Library (or right-click ▸ Add to the rig), or drag it into the 3D view:
+   it is placed above the floor point where you drop it. Sensors ▸ Add camera on a tripod adds a camera with no device (the labelled default camera).
+2. **Sensors ▸ Sensors and mounts** opens the Sensors page: one row per sensor (device, what it is mounted on,
+   position in mm, stream, in use). Select a row to edit it; every change is one undo step.
+3. **Mounted on:** World, Cage, Tripod, Table (static) or any link of any robot. Choose `UR5e + Robotiq 2F-85 ▸
+   wrist_3_link` and the sensor rides with that link at every joint state; with *Keep its place* ticked it stays
+   where it is and its pose is recomputed in the link's frame.
+4. **Position** and **Roll, pitch, yaw** are in mm and degrees in the mount's frame; drag a field's axis letter to scrub (Shift fine,
+   Ctrl coarse).
+   **Stream** picks one of the device's stream modes (default: the largest listed); the lens model follows it.
+
+### The Camera view
+
+The **Camera view** (right) shows the selected sensor's image through its imager's lens model, posed with the robot:
+the robots, task objects, tables and floor, with the task volumes as dashed edges where the image sees them. The
+combo above the image picks the imager (RGB, IR left, IR right). The line under it says the model
+(`RGB · 1280 × 720 px · 84° × 53°`) and "offset assumed" when the imager's position in the device is not stated.
+While you drag a joint the image is drawn at half size and sharpens when you let go; it never blocks the window.
+The 3D view draws each sensor's frustum from the same lens models.
+
+### Coverage and resolution
+
+**Analysis ▸ Coverage and resolution**, then **Run**. Every task volume is cut into 5 mm voxels (2 mm around the
+objects; both defaults) and for every voxel and camera the study asks: is it in the image, is it hidden by the robot
+at the pose in the 3D view (a cube map around the camera), how many pixels per millimetre, at what angle, how
+blurred (only where the lens's focus and f-number are stated or entered). The headline is the share of the volume
+seen by two or more cameras, with a status from your thresholds (good from 90 %, warning from 60 %, serious from 30 %:
+defaults). The camera table says how much each camera sees, misses (outside its image) and has hidden; the slice
+(x, y or z, with a slider) colours the voxels in the 3D view. Batch: `dexvantage cell.dexv --coverage cov.json`.
+
+### Depth validity
+
+**Analysis ▸ Depth validity**, then **Run**. For each depth sensor a voxel is depth-valid when both stereo imagers
+see it, it is beyond the minimum Z for the chosen resolution (Intel's table) and within the stated range, no link
+hides it from either imager (finger shadows, stereo parallax), it is inside the projector cone where the sensor needs
+texture, and no transparent, IR-absorbing or glossy object is tagged there (a warning). The bar chart gives the
+first condition each voxel fails. **Resolution** changes the depth stream (and so the minimum Z); the expected depth
+noise σ_z = z² σ_d / (f B) is shown beside the maker's own RMS statement, with σ_d = 0.08 px labelled as a default.
+The translucent pyramid in front of each depth camera in the 3D view is its min-Z blind zone; it moves with the
+wrist. Batch: `dexvantage cell.dexv --depth-validity dv.json`.
+
+### Sample tour: SO-100 (`dexvantage --sample so100`)
+
+1. **Open.** Two cameras, both "(sample placement)": one on a bracket 60 mm behind the jaws on the wrist side,
+   looking down past the jaw tips, and one on a tripod. Neither has a device, so the Camera view's imager combo reads
+   "Default camera (no device chosen)" and the Inspector's Model row "no device chosen".
+2. **Coverage.** Run it: **47.3 %** of the 300 × 200 × 120 mm volume is seen by two or more cameras ("gaps"), 95 %
+   by at least one, 5 % by none (57 600 voxels). The wrist camera sees 54 % at 4.7 px/mm (35 % is outside its image,
+   11 % hidden by the jaws); the tripod camera sees 88 % at 1.2 px/mm, and the arm hides the other 12 %.
+3. **Change one thing.** On the Sensors page set the wrist camera's **Device** to *e-con Systems See3CAM_24CUG*
+   (104.6° × 61.6°, as e-con states for 1920 × 1200) and run again: two or more cameras now see **53.7 %**; the wrist
+   camera sees 61 % at 6.8 px/mm.
+4. **Depth.** Set the wrist camera's device to *Intel RealSense Depth Camera D405* and run Depth validity:
+   **35.9 %** of the volume has valid depth. 44.9 % is outside the field of view of one of its two imagers, 6.0 % is
+   nearer than its 100 mm minimum Z at 1280 × 720 and 13.2 % is occluded (7.6 % hidden from one imager only). The
+   page suggests 480 × 270, whose minimum Z is 45 mm: about 5 % more of the volume. Ctrl+Z puts the sample back.
+
+### Sample tour: UR5e + Robotiq 2F-85 (`dexvantage --sample ur5e`)
+
+1. **Open.** Select *Wrist D405*: the Inspector shows Intel's figures (stated FOV 90° × 64° × 98°, modelled at the
+   stream 84.0° × 58.0°, global shutter, pixel size "—": not stated by the maker). The Camera view looks down at the
+   two fingers; pick *IR right* to see the other half of the 18 mm stereo pair.
+2. **Coverage.** Run it: **26.4 %** of the volume is seen by both cameras ("mostly single or blind"), 92 % by at
+   least one (480 000 voxels). The overhead D435 sees 72 % at 1.7 px/mm and the arm hides 28 %; the wrist D405 sees
+   46 % at 2.1 px/mm, and 40 % of the volume is outside its image.
+3. **Depth validity.** Run it: **84.6 %** of the volume has valid depth from at least one camera ("good"): the wrist
+   D405 45.8 %, the overhead D435 61.3 %. For the D405 36.6 % is outside a field of view and 17.6 % is occluded,
+   7.2 % of it from one imager only. Both fingertip pads are 114 mm from it, beyond its 100 mm minimum Z.
+4. **Change one thing.** Move the elbow on the Robot page: the D405's frustum, its min-Z pyramid and the Camera view
+   follow the wrist; press Run again to see the coverage at the new pose (the study uses the pose in the 3D view).

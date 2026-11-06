@@ -9,6 +9,7 @@ OVERLAYS = {
     'frames': ('World frame axes', True),
     'volumes': ('Task volumes', True),
     'shadows': ('Shadows and sky occlusion', True),
+    'depthzones': ('Depth min-Z zones', True),
 }
 
 

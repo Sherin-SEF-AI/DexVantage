@@ -1,0 +1,39 @@
+{
+  "id": "leopard-li-jag-adp-gmsl2-8ch",
+  "kind": "host",
+  "maker": "Leopard Imaging",
+  "name": "LI-JAG-ADP-GMSL2-8CH",
+  "family": "GMSL2 adapters for NVIDIA Jetson",
+  "sources": [
+    {
+      "url": "https://leopardimaging.com/wp-content/uploads/2023/11/LI-JAG-ADP-GMSL2-8CH_Datasheet.pdf",
+      "title": "LI-JAG-ADP-GMSL2-8CH datasheet, revision 0.5, 23 Nov 2023 (Leopard Imaging)",
+      "read": "2026-11-06",
+      "covers": "compatibility, number of cameras, deserializer, power input, mass, connectors, BOM"
+    },
+    {
+      "url": "https://leopardimaging.com/product/accessories/adapters-carrier-boards/for-nvidia-jetson/li-jag-adp-gmsl2-8ch/",
+      "title": "LI-JAG-ADP-GMSL2-8CH - Leopard Imaging Inc. (product page)",
+      "read": "2026-11-06",
+      "covers": "cross-check; the 12 V 5 A supply in the kit"
+    }
+  ],
+  "note": "A GMSL2 deserializer board for the NVIDIA Jetson AGX Orin Developer Kit (NVIDIA part P3762_A03) or Leopard's LI-AGO-CB carrier, through the 120-position J501 connector. \"Supports up to 8 GMSL2 cameras\" (gmsl_links 8) through two 4-position GMSL connectors J1_AA and J1_AB (ports 2), each broken out to four FAKRA cables by the supplied LI-FCB-4T1-SS-0.3M-NP-A0; deserializer \"Maxim MAX96712\" (the datasheet names one). Powered from an external 12 VDC supply (12 V 5 A adapter in the kit; a jumper selects a 9-15 VDC buck-boost input); its own power consumption is not stated. stated_mbps and lanes are null: the board's pages state neither the GMSL2 link rate nor the CSI-2 lanes to the Jetson; they are in Analog Devices' MAX96712 datasheet, whose page timed out when this entry was written (not entered from memory). Operating temperature \"TBD\"; size only in a drawing. mass_g is \"~ 55 g (Without cable and power)\".",
+  "interface": "GMSL2 in (FAKRA via 4-in-1 cables); MIPI CSI-2 to the Jetson (J501)",
+  "power_w": null,
+  "mass_g": 55.0,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "gmsl_deser",
+    "ports": 2,
+    "lanes": null,
+    "stated_mbps": null,
+    "practical_mbps": null,
+    "gmsl_links": 8
+  }
+}

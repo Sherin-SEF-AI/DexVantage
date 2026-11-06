@@ -160,6 +160,7 @@ class MeshDraw:
     version: int = 0
     wire: bool = False
     materials: np.ndarray | None = None  # (M,) int8 per triangle: MAT_PAINT .. MAT_METAL; None = all paint
+    vnormals: np.ndarray | None = None   # (M,3,3) per-corner normals when known (else the renderer smooths them)
 
 
 def material_of(name: str) -> int:

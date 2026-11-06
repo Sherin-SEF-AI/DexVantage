@@ -1,0 +1,78 @@
+{
+  "id": "omnivision-ovm6948",
+  "kind": "camera",
+  "maker": "OmniVision",
+  "name": "OVM6948 CameraCubeChip",
+  "family": "CameraCubeChip",
+  "sources": [
+    {
+      "url": "https://www.ovt.com/wp-content/uploads/2023/03/OVM6948-PB-v1.5-WEB.pdf",
+      "title": "OVM6948 200 x 200 product brief, version 1.5, March 2023 (OmniVision)",
+      "read": "2026-11-06",
+      "covers": "resolution, pixel size, optical format, DFOV, f-number, focal length, frame rate, power, output, package size, mass, focus range"
+    },
+    {
+      "url": "https://www.ovt.com/products/ovm6948/",
+      "title": "OVM6948 (OmniVision product page)",
+      "read": "2026-11-06",
+      "covers": "shutter type (rolling), interface, cross-check of the brief"
+    }
+  ],
+  "note": "A palm- or fingertip-embeddable wafer-level camera module, 0.65 x 0.65 mm with a z-height of 1.158 mm (size_mm [1.158, 0.65, 0.65], z-height along the optical axis), net weight 0.87 mg (mass_g 0.00087). 200 x 200 colour (RGB Bayer), 1.75 um pixels, 1/36\", rolling shutter (product page), 30 fps, analog output (AntLinx; the brief: \"can transmit over 4 meters\"), so a host needs an analog front end - it is not a USB device. Lens: diagonal FOV 120 +/- 6.6 degrees, f/2.8, focal length 0.175 mm, \"extended focus range of 3 mm to 30 mm\" (focus null: the maker states a range, not \"fixed\"). Only the diagonal FOV is stated; the library derives the horizontal and vertical FOV from it for a pinhole with square pixels (a labelled assumption). Over the stated 364 um image area the stated focal length makes a pinhole show about 112 degrees diagonally against the stated 120, so the lens has some barrel distortion the maker does not state. The lens model is pinhole, a labelled assumption. power_w 0.025 is \"25 mW (with IO consumption)\". Designed for medical use (non-autoclavable); its use in a robot hand is the planner's, not the maker's, application.",
+  "interface": "Analog (AntLinx), 4-pin",
+  "power_w": 0.025,
+  "mass_g": 0.00087,
+  "size_mm": [
+    1.158,
+    0.65,
+    0.65
+  ],
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "rolling",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": 120.0,
+      "pixel_um": 1.75,
+      "resolution": [
+        200,
+        200
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.8,
+      "focus": null
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 200,
+      "height": 200,
+      "fps": [
+        30
+      ],
+      "format": "analog",
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

@@ -1,0 +1,33 @@
+{
+  "id": "nvidia-jetson-agx-orin-64gb",
+  "kind": "host",
+  "maker": "NVIDIA",
+  "name": "Jetson AGX Orin 64GB (module)",
+  "family": "Jetson AGX Orin",
+  "sources": [
+    {
+      "url": "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/",
+      "title": "Jetson AGX Orin for Next-Gen Robotics | NVIDIA (Jetson Orin page, \"Jetson Orin Technical Specifications\" table)",
+      "read": "2026-11-06",
+      "covers": "CSI camera, PCIe, USB, power, mechanical for each Orin module and developer kit"
+    }
+  ],
+  "note": "CSI camera: \"Up to 6 cameras (16 via virtual channels)\", 16 lanes MIPI CSI-2, \"D-PHY 2.1 (up to 40Gbps) | C-PHY 2.0 (up to 164Gbps)\" (aggregate figures). USB: 3x USB 3.2 Gen2 (10 Gbps) and 4x USB 2.0. PCIe: \"Up to 2 x8 + 1 x4 + 2 x1 (PCIe Gen4, Root Port, & Endpoint)\". Power: 15 W - 60 W (power_w 60 is the upper end of the configurable range, not a measurement). Mechanical: 100 mm x 87 mm, 699-pin Molex Mirror Mezz connector, integrated thermal transfer plate; the height is not stated, so size_mm is null; mass not stated. Host fields for a Jetson: ports = USB 3.2 Gen 2 ports, stated_mbps = 10000 (the per-port USB 3.2 Gen 2 signalling rate, USB-IF; not an aggregate), lanes = MIPI CSI-2 lanes, gmsl_links = null (GMSL needs a deserializer board). practical_mbps is null (not stated). NVIDIA's footnote: \"USB 3.2, MGBE, and PCIe share UPHY Lanes. See the Product Design Guide for supported UPHY configurations\", so not every listed USB and PCIe port is available together. The full module data sheet (a download from NVIDIA's developer site) was not read; the figures are the specifications table on the page.",
+  "interface": "USB 3.2 Gen 2, MIPI CSI-2 (D-PHY 2.1 / C-PHY 2.0), PCIe Gen4",
+  "power_w": 60.0,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "compute",
+    "ports": 3,
+    "lanes": 16,
+    "stated_mbps": 10000.0,
+    "practical_mbps": null,
+    "gmsl_links": null
+  }
+}

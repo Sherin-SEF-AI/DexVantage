@@ -1,0 +1,71 @@
+{
+  "id": "meta-digit",
+  "kind": "tactile",
+  "maker": "Meta AI (Facebook AI Research)",
+  "name": "DIGIT",
+  "family": "DIGIT",
+  "sources": [
+    {
+      "url": "https://arxiv.org/pdf/2005.14679v1",
+      "title": "M. Lambeta et al., \"DIGIT: A Novel Design for a Low-Cost Compact High-Resolution Tactile Sensor with Application to In-Hand Manipulation\", IEEE Robotics and Automation Letters, 2020 (arXiv:2005.14679v1)",
+      "read": "2026-11-06",
+      "covers": "size, mass, sensing field, image resolution and fps (Table I), camera (OVM7692), USB hub, LEDs"
+    },
+    {
+      "url": "https://github.com/facebookresearch/digit-interface/blob/87a28bbf2beee8008a5308e9a12d72e1bc4fefb9/digit_interface/digit.py",
+      "title": "digit-interface (the maker's Python interface), Digit.STREAMS at commit 87a28bb (2021-09-22)",
+      "read": "2026-11-06",
+      "covers": "stream modes: VGA 640 x 480 at 30 and 15 fps, QVGA 320 x 240 at 60 and 30 fps"
+    }
+  ],
+  "note": "An open-source optical tactile sensor (design by Meta AI / Facebook AI Research; commercial units are sold by GelSight, whose product page was not read for this entry): a contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. From the paper: 20 mm wide x 27 mm high x 18 mm deep (size_mm [18, 20, 27], depth along the camera axis), \"approximately 20 g\", sensing field 19 x 16 mm, OmniVision OVM7692 colour camera (\"a 60 fps color CMOS\", focal length 1.15 mm), three RGB LEDs, and a custom PCB with a SuperSpeed USB 3.0 hub. Sources disagree: the paper's Table I gives 640 x 480 at 60 FPS, while the maker's interface library offers VGA (640 x 480) at 30 or 15 fps and QVGA (320 x 240) at 60 or 30 fps; the entry uses the interface's modes (what a user can stream), so tactile.fps is 30 at the 640 x 480 camera_resolution. Stream format and power are not stated. The arXiv v1 PDF was read; the RA-L published version may differ in detail.",
+  "interface": "USB",
+  "power_w": null,
+  "mass_g": 20.0,
+  "size_mm": [
+    18.0,
+    20.0,
+    27.0
+  ],
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Tactile camera",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        30,
+        15
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Tactile camera",
+      "width": 320,
+      "height": 240,
+      "fps": [
+        60,
+        30
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": {
+    "pad_mm": [
+      19.0,
+      16.0
+    ],
+    "camera_resolution": [
+      640,
+      480
+    ],
+    "fps": 30.0,
+    "sensing": "optical",
+    "taxels": null
+  },
+  "host": null
+}

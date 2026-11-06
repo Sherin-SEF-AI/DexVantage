@@ -5,6 +5,12 @@ references its checks cite.
 """
 
 REFERENCES = {
+    'moller1997': 'T. Möller and B. Trumbore, "Fast, minimum storage ray-triangle intersection", Journal of Graphics '
+                  'Tools 2(1), 21–28, 1997.',
+    'amanatides_woo1987': 'J. Amanatides and A. Woo, "A fast voxel traversal algorithm for ray tracing", '
+                          'Eurographics \'87, 3–10, 1987.',
+    'greene1986': 'N. Greene, "Environment mapping and other applications of world projections", IEEE Computer '
+                  'Graphics and Applications 6(11), 21–29, 1986 (the cube map).',
     'rep103': 'ROS REP 103, Standard Units of Measure and Coordinate Conventions (T. Foote, M. Purvis, 2010), '
               'https://www.ros.org/reps/rep-0103.html.',
     'shoemake1985': 'K. Shoemake, "Animating rotation with quaternion curves", SIGGRAPH \'85, Computer Graphics 19(3), '
@@ -61,6 +67,38 @@ REFERENCES = {
     'mujoco_geomdistance': 'MuJoCo API reference, mj_geomDistance (the signed distance between two geoms, negative '
                            'when they overlap), https://mujoco.readthedocs.io/en/stable/APIreference/'
                            'APIfunctions.html#mj-geomdistance.',
+    # optics (checks_optics.py)
+    'opencv_calib3d': 'OpenCV, "Camera Calibration and 3D Reconstruction" (calib3d): the pinhole camera model with '
+                      'Brown-Conrady radial, tangential and rational distortion (k1, k2, p1, p2, k3, k4, k5, k6) and '
+                      'cv2.projectPoints, https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html.',
+    'opencv_fisheye': 'OpenCV, "Fisheye camera model" (calib3d fisheye): θd = θ (1 + k1 θ² + k2 θ⁴ + k3 θ⁶ + k4 θ⁸) '
+                      'and cv2.fisheye.projectPoints, https://docs.opencv.org/4.x/db/d58/group__calib3d__fisheye.html.',
+    'brown1966': 'D. C. Brown, "Decentering distortion of lenses", Photogrammetric Engineering 32(3), 444–462, 1966.',
+    'kannala_brandt2006': 'J. Kannala and S. S. Brandt, "A generic camera model and calibration method for '
+                          'conventional, wide-angle, and fish-eye lenses", IEEE Transactions on Pattern Analysis and '
+                          'Machine Intelligence 28(8), 1335–1340, 2006.',
+    'miyamoto1964': 'K. Miyamoto, "Fish eye lens", Journal of the Optical Society of America 54(8), 1060–1061, 1964.',
+    'ray2002': 'S. F. Ray, Applied Photographic Optics, 3rd ed., Focal Press, 2002 (depth of field and hyperfocal '
+               'distance of a thin lens).',
+    'hecht2017': 'E. Hecht, Optics, 5th ed., Pearson, 2017 (the Gaussian thin-lens equation).',
+    # depth validity (checks_depth.py)
+    'gallup2008': 'D. Gallup, J.-M. Frahm, P. Mordohai and M. Pollefeys, "Variable baseline/resolution stereo", '
+                  'IEEE CVPR 2008 (stereo depth error growing as z² / (b f)).',
+    'intel_d400': 'RealSense, "RealSense Product Family D400 Series Datasheet", document 337029-017, revision 023, '
+                  'March 2026 (Table 3-49 depth camera SKU properties, §4.4 depth FOV at distance, Table 4-12 '
+                  'minimum-Z depth, Table 4-15 depth quality), https://www.realsenseai.com/wp-content/uploads/2026/03/'
+                  'RealSense-D400-Series-Datasheet-Mar-2026.pdf, read 2026-11-06.',
+    'intel_d457': 'RealSense, "RealSense Product Family D457 Datasheet", document 337029-011, revision 006, August '
+                  '2025 (Table 3-19 depth camera D457 properties, Table 4-4 minimum-Z depth), https://realsenseai.com/'
+                  'wp-content/uploads/2025/08/RealSense-D457-Datasheet-Aug_2025.pdf, read 2026-11-06.',
+    # MuJoCo renders (checks_optics_mujoco.py, checks_occlusion_mujoco.py)
+    'mujoco_camera': 'MuJoCo XML reference, body/camera (looks along its −z axis, +x right, +y up; fovy, focal, '
+                     'focalpixel, principal, principalpixel, sensorsize, resolution) and visual/quality '
+                     '(offsamples, numslices), doc/XMLreference.rst of https://github.com/google-deepmind/mujoco '
+                     '(main branch), read 2026-11-06.',
+    'mujoco_renderer': 'MuJoCo Python bindings, mujoco.Renderer (offscreen OpenGL rendering of RGB, depth as the '
+                       'distance from the camera plane, and segmentation as (object id, object type)), with '
+                       'MUJOCO_GL=egl, https://mujoco.readthedocs.io/en/stable/python.html#rendering.',
 }
 
 

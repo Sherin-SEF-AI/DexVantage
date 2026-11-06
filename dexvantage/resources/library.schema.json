@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DexVantage hardware library entry",
+  "description": "One device of the hardware library (dexvantage/core/library, docs/models/library.md). Every figure comes from a cited source (sources); a figure the maker does not state is null, shown as 'not stated by the maker'. Units: metres, degrees, millimetres where the key says _mm, watts, grams. Poses are the imager's OPTICAL frame (z forward, x right, y down) in the device body frame (REP-103: x forward along the optical axis, y left, z up, origin at the optical centre of the reference (depth) imager); quaternions are (x, y, z, w).",
+  "type": "object",
+  "required": ["id", "kind", "maker", "name", "sources", "note"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$", "description": "Unique, lower case, e.g. intel-realsense-d435."},
+    "kind": {"enum": ["depth", "camera", "tactile", "host"]},
+    "maker": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "family": {"type": ["string", "null"]},
+    "sources": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["url", "read"],
+        "properties": {
+          "url": {"type": "string", "minLength": 1, "description": "The URL, or the document's name and number when it has no URL."},
+          "title": {"type": "string"},
+          "read": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "The date the source was read (YYYY-MM-DD)."},
+          "covers": {"type": "string", "description": "Which fields this source gave."}
+        }
+      }
+    },
+    "note": {"type": "string", "description": "What the sources do not state, assumptions (labelled as such) and anything odd, such as two sources that disagree."},
+    "interface": {"type": ["string", "null"]},
+    "power_w": {"$ref": "#/$defs/num"},
+    "mass_g": {"$ref": "#/$defs/num"},
+    "size_mm": {
+      "description": "[x, y, z] in the device body frame: x along the optical axis (the maker's depth or thickness), y across (width), z up (height).",
+      "oneOf": [{"type": "null"}, {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number", "minimum": 0}}]
+    },
+    "imagers": {"type": "array", "items": {"$ref": "#/$defs/imager"}},
+    "projector": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object",
+         "properties": {"hfov_deg": {"$ref": "#/$defs/angle"}, "vfov_deg": {"$ref": "#/$defs/angle"},
+                        "dfov_deg": {"$ref": "#/$defs/angle"}, "pose": {"$ref": "#/$defs/pose"},
+                        "pose_stated": {"type": "boolean"}}}
+      ]
+    },
+    "depth": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object",
+         "properties": {
+           "technology": {"enum": ["active_ir_stereo", "passive_stereo", "tof", "structured_light", null]},
+           "reference_imager": {"type": ["string", "null"]},
+           "stereo_pair": {"oneOf": [{"type": "null"}, {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string"}}]},
+           "baseline_m": {"$ref": "#/$defs/num"},
+           "min_z": {
+             "type": "array",
+             "items": {"type": "object", "required": ["width", "height", "m"],
+                       "properties": {"width": {"type": "integer", "minimum": 1}, "height": {"type": "integer", "minimum": 1},
+                                      "m": {"$ref": "#/$defs/num"}}}
+           },
+           "max_range_m": {"$ref": "#/$defs/num"},
+           "rms_error": {
+             "oneOf": [{"type": "null"},
+                       {"type": "object", "required": ["text"],
+                        "properties": {"text": {"type": "string"},
+                                       "metric": {"enum": ["rms", "median_abs", "std_dev", "unspecified"],
+                                                  "description": "What the maker's figure measures: 'rms' an RMS (plane-fit) error, 'median_abs' a median absolute error, 'std_dev' a standard deviation in length units, 'unspecified' the maker does not define it. Missing means unspecified."},
+                                       "pct": {"$ref": "#/$defs/num"}, "at_m": {"$ref": "#/$defs/num"}}}]
+           },
+           "subpixel_px": {"$ref": "#/$defs/num"},
+           "depth_fov": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/fov"}]}
+         }}
+      ]
+    },
+    "streams": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["imager", "width", "height"],
+        "properties": {
+          "imager": {"type": "string", "description": "'depth', 'rgb' or an imager's name."},
+          "width": {"type": "integer", "minimum": 1}, "height": {"type": "integer", "minimum": 1},
+          "fps": {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}},
+          "format": {"type": ["string", "null"]},
+          "bits_per_pixel": {"type": ["integer", "null"], "minimum": 1}
+        }
+      }
+    },
+    "tactile": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object",
+         "properties": {"pad_mm": {"$ref": "#/$defs/pair_or_null"}, "camera_resolution": {"$ref": "#/$defs/int_pair_or_null"},
+                        "fps": {"$ref": "#/$defs/num"}, "sensing": {"type": ["string", "null"]},
+                        "taxels": {"type": ["integer", "null"], "minimum": 0}}}
+      ]
+    },
+    "host": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object",
+         "properties": {"type": {"enum": ["usb_controller", "pcie_card", "gmsl_deser", "compute", null]},
+                        "ports": {"type": ["integer", "null"], "minimum": 0},
+                        "lanes": {"type": ["integer", "null"], "minimum": 0},
+                        "stated_mbps": {"$ref": "#/$defs/num"},
+                        "practical_mbps": {"$ref": "#/$defs/num", "description": "Only when a source states it."},
+                        "gmsl_links": {"type": ["integer", "null"], "minimum": 0}}}
+      ]
+    }
+  },
+  "$defs": {
+    "num": {"type": ["number", "null"], "minimum": 0},
+    "angle": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 360},
+    "pair_or_null": {"oneOf": [{"type": "null"}, {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number", "minimum": 0}}]},
+    "int_pair_or_null": {"oneOf": [{"type": "null"}, {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 1}}]},
+    "fov": {
+      "type": "object",
+      "properties": {"h": {"$ref": "#/$defs/angle"}, "v": {"$ref": "#/$defs/angle"}, "d": {"$ref": "#/$defs/angle"}}
+    },
+    "pose": {
+      "type": "object", "required": ["position", "quaternion"],
+      "properties": {
+        "position": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}},
+        "quaternion": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}}
+      }
+    },
+    "imager": {
+      "type": "object", "required": ["name", "role"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "role": {"enum": ["ir_left", "ir_right", "rgb", "mono", "tof"]},
+        "pose": {"$ref": "#/$defs/pose"},
+        "pose_stated": {"type": "boolean", "description": "false: the maker does not state this offset; the pose is a labelled assumption (see note)."},
+        "shutter": {"enum": ["global", "rolling", null]},
+        "hfov_deg": {"$ref": "#/$defs/angle"},
+        "vfov_deg": {"$ref": "#/$defs/angle"},
+        "dfov_deg": {"$ref": "#/$defs/angle"},
+        "pixel_um": {"$ref": "#/$defs/num"},
+        "resolution": {"$ref": "#/$defs/int_pair_or_null", "description": "Native resolution [w, h] the FOV above refers to."},
+        "lens_model": {"enum": ["pinhole", "brown", "kb", "equidistant", "equisolid", "stereographic", null]},
+        "f_number": {"$ref": "#/$defs/num"},
+        "focus": {"enum": ["fixed", "auto", null]},
+        "fov_modes": {
+          "description": "Optional: FOVs the maker states for stream shapes other than the native one (e.g. a depth FOV for 16:9 and 4:3 streams). A stream of the same aspect ratio uses these.",
+          "type": "array",
+          "items": {"type": "object", "required": ["aspect"],
+                    "properties": {"aspect": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number", "exclusiveMinimum": 0}},
+                                   "hfov_deg": {"$ref": "#/$defs/angle"}, "vfov_deg": {"$ref": "#/$defs/angle"},
+                                   "dfov_deg": {"$ref": "#/$defs/angle"}, "what": {"type": "string"}}}
+        }
+      }
+    }
+  }
+}

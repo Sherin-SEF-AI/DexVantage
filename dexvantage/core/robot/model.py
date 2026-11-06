@@ -621,6 +621,33 @@ class RobotModel:
         """(M,) int32 link index (into link_names) of each of posed_triangles' triangles."""
         return self._tri_link
 
+    def local_triangles(self) -> np.ndarray:
+        """(M, 3, 3) float64 visual triangles in their own link's frame (read-only: do not change in place)."""
+        return self._tri_local
+
+    def _link_runs(self) -> list:
+        """[(start, stop, link index)]: the runs of consecutive triangles that belong to one link (the meshes are
+        stored link by link, so a robot has about one run per link)."""
+        runs = getattr(self, '_runs', None)
+        if runs is None:
+            li = self._tri_link
+            cut = np.flatnonzero(np.diff(li)) + 1 if len(li) else np.zeros(0, int)
+            starts = np.r_[0, cut].astype(int) if len(li) else np.zeros(0, int)
+            stops = np.r_[cut, len(li)].astype(int) if len(li) else np.zeros(0, int)
+            runs = [(int(a), int(b), int(li[a])) for a, b in zip(starts, stops)]
+            self._runs = runs
+        return runs
+
+    def pose_vectors(self, q, V) -> np.ndarray:
+        """Directions given per triangle in their link's frame (V: (M, ..., 3), e.g. per-corner normals (M, 3, 3))
+        rotated into the world at q: (M, ..., 3) float32."""
+        V = np.asarray(V)
+        R = self.fk_array(self._q(q))[:, :3, :3]
+        out = np.empty(V.shape, np.float32)
+        for a, b, li in self._link_runs():
+            out[a:b] = (V[a:b].reshape(-1, 3) @ R[li].T).reshape(V[a:b].shape)
+        return out
+
     def posed_triangles(self, q):
         """(tri (M,3,3) float32 world, normals (M,3) float32, link index (M,) int32) of the visual meshes at q."""
         q = self._q(q)
@@ -629,8 +656,10 @@ class RobotModel:
             if c is not None and c[0].shape == q.shape and np.array_equal(c[0], q):
                 return c[1]
         T = self.fk_array(q)
-        R, t = T[self._tri_link, :3, :3], T[self._tri_link, :3, 3]
-        tri = (np.einsum('mij,mkj->mki', R, self._tri_local) + t[:, None, :]).astype(np.float32)
+        # one matrix product per run of a link's triangles (BLAS), not a 3 × 3 product per triangle
+        tri = np.empty(self._tri_local.shape, np.float32)
+        for a, b, li in self._link_runs():
+            tri[a:b] = (self._tri_local[a:b].reshape(-1, 3) @ T[li, :3, :3].T + T[li, :3, 3]).reshape(-1, 3, 3)
         n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
         ln = np.linalg.norm(n, axis=1, keepdims=True)
         n = np.where(ln > 1e-20, n / np.maximum(ln, 1e-30), np.array([0.0, 0.0, 1.0], np.float32)).astype(np.float32)

@@ -92,6 +92,14 @@ class StudyPage(QWidget):
         """LineDraw / TriDraw items for the 3D view while this page is shown."""
         return []
 
+    def camview_overlays(self, cam_model, pose) -> list:
+        """Camera view overlays while this page is shown: [(polylines, colour, label)], each polyline a (K, 2) array
+        in cam_model's pixel coordinates (OpenCV: pixel centres at integers), colour a QColor or '#rrggbb', label a
+        short text for the view's legend ('' for none). cam_model is the imager's optics.CameraModel at its stream
+        size and pose its optical frame in the world (frames.Pose); core/camrender.project_world and
+        visible_polylines turn world points into such polylines. Called once per Camera view image."""
+        return []
+
     def suggestion_ready(self, on: bool):
         self.b_apply.setEnabled(on)
         self.b_preview.setEnabled(on)
@@ -117,11 +125,16 @@ class StudyPage(QWidget):
 
     def _failed(self, sid, message):
         if sid == self.STUDY:
-            self.head.set('—', '', 'critical', 'could not run', message.splitlines()[0])
+            from ..store import failure_text
+            text, _explained = failure_text(message, self.TITLE or 'The study')
+            self.head.set('—', '', 'critical', 'could not run', text)
 
     def export(self, path=None):
         from ...core import provenance as PV
         if self.doc is None:
+            if path is None and self.ctx.window is not None:     # the button: say why nothing happens
+                self.ctx.window.msg(f'There is no {self.TITLE.lower() or "result"} result to export yet: Run it '
+                                    'first.', 5000)
             return None
         if path is None:
             path, _ = QFileDialog.getSaveFileName(self, f'Export {self.TITLE}', f'{self.STUDY}.json', 'JSON (*.json)')
@@ -130,9 +143,16 @@ class StudyPage(QWidget):
         doc = {k: v for k, v in self.doc.items() if k not in ('cached', 'revision')}
         doc = PV.stamp(doc, self.ctx.store.project, output={'option': None, 'name': os.path.basename(path),
                                                             'in_folder': False})
-        with open(path, 'w', encoding='utf-8') as fh:
-            json.dump(doc, fh, indent=1, ensure_ascii=False)
-            fh.write('\n')
+        try:
+            with open(path, 'w', encoding='utf-8') as fh:
+                json.dump(doc, fh, indent=1, ensure_ascii=False)
+                fh.write('\n')
+        except OSError as e:                                     # a folder without write access, a full disk
+            if self.ctx.window is not None:
+                self.ctx.window.msg(f'Could not write {os.path.basename(path)}: {e.strerror or e}.', 8000)
+            return None
+        if self.ctx.window is not None:
+            self.ctx.window.msg(f'Exported {self.TITLE.lower() or "the result"} to {os.path.basename(path)}', 5000)
         return path
 
 

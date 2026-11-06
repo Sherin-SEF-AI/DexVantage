@@ -1,0 +1,37 @@
+{
+  "id": "nvidia-jetson-agx-orin-devkit",
+  "kind": "host",
+  "maker": "NVIDIA",
+  "name": "Jetson AGX Orin Developer Kit",
+  "family": "Jetson AGX Orin",
+  "sources": [
+    {
+      "url": "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/",
+      "title": "Jetson AGX Orin for Next-Gen Robotics | NVIDIA (Jetson Orin page, \"Jetson Orin Technical Specifications\" table)",
+      "read": "2026-11-06",
+      "covers": "CSI camera, PCIe, USB, power, mechanical for each Orin module and developer kit"
+    }
+  ],
+  "note": "The developer kit (with the AGX Orin 64GB module per NVIDIA's table, which gives both the same column for memory and power). USB: Type-C 2x USB 3.2 Gen2; Type-A 2x USB 3.2 Gen2 and 2x USB 3.2 Gen1; Micro-B USB 2.0 (ports 4 counts the USB 3.2 Gen2 ports; the two Gen1 Type-A ports are 5 Gbit/s). CSI camera: \"16-lane MIPI CSI-2 connector\". PCIe: x16 slot supporting x8 PCIe Gen4, M.2 Key M x4 PCIe Gen4, M.2 Key E x1 PCIe Gen4. Networking: RJ45 up to 10 GbE. Power 15 W - 60 W (power_w 60, the upper end). Size \"110mm x 110mm x 71.65mm (Height includes feet, carrier board, module, and thermal solution)\" (size_mm as stated, not an optical frame); mass not stated. GMSL cameras need a deserializer board on the camera connector (for example leopard-li-jag-adp-gmsl2-8ch). Host fields for a Jetson: ports = USB 3.2 Gen 2 ports, stated_mbps = 10000 (the per-port USB 3.2 Gen 2 signalling rate, USB-IF; not an aggregate), lanes = MIPI CSI-2 lanes, gmsl_links = null (GMSL needs a deserializer board). practical_mbps is null (not stated). NVIDIA's footnote: \"USB 3.2, MGBE, and PCIe share UPHY Lanes. See the Product Design Guide for supported UPHY configurations\", so not every listed USB and PCIe port is available together. The full module data sheet (a download from NVIDIA's developer site) was not read; the figures are the specifications table on the page.",
+  "interface": "USB 3.2 Gen 2 / Gen 1, 16-lane MIPI CSI-2 connector, PCIe Gen4",
+  "power_w": 60.0,
+  "mass_g": null,
+  "size_mm": [
+    110.0,
+    110.0,
+    71.65
+  ],
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "compute",
+    "ports": 4,
+    "lanes": 16,
+    "stated_mbps": 10000.0,
+    "practical_mbps": null,
+    "gmsl_links": null
+  }
+}

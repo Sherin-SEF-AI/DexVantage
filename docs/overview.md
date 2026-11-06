@@ -49,6 +49,71 @@ space [Liégeois 1977], several seeds and a choice of solution; Yoshikawa's mani
 condition number σ_max/σ_min; signed distances between collision geoms from MuJoCo with a bounding-sphere prefilter.
 See [models/ik.md](models/ik.md).
 
+## The hardware library {#library}
+
+One JSON file per device (`dexvantage/resources/library/<kind>/<id>.json`, schema `library.schema.json`): depth
+cameras, cameras, tactile sensors and hosts, every figure copied from a cited source (URL or document, title, the
+date read, what it covers) and `null` where the source is silent, shown as "—" with the tooltip "not stated by the
+maker". An offset the maker does not give (an RGB imager's position in a D435, a projector's) is placed as a
+labelled assumption (`pose_stated: false`). `library.sensor_imagers(sensor)` turns a sensor's device into imagers:
+each a pose in the device body frame and a lens model fitted to the stated FOV at the chosen stream (a centred crop
+for other aspect ratios, a square-pixel pinhole from a diagonal-only FOV; both assumptions the imager's label says),
+or the unit's own calibration. A sensor with no device gets a labelled default camera (pinhole 1280 × 720 px,
+90° × 60°). 40 entries in Phase 2. See [models/library.md](models/library.md).
+
+## Lens models, pixel density and defocus {#optics}
+
+`CameraModel` (pixels, OpenCV conventions: pixel centres at integers): pinhole; Brown-Conrady with 5 or 8 terms
+[Brown 1966]; Kannala-Brandt, OpenCV's fisheye θd = θ(1 + k₁θ² + k₂θ⁴ + k₃θ⁶ + k₄θ⁸) [Kannala and Brandt 2006];
+equidistant, equisolid and stereographic. Every model has a valid angle beyond which it is not one-to-one, and
+points past it are never projected. Pixel density at a point is √|det J| of the image Jacobian over a patch facing the
+camera (f/Z on a pinhole's axis; × √cos α for a tilted surface), and defocus is the thin-lens blur disc
+b = A f |s − z| / (z (s − f)) [Ray 2002]. Ported from Vantage `core/lens.py`. See
+[models/optics.md](models/optics.md).
+
+## Occlusion by the posed robot {#occlusion}
+
+Around each imager's optical centre, a cube map of distances to the nearest occluder (the robots' visual meshes
+posed at q, the task objects, the tables): six 90° faces of n × n texels (default 512), built by a z-buffer on the GPU
+(EGL) or by an exact numpy rasteriser (the ray through each texel centre against each triangle; the depth is the
+exact plane distance along that ray). A point is visible when its distance is at most its texel's depth plus 1 mm (a
+default); near-plane clipping at 5 mm keeps a sensor from being blinded by its own seat. Exact ray casting
+(Möller-Trumbore over a uniform grid) is the independent reference. Ported from Vantage `core/occlusion.py` (the
+cube-map idea and face basis). See [models/occlusion.md](models/occlusion.md).
+
+## Sparse voxels {#voxels}
+
+Each task volume is covered by cubic voxels of 5 mm (a default), split into k³ voxels of at most 2 mm (a default)
+inside refinement regions and around the task objects. A dense 1 mm grid over 1.5 × 1.5 × 1.2 m is 2.7 × 10⁹ voxels;
+a grid over 5 × 10⁷ voxels is refused with a message saying so. See [models/voxels.md](models/voxels.md).
+
+## Coverage and resolution {#coverage}
+
+For every voxel and camera: in the image (projected by the imager's lens model), visible (the cube map), pixels per
+millimetre, the viewing angle, the defocus blur where every lens figure is stated or entered, and redundancy (how
+many cameras see it). Shares are volume-weighted; the headline is the share seen by two or more cameras, with status
+thresholds 90 / 60 / 30 % (defaults). See [models/coverage.md](models/coverage.md).
+
+## Depth validity {#depth}
+
+A voxel is depth-valid for a depth sensor when it is (1) inside every needed imager's FOV (both of a stereo pair),
+(2) beyond min-Z for the chosen resolution (the maker's table) and within the stated range, (3) seen by every needed
+imager (finger shadows and stereo parallax), (4) inside the projector cone where texture is needed, and (5) not on a
+surface tagged transparent, IR-absorbing or specular (a warning). The expected error is σ_z = z² σ_d / (f B)
+[Hartley and Zisserman 2004], σ_d = 0.08 px by default (labelled), shown beside the maker's RMS statement. See
+[models/depth.md](models/depth.md).
+
+## The Camera view {#camview}
+
+The selected sensor's image through its imager's lens model: an exact per-pixel z-buffer of the posed robots,
+objects, tables and floor, with the task volumes' visible edges and the analysis page's overlays; rendered on a
+worker thread, at half size while dragging. See [models/camview.md](models/camview.md).
+
+## Performance {#performance}
+
+No UI-thread step over 100 ms on the samples with the shader renderer (largest: 68 ms median, 96 ms worst, for a UR5e
+frame after a joint change on an integrated GPU). See [models/performance.md](models/performance.md).
+
 ## Provenance {#provenance}
 
 As Vantage: a block under `provenance` (schema `dexvantage.provenance/1`) with the version, a SHA-256 of the package
@@ -62,8 +127,13 @@ the batch command with paths reduced to file names, and the SHA-256 of the resul
 reference and passes when the error is at most its stated tolerance. Phase 0: 8 checks (frames; the project file
 against its JSON Schema through the jsonschema package; save and load identical). Phase 1: 10 kinematics checks (FK
 and Jacobians against an independent chain, DH closed forms and finite differences; IK round trips; the 2R
-manipulability closed form; analytic sphere and capsule distances). With no project given, the project-dependent
-checks run on the bundled SO-100 and UR5e samples.
+manipulability closed form; analytic sphere and capsule distances). Phase 2: 22 more, 40 in all — optics 10
+(OpenCV's `projectPoints` and `fisheye.projectPoints`, round trips, FOV fits, finite differences, the hyperfocal
+formulae, MuJoCo-rendered fiducials), occlusion 7 (exact ray casting, MuJoCo segmentation on scripted scenes and on
+the UR5e, the Camera view and the coverage study against ray casting), depth 4 (σ_z against Monte Carlo, Intel's
+min-Z and FOV tables, the stereo-overlap formula, finger shadows against ray casting from both imagers) and the
+project-obstacle distance. With no project given, the project-dependent checks run on the bundled SO-100 and UR5e
+samples.
 
 ## Model documents
 
@@ -72,3 +142,11 @@ checks run on the bundled SO-100 and UR5e samples.
 | [models/robots.md](models/robots.md) | robot import, the MuJoCo kinematics model, bundled models and samples |
 | [models/kinematics.md](models/kinematics.md) | product-of-exponentials forward kinematics, Jacobians, DH tables |
 | [models/ik.md](models/ik.md) | inverse kinematics, manipulability, collision distances |
+| [models/library.md](models/library.md) | the hardware library: entry format, sources and dates, the gaps policy, from a sensor to imagers, custom devices |
+| [models/optics.md](models/optics.md) | lens models and their valid angles, FOV fitting, pixel density, viewing angle, thin-lens defocus, MuJoCo fiducial check |
+| [models/occlusion.md](models/occlusion.md) | the scene's occluders at q, articulated cube-map occlusion (numpy and GPU), exact ray casting, decimation, timings |
+| [models/voxels.md](models/voxels.md) | sparse voxel grids with adaptive refinement, the dense-grid limit |
+| [models/camview.md](models/camview.md) | the Camera view: a sensor's simulated image through its lens model, lens-model frusta (worked example: [guide/sensors.md](guide/sensors.md)) |
+| [models/coverage.md](models/coverage.md) | coverage and resolution of the task volume: visibility, pixels per mm, viewing angle, defocus, redundancy (worked example: [guide/coverage.md](guide/coverage.md)) |
+| [models/depth.md](models/depth.md) | depth validity: the five conditions, min-Z zones, σ_z against the maker's RMS figure (worked example: [guide/depth.md](guide/depth.md)) |
+| [models/performance.md](models/performance.md) | the UI-thread budget: measured timings on the samples and what was changed to meet it |

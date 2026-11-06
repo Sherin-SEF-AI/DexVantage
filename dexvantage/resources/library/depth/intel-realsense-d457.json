@@ -1,0 +1,574 @@
+{
+  "id": "intel-realsense-d457",
+  "kind": "depth",
+  "maker": "Intel RealSense",
+  "name": "RealSense Depth Camera D457",
+  "family": "D400 series (GMSL)",
+  "sources": [
+    {
+      "url": "https://realsenseai.com/wp-content/uploads/2025/08/RealSense-D457-Datasheet-Aug_2025.pdf",
+      "title": "RealSense Product Family D457 Datasheet, Revision 006, August 2025, document 337029-011",
+      "read": "2026-11-06",
+      "covers": "module (D450), baseline, depth FOV, projector and RGB FOV, min-Z table, depth quality, range, GMSL stream modes, power, supply, size, mass, interface"
+    },
+    {
+      "url": "https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf",
+      "title": "RealSense Product Family D400 Series Datasheet, Revision 023, March 2026, document 337029-017 (formerly the Intel RealSense Product Family D400 Series Datasheet)",
+      "read": "2026-11-06",
+      "covers": "D450 module component tables: imager (Table 3-14) and RGB (Table 3-19) sensor, shutter, f-number, focus, native resolution and FOV"
+    },
+    {
+      "url": "https://store.realsenseai.com/buy-realsense-depth-camera-d457.html",
+      "title": "RealSense Depth Camera D457 (RealSense store page)",
+      "read": "2026-11-06",
+      "covers": "cross-check of range, min-Z, shutters, FOVs, size"
+    }
+  ],
+  "note": "Poses: the body frame's origin is the left imager's optical centre, which the datasheet names as the depth origin (section 4.8.1, \"the X-Y center of the left imager\"); the right imager sits one baseline along -y (the left imager is on the left looking out, section 3.6.1). Both optical axes are taken as parallel to body x (the rectified stereo geometry the depth output uses); the units' own extrinsics come from calibration. The D457 is \"the D450 optical module with a newly developed GMSL 2/FAKRA Vision Processor D4 board (V5)\" (D457 datasheet section 1); its component figures are the D450 module tables of the D400 datasheet, as the D457 datasheet says (section 2.1). The RGB sensor's offset from the left imager is not stated: placed at the depth origin as an ASSUMPTION (pose_stated false). The projector's position between the imagers is drawn in the datasheet (Figures 3-4 to 3-6) but no offset is given: it is placed at the baseline midpoint as an ASSUMPTION (pose_stated false); its FOV is the datasheet's. Not stated by the maker: pixel size (no table gives it), lens distortion coefficients (the datasheet gives only \"Distortion <= 1.5%\"), the stereo matcher's subpixel accuracy. The lens model is therefore pinhole (a labelled assumption); calibrate a unit for its own K and D. The FOVs vary unit to unit by about +/-3 degrees (mechanical tolerance +/-5%, datasheet Table 3-49 note 3). max_range_m is the upper figure of the datasheet's \"Range\" feature line, which reads \"over\" that figure and \"varies with lighting conditions\" (depth.range_text). Stream modes are the FAKRA/GMSL table (Table 4-2). power_w is the datasheet's \"All Components\" power at its Max Operating Mode (section 7.4), not a measured average. Sources disagree: the D457 datasheet's feature line reads \"Range 0.4m to over 10m\" (used) while the D455's reads \"0.4 m to over 6 m\" although the D457 \"supports the same specification ... as the D455\"; the store page gives \"Ideal Range .6 m to 6 m\". The D457 datasheet states its depth FOV at 4 m (Table 3-19), the D400 datasheet the D450's at 2 m. Power: 12 V nominal, 300 mA nominal over FAKRA (Table 3-16); the 3.72 W is \"All Components\" at 848x480 @ 90 fps depth, 848x480 @ 60 fps colour, laser 360 mW (Table 7-3). USB is \"only used for debug and production line\". IP65. 6-DoF IMU (not modelled here). The host needs a GMSL de-serialiser.",
+  "interface": "GMSL2 (FAKRA, C-coding)",
+  "power_w": 3.72,
+  "mass_g": 145.0,
+  "size_mm": [
+    36.0,
+    124.0,
+    29.0
+  ],
+  "imagers": [
+    {
+      "name": "IR left",
+      "role": "ir_left",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 90.0,
+      "vfov_deg": 64.0,
+      "dfov_deg": 98.0,
+      "pixel_um": null,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed",
+      "fov_modes": [
+        {
+          "aspect": [
+            16,
+            9
+          ],
+          "hfov_deg": 87.0,
+          "vfov_deg": 58.0,
+          "dfov_deg": 95.0,
+          "what": "Depth FOV HD (16:9), D457 datasheet Table 3-19, at 4 m"
+        },
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 75.0,
+          "vfov_deg": 62.0,
+          "dfov_deg": 89.0,
+          "what": "Depth FOV VGA (4:3), D457 datasheet Table 3-19, at 4 m"
+        }
+      ]
+    },
+    {
+      "name": "IR right",
+      "role": "ir_right",
+      "pose": {
+        "position": [
+          0.0,
+          -0.095,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 90.0,
+      "vfov_deg": 64.0,
+      "dfov_deg": 98.0,
+      "pixel_um": null,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed",
+      "fov_modes": [
+        {
+          "aspect": [
+            16,
+            9
+          ],
+          "hfov_deg": 87.0,
+          "vfov_deg": 58.0,
+          "dfov_deg": 95.0,
+          "what": "Depth FOV HD (16:9), D457 datasheet Table 3-19, at 4 m"
+        },
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 75.0,
+          "vfov_deg": 62.0,
+          "dfov_deg": 89.0,
+          "what": "Depth FOV VGA (4:3), D457 datasheet Table 3-19, at 4 m"
+        }
+      ]
+    },
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": false,
+      "shutter": "global",
+      "hfov_deg": 90.0,
+      "vfov_deg": 65.0,
+      "dfov_deg": 98.0,
+      "pixel_um": null,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed"
+    }
+  ],
+  "projector": {
+    "hfov_deg": 90.0,
+    "vfov_deg": 63.0,
+    "dfov_deg": 99.0,
+    "pose": {
+      "position": [
+        0.0,
+        -0.0475,
+        0.0
+      ],
+      "quaternion": [
+        -0.5,
+        0.5,
+        -0.5,
+        0.5
+      ]
+    },
+    "pose_stated": false
+  },
+  "depth": {
+    "technology": "active_ir_stereo",
+    "reference_imager": "IR left",
+    "stereo_pair": [
+      "IR left",
+      "IR right"
+    ],
+    "baseline_m": 0.095,
+    "min_z": [
+      {
+        "width": 1280,
+        "height": 720,
+        "m": 0.52
+      },
+      {
+        "width": 848,
+        "height": 480,
+        "m": 0.35
+      },
+      {
+        "width": 640,
+        "height": 480,
+        "m": 0.32
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "m": 0.26
+      },
+      {
+        "width": 480,
+        "height": 270,
+        "m": 0.2
+      },
+      {
+        "width": 424,
+        "height": 240,
+        "m": 0.18
+      }
+    ],
+    "max_range_m": 10.0,
+    "range_text": "Range 0.4m to over 10m (Varies with lighting conditions)",
+    "rms_error": {
+      "text": "RMS error (or spatial noise) <= 2%, up to 4 m, 80% ROI, HD resolution (D457 datasheet Table 4-7); laser 150 mW, auto exposure",
+      "metric": "rms",
+      "pct": 2.0,
+      "at_m": 4.0
+    },
+    "subpixel_px": null,
+    "depth_fov": {
+      "h": 87.0,
+      "v": 58.0,
+      "d": 95.0
+    },
+    "depth_start_mm": -4.55
+  },
+  "streams": [
+    {
+      "imager": "depth",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        15,
+        30
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "IR left",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        5,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        5,
+        15,
+        30
+      ],
+      "format": "YUV422",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        5,
+        15,
+        30,
+        60
+      ],
+      "format": "YUV422",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        5,
+        15,
+        30,
+        60
+      ],
+      "format": "YUV422",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        5,
+        15,
+        30,
+        60
+      ],
+      "format": "YUV422",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        5,
+        15,
+        30,
+        60
+      ],
+      "format": "YUV422",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        5,
+        15,
+        30,
+        60
+      ],
+      "format": "YUV422",
+      "bits_per_pixel": 16
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

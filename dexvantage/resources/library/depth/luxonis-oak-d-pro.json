@@ -1,0 +1,327 @@
+{
+  "id": "luxonis-oak-d-pro",
+  "kind": "depth",
+  "maker": "Luxonis",
+  "name": "OAK-D Pro (auto-focus RGB)",
+  "family": "OAK (RVC2)",
+  "sources": [
+    {
+      "url": "https://docs.luxonis.com/hardware/products/OAK-D%20Pro",
+      "title": "OAK-D Pro, Luxonis hardware documentation",
+      "read": "2026-11-06",
+      "covers": "camera variants with FOVs and shutters, baseline, ideal range, MinZ, depth accuracy, interface, power (dot projector and flood LED up to 1 W each)"
+    },
+    {
+      "url": "https://shop.luxonis.com/products/oak-d-pro",
+      "title": "OAK-D Pro store page (technical specifications), Luxonis",
+      "read": "2026-11-06",
+      "covers": "sensor table (resolution, max frame rate, f-number, focal length, pixel size), MinZ, ranges, power up to 7.5 W, dimensions 97 x 29.5 x 22.9 mm, mass 91 g"
+    },
+    {
+      "url": "https://github.com/luxonis/depthai-hardware/blob/master/DM9098_OAK-D-Pro/Datasheet/OAK-D-Pro_Datasheet.pdf",
+      "title": "OAK-D Pro datasheet, Dec 2021, Luxonis",
+      "read": "2026-11-06",
+      "covers": "dot projector (Belago 1.1, 940 nm, HFOI 61 +/- 4 deg, VFOI 78 +/- 4 deg), flood LED (940 nm, FOI 80 deg), power 4/6/7.5 W, size (W x D x H) 97 x 22.9 x 29.5 mm"
+    },
+    {
+      "url": "https://github.com/luxonis/depthai-boards/blob/bfa8f3638a10352c1e5517348fbe4c0c428b86fd/boards/OAK-D-PRO.json",
+      "title": "depthai-boards OAK-D-PRO.json board configuration (commit bfa8f36), Luxonis",
+      "read": "2026-11-06",
+      "covers": "design translations between the cameras"
+    },
+    {
+      "url": "https://docs.luxonis.com/hardware/sensors/OV9282",
+      "title": "OV9282 sensor page, Luxonis documentation",
+      "read": "2026-11-06",
+      "covers": "sensor modes (resolution and max FPS on RVC2), pixel size, shutter, sensor size"
+    },
+    {
+      "url": "https://docs.luxonis.com/hardware/sensors/IMX378",
+      "title": "IMX378 sensor page, Luxonis documentation",
+      "read": "2026-11-06",
+      "covers": "sensor modes (resolution and max FPS on RVC2), pixel size, shutter, sensor size"
+    }
+  ],
+  "note": "Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map is referenced to). Positions are Luxonis's design (\"spec\") translations from its own calibration board file (depthai-boards, specTranslation in cm, rotation zero): the right camera one baseline along -y and the centre camera at the baseline midpoint; a unit's own calibration differs from these design values. Interface: the docs page says \"USB 2/3 (up to 10 Gbps)\", the datasheet \"USB3.1, gen2 10gbps\" with output \"via USB 3.1 Gen1\", the store page \"USB-C (USB 3.2 Gen1, 5 Gbps)\"; USB 3.2 Gen 1 is entered. Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV (no distortion is stated). Not stated by the maker: subpixel accuracy, lens distortion, depth FOV (the depth map takes the reference camera's FOV; not stated separately, so depth_fov is null). Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor pages; lower rates are configurable but not listed); the format on the USB link depends on the on-device pipeline (raw, NV12 or H.264/H.265/MJPEG encoded), so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the chosen stereo mode). Variant entered: auto-focus IMX378 (78/66/54 deg D/H/V, EFL 4.81 mm). The fixed-focus IMX378 variant is 82/69/55 deg (EFL 4.74 mm) and the OV9782 variant a 1 MP global-shutter colour camera at 89.5/80/55 deg; calibrate or edit the entry for those. Projector: the IR dot projector's field of illumination is the datasheet's HFOI 61 +/- 4 deg, VFOI 78 +/- 4 deg (vertical wider than horizontal, as stated); its position is not stated: placed at the baseline midpoint as an ASSUMPTION (pose_stated false). The flood LED (FOI 80 deg, 940 nm) is not entered as a projector. The docs page states no projector FOV. Conflicts: MinZ and ideal range as for OAK-D (docs ~80/~40/~20 cm, entered; store ~70/~35/~20 cm, ideal 70 cm - 12 m); the docs page says \"Pro devices might consume up to 15W\" while the datasheet and store page give 7.5 W (entered). Stereo cameras are IR-sensitive (no IR-cut, 940 nm notch in production per the datasheet). Size 97 x 29.5 x 22.9 mm: the datasheet labels it W x D x H as 97 x 22.9 x 29.5. Depth accuracy is a median absolute error, not RMS. max_range_m is the store page's maximum effective depth range.",
+  "interface": "USB 3.2 Gen 1 (USB Type-C)",
+  "power_w": 7.5,
+  "mass_g": 91.0,
+  "size_mm": [
+    22.9,
+    97.0,
+    29.5
+  ],
+  "imagers": [
+    {
+      "name": "Left",
+      "role": "ir_left",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 80.0,
+      "vfov_deg": 55.0,
+      "dfov_deg": 89.5,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed"
+    },
+    {
+      "name": "Right",
+      "role": "ir_right",
+      "pose": {
+        "position": [
+          0.0,
+          -0.075,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 80.0,
+      "vfov_deg": 55.0,
+      "dfov_deg": 89.5,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed"
+    },
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          -0.0375,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "rolling",
+      "hfov_deg": 66.0,
+      "vfov_deg": 54.0,
+      "dfov_deg": 78.0,
+      "pixel_um": 1.55,
+      "resolution": [
+        4056,
+        3040
+      ],
+      "lens_model": "pinhole",
+      "f_number": 1.8,
+      "focus": "auto"
+    }
+  ],
+  "projector": {
+    "hfov_deg": 61.0,
+    "vfov_deg": 78.0,
+    "dfov_deg": null,
+    "pose": {
+      "position": [
+        0.0,
+        -0.0375,
+        0.0
+      ],
+      "quaternion": [
+        -0.5,
+        0.5,
+        -0.5,
+        0.5
+      ]
+    },
+    "pose_stated": false,
+    "wavelength_nm": 940
+  },
+  "depth": {
+    "technology": "active_ir_stereo",
+    "reference_imager": "Left",
+    "stereo_pair": [
+      "Left",
+      "Right"
+    ],
+    "baseline_m": 0.075,
+    "min_z": [
+      {
+        "width": 1280,
+        "height": 800,
+        "m": 0.8
+      },
+      {
+        "width": 640,
+        "height": 400,
+        "m": 0.4
+      }
+    ],
+    "min_z_extended": [
+      {
+        "width": 1280,
+        "height": 800,
+        "m": 0.4
+      },
+      {
+        "width": 640,
+        "height": 400,
+        "m": 0.2
+      }
+    ],
+    "max_range_m": 30.0,
+    "ideal_range_m": [
+      0.8,
+      12.0
+    ],
+    "range_text": "Ideal range ~80 cm - 12 m (docs; store page 70 cm - 12 m); maximum effective depth range 30 m (store page)",
+    "rms_error": {
+      "text": "Median absolute depth error below 2% below 4 m, below 4% at 4-7 m, below 6% at 7-10 m (800P, 75 mm baseline; not an RMS figure)",
+      "metric": "median_abs",
+      "pct": 2.0,
+      "at_m": 4.0
+    },
+    "subpixel_px": null,
+    "depth_fov": null
+  },
+  "streams": [
+    {
+      "imager": "Left",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        129
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Left",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        143
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Left",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        255
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        129
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        143
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        255
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 4056,
+      "height": 3040,
+      "fps": [
+        30
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 3840,
+      "height": 2160,
+      "fps": [
+        30
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 2024,
+      "height": 1520,
+      "fps": [
+        85
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        60
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1352,
+      "height": 1012,
+      "fps": [
+        52
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

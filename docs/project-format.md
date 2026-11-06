@@ -31,7 +31,7 @@ A `.dexv` file is a zip archive (written atomically: a `.part` file renamed over
                                  "mount": { "parent_frame": "world|cage|tripod|table|<link>", "robot_uid": "",
                                             "pose": {…}, "tolerance": {"position_mm": 1.0, "rotation_deg": 0.5},
                                             "bracket": "" },
-                                 "slot": 0, "locked": false, "enabled": true } ] } ],
+                                 "slot": 0, "locked": false, "enabled": true, "stream": [w, h] } ] } ],
   "active_uid": "…",
   "requirements": [ {"uid", "name", "metric", "op": ">=|<=|<|>|==", "threshold", "unit", "study",
                      "is_default": true, "note"} ],
@@ -43,6 +43,8 @@ A `.dexv` file is a zip archive (written atomically: a `.part` file renamed over
 
 Units are SI (metres; joint values in radians); quaternions are (x, y, z, w); frames follow REP-103. A uid is ten
 lowercase hex digits. Mount tolerances default to ±1 mm and ±0.5° (labelled defaults, set per mount).
+A sensor's `stream` is the stream mode chosen for it (width, height in pixels, one of its library device's stream
+modes); `[]` (the default) uses each imager's largest listed stream.
 
 ## Robots (Phase 1)
 

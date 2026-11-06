@@ -1,0 +1,320 @@
+{
+  "id": "orbbec-femto-bolt",
+  "kind": "depth",
+  "maker": "Orbbec",
+  "name": "Femto Bolt",
+  "family": "Femto",
+  "sources": [
+    {
+      "url": "https://doc.orbbec.com/documentation/Orbbec%20Femto%20Bolt%20Documentation/Femto%20Bolt%20Hardware%20Specifications",
+      "title": "Femto Bolt Hardware Specifications, Orbbec documentation",
+      "read": "2026-11-06",
+      "covers": "depth modes (resolution, FoI, fps, operating range, exposure), RGB modes and formats, RGB FOV, peak power 8.7 W, dimensions 115.30 x 64.95 x 40.26 mm, mass 348 g"
+    },
+    {
+      "url": "https://www.orbbec.com/wp-content/uploads/2023/08/ORBBEC_Datasheet_Femto-Bolt-0816-v01-1.pdf",
+      "title": "Femto Bolt Datasheet v1.0 (2023), Orbbec",
+      "read": "2026-11-06",
+      "covers": "technology iToF, shutter types (IR global, colour rolling), depth and RGB modes, depth error, interface, power 4.35 W average, dimensions 115 x 40 x 65 mm, mass 335 g, drawings, FOV illustration"
+    },
+    {
+      "url": "https://www.orbbec.com/products/tof-camera/femto-bolt/",
+      "title": "Femto Bolt product page, Orbbec",
+      "read": "2026-11-06",
+      "covers": "depth and RGB FOV, RGB pixel pitch 1.45 um, f/2.7, RGB mode list, power, W x H x D 115 x 40 x 65 mm, mass 348 g, 850 nm"
+    }
+  ],
+  "note": "Poses: the body origin is the ToF depth camera's optical centre (the reference imager). The RGB camera's offset and orientation relative to the depth camera are not stated (the documentation says calibration is read from the device through the SDK); the datasheet's FOV illustration draws the depth and RGB fields of view tilted relative to each other without giving the angle. The RGB camera is placed at the depth origin with the same orientation as an ASSUMPTION (pose_stated false). The ToF illuminator (850 nm) is not entered as a projector: its field of illumination and position are not stated. Depth FOV: WFOV 120 x 120 deg (1024 x 1024 and 512 x 512) and NFOV 75 x 65 deg (640 x 576 and 320 x 288, entered as a fov_mode for the 10:9 streams); the documentation calls these FoI. Lens model pinhole is a labelled ASSUMPTION (WFOV is a wide, near-circular image in the illustration; calibrate a unit). min_z is each depth mode's stated operating-range minimum; operating range maxima: NFOV unbinned 3.86 m, NFOV binned 5.46 m, WFOV binned 2.88 m, WFOV unbinned 2.21 m (at 15-95% reflectivity, 850 nm, 2.2 uW/cm2/nm). Conflicts between the maker's pages: WFOV unbinned rates 5/15 fps (datasheet, product page; entered) vs 5/15/25 (documentation); 3840 x 2160 RGB at 5/15/25 fps (datasheet, product page mode list; entered) vs 5/15/25/30 (documentation) and \"Up to 3840X2160@30fps\" (product page summary); RGB formats MJPEG only at 1080p and above in the documentation vs \"YUY2, MJPG, H.264, H.265\" in the datasheet (MJPEG entered, compressed: bits_per_pixel null; 1280 x 720 is also YUY2/NV12); mass 348 g (documentation, product page; entered) vs 335 g (datasheet); the product page's comparison table lists 335 g under \"Dimensions\". Size: product page W x H x D 115 x 40 x 65 mm. power_w is the stated average 4.35 W; the documentation gives peak 8.7 W (DC power) and 7.7 W (Type-C power). Passive IR is a 1024 x 1024 mode of the ToF sensor (format not stated separately; Y16 per the datasheet's \"Depth & IR\" footnote). Not stated: depth or RGB pixel size of the ToF sensor, RGB focus type, distortion. Operating temperature 10-25 C, indoor/semi-outdoor.",
+  "interface": "USB 3.2 Gen 1 (USB Type-C)",
+  "power_w": 4.35,
+  "mass_g": 348.0,
+  "size_mm": [
+    65.0,
+    115.0,
+    40.0
+  ],
+  "imagers": [
+    {
+      "name": "Depth camera",
+      "role": "tof",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 120.0,
+      "vfov_deg": 120.0,
+      "dfov_deg": null,
+      "pixel_um": null,
+      "resolution": [
+        1024,
+        1024
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": null,
+      "fov_modes": [
+        {
+          "aspect": [
+            10,
+            9
+          ],
+          "hfov_deg": 75.0,
+          "vfov_deg": 65.0,
+          "dfov_deg": null,
+          "what": "NFOV depth modes (640 x 576 unbinned, 320 x 288 binned)"
+        }
+      ]
+    },
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": false,
+      "shutter": "rolling",
+      "hfov_deg": 80.0,
+      "vfov_deg": 51.0,
+      "dfov_deg": null,
+      "pixel_um": 1.45,
+      "resolution": [
+        3840,
+        2160
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.7,
+      "focus": null,
+      "fov_modes": [
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 65.0,
+          "vfov_deg": 51.0,
+          "dfov_deg": null,
+          "what": "4:3 RGB mode (1280 x 960)"
+        }
+      ]
+    }
+  ],
+  "projector": null,
+  "depth": {
+    "technology": "tof",
+    "reference_imager": "Depth camera",
+    "stereo_pair": null,
+    "baseline_m": null,
+    "min_z": [
+      {
+        "width": 640,
+        "height": 576,
+        "m": 0.5
+      },
+      {
+        "width": 320,
+        "height": 288,
+        "m": 0.5
+      },
+      {
+        "width": 512,
+        "height": 512,
+        "m": 0.25
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "m": 0.25
+      }
+    ],
+    "max_range_by_mode": [
+      {
+        "width": 640,
+        "height": 576,
+        "m": 3.86
+      },
+      {
+        "width": 320,
+        "height": 288,
+        "m": 5.46
+      },
+      {
+        "width": 512,
+        "height": 512,
+        "m": 2.88
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "m": 2.21
+      }
+    ],
+    "max_range_m": 5.46,
+    "min_range_m": 0.25,
+    "range_text": "0.25-5.46 m depending on depth mode (15% to 95% reflectivity at 850 nm, 2.2 uW/cm2/nm, no multi-path interference)",
+    "rms_error": {
+      "text": "Random error standard deviation (precision) <= 17 mm; typical systematic error (accuracy) < 11 mm + 0.1% of distance (no multi-path interference)",
+      "metric": "std_dev",
+      "pct": null,
+      "at_m": null
+    },
+    "subpixel_px": null,
+    "depth_fov": {
+      "h": 120.0,
+      "v": 120.0,
+      "d": null
+    }
+  },
+  "streams": [
+    {
+      "imager": "depth",
+      "width": 1024,
+      "height": 1024,
+      "fps": [
+        5,
+        15
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 512,
+      "height": 512,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 576,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 320,
+      "height": 288,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "Depth camera",
+      "width": 1024,
+      "height": 1024,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16,
+      "what": "passive IR"
+    },
+    {
+      "imager": "RGB",
+      "width": 3840,
+      "height": 2160,
+      "fps": [
+        5,
+        15,
+        25
+      ],
+      "format": "MJPEG",
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 2560,
+      "height": 1440,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "MJPEG",
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "MJPEG",
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 960,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "MJPEG",
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

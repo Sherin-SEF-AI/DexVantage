@@ -1,0 +1,41 @@
+{
+  "id": "gelsight-mini",
+  "kind": "tactile",
+  "maker": "GelSight",
+  "name": "GelSight Mini",
+  "family": "GelSight",
+  "sources": [
+    {
+      "url": "https://www.gelsight.com/wp-content/uploads/productsheet/Mini/GS_Mini_4.3.24.pdf",
+      "title": "GelSight Mini product sheet (dated 4.3.24 on the sheet)",
+      "read": "2026-11-06",
+      "covers": "camera resolution, frame rate, field of view (pad), gel thickness, illumination, cable, operating temperature"
+    },
+    {
+      "url": "https://www.gelsight.com/gelsightmini/",
+      "title": "GelSight Mini | Tactile Sensor for Robotics (product page)",
+      "read": "2026-11-06",
+      "covers": "software support (ROS/ROS2, PyTouch); states no figures"
+    }
+  ],
+  "note": "An optical (elastomer and camera) tactile sensor: a contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. pad_mm is the stated \"Field of View 18.6(H) x 14.3(V) mm\" of the gel. Camera resolution is stated only as \"8MP\" (no width and height), so camera_resolution is null and no stream is entered; frame rate 25 FPS. Gel thickness 4.25 +/- 0.20 mm; RGB LED illumination. Interface: the box contains a \"2 meter USB Micro B to USB-C cable\" (a USB Micro-B receptacle on the sensor); the USB generation and the stream format and data rate are not stated, so the bandwidth budget needs a measured figure. Not stated: mass, power, size (only in a drawing). Preferred operating temperature 0-30 C; the sheet's thermal test shows a 22.7 C case-temperature rise at 25 fps.",
+  "interface": "USB (Micro-B receptacle on the sensor)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": {
+    "pad_mm": [
+      18.6,
+      14.3
+    ],
+    "camera_resolution": null,
+    "fps": 25.0,
+    "sensing": "optical",
+    "taxels": null
+  },
+  "host": null
+}

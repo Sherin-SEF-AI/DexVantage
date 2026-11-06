@@ -235,8 +235,11 @@ class MainWindow(QMainWindow):
         A('ik_drag', 'Drag the end effector (IK)', category='Robot', icon='gripper', phase=1)
         # sensors
         A('add_camera', 'Add camera on a tripod', self.add_static_camera, category='Sensors', icon='camera-wide',
-          tip='A camera on a static frame, looking at the task volume. Pick its model from the library in Phase 2.')
-        A('new_device', 'New custom device…', category='Sensors', icon='sensor', phase=2,
+          tip='A camera on a static frame, looking at the task volume. Pick its device on the Sensors and mounts '
+              'page or in the Library.')
+        A('new_device', 'New custom device…',
+          lambda: __import__('dexvantage.ui.dialogs.custom_device', fromlist=['open_dialog']).open_dialog(self),
+          category='Sensors', icon='sensor',
           tip='Every field marked as given by the maker or not given.')
         # workspace
         A('add_volume', 'Add task volume', self.add_volume, category='Workspace', icon='task-volume')
@@ -443,6 +446,7 @@ class MainWindow(QMainWindow):
         an = self.ctx.analysis
         an.started.connect(lambda sid: self._update_state())
         an.finished.connect(lambda sid, doc: self._update_state())
+        an.finished.connect(self._study_done)
         an.failed.connect(self._study_failed)
         an.stale_changed.connect(lambda _s: self._update_state())
         self.ctx.overlays_changed.connect(self.viewport.update)
@@ -475,7 +479,21 @@ class MainWindow(QMainWindow):
 
     def _study_failed(self, sid, m):
         print(m)                                         # the traceback goes to the log, never to the user
-        self.msg(f'The {sid} study stopped with an error: {m.splitlines()[0]}', 8000)
+        from ..core import jobs
+        from .store import failure_text
+        info = jobs.STUDIES.get(sid)
+        title = info.title if info is not None else sid
+        text, explained = failure_text(m, f'The {title.lower()} study')
+        self.msg(f'{title} could not run: {text}' if explained else text, 8000)
+        self._failed_msg = (sid, self.msg_label.text())
+
+    def _study_done(self, sid, _doc):
+        """A study that ran after failing takes its failure off the status bar (it no longer holds)."""
+        f = getattr(self, '_failed_msg', None)
+        if f is not None and f[0] == sid:
+            self._failed_msg = None
+            if self.msg_label.text() == f[1]:
+                self.msg_label.hide()
 
     def set_project_meta(self):
         p = self.store.project

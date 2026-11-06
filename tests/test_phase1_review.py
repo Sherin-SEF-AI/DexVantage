@@ -231,7 +231,7 @@ def test_library_and_robot_readouts(app, win):
     for g in ('Robots', 'Grippers'):
         kids = [groups[g].child(k).text(0) for k in range(groups[g].childCount())]
         assert kids and not any('Arrives in Phase' in k for k in kids)
-    assert groups['Cameras'].child(0).text(0) == 'Arrives in Phase 2'
+    assert groups['Cameras'].childCount() and 'Arrives in Phase' not in groups['Cameras'].child(0).text(0)   # Phase 2
     win.open_sample('ur5e')
     win.open_page('robot')
     pump(app, 0.05)

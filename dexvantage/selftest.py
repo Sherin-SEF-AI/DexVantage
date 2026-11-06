@@ -6,6 +6,10 @@ order a new user meets them.
     mujoco       MuJoCo loads a small model and computes its kinematics (the primary kinematics engine)
     robots       the bundled SO-100 and UR5e samples import, and MuJoCo and the independent product-of-exponentials
                  forward kinematics agree on every link
+    library      every hardware library entry loads and validates against its schema; the UR5e sample's sensors
+                 get their imagers from it
+    occlusion    a cube map of a small scripted scene agrees with exact ray casting (says which backend ran: the
+                 GPU or numpy)
     opencv       the chessboard detector and the PNG codec
     fonts        the bundled IBM Plex fonts load
     opengl       the shader renderer draws a frame off-screen (a warning only: the 3D view falls back to QPainter)
@@ -183,6 +187,56 @@ def _check_robots(S):
     return OK, f'samples {", ".join(said)} import; MuJoCo and product-of-exponentials FK agree within {worst:.0e}'
 
 
+def _check_library(S):
+    """Every hardware library entry loads and validates against the library schema, and the UR5e sample's two
+    RealSense sensors get their imagers from it (not the labelled default)."""
+    from .core import library as L
+    from .core.robot.samples import sample_project
+    L.reload()
+    if L.problems():
+        return FAIL, f'{len(L.problems())} library files were skipped: {L.problems()[0]}'
+    es = L.entries()
+    bad = [(e.id, m) for e in es for m in L.validate(e.data)[:1]]
+    if bad:
+        return FAIL, f'{len(bad)} entries do not validate, first {bad[0][0]}: {bad[0][1]}'
+    p = sample_project('ur5e')
+    for sn in p.variant.sensors:
+        ims = L.sensor_imagers(sn)
+        if not ims or any(i.is_default for i in ims):
+            return FAIL, f'the UR5e sample\'s "{sn.name}" has no library imagers ({sn.model_id or "no model id"})'
+    by = {k: sum(e.kind == k for e in es) for k in L.KINDS}
+    return OK, f'{len(es)} entries valid (' + ', '.join(f'{n} {k}' for k, n in by.items() if n) + \
+        '); the UR5e sample\'s D405 and D435 resolve to their datasheet imagers'
+
+
+def _check_occlusion(S):
+    """A cube map of a small scripted scene (three boxes over a floor) against exact ray casting (core/raycast.py)
+    on 20 000 random points: every disagreement must lie within two texels of a silhouette."""
+    import numpy as np
+    from .core import occlusion as OC, raycast as RC
+    from .core.scenegeom import _box_tris
+
+    def box(c, h):
+        return _box_tris(np.asarray(h, float)) + np.asarray(c, float)
+    tris = np.concatenate([box((0.4, 0.0, 0.15), (0.05, 0.08, 0.15)), box((0.3, 0.25, 0.1), (0.06, 0.06, 0.1)),
+                           box((0.55, -0.2, 0.05), (0.1, 0.04, 0.05)), box((0.4, 0.0, -0.01), (0.6, 0.6, 0.01))])
+    origin = np.array([0.0, 0.0, 0.6])
+    rng = np.random.default_rng(5)
+    pts = rng.uniform((0.1, -0.4, 0.0), (0.8, 0.4, 0.35), (20000, 3))
+    n = 256
+    t0 = time.perf_counter()
+    cube = OC.CubeMap.build(tris, origin, n=n, backend='auto')
+    ms = (time.perf_counter() - t0) * 1000
+    got, ref = cube.visible(pts), RC.visible_exact(pts, origin, tris)
+    diff = got != ref
+    far = diff & ~RC.near_silhouette(pts, origin, tris, 2 * cube.texel_rad) if diff.any() else diff
+    who = cube.backend if cube.backend == 'numpy' else f'gl on {cube.renderer}'
+    if far.any():
+        return FAIL, f'{int(far.sum())} of {len(pts)} points disagree with ray casting away from a silhouette ({who})'
+    return OK, (f'cube map ({who}, n = {n}, {ms:.0f} ms) agrees with exact ray casting on {len(pts) - int(diff.sum())}'
+                f' of {len(pts)} points; the {int(diff.sum())} others lie at silhouettes')
+
+
 def _check_opencv(S):
     import cv2
     import numpy as np
@@ -301,7 +355,8 @@ def _check_validation(S):
 
 
 CHECKS = (('project', _check_project), ('frames', _check_frames), ('mujoco', _check_mujoco), ('robots', _check_robots),
-          ('opencv', _check_opencv), ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
+          ('library', _check_library), ('occlusion', _check_occlusion), ('opencv', _check_opencv),
+          ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
           ('software 3d', _check_software_3d), ('validation', _check_validation))
 NAMES = tuple(n for n, _ in CHECKS)
 BUNDLE_MAY_WARN = ('opengl',)

@@ -675,9 +675,11 @@ def light_rig(st: Style) -> dict:
 
 
 # ---------------------------------------------------------------------------- helpers
-def vertex_normals(tri: np.ndarray, face_n: np.ndarray, crease_deg=40.0) -> np.ndarray:
+def vertex_normals(tri: np.ndarray, face_n: np.ndarray, crease_deg=40.0, group=None) -> np.ndarray:
     """Per-corner normals (M,3,3): area-weighted average of the faces sharing a vertex position, except across
-    edges sharper than the crease angle, where the face normal is kept (so panel edges stay crisp)."""
+    edges sharper than the crease angle, where the face normal is kept (so panel edges stay crisp). group (M,) int:
+    only faces of the same group share a vertex (a robot's links, whose triangles are given in each link's own frame,
+    so coinciding coordinates of two links are not one vertex)."""
     M = len(tri)
     if M == 0:
         return np.zeros((0, 3, 3), np.float32)
@@ -686,6 +688,8 @@ def vertex_normals(tri: np.ndarray, face_n: np.ndarray, crease_deg=40.0) -> np.n
     fn = fn / np.maximum(np.linalg.norm(fn, axis=1, keepdims=True), 1e-12)
     area = 0.5 * np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)
     key = np.round(P / 1e-5).astype(np.int64)
+    if group is not None:
+        key = np.c_[key, np.repeat(np.asarray(group, np.int64), 3)]
     _, inv = np.unique(key, axis=0, return_inverse=True)
     inv = inv.ravel()
     acc = np.zeros((inv.max() + 1, 3))
@@ -1010,7 +1014,8 @@ class GLRenderer:
         if self._mesh is not None:
             GL.glDeleteBuffers(1, [self._mesh[1]])
         n = len(md.tri)
-        nrm = vertex_normals(md.tri, md.normals)
+        vn = getattr(md, 'vnormals', None)
+        nrm = vn if vn is not None and np.shape(vn) == (n, 3, 3) else vertex_normals(md.tri, md.normals)
         col = np.c_[md.base, md.alpha].astype(np.float32)
         mat = getattr(md, 'materials', None)
         mat = np.asarray(mat, np.float32) if mat is not None and len(mat) == n else np.zeros(n, np.float32)
@@ -1023,14 +1028,17 @@ class GLRenderer:
         solid = md.alpha > 0.99
         # opaque first, then glass (occludes, drawn see-through), then translucent
         groups = (solid & ~glass, solid & glass, ~solid)
-        order = np.concatenate([np.nonzero(g)[0] for g in groups])
-        buf = np.ascontiguousarray(buf[order])
+        if not groups[0].all():                     # all opaque paint (most robots): already in drawing order
+            order = np.concatenate([np.nonzero(g)[0] for g in groups])
+            buf = np.ascontiguousarray(buf[order])
         vbo = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
         GL.glBufferData(GL.GL_ARRAY_BUFFER, buf.nbytes, buf, GL.GL_STATIC_DRAW)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-        lo = md.tri.reshape(-1, 3).min(axis=0)
-        hi = md.tri.reshape(-1, 3).max(axis=0)
+        P = md.tri.reshape(-1, 3)
+        # per column: a reduction along axis 0 of an (N, 3) array is about 20 times slower in numpy
+        lo = np.array([P[:, k].min() for k in range(3)], P.dtype) if len(P) else np.zeros(3, np.float32)
+        hi = np.array([P[:, k].max() for k in range(3)], P.dtype) if len(P) else np.zeros(3, np.float32)
         n_op, n_gl = int(groups[0].sum()), int(groups[1].sum())
         self._mesh = (md, vbo, n_op * 3, (n_op + n_gl) * 3, n * 3, lo, hi)
         return self._mesh

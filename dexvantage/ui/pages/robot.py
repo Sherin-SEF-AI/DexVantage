@@ -11,7 +11,8 @@ Read-outs, for the gripper frame (or the last link while none is set):
 - position in millimetres and roll, pitch, yaw in degrees (URDF convention), in the world frame (REP-103);
 - Yoshikawa manipulability w = sqrt(det(J Jᵀ)) of the 6 × n world Jacobian, from core/robot/manipulability.py, and
   the Jacobian's condition number (σ_max / σ_min): large near a singularity;
-- self-collision from core/robot/collision.py, with a status word.
+- self-collision from core/robot/collision.py, with a status word, and the distance to the project's obstacles
+  (workspace objects and surfaces, collision.obstacle_distance) when the project has any.
 Each read-out says so plainly when its model is not part of this build yet.
 
 A joint within NEAR_LIMIT of its range from a limit is flagged "near a limit" (a default: 2 % of the joint's range).
@@ -128,6 +129,25 @@ def self_collision(model, q):
         who = f' ({p[0]} and {p[1]})' if isinstance(p, (list, tuple)) and len(p) >= 2 else ''
         extra = f' Closest pair{who} {dist * 1000:.1f} mm apart.'
     return 'good', 'clear', 'No two links touch at this pose.' + extra
+
+
+def obstacle_collision(project, uid, q):
+    """(sev, word, text) of the robot's distance to the project's obstacles (workspace objects and surfaces, and the
+    static geoms of its own file), or None when there are none or collision.py has no obstacle_distance."""
+    C = _module('collision')
+    if C is None or not hasattr(C, 'obstacle_distance'):
+        return None
+    if not project.workspace.objects and not project.workspace.surfaces:
+        return None
+    res = C.obstacle_distance(project, uid, q)
+    p = (res.pairs or [None])[0]
+    if res.in_collision:
+        names = [f'{a} and {b}' for a, b, _d in res.pairs[:3]]
+        return ('critical', 'in collision', f'{"; ".join(names)} touch at this pose: move the joints or the '
+                                            'obstacle.')
+    if p is None:
+        return 'good', 'clear', f'No obstacle within {C.DIST_MAX * 1000:.0f} mm.'
+    return 'good', 'clear', f'Nearest obstacle {p[1]}, {p[2] * 1000:.1f} mm from {p[0]}.'
 
 
 # ====================================================================== one robot's sliders
@@ -303,11 +323,22 @@ class RobotPanel(Section):
         except Exception:                               # noqa: BLE001
             traceback.print_exc()
             sc = ('warning', 'unknown', 'The self-collision check stopped with an error (see the log).')
+        try:
+            oc = obstacle_collision(self.page.ctx.store.project, self.uid, q)
+        except Exception:                               # noqa: BLE001
+            traceback.print_exc()
+            oc = ('warning', 'unknown', 'The obstacle check stopped with an error (see the log).')
         if sc is None:
             self.coll.set('', 'Self-collision: arrives with core/robot/collision.py.')
-        else:
+        elif oc is None:
             self.coll.set(sc[0], f'Self-collision · {sc[1]}: {sc[2]}')
+        else:
+            rank = {'critical': 2, 'warning': 1}
+            worst = max((sc, oc), key=lambda x: rank.get(x[0], 0))
+            self.coll.set(worst[0], f'Collision · {worst[1]}: {sc[2]} Obstacles: {oc[2]}')
+            sc = (worst[0], worst[1], sc[2] if worst is sc else oc[2])
         out['collision'] = sc
+        out['obstacles'] = oc
         out['near'] = self.near_limits()
         return out
 
@@ -452,8 +483,8 @@ class RobotPage(StudyPage):
         else:
             word = 'clear' if coll is not None else 'within limits'
             text = (f'{r.name} at {d["link"]}: every joint inside its limits'
-                    + (' and no link touches another.' if coll is not None else
-                       '. Self-collision arrives with core/robot/collision.py.'))
+                    + ((' and no link touches another' + (' or an obstacle.' if d.get('obstacles') else '.'))
+                       if coll is not None else '. Self-collision arrives with core/robot/collision.py.'))
             self.head.set(fig, unit, 'good', word, text, tip)
         return out
 

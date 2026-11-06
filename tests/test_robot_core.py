@@ -422,8 +422,8 @@ def test_sensor_on_link_follows_q(app, win, urdf_path):
         (s2, R, t), = [x for x in win.scene.posed_sensors() if x[0].uid == s.uid]
         T = m.link_pose(q, 'slider') @ mount.matrix()
         assert np.allclose(R, T[:3, :3]) and np.allclose(t, T[:3, 3])
-        # its frustum lines start at the sensor and its body is drawn there
-        starts = [ld.pts[0][0] for ld in win.scene.lines(win.viewport) if ld.pts.ndim == 3 and len(ld.pts) == 8]
+        # its frustum lines start at the sensor (the lens model's outline, Phase 2) and its body is drawn there
+        starts = [ld.pts[0][0] for ld in win.scene.lines(win.viewport) if ld.pts.ndim == 3]
         assert any(np.allclose(p0, t) for p0 in starts)
         tris = win.scene.tris_extra(win.viewport)
         assert any(np.allclose(td.tri.reshape(-1, 3).mean(axis=0), T[:3, :3] @ [-0.01, 0, 0] + t, atol=1e-6)

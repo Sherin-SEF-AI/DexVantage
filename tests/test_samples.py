@@ -129,8 +129,8 @@ def test_so100_sensors(so100):
 def test_ur5e_sensors_and_gripper(ur5e):
     r = ur5e.robots[0]
     wrist, over = ur5e.variant.sensors
-    assert (wrist.name, wrist.kind, wrist.model_id) == ('Wrist D405', 'depth', '')
-    assert (over.name, over.kind, over.model_id) == ('Overhead D435', 'depth', '')
+    assert (wrist.name, wrist.kind, wrist.model_id) == ('Wrist D405', 'depth', 'intel-realsense-d405')
+    assert (over.name, over.kind, over.model_id) == ('Overhead D435', 'depth', 'intel-realsense-d435')
     assert wrist.mount.on_link and wrist.mount.parent_frame == 'wrist_3_link' and wrist.mount.robot_uid == r.uid
     assert not over.mount.on_link
     assert 'Phase 2' in ur5e.notes

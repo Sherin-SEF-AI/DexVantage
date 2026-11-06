@@ -22,9 +22,10 @@ prefix="gripper_") and writes the result with MjSpec.to_xml(), so the gripper's 
 file and the gripper's names carry the prefix (its "base" body would clash with the arm's).
 
 Camera placements are sample placements chosen for these samples so the rig has something to analyse; they are not
-published figures and the sensor names or the project notes say so. The depth cameras' model_id stays '' until the
-sensor library (Phase 2) has the D405 and D435 entries from Intel's datasheets: the sensors are placed but have no
-lens or depth model yet.
+published figures and the sensor names or the project notes say so. The UR5e sample's depth cameras name their
+library entries (model_id 'intel-realsense-d405' and 'intel-realsense-d435', core/library, figures from Intel's D400
+series datasheet); the sensor body frame is the device's (origin at the left imager's optical centre). The SO-100
+sample's cameras have no model_id: no library camera entry is the camera a SO-100 build is stated to use.
 
 Known limits: the 2F-85's linkage joints are independent entries of q (core/robot/model.py treats every hinge as a
 joint of its own), so a q that moves one finger joint alone poses the linkage in a way the real gripper cannot.
@@ -155,18 +156,21 @@ def _so100() -> Project:
                                       size=(0.30, 0.20, 0.12)))
     p.workspace.surfaces.append({'uid': 'table', 'name': 'Table (sample)', 'z': 0.0, 'size': [0.8, 0.8],
                                  'material': 'matte'})
-    # wrist camera: on the back of the fixed jaw (the mesh ends at x = 0.035 m in the link), looking between the
-    # jaw tips; a sample placement
+    # wrist camera: on a bracket 0.06 m behind the jaws' plane on the wrist side (the jaw meshes span z = ±0.024 m
+    # in the link, the jaws reach to y = -0.106 m), looking down past the jaw tips; a sample placement. It was on the
+    # back of the fixed jaw before, where the jaw itself hid 39 % of the task volume from it (11 % here, coverage
+    # study at 10 mm, home pose).
     wrist = Sensor(name='Wrist camera (sample placement)', kind='camera', slot=0,
-                   mount=Mount('Fixed_Jaw', robot.uid, look_at([0.045, -0.02, 0.0], [0.0, -0.10, 0.0])))
+                   mount=Mount('Fixed_Jaw', robot.uid, look_at([-0.01, 0.0, -0.06], [-0.01, -0.14, 0.0])))
     third = Sensor(name='Third-person camera (sample placement)', kind='camera', slot=1,
                    mount=Mount('tripod', '', look_at(centre + [0.40, -0.25, 0.30], centre)))
     p.variant.name = 'Wrist + third-person (sample)'
     p.variant.sensors = [wrist, third]
     p.variant.note = SAMPLE_NOTE
     p.notes = (f'Sample (spec §14.2): the LeRobot SO-100 arm from MuJoCo Menagerie trs_so_arm100 (Apache-2.0). '
-               f'{SAMPLE_NOTE} The cameras have no library model yet (Phase 2). The SO-101 is in Menagerie too '
-               '(robotstudio_so101): import it with Robot ▸ Import from MuJoCo Menagerie.')
+               f'{SAMPLE_NOTE} The cameras have no library device: no maker in the library states a camera for '
+               'the SO-100, so both use the labelled default camera until you choose one. The SO-101 is in '
+               'Menagerie too (robotstudio_so101): import it with Robot ▸ Import from MuJoCo Menagerie.')
     p.add_log('sample', 'Opened the SO-100 sample')
     return p
 
@@ -195,17 +199,17 @@ def _ur5e() -> Project:
     # it rides with the flange. A sample placement.
     T_w3_gb = np.linalg.inv(model.link_pose(model.home, 'wrist_3_link')) @ model.link_pose(model.home, 'gripper_base')
     cam_gb = look_at([0.07, 0.0, 0.02], pinch_gb, up=(1.0, 0.0, 0.0))
-    wrist = Sensor(name='Wrist D405', kind='depth', slot=0,
+    wrist = Sensor(name='Wrist D405', kind='depth', slot=0, model_id='intel-realsense-d405',
                    mount=Mount('wrist_3_link', robot.uid, Pose.from_matrix(T_w3_gb @ cam_gb.matrix())))
-    over = Sensor(name='Overhead D435', kind='depth', slot=1,
+    over = Sensor(name='Overhead D435', kind='depth', slot=1, model_id='intel-realsense-d435',
                   mount=Mount('cage', '', look_at(centre + [0.0, 0.0, 0.85], centre, up=(1.0, 0.0, 0.0))))
     p.variant.name = 'Wrist D405 + overhead D435 (sample)'
     p.variant.sensors = [wrist, over]
     p.variant.note = SAMPLE_NOTE
     p.notes = ('Sample (spec §14.3): the UR5e and Robotiq 2F-85 from MuJoCo Menagerie (BSD-3-Clause and '
                f'BSD-2-Clause). {SAMPLE_NOTE} "Wrist D405" and "Overhead D435" name the intended Intel RealSense '
-               'models; they get their library entries (model_id) in Phase 2, from Intel\'s datasheets, and until '
-               'then have no lens or depth model.')
+               'models; their lenses, depth range and minimum Z come from the library entries (Phase 2), read from '
+               'Intel\'s D400 series datasheet; the entries\' notes say what the datasheet does not state.')
     p.add_log('sample', 'Opened the UR5e + Robotiq 2F-85 sample')
     return p
 

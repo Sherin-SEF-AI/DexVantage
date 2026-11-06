@@ -1,0 +1,73 @@
+{
+  "id": "basler-dart-daa1440-220um",
+  "kind": "camera",
+  "maker": "Basler",
+  "name": "dart daA1440-220um",
+  "family": "dart",
+  "sources": [
+    {
+      "url": "https://docs.baslerweb.com/daa1440-220um",
+      "title": "daA1440-220um | Basler Product Documentation",
+      "read": "2026-11-06",
+      "covers": "sensor, shutter, resolution, pixel size, sensor format, frame rate, interface, mounts, power, mass, housing size"
+    }
+  ],
+  "note": "A board-level / small-housing USB 3.0 machine-vision camera sold without a lens (S-mount, CS-mount or bare board), so no FOV, f-number or focus is stated: the imager has no FOV and the library uses its labelled default until the user enters the chosen lens (or a calibration). Sensor Sony IMX273LLR-C, mono, global shutter, 3.45 um pixels, 1/2.9\". Resolution: 1456 x 1088 full, 1440 x 1080 default. Frame rate 98.9 fps with default settings; 227.7 fps with default settings, minimum exposure time and the Device Link Throughput Limit disabled. Pixel formats are on a separate Basler page (not read), so the stream format is null. Power \"~2 W (typical) @ 5 VDC\". Mass \"<15 g\" for the S-mount and CS-mount versions (a bound, so mass_g is null; bare board <5 g). size_mm is the S-/CS-mount housing, 20 x 29 x 29 mm (L x W x H), with L along the optical axis.",
+  "interface": "USB 3.0 (SuperSpeed, nominal max. 5 Gbit/s); USB3 Vision",
+  "power_w": 2.0,
+  "mass_g": null,
+  "size_mm": [
+    20.0,
+    29.0,
+    29.0
+  ],
+  "imagers": [
+    {
+      "name": "Mono",
+      "role": "mono",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 3.45,
+      "resolution": [
+        1456,
+        1088
+      ],
+      "lens_model": null,
+      "f_number": null,
+      "focus": null
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Mono",
+      "width": 1440,
+      "height": 1080,
+      "fps": [
+        98.9,
+        227.7
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

@@ -1,0 +1,196 @@
+{
+  "id": "stereolabs-zed-x",
+  "kind": "depth",
+  "maker": "Stereolabs",
+  "name": "ZED X, wide lens (2.2 mm)",
+  "family": "ZED X",
+  "sources": [
+    {
+      "url": "https://cdn.sanity.io/files/s18ewfw4/staging/7e01a2228a00212daa4daed50035ef87250bf7d5.pdf/ZED%20X%20-%20ZED%20X%20Mini%20-%20Datasheet.pdf",
+      "title": "ZED X | ZED X Mini Stereo Camera & SDK Overview, datasheet Rev 1.6 (July 2026), Stereolabs",
+      "read": "2026-11-06",
+      "covers": "output modes (max fps), output format RAW10/NV21, sensor 1/2.6\" 1928 x 1208, 3 um pixels, global shutter, baselines, lens variants (focal length, FOV, aperture, TV distortion, depth range, ideal range, depth accuracy), interface GMSL2, power 1.46 W, mass, dimensions"
+    },
+    {
+      "url": "https://www.stereolabs.com/store/products/zed-x-stereo-camera",
+      "title": "ZED X store page, Stereolabs",
+      "read": "2026-11-06",
+      "covers": "stream modes with every frame rate (1200p and 1080p 60/30/15; 600p 120/60/30/15), mass 240 g / 150 g, narrow-lens FOV 80 x 52 x 91 deg and f/1.8 as listed there"
+    }
+  ],
+  "note": "Poses: the body origin is the left camera's optical centre; the datasheet says depth is \"calculated from the back of the left eye of the camera\", so the left camera is the reference imager and also the RGB view (both cameras are colour). The right camera sits one stated baseline along -y; both optical axes are taken parallel to body x (the rectified geometry). Roles: both cameras are colour, so both carry role \"rgb\"; depth.stereo_pair names them. Lens model pinhole is a labelled ASSUMPTION fitted to the stated maximum FOV (the maker gives only TV distortion, \"optically corrected\"); calibrate a unit for its K and D. The FOV is stated as \"max.\" without naming the mode; it is attached to the largest output mode. The datasheet calls the 1080p mode a cropping mode (600p a binning mode), so its true FOV is narrower than the stated maximum; the maker gives no per-mode FOV. Focus type is not stated (the lens is called \"fixed focal\", which is the focal length). Not stated by the maker: depth FOV, IR projector (there is none: passive stereo), subpixel accuracy, a per-resolution minimum Z (min_z is empty; depth.min_range_m is the stated device-wide minimum of the depth range), lens distortion coefficients. Depth is computed on the host by the ZED SDK (\"Native video resolution (in Ultra mode)\"), so no depth stream crosses the cable and none is listed. Interface GMSL2 over a FAKRA Z coax connector, powered over the coax (PoC, 5 V to 20 V); power_w is the datasheet's \"Typical consumption: 1.46W (0.122A 12V)\", stated once for ZED X and ZED X Mini. Output format RAW10 (V4L2) or NV21 (Argus); RAW10 (10 bits per pixel) is entered. The datasheet lists the maximum frame rate per mode (1200p 60, 1080p 60 cropping mode, 600p 120 binning mode); the store page's full lists are entered. Sensor 1/2.6\" 2.3 MP, 1928 x 1208 array, 3 um pixels, electronically synchronised global shutter. Dimensions are read as width x height x depth (the maker does not name the axes; an assumption). Wide-lens variant (SKU ZED-311110, ZED-311120 with polarizer); f/2.2, TV distortion < 5.7%. Mass: datasheet 239 g (entered), store page 240 g. Depth accuracy is the datasheet's \"< 0.8% at 2m, < 4% at 12m\" (metric not defined).",
+  "interface": "GMSL2 (FAKRA Z coax)",
+  "power_w": 1.46,
+  "mass_g": 239.0,
+  "size_mm": [
+    36.7,
+    163.4,
+    31.8
+  ],
+  "imagers": [
+    {
+      "name": "Left",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 110.0,
+      "vfov_deg": 80.0,
+      "dfov_deg": 120.0,
+      "pixel_um": 3.0,
+      "resolution": [
+        1920,
+        1200
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.2,
+      "focus": null
+    },
+    {
+      "name": "Right",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          -0.12,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 110.0,
+      "vfov_deg": 80.0,
+      "dfov_deg": 120.0,
+      "pixel_um": 3.0,
+      "resolution": [
+        1920,
+        1200
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.2,
+      "focus": null
+    }
+  ],
+  "projector": null,
+  "depth": {
+    "technology": "passive_stereo",
+    "reference_imager": "Left",
+    "stereo_pair": [
+      "Left",
+      "Right"
+    ],
+    "baseline_m": 0.12,
+    "min_z": [],
+    "min_range_m": 0.3,
+    "max_range_m": 20.0,
+    "ideal_range_m": [
+      0.3,
+      12.0
+    ],
+    "range_text": "Depth range 0.3 m to 20 m; ideal range 0.3 m to 12 m",
+    "rms_error": {
+      "text": "Depth accuracy < 0.8% at 2 m, < 4% at 12 m (datasheet, 2.2 mm lens; metric not defined)",
+      "metric": "unspecified",
+      "pct": 0.8,
+      "at_m": 2.0
+    },
+    "subpixel_px": null,
+    "depth_fov": null
+  },
+  "streams": [
+    {
+      "imager": "Left",
+      "width": 1920,
+      "height": 1200,
+      "fps": [
+        15,
+        30,
+        60
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Left",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        15,
+        30,
+        60
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Left",
+      "width": 960,
+      "height": 600,
+      "fps": [
+        15,
+        30,
+        60,
+        120
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Right",
+      "width": 1920,
+      "height": 1200,
+      "fps": [
+        15,
+        30,
+        60
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Right",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        15,
+        30,
+        60
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Right",
+      "width": 960,
+      "height": 600,
+      "fps": [
+        15,
+        30,
+        60,
+        120
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

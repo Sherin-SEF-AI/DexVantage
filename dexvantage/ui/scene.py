@@ -5,6 +5,12 @@ objects, every robot posed at the store's joint state (store.q) as the lit and s
 small body and a frustum outline): those on static frames where they are, those on a link at the link's pose for the
 current q composed with the mount pose.
 
+Frusta come from each imager's real lens model (library.sensor_imagers, core/optics CameraModel): the image border
+unprojected through the model (core/camrender.frustum_body), so a fisheye draws a curved cone. The first imager
+(the depth reference) is drawn whole, the device's other imagers by their outline. The outline lies FRUSTUM_DEPTH in
+front of the imager (SELECTED_DEPTH for the selected sensor): a symbol of the field of view, not a range. A library
+device dropped on the view (from the Library panel) is added to the rig above the floor point it was dropped on.
+
 The provider interface follows Vantage ui/scene.py, so the ported viewport, renderer and navigation work unchanged.
 """
 from __future__ import annotations
@@ -19,7 +25,8 @@ from .theme import THEME
 from .viewport3d import LineDraw, MeshDraw, TriDraw
 
 FRUSTUM_DEPTH = 0.12              # m: how far the sensor glyph's outline reaches (a symbol, not the field of view)
-GLYPH_FOV = (60.0, 45.0)          # degrees: the glyph's shape until a lens model is assigned (Phase 2)
+SELECTED_DEPTH = 0.30             # m: the selected sensor's outline reaches further
+GLYPH_FOV = (60.0, 45.0)          # degrees: the glyph's shape when a sensor's imagers cannot be built
 
 
 def box_edges(lo, hi) -> np.ndarray:
@@ -56,6 +63,8 @@ class SceneProvider(QObject):
         self._mesh_draw = None
         self._mesh_version = 0
         self._reported: set = set()
+        self._frustum_cache: dict = {}
+        self._vnormal_cache: dict = {}
 
     @property
     def project(self):
@@ -84,7 +93,7 @@ class SceneProvider(QObject):
         key = tuple((m, q.tobytes()) for _r, m, q in rm)
         if key == self._mesh_key:
             return self._mesh_draw
-        tris, nrms, cols = [], [], []
+        tris, nrms, cols, vns = [], [], [], []
         for _r, m, q in rm:
             if not m.n_triangles:
                 continue
@@ -92,6 +101,7 @@ class SceneProvider(QObject):
             tris.append(t)
             nrms.append(n)
             cols.append(m.triangle_rgba())
+            vns.append(m.pose_vectors(q, self._local_vnormals(m)))
         self._mesh_key = key
         if not tris:
             self._mesh_draw = None
@@ -99,8 +109,24 @@ class SceneProvider(QObject):
         self._mesh_version += 1
         rgba = np.concatenate(cols)
         self._mesh_draw = MeshDraw(np.concatenate(tris).astype(np.float32), np.concatenate(nrms).astype(np.float32),
-                                   rgba[:, :3].astype(float), rgba[:, 3].astype(float), version=self._mesh_version)
+                                   rgba[:, :3].astype(float), rgba[:, 3].astype(float), version=self._mesh_version,
+                                   vnormals=np.concatenate(vns))
         return self._mesh_draw
+
+    def _local_vnormals(self, m):
+        """The shader's smooth per-corner normals of a robot model's meshes, in each link's own frame: computed once
+        per model (merging 580 000 corners of the UR5e takes about 0.25 s) and only rotated at each q."""
+        hit = self._vnormal_cache.get(id(m))
+        if hit is not None and hit[0] is m:
+            return hit[1]
+        from .render_gl import vertex_normals
+        tl = m.local_triangles()
+        fn = np.cross(tl[:, 1] - tl[:, 0], tl[:, 2] - tl[:, 0])
+        vn = vertex_normals(tl, fn, group=m.triangle_links())
+        if len(self._vnormal_cache) > 8:
+            self._vnormal_cache.clear()
+        self._vnormal_cache[id(m)] = (m, vn)
+        return vn
 
     def ground(self):
         return None
@@ -137,16 +163,11 @@ class SceneProvider(QObject):
                 on = sel[:2] == ('volume', v.uid)
                 out.append(LineDraw(box_edges(lo, hi), THEME.color('ink' if on else 'ink2', 0.95 if on else 0.6),
                                     1.6 if on else 1.0, dash=not on and v.refine, segments=True, dash_len=0.02))
-        for s, R, t in self.posed_sensors():
-            col = THEME.cam(s.slot)
-            hx = np.tan(np.radians(GLYPH_FOV[0] / 2)) * FRUSTUM_DEPTH
-            hy = np.tan(np.radians(GLYPH_FOV[1] / 2)) * FRUSTUM_DEPTH
-            # body frame: x forward (the optical axis), y left, z up
-            far = np.array([[FRUSTUM_DEPTH, hx, hy], [FRUSTUM_DEPTH, -hx, hy], [FRUSTUM_DEPTH, -hx, -hy],
-                            [FRUSTUM_DEPTH, hx, -hy]]) @ R.T + t
-            segs = [[t, f] for f in far] + [[far[i], far[(i + 1) % 4]] for i in range(4)]
-            on = sel[:2] == ('sensor', s.uid)
-            out.append(LineDraw(np.array(segs), col, 1.8 if on else 1.2, segments=True))
+        for fr in self.frusta():
+            on = sel[:2] == ('sensor', fr['sensor'].uid)
+            col = THEME.cam(fr['sensor'].slot, None if fr['index'] == 0 else 0.7)
+            w = (1.8 if on else 1.2) if fr['index'] == 0 else 0.8
+            out.append(LineDraw(fr['segments'], col, w, segments=True))
         out += [d for d in self._extra(vp) if isinstance(d, LineDraw)]
         return out
 
@@ -170,6 +191,50 @@ class SceneProvider(QObject):
         k = np.arange(-ext, ext + 1e-9, step)
         segs = [[[x, -ext, 0], [x, ext, 0]] for x in k] + [[[-ext, y, 0], [ext, y, 0]] for y in k]
         return [LineDraw(np.array(segs), THEME.color('ink', 0.08), 1.0, segments=True)]
+
+    def _frustum_body(self, s, depth) -> list:
+        """[(imager name, apex, border (K, 3), spokes)] in the sensor body frame (cached per device and the library's
+        generation (a custom device can change under its id), calibration, stream and depth)."""
+        import json
+
+        from ..core import camrender, library
+        key = (s.model_id, library.generation(), json.dumps(s.calibration, sort_keys=True, default=str),
+               tuple(getattr(s, 'stream', ())), depth)
+        hit = self._frustum_cache.get(key)
+        if hit is not None:
+            return hit
+        try:
+            mode = tuple(s.stream) if len(getattr(s, 'stream', ())) == 2 else None
+            out = [(im.name, *camrender.frustum_body(im.camera, im.pose_in_body, depth))
+                   for im in library.sensor_imagers(s, mode)]
+        except Exception as e:                           # noqa: BLE001 — a bad calibration: the glyph, said once
+            if (s.uid, str(e)) not in self._reported:
+                self._reported.add((s.uid, str(e)))
+                print(f'{s.name}: its frustum is a glyph:', e)
+            hx = np.tan(np.radians(GLYPH_FOV[0] / 2)) * depth
+            hy = np.tan(np.radians(GLYPH_FOV[1] / 2)) * depth
+            far = np.array([[depth, hx, hy], [depth, -hx, hy], [depth, -hx, -hy], [depth, hx, -hy], [depth, hx, hy]])
+            out = [('glyph', np.zeros(3), far, [np.array([np.zeros(3), f]) for f in far[:4]])]
+        if len(self._frustum_cache) > 256:
+            self._frustum_cache.clear()
+        self._frustum_cache[key] = out
+        return out
+
+    def frusta(self) -> list:
+        """[{'sensor', 'imager', 'index', 'segments' (S, 2, 3) world}] of every enabled, placeable sensor's imagers,
+        from their lens models, at the current joint state."""
+        out = []
+        sel = self.ctx.store.sel
+        for s, R, t in self.posed_sensors():
+            depth = SELECTED_DEPTH if sel[:2] == ('sensor', s.uid) else FRUSTUM_DEPTH
+            for k, (name, apex, border, spokes) in enumerate(self._frustum_body(s, depth)):
+                B = border @ R.T + t
+                ok = np.isfinite(B).all(axis=1)
+                segs = [[a @ R.T + t, b @ R.T + t] for a, b in spokes] if k == 0 else []   # from the imager out
+                segs += [[B[i], B[i + 1]] for i in range(len(B) - 1) if ok[i] and ok[i + 1]]
+                if segs:
+                    out.append({'sensor': s, 'imager': name, 'index': k, 'segments': np.array(segs, float)})
+        return out
 
     def _sensor_pose(self, s):
         """(R, t) of the sensor body frame in the world, or None when its link cannot be posed."""
@@ -299,10 +364,21 @@ class SceneProvider(QObject):
         return bool(ik is not None and ik.key(vp, e))
 
     def drag_enter(self, vp, e):
-        return False
+        from .rigedit import MIME
+        return bool(e.mimeData().hasFormat(MIME))
 
     def drag_move(self, vp, e):
         pass
 
     def drop(self, vp, e):
-        pass
+        """A library device dropped on the view: a sensor of that model above the floor point under the mouse."""
+        from .rigedit import MIME
+        win = self.ctx.window
+        md = e.mimeData()
+        if win is None or not md.hasFormat(MIME) or not hasattr(win, 'library'):
+            return
+        mid = bytes(md.data(MIME)).decode('utf-8', 'ignore')
+        pos = e.position()
+        g = vp.ground_at(pos.x(), pos.y(), 0.0)
+        win.library.add_device(mid, at=None if g is None else (float(g[0]), float(g[1])))
+        e.acceptProposedAction()

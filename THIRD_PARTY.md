@@ -8,7 +8,7 @@ licence shown and the user's consent (spec §1.2).
 | Component | Source | Licence | Version | Where |
 |---|---|---|---|---|
 | IBM Plex Sans, IBM Plex Mono (Regular, Medium, SemiBold) | https://github.com/IBM/plex | SIL Open Font License 1.1 (`dexvantage/resources/fonts/OFL.txt`) | IBM Plex Sans 3.005, IBM Plex Mono 2.004 (the fonts' own version records; the files Vantage ships) | `dexvantage/resources/fonts/` |
-| Code ported from Vantage (theme, widgets, charts, colour maps, icons and icon data, renderer, viewport, navigation, dialogs, palette, store, app, batch, self-test, sysenv, workdir, math utilities, provenance, validation machinery; none from Vantage's Apache-2.0 `vantage/runtime`) | https://github.com/Sherin-SEF-AI/Vantage | GPL-3.0-or-later | Vantage 0.8.1 | marked in each module's docstring |
+| Code ported from Vantage (theme, widgets, charts, colour maps, icons and icon data, renderer, viewport, navigation, dialogs, palette, store, app, batch, self-test, sysenv, workdir, math utilities, provenance, validation machinery; Phase 2: the lens projection maths of `core/optics/lens.py` from Vantage `core/lens.py`, the cube-map idea, face basis and plane depth of `core/occlusion.py` from Vantage `core/occlusion.py`, the Camera view widget `ui/camview.py` from Vantage `ui/camview.py`; none from Vantage's Apache-2.0 `vantage/runtime`) | https://github.com/Sherin-SEF-AI/Vantage | GPL-3.0-or-later | Vantage 0.8.1 | marked in each module's docstring |
 
 ## Runtime dependencies (installed by pip, not bundled in the source tree)
 
@@ -63,3 +63,30 @@ Robot ▸ Import from MuJoCo Menagerie (`dexvantage/core/robot/menagerie.py`) do
 `XDG_DATA_HOME/DexVantage/menagerie/<model>/<commit>/`, shows that model's own LICENSE and imports it only after the
 user accepts it. The robot records the licence name, the commit and the date accepted (`RobotSource.license`), and
 the project keeps the LICENSE text with the model files. Nothing downloaded this way is bundled.
+
+## Hardware library sources (cited, not bundled)
+
+The hardware library (`dexvantage/resources/library/`, 40 entries in Phase 2) holds figures copied from the makers'
+public datasheets, product pages and papers, each entry with its source URL or document, title and the date read
+(2026-11-06 for every built-in entry). Only the figures are stored, written as DexVantage's own JSON; no datasheet,
+drawing, image or text of a maker is bundled, and nothing is downloaded at run time. The sources by maker:
+
+| Maker | Where the figures were read |
+|---|---|
+| Intel RealSense (D405, D415, D435, D435i, D455, D457) | "RealSense Product Family D400 Series Datasheet" Rev 023 (March 2026) and the D457 datasheet Rev 006, from realsenseai.com; store.realsenseai.com product pages |
+| Stereolabs (ZED 2i, ZED Mini, ZED X, ZED X Mini) | stereolabs.com product pages and the datasheets they link (cdn.sanity.io) |
+| Luxonis (OAK-D, OAK-D Pro, OAK-D SR, OAK-D Lite) | docs.luxonis.com and shop.luxonis.com; camera positions from the design values in Luxonis' `depthai-boards` calibration files on GitHub (commit `bfa8f36`), cited as figures only |
+| Orbbec (Femto Bolt, Gemini 2, Gemini 335, Gemini 336) | orbbec.com product pages, doc.orbbec.com and the datasheets they link |
+| e-con Systems, Leopard Imaging, Basler, Teledyne FLIR, OmniVision, ams OSRAM | each maker's product page or datasheet |
+| GelSight (Mini), Meta (DIGIT) | gelsight.com; Lambeta et al. 2020 (arXiv) and Meta's `digit-interface` repository at commit `87a28bb` (figures only) |
+| NVIDIA (Jetson), USB-IF | nvidia.com specifications tables; usb.org |
+
+The library schema (`dexvantage/resources/library.schema.json`) and every entry are DexVantage's own work under its
+GPL-3.0-or-later licence. Datasheet figures are facts restated with their source; the makers' documents keep their
+own terms and are reached through the cited URLs.
+
+## Phase 2 additions to runtime use
+
+No new runtime dependency. The occlusion module's GPU backend uses PyOpenGL (already listed) through EGL when it is
+available; jsonschema (already listed, MIT) validates library entries when installed, else a smaller built-in check
+runs.

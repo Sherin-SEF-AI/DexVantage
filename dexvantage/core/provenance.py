@@ -880,12 +880,14 @@ def _leaves(o, path=''):
 
 
 def _uids_in_order(doc) -> dict:
-    """10-hex uid tokens in strings, numbered by first appearance (identities, not results)."""
+    """10-hex uid tokens in strings and in dict keys (a result keyed by robot uid), numbered by first appearance
+    (identities, not results)."""
     out = {}
-    for _, v in _leaves(doc):
-        if isinstance(v, str):
-            for m in _UID.finditer(v):
-                out.setdefault(m.group(0), f'<uid{len(out) + 1}>')
+    for path, v in _leaves(doc):
+        for text in (path, v):
+            if isinstance(text, str):
+                for m in _UID.finditer(text):
+                    out.setdefault(m.group(0), f'<uid{len(out) + 1}>')
     return out
 
 
@@ -901,8 +903,9 @@ def compare(recorded, reproduced, tolerances=()) -> dict:
     does_not_reproduce."""
     A, B = neutral(recorded), neutral(reproduced)
     ua, ub = _uids_in_order(A), _uids_in_order(B)
-    la = dict(_leaves(A))
-    lb = dict(_leaves(B))
+    # paths with their uid keys by order of appearance: a result keyed by uid ('q.<robot uid>') compares by place
+    la = {_UID.sub(lambda m: ua.get(m.group(0), m.group(0)), p): v for p, v in _leaves(A)}
+    lb = {_UID.sub(lambda m: ub.get(m.group(0), m.group(0)), p): v for p, v in _leaves(B)}
     numbers, texts, missing, extra = [], [], [], []
     counts = {'numbers': 0, 'exact': 0, 'within': 0, 'differs': 0, 'texts': 0, 'texts_changed': 0, 'missing': 0,
               'extra': 0}

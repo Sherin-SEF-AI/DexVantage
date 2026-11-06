@@ -17,9 +17,11 @@ something to analyse, not published figures: move them to where your cameras are
   Its joint limits are the ones Menagerie added as "approximate joint limits" (the model's README), not The Robot
   Studio's figures; the robot's source note says so.
 - **Gripper frame:** the `Fixed_Jaw` body; fingertips `Fixed_Jaw` and `Moving_Jaw`.
-- **Cameras:** "Wrist camera (sample placement)" on `Fixed_Jaw`, behind the fixed jaw, looking between the jaw
-  tips; "Third-person camera (sample placement)" on a tripod in front of and beside the table, looking at the task
-  volume. Neither has a library model yet (Phase 2).
+- **Cameras:** "Wrist camera (sample placement)" on `Fixed_Jaw`, on a bracket 0.06 m behind the jaws on the wrist
+  side, looking down past the jaw tips; "Third-person camera (sample placement)" on a tripod in front of and beside
+  the table, looking at the task volume. Neither has a library device: no maker in the library states a camera for
+  the SO-100, so both use the labelled default camera (pinhole, 1280 × 720 px, 90° × 60°) until you choose one on
+  the Sensors page.
 - **Workspace:** a 0.30 × 0.20 × 0.12 m tabletop volume under the jaw tips at home.
 
 Tour: open the sample and move a joint of the arm; the wrist camera rides with the gripper
@@ -35,9 +37,10 @@ meshes, not bundled): Robot ▸ Import from MuJoCo Menagerie downloads it and sh
 - **Gripper frame:** `gripper_base` (the body with the file's `pinch` site); fingertips `gripper_right_pad` and
   `gripper_left_pad`.
 - **Sensors:** "Wrist D405", a depth camera on `wrist_3_link`, 0.07 m off the tool axis, looking at the pinch point;
-  "Overhead D435", a depth camera on the cage 0.85 m above the task volume, looking straight down. The names say
-  which RealSense models are meant; their library entries (lens, depth range, minimum Z) arrive with the Phase 2
-  library, from Intel's datasheets. Until then the sensors are placed but have no lens or depth model.
+  "Overhead D435", a depth camera on the cage 0.85 m above the task volume, looking straight down. Both name
+  their library entries (`intel-realsense-d405`, `intel-realsense-d435`): lenses, depth FOV, baseline, the
+  minimum-Z table and the stated RMS error come from Intel's D400 series datasheet (Rev 023, read 2026-11-06). Where
+  Intel states no offset (the D435's RGB imager, the projector) the entry places it as a labelled assumption.
 - **Workspace:** a 0.50 × 0.40 × 0.30 m tabletop volume under the gripper at home.
 - **Geometry:** the Menagerie UR5e rounds its link offsets to the millimetre, so its flange is up to 1.3 mm from
   the flange of Universal Robots' DH table ([robots.md](../models/robots.md#known-limits)).

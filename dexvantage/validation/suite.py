@@ -34,9 +34,9 @@ DEFAULT_SEED = 20261027
 MODELS = (
     ('frames', 'Frames, poses and quaternions', 'dexvantage.core.frames', 'frames'),
     ('kinematics', 'Robot kinematics', 'dexvantage.core.robot', 'kinematics'),
-    ('optics', 'Lens projection', 'dexvantage.core.sensors.lens', 'optics'),
+    ('optics', 'Lens projection and defocus', 'dexvantage.core.optics', 'optics'),
     ('occlusion', 'Occlusion by the posed robot', 'dexvantage.core.occlusion', 'occlusion'),
-    ('depth', 'Depth validity', 'dexvantage.core.sensors.depth', 'depth'),
+    ('depth', 'Depth validity', 'dexvantage.core.studies.depth_validity', 'depth'),
     ('grasp', 'Grasp self-occlusion', 'dexvantage.core.studies.grasp_visibility', 'grasp'),
     ('sim', 'MuJoCo ground truth', 'dexvantage.core.sim', 'sim'),
     ('handeye', 'Hand-eye calibration', 'dexvantage.core.calib', 'handeye'),
