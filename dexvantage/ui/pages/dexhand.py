@@ -9,6 +9,11 @@ not-seen share per finger for the chosen camera). Choose a case and Show it: the
 draws the patch points, seen by the chosen camera in its colour and not seen in grey; the Camera view of a camera in
 the study draws them too.
 
+The visual-to-tactile handoff (spec §7.15, the study's part 2): for the chosen approach, each fingertip's share of
+its contact patch the rig sees against the distance to contact (contact at the right), the seen threshold, the
+sensory blind gap of each flagged fingertip shaded, and at contact each fingertip's tactile pad coverage as a point;
+the blind gap, its status and the flags below it.
+
 Run passes the arm's joint state on screen (or home) and the cases' source to the study; nothing is stored. Apply
 turns the suggested camera about its optical centre (one undo step); Preview draws its new optical axis dashed.
 """
@@ -29,6 +34,7 @@ from ..theme import THEME, mono, sans
 from ..viewport3d import LineDraw
 from ..widgets import SegmentedControl, button, label
 from . import register
+from ._curves import CurveChart
 from .base import StudyPage, row
 
 # owner categories, always shown with their word (not status colours)
@@ -250,6 +256,21 @@ class DexHandPage(StudyPage):
         self.sweep = Heatmap()
         self.sweep.title = ''
         layout.addWidget(self.sweep)
+        self.c_appr = QComboBox()
+        self.c_appr.setToolTip('The approach (a contact case) the handoff chart is for')
+        self.c_appr.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.c_appr.setMinimumContentsLength(18)
+        self.c_appr.currentIndexChanged.connect(lambda _i: self._fill_handoff(self.doc) if self.doc else None)
+        layout.addWidget(row(label('Visual-to-tactile handoff', bold=True), self.c_appr))
+        self.handoff_head = label('', wrap=True)
+        layout.addWidget(self.handoff_head)
+        self.handoff = CurveChart(height=230)
+        self.handoff.title = 'Contact patch seen against the distance to contact'
+        self.handoff.subtitle = 'the rig, any camera'
+        self.handoff.xname, self.handoff.xunit, self.handoff.yunit = 'at', 'mm', '% seen'
+        layout.addWidget(self.handoff)
+        self.handoff_note = label('', muted=True, wrap=True, small=True)
+        layout.addWidget(self.handoff_note)
         self.assume = label('', muted=True, wrap=True, small=True)
         layout.addWidget(self.assume)
         for c in (self.c_set, self.c_cam, self.c_case):
@@ -322,6 +343,11 @@ class DexHandPage(StudyPage):
         self.matrix.set_data([], [], [])
         self.owners.set_data([], [], [])
         self.sweep.set_data([], [], [])
+        if hasattr(self, 'handoff'):
+            self.handoff.set_data([], (0, 1), (0, 100))
+            self.handoff_head.setText('')
+            self.handoff_note.setText('')
+            self.c_appr.clear()
         self.table.clear()
         self.suggestion_ready(False)
 
@@ -381,6 +407,7 @@ class DexHandPage(StudyPage):
         self._fill_matrix(doc)
         self._fill_detail(doc)
         self._fill_table(doc)
+        self._fill_appr(doc)
         notes = list(doc.get('notes') or [])
         g = doc.get('grasps')
         if g:
@@ -478,6 +505,74 @@ class DexHandPage(StudyPage):
             it.setToolTip(2, f'Mounted on {c["parent_frame"]}' + (' (locked)' if c['locked'] else ''))
             self.table.addTopLevelItem(it)
         _fit(self.table)
+
+    # ---------------------------------------------------------------- the handoff (part 2)
+    def _fill_appr(self, doc):
+        h = doc.get('handoff') or {}
+        cur = self.c_appr.currentData()
+        self.c_appr.blockSignals(True)
+        self.c_appr.clear()
+        for a in h.get('approach_visibility') or []:
+            self.c_appr.addItem(a['label'], a['case'])
+        k = self.c_appr.findData(cur if cur is not None else (h.get('worst') or {}).get('case'))
+        self.c_appr.setCurrentIndex(max(k, 0))
+        self.c_appr.blockSignals(False)
+        self._fill_handoff(doc)
+
+    def _fill_handoff(self, doc):
+        """The chosen approach: % of each fingertip's patch seen against the distance to contact, the threshold, the
+        flagged blind gaps shaded, the tactile coverage at contact."""
+        from ..theme import STATUS
+        h = doc.get('handoff')
+        if not h:
+            self.handoff_head.setText('The handoff was not run (settings handoff off).')
+            self.handoff.set_data([], (0, 1), (0, 100))
+            self.handoff_note.setText('')
+            return
+        if h.get('error'):
+            self.handoff_head.setText(f'The handoff could not run: {h["error"]}')
+            self.handoff.set_data([], (0, 1), (0, 100))
+            self.handoff_note.setText('')
+            return
+        st = h.get('settings') or {}
+        col = STATUS.get(h.get('status'), STATUS['warning'])
+        self.handoff_head.setText(f'<span style="color:{col}">■</span> <b>{h["status_word"]}</b> · worst blind gap '
+                                  f'{(h.get("blind_gap_m") or 0) * 1000:.0f} mm (flagged above '
+                                  f'{st.get("blind_gap_max_mm", 10):g} mm, a default). {h.get("text", "")}')
+        self.handoff_head.setTextFormat(Qt.TextFormat.RichText)
+        aps = h.get('approach_visibility') or []
+        k = self.c_appr.currentIndex()
+        if not (0 <= k < len(aps)):
+            return
+        a = aps[k]
+        fingers = doc.get('fingers') or []
+        ds = [d * 1000 for d in a['distances_m']]
+        series, bands, markers = [], [], []
+        cov = {f['name']: f for f in a['fingers']}
+        for i, f in enumerate(fingers):
+            c = FINGER_COLORS[i % len(FINGER_COLORS)]
+            ys = [None if v is None else v[i] for v in a['seen_pct']]
+            series.append((f['title'], ds, ys, c, 'line'))
+            series.append((f['title'], ds, ys, c, 'points'))
+            r = cov.get(f['name']) or {}
+            if r.get('flagged') and (r.get('blind_gap_m') or 0) > 0:
+                bands.append((0.0, r['blind_gap_m'] * 1000, c, f'{f["title"]} blind'))
+            markers.append((0.0, r.get('coverage_pct') or 0.0, c, ''))
+        dmax = max(ds) if ds else 1.0
+        thr = st.get('min_visible_pct', 50.0)
+        self.handoff.set_data(series, (0.0, dmax), (0.0, 100.0), bands=bands,
+                              hlines=[(thr, f'seen from {thr:g} % (default)')],
+                              vlines=[(0.0, 'contact')], markers=markers, xlabel='distance to contact, mm',
+                              ylabel='% of the patch', reverse_x=True)
+        parts = []
+        for r in a['fingers']:
+            g = r['blind_gap_m'] * 1000
+            parts.append(f'{r["title"]}: ' + (f'blind {g:.0f} mm' + (' or more' if r['censored'] else '')
+                                              if g > 0 else 'seen to contact')
+                         + f', tactile {r["coverage_pct"]:.0f} %' + ('' if r['sensed_at_contact'] else
+                                                                     ' (unsensed at contact)'))
+        self.handoff_note.setText('; '.join(parts) + '. The points at contact are each fingertip\'s tactile pad '
+                                  'coverage. ' + ' '.join(h.get('notes') or []))
 
     def _cam_changed(self, i):
         self.sel_cam = self.c_cam.itemData(i) or ''

@@ -19,7 +19,7 @@ def test_menus_docks_and_shortcuts(win):
 
 def test_later_phase_commands_are_disabled_and_say_when(win):
     later = [a for a in win.actions_by_id.values() if (a.data() or {}).get('phase')]
-    assert len(later) >= 5                # the placeholders are enabled as their phases land
+    assert len(later) >= 1                # the placeholders are enabled as their phases land (Phase 10: export)
     for a in later:
         assert not a.isEnabled() and f'Phase {a.data()["phase"]}' in a.toolTip()
 
@@ -68,7 +68,8 @@ def test_inspector_edit_is_one_undo_step(app, win):
 
 def test_workspaces_switch_save_and_reset(app, win):
     win.workspace('audit')
-    assert not win.docks['library'].isVisible() and win.bottom.tabs.currentWidget() is win.bottom.log
+    # the Data audit workspace opens on the page registered for it (the Dataset audit page)
+    assert not win.docks['library'].isVisible() and win.bottom.tabs.currentWidget() is win.pages['audit']
     win.docks['inspector'].hide()
     win.save_workspace()
     win.workspace('placement')
@@ -129,8 +130,9 @@ def test_light_theme_and_back(app, win):
 
 
 def test_validation_job_runs_in_the_background(app, win, tmp_path):
-    assert win.validate_models(folder=str(tmp_path), open_report=False, quick=True)
-    for _ in range(3000):               # up to 60 s: the quick run is about 8 s with the Phase 2 checks
+    # the job's plumbing, on two cheap models (the whole quick run takes minutes since Phases 4, 5 and 8)
+    assert win.validate_models(folder=str(tmp_path), open_report=False, quick=True, models=['frames', 'formats'])
+    for _ in range(3000):               # up to 60 s
         pump(app, 0.02)
         if 'validation' not in win._jobs:
             break

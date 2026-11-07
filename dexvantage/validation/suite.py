@@ -38,18 +38,20 @@ MODELS = (
     ('occlusion', 'Occlusion by the posed robot', 'dexvantage.core.occlusion', 'occlusion'),
     ('depth', 'Depth validity', 'dexvantage.core.studies.depth_validity', 'depth'),
     ('grasp', 'Grasp self-occlusion', 'dexvantage.core.studies.grasp_visibility', 'grasp'),
-    ('sim', 'MuJoCo ground truth', 'dexvantage.core.sim', 'sim'),
+    ('groundtruth', 'Rendered against predicted (MuJoCo ground truth)',
+     'dexvantage.core.sim, dexvantage.core.studies.groundtruth', 'groundtruth'),
     ('handeye', 'Hand-eye calibration', 'dexvantage.core.calib', 'handeye'),
-    ('timing', 'Motion blur and time sync', 'dexvantage.core.studies.motion_blur, dexvantage.core.studies.sync',
-     'timing'),
+    ('timing', 'Motion blur, time sync and action-chunk latency',
+     'dexvantage.core.studies.motion_blur, dexvantage.core.studies.time_sync, '
+     'dexvantage.core.studies.action_chunk_sync', 'timing'),
     ('bandwidth', 'Bandwidth, hosts and power', 'dexvantage.core.studies.bandwidth', 'bandwidth'),
     ('brackets', 'Brackets and mounts', 'dexvantage.core.studies.brackets', 'brackets'),
-    ('teleop', 'Teleop overlap and dexterity', 'dexvantage.core.studies.teleop_overlap', 'teleop'),
+    ('teleop', 'Teleop overlap and dexterity', 'dexvantage.core.studies.teleop', 'teleop'),
     ('lighting', 'Lighting, glare and IR', 'dexvantage.core.studies.lighting', 'lighting'),
     ('vla', 'VLA tokens, Plücker rays and canonical warps', 'dexvantage.core.studies.vla_tokens', 'vla'),
     ('dexhand', 'Multi-finger occlusion and tactile handoff', 'dexvantage.core.studies.dex_hand_tactile', 'dexhand'),
     ('cables', 'Cable flex', 'dexvantage.core.cables, dexvantage.core.studies.cables', 'cables'),
-    ('data', 'Dataset readers and the auditor', 'dexvantage.core.data', 'data'),
+    ('data', 'Dataset readers and the auditor', 'dexvantage.core.datasets, dexvantage.core.audit', 'data'),
     ('experiments', 'Tolerance, experiments and optimisation', 'dexvantage.core.studies', 'experiments'),
     ('formats', 'Project and export formats', 'dexvantage.core.project, dexvantage.core.exporters', 'formats'),
 )
@@ -62,9 +64,10 @@ class ValidationSettings:
     models: tuple = ()             # model ids to run; () = every model
     quick: bool = False            # fewer Monte Carlo trials and samples: a smoke run, tolerances unchanged
     seed: int = DEFAULT_SEED
+    cheap_only: bool = False       # only the checks of cost 'cheap' (the self-test's run; no renders of datasets)
 
     def to_dict(self):
-        return {'models': list(self.models), 'quick': self.quick, 'seed': self.seed}
+        return {'models': list(self.models), 'quick': self.quick, 'seed': self.seed, 'cheap_only': self.cheap_only}
 
     @staticmethod
     def from_dict(d) -> 'ValidationSettings':
@@ -78,6 +81,8 @@ class ValidationSettings:
             s.models = tuple(m for m in MODEL_IDS if m in {str(x) for x in ms})
         if isinstance(d.get('quick'), bool):
             s.quick = d['quick']
+        if isinstance(d.get('cheap_only'), bool):
+            s.cheap_only = d['cheap_only']
         try:
             seed = int(d.get('seed', s.seed))
             lo, hi = LIMITS['seed']
@@ -270,7 +275,8 @@ def specs(settings: ValidationSettings | None = None) -> list:
     st = settings or ValidationSettings()
     use = (set(st.models) if st.models else set(MODEL_IDS)) & set(available_models())
     order = {m: i for i, m in enumerate(MODEL_IDS)}
-    return sorted((s for s in CHECKS if s.model in use), key=lambda s: order[s.model])
+    return sorted((s for s in CHECKS if s.model in use and (s.cost == 'cheap' or not st.cheap_only)),
+                  key=lambda s: order[s.model])
 
 
 def _finite(x) -> bool:
@@ -297,6 +303,34 @@ def run_one(spec: Spec, ctx: Ctx) -> Check:
                      exception=f'{type(e).__name__}: {e}'[:400] + (f' ({where[:200]})' if where else ''))
 
 
+def release_memory(ctx: Ctx | None = None):
+    """Drop the process-wide caches the checks of one model filled (compiled robot models, cube maps, lens remap
+    plans, rendered board rays, the audit campaign, the checks' own cache) before the next model's checks: a full run
+    otherwise grows past 6 GB. Nothing here changes a result; the next user of a cache rebuilds it."""
+    import gc
+    if ctx is not None:
+        ctx.cache.clear()
+    for mod, attr in (('dexvantage.core.robot.model', 'clear_cache'), ('dexvantage.core.occlusion', 'CACHE'),
+                      ('dexvantage.core.grasps', '_PAD_CACHE'), ('dexvantage.core.calib.synthetic', '_RAYS'),
+                      ('dexvantage.core.sim.render', '_PLANS'), ('dexvantage.core.robot.swept', '_CACHE'),
+                      ('dexvantage.validation.checks_audit', '_CACHE')):
+        obj = getattr(sys.modules.get(mod), attr, None)          # only modules this run imported
+        try:
+            if hasattr(obj, 'clear'):
+                obj.clear()
+            elif callable(obj):
+                obj()
+        except Exception:                   # noqa: BLE001 — freeing memory must never fail a run
+            traceback.print_exc()
+    gc.collect()
+    if sys.platform.startswith('linux'):    # hand freed heap pages back to the system (glibc keeps them)
+        import ctypes
+        try:
+            ctypes.CDLL('libc.so.6').malloc_trim(0)
+        except (OSError, AttributeError):
+            pass
+
+
 def run(project=None, engine=None, settings=None, variant=None, progress=None, cancel=None) -> ValidationResult:
     """Run the selected checks. project: the project whose robots, rig and exports the project-dependent checks look
     at (None: the built-in sample); the other checks build their own references. Returns the result (cancelled=True
@@ -313,6 +347,8 @@ def run(project=None, engine=None, settings=None, variant=None, progress=None, c
             if cancel is not None and cancel():
                 cancelled = True
                 break
+            if k and spec.model != sel[k - 1].model:
+                release_memory(ctx)
             out.append(run_one(spec, ctx))
             if progress is not None:
                 progress((k + 1) / max(len(sel), 1))

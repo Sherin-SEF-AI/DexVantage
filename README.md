@@ -17,12 +17,16 @@ It is the sibling of Vantage, the sensor-rig planner for autonomous-driving data
 language and engineering standards: every number comes from a model that a validation check compares with an
 independent reference, and every export carries a provenance block.
 
-> **Status: Phases 0–3, 6 and 7 of 12.** Robots import from URDF, MJCF and MuJoCo Menagerie, with forward and
-> inverse kinematics and three bundled samples; a datasheet library of cameras, depth cameras, tactile sensors, hosts,
-> cables and robot-learning policies; sensors on any link with a Camera view through each lens model; coverage, depth
+> **Status: Phases 0–8 of 12.** Robots import from URDF, MJCF and MuJoCo Menagerie, with forward and inverse
+> kinematics and three bundled samples; a datasheet library of cameras, depth cameras, tactile sensors, hosts, cables,
+> lights and robot-learning policies; sensors on any link with a Camera view through each lens model; coverage, depth
 > validity, grasp self-occlusion with the Contact Visibility Score, VLA token resolution, the multi-finger occlusion
-> matrix, bandwidth and power, cable flex, printable brackets and hand-eye calibration. Phases 4 (MuJoCo ground
-> truth), 5 (teleop, lighting, blur and sync) and 8 (data) are next. See [docs/BUILD_STATE.md](docs/BUILD_STATE.md).
+> matrix and the tactile handoff, bandwidth and power, cable flex, printable brackets and hand-eye calibration;
+> MuJoCo ground truth and synthetic LeRobot episodes; teleop dead zones, lighting and glare, motion blur, time sync
+> and action-chunk latency; LeRobot, ROS 2 bag and RLDS readers, the dataset auditor, plan against recording and
+> targetless silhouette calibration. Phases 9 (optimisation and requirements) and 10 (exporters, the assistant and
+> MCP) are next. See
+> [docs/BUILD_STATE.md](docs/BUILD_STATE.md).
 
 ## Install (from source)
 
@@ -87,17 +91,30 @@ python -m pytest tests              # the tests (offscreen)
 | Cable flex across joints (`--cables`), harness sheet | done | routed arc against closed forms 1.7 × 10⁻¹⁶ m; snags against brute force: 0 poses |
 | Brackets (`--brackets`): ISO 9409-1 adapters, T-slot clamps, pan-tilt, palm and dorsal sleeves; watertight STL; clearance | done | 0 mesh defects; ISO holes 4.2 × 10⁻⁵ mm; flange volume 0.18 % |
 | Hand-eye calibration: ChArUco and AprilGrid, AX = XB and AX = ZB, bundle adjustment, pose planner, coach (`--handeye-plan`, `--handeye-solve`) | done | rendered corners 0.11 px; covariance within the Monte Carlo χ² band; planner σ against the adjustment's within 0.9 % |
-| Validation suite | 72 checks | 72 of 72 pass |
-| MuJoCo ground truth, teleop, lighting, blur, sync, data audit, optimisation, exporters, assistant | Phases 4, 5, 8–12 | — |
+| MuJoCo ground truth (`--groundtruth`): the project as a MuJoCo scene, renders through every lens model, rendered against predicted visibility and depth | done | contact points agree 92.8 % (UR5e), 84.2 % (SO-100); depth 99.8 %; 14.7–17.5 views/s on an RTX 5080 |
+| Synthetic LeRobot v2.1 / v3.0 episodes with known faults and ground truth (`--synth-episodes`) | done | written and read back: 0 mismatches; about 130 frames/s at 320 px |
+| Teleop overlap and dead zones (`--teleop`): leader arms, GELLO, VR and space-mouse volumes, bimanual handover | done | 2R closed form 1.4 × 10⁻¹⁶ m²; leader workspace against brute force: 0 missed |
+| Lighting, glare and IR wash-out (`--lighting`): light library, GGX materials, glare map in the Camera view | done | white furnace by quadrature 8.1 × 10⁻¹²; area lights 2.2 % from the closed form; visibility against ray casting 0.66 % |
+| Motion blur and rolling shutter (`--motion-blur`), time sync (`--time-sync`) | done | image velocity against finite differences 2.8 × 10⁻⁹; rolling shutter against a row-by-row readout 2.4 % |
+| Action-chunk latency (`--action-chunk`): loop terms, overshoot map, delay offset and ensemble weight | done | against an event simulation 2.9 × 10⁻⁵ m |
+| Visual-to-tactile handoff and the sensory blind gap (part of `--dex-occlusion`) | done | against a brute-force scan: 0 m |
+| Dataset readers: LeRobot v2.1 and v3.0 (read and write), ROS 2 bags (MCAP, SQLite), RLDS | done | round trips read independently (pyarrow, ffmpeg): 0 mismatches |
+| Dataset auditor (`--audit`), plan against recording (`--plan-vs-recording`), FiftyOne export | done | synthetic campaign: recall 1.0 with no false positives for 6 of 10 fault kinds; desync 16.9 ms |
+| Targetless link-silhouette calibration (`--silhouette-calib`) | done | slip recovered within 1.66 px; against a board solve 1.65 px |
+| Grasp sets and hand-eye captures from recorded datasets | done | hand-eye from a rendered dataset 0.046 mm from the truth |
+| Validation suite | 113 checks | 113 of 113 pass |
+| Exporters, assistant and MCP, optimisation, packaging | Phases 9–12 | — |
 
 ## Known limits
 
-Studies of later phases (MuJoCo ground truth, teleop, lighting, blur, sync, data audit) are in the menus, disabled,
-with the phase that brings them. Grasps: the fingers stay at their home opening and obstacles are not checked along
+The exporters (Phase 10) are in the menus, disabled. Lighting: saturation is relative to an auto-exposure until you
+enter a sensor's sensitivity (no maker in the library states one). Timing: no maker states a readout time or a
+device's processing latency, so smear, skew and sync figures are bounds until you enter measured ones. Data: LeRobot's
+own loader and FiftyOne's importer have not been run on DexVantage's files. Grasps: the fingers stay at their home opening and obstacles are not checked along
 the approach; the dexterous-hand postures are sample sweeps, not measured synergies. Hand-eye: OpenCV 5.0.0 has no
 `calibrateHandEye` bindings, so DexVantage's own solvers have not been compared with OpenCV's. Sensors: most makers state no lens distortion, so built-in imagers are pinhole
 models fitted to the stated FOV until you calibrate a unit; defocus is computed only where a lens's focus distance
-and f-number are stated or entered; sensor housings do not occlude; the Camera view has no study overlays yet.
+and f-number are stated or entered; sensor housings do not occlude.
 Robots: xacro must be expanded to URDF
 first and USD is not read; mimic joints and the 2F-85's linkage move independently; free and ball joints are held at
 the home pose; the gripper frame must be a link. ALOHA 2, the bimanual Panda and the G1 samples arrive in Phase 11.

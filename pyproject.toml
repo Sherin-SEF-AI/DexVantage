@@ -33,7 +33,7 @@ bags = ["zstandard", "lz4"]       # compressed ROS 2 bags (MCAP chunks)
 claude = ["anthropic>=2.3,<3"]    # the assistant's Claude provider (Phase 10)
 keyring = ["keyring"]
 rerun = ["rerun-sdk"]             # the Rerun bridge (Phase 10)
-test = ["pytest", "jsonschema", "ruff"]
+test = ["pytest", "jsonschema", "ruff", "mcap", "protobuf"]  # mcap, protobuf: test references (bags, RLDS)
 
 [project.urls]
 Source = "https://github.com/Sherin-SEF-AI/DexVantage"

@@ -27,7 +27,10 @@ something to analyse, not published figures: move them to where your cameras are
 - **Tasks and policy (sample choices):** the grasp set "Top-down pinches over the tabletop (sample)" (100 top-down
   pinches sampled over the volume, seed 0; the five-joint arm cannot hold most side grasps) and the policy "SmolVLA
   (sample)" (its paper evaluates on SO-100 rigs), so the grasp self-occlusion and VLA token studies run as the sample
-  opens (`--grasp`, `--vla-tokens`).
+  opens (`--grasp`, `--vla-tokens`). SmolVLA's inference time is not stated by its source, so `--action-chunk`
+  refuses until you enter a measured one on the Policies page.
+- **Teleop device (sample choice):** "SO-100 leader arm (sample)": the leader is the follower's own model, joint to
+  joint, as the LeRobot SO-100 guide builds it, so `--teleop` runs as the sample opens (96.7 % teleoperable).
 
 Tour: open the sample and move a joint of the arm; the wrist camera rides with the gripper
 while the tripod camera stays put. The SO-101 is in Menagerie too (`robotstudio_so101`, Apache-2.0, 18 MB of
@@ -50,7 +53,10 @@ meshes, not bundled): Robot ▸ Import from MuJoCo Menagerie downloads it and sh
 - **Tasks and policy (sample choices):** the grasp set "Tabletop grasps (sample)" (200 grasps: top-down, side and
   angled, seed 0) and the policy "π0 (sample)", so every Phase 3, 6 and 7 batch flag runs on it: `--grasp`,
   `--vla-tokens`, `--bandwidth`, `--cables`, `--brackets`, `--handeye-plan`. There is no task object: add one to
-  count its tokens and its grasp region.
+  count its tokens and its grasp region. A scripted pick trajectory ("Scripted pick (sample)", 4.5 s) gives the motion
+  blur, time sync and action-chunk studies their motion (`--motion-blur`, `--time-sync`, `--action-chunk`).
+- **Not in the samples:** lights (`--lighting` says "no lights": the lighting guide adds a key light and a window),
+  a set exposure (smear figures are upper bounds) and, on the UR5e and dexhand samples, a teleop device.
 - **Geometry:** the Menagerie UR5e rounds its link offsets to the millimetre, so its flange is up to 1.3 mm from
   the flange of Universal Robots' DH table ([robots.md](../models/robots.md#known-limits)).
 

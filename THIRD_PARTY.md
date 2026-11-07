@@ -8,7 +8,7 @@ licence shown and the user's consent (spec §1.2).
 | Component | Source | Licence | Version | Where |
 |---|---|---|---|---|
 | IBM Plex Sans, IBM Plex Mono (Regular, Medium, SemiBold) | https://github.com/IBM/plex | SIL Open Font License 1.1 (`dexvantage/resources/fonts/OFL.txt`) | IBM Plex Sans 3.005, IBM Plex Mono 2.004 (the fonts' own version records; the files Vantage ships) | `dexvantage/resources/fonts/` |
-| Code ported from Vantage (theme, widgets, charts, colour maps, icons and icon data, renderer, viewport, navigation, dialogs, palette, store, app, batch, self-test, sysenv, workdir, math utilities, provenance, validation machinery; Phase 2: the lens projection maths of `core/optics/lens.py` from Vantage `core/lens.py`, the cube-map idea, face basis and plane depth of `core/occlusion.py` from Vantage `core/occlusion.py`, the Camera view widget `ui/camview.py` from Vantage `ui/camview.py`; Phases 3, 6 and 7: `core/plucker.py` from Vantage `core/plucker.py`, `core/meshing.py` and `core/brackets.py` from Vantage `core/meshing.py` and `core/brackets.py`, the board points, grey conversion, PnP and outlier rule of `core/calib/boards.py` and `core/calib/detect.py` from Vantage `core/targets.py` and `core/calib.py`, the harness sheet, findings and `simplify` of `core/cables.py` / `core/studies/cables.py` from Vantage `core/harness.py`, the data-rate rows, disk budget and power findings of `core/studies/bandwidth.py` from Vantage `core/recording.py` and `core/power.py`; ideas only, no code copied verbatim: the Fisher-information planner of `core/calib/planner.py` from Vantage `core/observability.py` and the next-best-view coach of `core/calib/coach.py` from Vantage `core/calib_coach.py`; none from Vantage's Apache-2.0 `vantage/runtime`) | https://github.com/Sherin-SEF-AI/Vantage | GPL-3.0-or-later | Vantage 0.8.1 | marked in each module's docstring |
+| Code ported from Vantage (theme, widgets, charts, colour maps, icons and icon data, renderer, viewport, navigation, dialogs, palette, store, app, batch, self-test, sysenv, workdir, math utilities, provenance, validation machinery; Phase 2: the lens projection maths of `core/optics/lens.py` from Vantage `core/lens.py`, the cube-map idea, face basis and plane depth of `core/occlusion.py` from Vantage `core/occlusion.py`, the Camera view widget `ui/camview.py` from Vantage `ui/camview.py`; Phases 3, 6 and 7: `core/plucker.py` from Vantage `core/plucker.py`, `core/meshing.py` and `core/brackets.py` from Vantage `core/meshing.py` and `core/brackets.py`, the board points, grey conversion, PnP and outlier rule of `core/calib/boards.py` and `core/calib/detect.py` from Vantage `core/targets.py` and `core/calib.py`, the harness sheet, findings and `simplify` of `core/cables.py` / `core/studies/cables.py` from Vantage `core/harness.py`, the data-rate rows, disk budget and power findings of `core/studies/bandwidth.py` from Vantage `core/recording.py` and `core/power.py`; ideas only, no code copied verbatim: the Fisher-information planner of `core/calib/planner.py` from Vantage `core/observability.py` and the next-best-view coach of `core/calib/coach.py` from Vantage `core/calib_coach.py`; none from Vantage's Apache-2.0 `vantage/runtime`; Phases 4, 5 and 8: `core/rosbag.py` from Vantage `core/rosbag.py` (the CDR codec, the MCAP writer and both readers; the automotive box-marker helper dropped), `core/audit/slip.py` from Vantage `core/online_calib.py` (`select_model`, `refine_step`, the Huber weights and the event rule; the vehicle covariates replaced by time); `dexvantage/validation/VANTAGE_SLIP.json` holds Vantage's own outputs of `select_model` on twelve seeded series, recorded once at Vantage commit `89eeab8` by `scripts/record_vantage_slip.py`) | https://github.com/Sherin-SEF-AI/Vantage | GPL-3.0-or-later | Vantage 0.8.1 | marked in each module's docstring |
 
 ## Runtime dependencies (installed by pip, not bundled in the source tree)
 
@@ -24,6 +24,10 @@ licence shown and the user's consent (spec §1.2).
 | certifi | MPL-2.0 |
 | jsonschema (tests) | MIT |
 | pinocchio (optional extra `pin`, not installed by default) | BSD-2-Clause (repository licence, as GitHub reports it) |
+| pyarrow (optional extra `lerobot`: LeRobot Parquet files) | Apache-2.0 |
+| PyAV `av` (optional extra `lerobot`: LeRobot AV1 and H.264 videos) | BSD-3-Clause (its package metadata); its wheel carries FFmpeg's and SVT-AV1's shared libraries, whose licence terms the wheel's metadata does not state: read them before redistributing an installation |
+| zstandard, lz4 (optional extra `bags`: compressed MCAP chunks) | BSD-3-Clause; BSD (package classifiers) |
+| mcap, protobuf (tests only: reference readers for the bag and RLDS checks; extra `test`) | MIT; BSD-3-Clause |
 
 ## Robot models
 
@@ -144,6 +148,28 @@ papers (Tsai-Lenz 1989, Park-Martin 1994, Horaud-Dornaika 1995, Andreff 1999, Da
 Plücker export: the `.safetensors` files are written by DexVantage's own writer from the public format description
 (huggingface/safetensors README); the `safetensors` package is used only to read them back in the check when it is
 installed (Apache-2.0; not installed in `.venv`, not a dependency).
+
+## Phases 4, 5 and 8: cited sources and formats (figures only, nothing bundled)
+
+Light library (`dexvantage/resources/library/light/`, 3 entries: Elgato Key Light, Key Light Air MK.2, Ring Light):
+the figures each Elgato product page and its technical specifications state (elgato.com, read 2026-11-07); none
+states an IR figure, so none is entered. RealSense projector optical power and wavelength (D415, D435, D435i, D455):
+Table 3-17 of the D400 Series Datasheet (Rev 023); the D435's and D405's exposure ranges and trigger support: Table
+4-23 and sections 3.7.4 and 7.13 of the same datasheet (read 2026-11-07). Refractive indices in `core/materials.py`:
+tabulated measurements and Sellmeier fits from the refractiveindex.info database (public domain, CC0; the files are
+listed in the module). The relative-exposure model's 18 % grey and 12.7 % of saturation: ISO 12232 as summarised by
+Wikipedia "Film speed" (the standard itself was not read). The SO-100 leader arm of the sample: the LeRobot SO-100
+guide (huggingface.co/docs/lerobot/so100, read 2026-11-07).
+
+Formats, read from their sources; no code of these projects is copied into DexVantage: LeRobot dataset v3.0 at
+commit `d490e47` and v2.1 at tag v0.3.3 (`b883328`) (huggingface/lerobot, Apache-2.0); the MCAP specification and the
+ROS 2 message definitions (`sensor_msgs`, `std_msgs`; ros2/common_interfaces, Apache-2.0); RLDS and the TFRecord
+framing with CRC-32C (google-research/rlds and TensorFlow, Apache-2.0); the FiftyOne legacy dataset layout read by
+`LegacyFiftyOneDatasetImporter` (voxel51/fiftyone develop, Apache-2.0, read 2026-11-07). LeRobot's own loader and
+FiftyOne's importer have not been run against DexVantage's files (neither is installed).
+
+Synthetic episodes and the ground-truth scenes are generated from the project's own bundled robots (licences above);
+nothing new is bundled.
 
 ## Phases 3, 6 and 7 additions to runtime use
 

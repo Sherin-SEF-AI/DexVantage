@@ -14,14 +14,20 @@ order a new user meets them.
                  cube-map visibility) gives a Contact Visibility Score with its bootstrap interval
     brackets     the ISO 9409-1-50-4-M6 flange adapter disc meshes to one watertight, consistently wound STL that
                  reads back
+    groundtruth  the UR5e sample's MuJoCo scene builds, its cameras' intrinsics match the lens models
     handeye      a synthetic AX = XB problem (exact poses) is solved back to the known camera-to-gripper transform
+    teleop       the teleop study's IK and dexterity on a planar 2R arm against the closed form
+    lighting     the lighting study on the UR5e sample with a can, a library key light and a window
+    timing       the motion blur, time sync and action-chunk studies on the UR5e sample give their headlines
+    datasets     LeRobot v2.1 and v3.0 and an MCAP bag written and read back (independent readers)
+    audit        the mount-slip classifier against Vantage's recorded outputs
     opencv       the chessboard detector and the PNG codec
     fonts        the bundled IBM Plex fonts load
     opengl       the shader renderer draws a frame off-screen (a warning only: the 3D view falls back to QPainter)
     main window  the main window is built with a project and its summary study finishes (offscreen, never shown on
                  a desktop)
     software 3d  the QPainter 3D view, the fallback without OpenGL, draws the scene
-    validation   the validation suite's quick run passes
+    validation   the validation suite's quick run of its cheap checks passes (--validate runs every check)
 
 Ported from Vantage selftest.py (the runner and the headless EGL context); the checks are DexVantage's. Nothing is
 written outside a temporary folder and no network connection is made. The exit code is 0 when everything the app needs
@@ -266,6 +272,28 @@ def _check_grasp(S):
                 f'cube maps ({who}), {ms:.0f} ms')
 
 
+def _check_groundtruth(S):
+    """The MuJoCo ground-truth scene of the UR5e sample (core/sim/scene.py), built only (no render, to stay fast):
+    the robot attached from its stored files, one camera per imager whose intrinsics read back from the compiled model
+    (validation/mjrender.camera_model) match the imager's lens model within 10⁻³ px."""
+    from .core.robot.samples import sample_project
+    from .core.sim.scene import build_scene
+    from .validation import mjrender as MR
+    p = sample_project('ur5e')
+    t0 = time.perf_counter()
+    b = build_scene(p)
+    ms = (time.perf_counter() - t0) * 1000
+    worst = 0.0
+    for c in b.cameras.values():
+        cm = MR.camera_model(b.model, c.name, c.model.width, c.model.height)
+        worst = max(worst, abs(cm.fx - c.model.fx), abs(cm.fy - c.model.fy), abs(cm.cx - c.model.cx),
+                    abs(cm.cy - c.model.cy))
+    if not b.cameras or worst > 1e-3:
+        return FAIL, f'{len(b.cameras)} scene cameras, intrinsics {worst:.1e} px from the lens models'
+    return OK, (f'UR5e scene: {b.model.nbody} bodies, {b.model.ngeom} geoms, {len(b.cameras)} cameras within '
+                f'{worst:.0e} px of their lens models ({ms:.0f} ms)')
+
+
 def _check_handeye(S):
     """AX = XB on synthetic motions: a known camera-to-gripper transform X, 12 random gripper poses and the board poses
     they imply (exact), solved by Park-Martin (core/calib/axxb.py; OpenCV's calibrateHandEye when the installed
@@ -285,6 +313,95 @@ def _check_handeye(S):
         return FAIL, f'Park-Martin ({backend}) is {dt:.1e} m and {dr:.1e} rad from the known X'
     return OK, f'Park-Martin ({backend}) gives X back within {dt:.1e} m and {dr:.1e} rad from 12 exact poses ' \
                f'({ms:.0f} ms)'
+
+
+def _run_checks(ids) -> list:
+    """Run validation checks by id (quick settings, the built-in sample) and return their results."""
+    from .validation import suite as VS
+    VS.load_checks()
+    by_id = {sp.id: sp for sp in VS.CHECKS}
+    ctx = VS.Ctx(None, None, None, VS.ValidationSettings(quick=True))
+    try:
+        return [VS.run_one(by_id[i], ctx) for i in ids]
+    finally:
+        ctx.close()
+
+
+def _checks_line(ids, ok_text) -> tuple:
+    t0 = time.perf_counter()
+    res = _run_checks(ids)
+    ms = (time.perf_counter() - t0) * 1000
+    bad = [c for c in res if not c.passed]
+    if bad:
+        c = bad[0]
+        why = c.exception or f'error {c.error:.3g} {c.unit} against {c.tolerance:.3g}'
+        return FAIL, f'{c.id}: {why}'
+    return OK, ok_text(res) + f' ({ms:.0f} ms)'
+
+
+def _check_teleop(S):
+    """The teleop study's follower IK and dexterity (core/studies/teleop.Arm) on a planar 2R arm against the closed
+    form w = |l₁ l₂ sin q₂| (validation check teleop.manipulability_2r, quick)."""
+    return _checks_line(['teleop.manipulability_2r'],
+                        lambda r: f'2R arm: manipulability within {r[0].error:.0e} m² of the closed form, IK solved '
+                                  f'{r[0].detail.get("ik_solved", 0)} of {r[0].detail.get("ik_points", 0)} points')
+
+
+def _check_lighting(S):
+    """The lighting study on the UR5e sample with a metallic can, an Elgato Key Light (library figures) and a window
+    (the validation checks' scene): light sources, the microfacet materials and cube-map visibility end in a headline
+    glare figure, said to be relative when no camera states its sensitivity."""
+    from .core import jobs
+    from .validation.checks_lighting import lit_sample
+    p = lit_sample()
+    t0 = time.perf_counter()
+    doc = jobs.run_study('lighting', p)
+    ms = (time.perf_counter() - t0) * 1000
+    h = doc.get('headline') or {}
+    if h.get('value') is None:
+        return FAIL, f'no glare figure: {h.get("text") or "the study gave no headline"}'
+    rel = ' relative' if h.get('relative') else ''
+    return OK, f'{len(p.workspace.lights)} lights, glare {h["value"]:.1f} %{rel} ({h.get("word")}), {ms:.0f} ms'
+
+
+def _check_timing(S):
+    """The motion blur, time sync and action-chunk latency studies on the UR5e sample (its scripted pick and π0):
+    each gives a headline with a status word; figures not stated by a maker stay bounds."""
+    from .core import jobs
+    from .core.robot.samples import sample_project
+    p = sample_project('ur5e')
+    t0 = time.perf_counter()
+    out = []
+    for sid, key, fmt in (('motion_blur', 'smear_px', 'smear {:.1f} px'), ('time_sync', 'worst_skew_s', None),
+                          ('action_chunk_sync', 'worst_mm', 'chunk {:.1f} mm')):
+        doc = jobs.run_study(sid, p)
+        h = doc.get('headline') or doc.get('summary') or {}
+        word = h.get('word') or h.get('status_word')
+        if not word:
+            return FAIL, f'{jobs.STUDIES[sid].title} gave no headline'
+        v = h.get(key)
+        if sid == 'time_sync':
+            out.append(f'skew {1000 * v:.1f} ms' if v is not None else 'skew not stated')
+        else:
+            out.append(fmt.format(v) if v is not None else f'{key} not stated')
+        out[-1] += f' ({word})'
+    ms = (time.perf_counter() - t0) * 1000
+    return OK, 'UR5e: ' + ', '.join(out) + f'; {ms:.0f} ms'
+
+
+def _check_datasets(S):
+    """Dataset formats: three synthetic episodes written as LeRobot v2.1 and v3.0 and read back by DexVantage's reader
+    and independently (pyarrow, ffmpeg), and an MCAP bag round trip (validation checks formats.lerobot_roundtrip and
+    formats.mcap_roundtrip)."""
+    return _checks_line(['formats.lerobot_roundtrip', 'formats.mcap_roundtrip'],
+                        lambda r: 'LeRobot v2.1 and v3.0 and an MCAP bag read back with 0 mismatches')
+
+
+def _check_audit(S):
+    """The auditor's mount-slip classifier (core/audit/slip.py, ported from Vantage) against Vantage's original
+    outputs on twelve recorded series (validation check audit.slip_vs_vantage)."""
+    return _checks_line(['audit.slip_vs_vantage'],
+                        lambda r: f'mount-slip classifier within {r[0].error:.0e} of Vantage\'s recorded outputs')
 
 
 def _check_brackets(S):
@@ -418,15 +535,18 @@ def _check_software_3d(S):
 
 def _check_validation(S):
     from . import validation as VA
-    res = VA.run(settings=VA.ValidationSettings(quick=True))
+    res = VA.run(settings=VA.ValidationSettings(quick=True, cheap_only=True))
     if not res.ok:
         return FAIL, f'{len(res.failed)} of {len(res.checks)} checks failed: ' + ', '.join(c.id for c in res.failed[:4])
-    return OK, f'{res.passed} of {len(res.checks)} checks passed (quick run, {res.seconds:.1f} s)'
+    return OK, (f'{res.passed} of {len(res.checks)} cheap checks passed (quick run, {res.seconds:.1f} s; the '
+                f'study-scale checks run with --validate)')
 
 
 CHECKS = (('project', _check_project), ('frames', _check_frames), ('mujoco', _check_mujoco), ('robots', _check_robots),
           ('library', _check_library), ('occlusion', _check_occlusion), ('grasp', _check_grasp),
-          ('brackets', _check_brackets), ('handeye', _check_handeye), ('opencv', _check_opencv),
+          ('groundtruth', _check_groundtruth), ('brackets', _check_brackets), ('handeye', _check_handeye),
+          ('teleop', _check_teleop), ('lighting', _check_lighting), ('timing', _check_timing),
+          ('datasets', _check_datasets), ('audit', _check_audit), ('opencv', _check_opencv),
           ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
           ('software 3d', _check_software_3d), ('validation', _check_validation))
 NAMES = tuple(n for n, _ in CHECKS)

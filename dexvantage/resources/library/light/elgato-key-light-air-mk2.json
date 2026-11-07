@@ -1,0 +1,43 @@
+{
+  "id": "elgato-key-light-air-mk2",
+  "kind": "light",
+  "maker": "Elgato",
+  "name": "Key Light Air MK.2",
+  "family": "Key Light",
+  "sources": [
+    {
+      "url": "https://www.elgato.com/us/en/p/key-light-air",
+      "title": "Elgato Key Light Air MK.2 product page (Tech specs)",
+      "read": "2026-11-07",
+      "covers": "luminous flux, colour temperature range, panel dimensions, power consumption, mass"
+    }
+  ],
+  "note": "The page states \"Up to 2,100 lumens (depending on power source)\": the maximum, which a USB or battery supply may not reach. Panel 319 x 207 x 33 mm (W x H x D). The emitting face is taken as the whole front of the panel (an ASSUMPTION, as for the Key Light). CRI \"> 94%\" (not entered). Mass: \"Weight 735 g | 1.62 lbs (light only)\" (re-read 2026-11-07; an earlier reading had missed it). The page also gives the flux by power source: \"~2100 lm\" from a 27 W or larger supply, ~1270 lm from 20 W, ~750 lm from 15 W, ~400 lm from 7.5 W, ~180 lm under 7.5 W (the entry keeps the maximum). Not stated: luminance, beam profile, IR output. The page at this URL now describes the MK.2; the earlier Key Light Air is not entered.",
+  "interface": "Wi-Fi; USB-C power",
+  "power_w": 30.0,
+  "mass_g": 735.0,
+  "size_mm": [
+    33.0,
+    319.0,
+    207.0
+  ],
+  "light": {
+    "type": "panel",
+    "luminous_flux_lm": 2100.0,
+    "luminance_cd_m2": null,
+    "cct_k": null,
+    "cct_k_range": [
+      2900.0,
+      7000.0
+    ],
+    "emitting_size_m": [
+      0.319,
+      0.207
+    ],
+    "ring_inner_m": null,
+    "beam_deg": null,
+    "ir_irradiance_w_m2": null,
+    "ir_at_m": null,
+    "what": "\"Up to 2,100 lumens (depending on power source)\"; \"2900-7000 K\"; \"12.56 x 8.15 x 1.30 in (319 x 207 x 33 mm)\"; \"Up to 30 W\"; \"Weight 735 g | 1.62 lbs (light only)\""
+  }
+}

@@ -6,7 +6,7 @@
   "required": ["id", "kind", "maker", "name", "sources", "note"],
   "properties": {
     "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$", "description": "Unique, lower case, e.g. intel-realsense-d435."},
-    "kind": {"enum": ["depth", "camera", "tactile", "host", "policy", "cable"]},
+    "kind": {"enum": ["depth", "camera", "tactile", "host", "policy", "cable", "light"]},
     "maker": {"type": "string", "minLength": 1},
     "name": {"type": "string", "minLength": 1},
     "family": {"type": ["string", "null"]},
@@ -24,6 +24,12 @@
     },
     "note": {"type": "string", "description": "What the sources do not state, assumptions (labelled as such) and anything odd, such as two sources that disagree."},
     "interface": {"type": ["string", "null"]},
+    "sync": {"description": "Optional (core/studies/time_sync.py): what the maker states about triggering and synchronising the device; null (or absent) when nothing is stated. Each flag null when the maker does not say.",
+      "oneOf": [{"type": "null"}, {"type": "object", "properties": {
+        "hardware_trigger": {"type": ["boolean", "null"], "description": "an external trigger input starts the imagers' exposure"},
+        "sync_cable": {"type": ["boolean", "null"], "description": "several units can be synchronised to each other over a cable"},
+        "imagers": {"type": "array", "items": {"type": "string"}, "description": "the imagers the trigger or cable reaches (names, or 'depth'); empty = every imager"},
+        "what": {"type": "string", "description": "the source's words (section, quote)"}}}]},
     "power_w": {"$ref": "#/$defs/num"},
     "mass_g": {"$ref": "#/$defs/num"},
     "size_mm": {
@@ -128,6 +134,24 @@
                         "gmsl_links": {"type": ["integer", "null"], "minimum": 0}}}
       ]
     },
+    "light": {
+      "description": "Kind 'light' only (dexvantage/core/lights.py, docs/models/lighting.md): a light source's figures as its maker states them; null when not stated. emitting_size_m is [width, height] of the emitting face (a ring: its outer diameter twice), ring_inner_m a ring's inner diameter, beam_deg a spot's full beam angle, ir_irradiance_w_m2 the in-band IR irradiance at ir_at_m on the light's axis.",
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object",
+         "properties": {"type": {"enum": ["panel", "ring", "window", "point", "spot"]},
+                        "luminous_flux_lm": {"$ref": "#/$defs/num"},
+                        "luminance_cd_m2": {"$ref": "#/$defs/num"},
+                        "cct_k": {"$ref": "#/$defs/num"},
+                        "cct_k_range": {"$ref": "#/$defs/pair_or_null"},
+                        "emitting_size_m": {"$ref": "#/$defs/pair_or_null"},
+                        "ring_inner_m": {"$ref": "#/$defs/num"},
+                        "beam_deg": {"$ref": "#/$defs/angle"},
+                        "ir_irradiance_w_m2": {"$ref": "#/$defs/num"},
+                        "ir_at_m": {"$ref": "#/$defs/num"},
+                        "what": {"type": "string"}}}
+      ]
+    },
     "policy": {
       "description": "Kind 'policy' only (dexvantage/core/policies.py, docs/models/policies.md): the input a robot-learning policy takes, each field {value, source: an index into sources or null}, value null when no source states it.",
       "oneOf": [
@@ -194,6 +218,10 @@
         "lens_model": {"enum": ["pinhole", "brown", "kb", "equidistant", "equisolid", "stereographic", null]},
         "f_number": {"$ref": "#/$defs/num"},
         "focus": {"enum": ["fixed", "auto", null]},
+        "exposure_s": {"description": "Optional (core/studies/motion_blur.py, time_sync.py): the manual exposure range the maker states, in seconds; null (or absent) when not stated.",
+          "oneOf": [{"type": "null"}, {"type": "object", "properties": {"min": {"$ref": "#/$defs/num"}, "max": {"$ref": "#/$defs/num"}, "what": {"type": "string", "description": "the source's words (table, quote)"}}}]},
+        "readout_s": {"description": "Optional: the rolling-shutter readout time, first row to last, in seconds, as the maker states it; null when not stated.",
+          "oneOf": [{"type": "null"}, {"type": "object", "required": ["value"], "properties": {"value": {"type": "number", "exclusiveMinimum": 0}, "what": {"type": "string"}}}]},
         "fov_modes": {
           "description": "Optional: FOVs the maker states for stream shapes other than the native one (e.g. a depth FOV for 16:9 and 4:3 streams). A stream of the same aspect ratio uses these.",
           "type": "array",

@@ -1,8 +1,10 @@
 """Recording for hand-eye calibration: offline capture from a folder of board images and a joint_states file, matched
-by time, detected, and turned into a session (records.py) and a hand-eye Problem (handeye.py).
+by time, or from a recorded dataset (a LeRobot episode, ROS 2 topics in a bag), detected, and turned into a session
+(records.py) and a hand-eye Problem (handeye.py).
 
-Sources (SOURCES): 'folder' (this module); 'ros2' (ROS 2 topics) and 'lerobot' (a LeRobot episode) arrive in Phase 8
-with the dataset readers, and say so (CaptureError) instead of failing in an unexplained way.
+Sources (SOURCES): 'folder' (capture_folder) and 'dataset' (capture_dataset: LeRobot v2.1 / v3.0, ROS 2 bags in MCAP
+or SQLite, RLDS, through core/datasets); the older names 'ros2' and 'lerobot' mean 'dataset' (check_source). Live
+capture from running ROS 2 topics is not done here: record a bag and read it.
 
 The joint_states file (read_joint_states):
 - CSV: a header row with a time column ('t', 'time', 'stamp', 'timestamp' or 'time_s') and one column per joint,
@@ -24,13 +26,42 @@ default); an image with none that near is left out with the reason. The joint sp
 the neighbouring samples) is recorded: an image taken while the robot moved faster than MOVING_DEG_S (a default) is
 flagged, since the solver assumes still poses.
 
+A recorded dataset (capture_dataset(project, dataset, sensor_uid, episodes, every_n)):
+- the camera stream: the camera key given, else the dataset's only camera, else the one whose key ends with (or
+  holds) the sensor's name in lower case with its parenthesised part left out ('Wrist D405' ->
+  'observation.images.wrist_d405' or '/wrist_d405/image_raw'); otherwise the capture asks which, listing the keys;
+- the joints: each episode's state put on the robot's model by name (core/datasets/joints.on_model; unit 'rad' or
+  'deg');
+- every every_n-th frame of the stream is looked at. Its joint reading is the state interpolated linearly at the
+  frame's time t + offset_s (default 0 s: the camera and the joints on one clock, a default; the timestamps the
+  dataset stores, LeRobot's frame timestamps or a bag's header stamps carried onto the joint clock by the reader, not
+  device clocks). A frame outside the joint rows' time span, or before every joint is recorded, is left out. The
+  joints' speed there is the fastest joint's over the row interval holding the frame; with still_only (default) a
+  frame taken faster than MOVING_DEG_S is left out, since the solve assumes still poses (and a moving frame's
+  interpolated reading carries the timing error), otherwise it is kept and marked;
+- the board is detected in the frame at the frame's own size: when the stream is a resampled copy of the sensor's
+  image (the same shape within ASPECT_TOL, 1 %), the camera model is scaled to it (CameraModel.scaled) and the
+  corners are carried back to the model's pixels, u = s (u' + ½) − ½; a stream of another shape is refused;
+- with merge_still (default), consecutive still frames of one episode whose joints all lie within STILL_SAME_DEG
+  (0.05°, a default) of the run's first frame are one pose: the frame with the most corners is kept (the middle one
+  among equals), so a robot that holds a pose for two seconds at 30 fps gives one view, not sixty correlated ones; at
+  most MAX_VIEWS (500, a default) views are kept, evenly spread;
+- only frames with the board found become poses (named 'episode E frame I'); the source records the dataset's folder
+  or file name (never its full path), its format and version, the camera key, per episode the frames looked at, with
+  joints, still and with the board, the camera's first time minus the joints' first time and the median distance of
+  a frame from its nearest joint row (the timestamp offset, said in the notes), and every rule above that applied.
+
 Several sessions together (sessions_problem): one bundle adjustment over every camera, board and robot of the
 sessions, a camera or board shared between sessions estimated once; this is how a static camera that only sees a
 board fixed in the world is calibrated (through a robot-mounted camera's views of the same board).
 
-Known limits: the nearest sample, not an interpolation (calibration poses are taken still); one camera and one robot per
-session (several are solved together with sessions_problem); image and joint clocks are taken as the same clock (no
-offset estimated); images are read as files OpenCV can decode.
+Known limits: a folder capture takes the nearest sample, not an interpolation (calibration poses are taken still); a
+dataset capture interpolates linearly between joint rows (a joint path that curves between rows is cut short); one
+camera and one robot per session (several are solved together with sessions_problem); image and joint clocks are taken
+as the same clock up to the offset given (no offset is estimated; a constant offset shows only in moving frames, which
+are left out by default); images are read as files OpenCV can decode; a dataset camera's own intrinsics are compared
+with the sensor's lens model and said when they differ, never used; motion blur and rolling shutter in moving frames
+are not modelled.
 """
 from __future__ import annotations
 
@@ -43,10 +74,13 @@ import re
 
 import numpy as np
 
-SOURCES = ('folder', 'ros2', 'lerobot')
-SOURCE_LABELS = {'folder': 'Image folder and joint states file', 'ros2': 'ROS 2 topics (arrives in Phase 8)',
-                 'lerobot': 'LeRobot episode (arrives in Phase 8)'}
+SOURCES = ('folder', 'dataset')
+SOURCE_LABELS = {'folder': 'Image folder and joint states file', 'dataset': 'LeRobot dataset or ROS 2 bag'}
+SOURCE_ALIASES = {'ros2': 'dataset', 'lerobot': 'dataset', 'bag': 'dataset', 'rlds': 'dataset'}
 TOLERANCE_S = 0.05             # a default: an image takes a joint sample this close in time
+STILL_SAME_DEG = 0.05          # a default: still dataset frames whose joints agree this closely are one view
+ASPECT_TOL = 0.01              # frames and camera model of the same shape within this share
+MAX_VIEWS = 500                # a default: at most this many views from a dataset
 MOVING_DEG_S = 0.5             # a default: faster joint motion at the match flags the image
 IMAGE_EXT = ('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff', '.pgm', '.ppm')
 TIME_COLUMNS = ('t', 'time', 'stamp', 'timestamp', 'time_s')
@@ -57,15 +91,13 @@ class CaptureError(ValueError):
     """A capture that cannot be read; the message says why in plain words."""
 
 
-def check_source(kind: str):
-    if kind == 'ros2':
-        raise CaptureError('Recording from ROS 2 topics arrives in Phase 8 (with the dataset readers). For now, save '
-                           'the board images and a joint_states file and use "Image folder and joint states file".')
-    if kind == 'lerobot':
-        raise CaptureError('Reading a LeRobot episode arrives in Phase 8 (with the dataset readers). For now, export '
-                           'the frames and the joint states and use "Image folder and joint states file".')
-    if kind != 'folder':
+def check_source(kind: str) -> str:
+    """The capture source a name stands for ('folder' or 'dataset'; 'ros2', 'lerobot', 'bag' and 'rlds' are
+    'dataset': ROS 2 topics are read from a recorded bag); CaptureError for any other name."""
+    kind = SOURCE_ALIASES.get(str(kind), str(kind))
+    if kind not in SOURCES:
         raise CaptureError(f'Unknown capture source "{kind}": use one of {", ".join(SOURCES)}.')
+    return kind
 
 
 # =========================================================================== joint states
@@ -268,17 +300,10 @@ def match_times(times: list, js: JointStates, tolerance_s: float = TOLERANCE_S) 
 
 
 # =========================================================================== a session from a folder
-def capture_folder(project, sensor, folder: str, joints, board_rec: dict | None = None,
-                   tolerance_s: float = TOLERANCE_S, unit: str = 'rad', progress=None, cancel=None) -> dict:
-    """A session record (records.py) from a folder of board images and a joint_states file (path or text): times
-    matched, every image detected with the sensor's camera model. Raises CaptureError (a plain sentence)."""
-    import cv2
-
+def _session_context(project, sensor, board_rec):
+    """(imager, mode, board record, board, robot uid, link, robot model) of a capture of sensor; CaptureError."""
     from ..robot.model import RobotModelError, get_model
     from . import records as RC
-    from .detect import detect
-    if not os.path.isdir(folder):
-        raise CaptureError('The image folder does not exist.')
     try:
         im = RC.sensor_imager(sensor)
         c_robot, c_link, _X = RC.camera_mount(project, sensor, im)
@@ -294,7 +319,24 @@ def capture_folder(project, sensor, folder: str, joints, board_rec: dict | None 
     if not robot_uid or project.robot(robot_uid) is None:
         raise CaptureError('The board record must be held on a robot link for an eye-to-hand calibration (the '
                            'camera is fixed).' if not c_robot else 'The robot the camera is on is not in the project.')
-    mdl = get_model(project, robot_uid)
+    try:
+        mdl = get_model(project, robot_uid)
+    except RobotModelError as e:
+        raise CaptureError(str(e)) from None
+    return im, mode, rec, board, robot_uid, link, mdl
+
+
+def capture_folder(project, sensor, folder: str, joints, board_rec: dict | None = None,
+                   tolerance_s: float = TOLERANCE_S, unit: str = 'rad', progress=None, cancel=None) -> dict:
+    """A session record (records.py) from a folder of board images and a joint_states file (path or text): times
+    matched, every image detected with the sensor's camera model. Raises CaptureError (a plain sentence)."""
+    import cv2
+
+    from . import records as RC
+    from .detect import detect
+    if not os.path.isdir(folder):
+        raise CaptureError('The image folder does not exist.')
+    im, mode, rec, board, robot_uid, link, mdl = _session_context(project, sensor, board_rec)
     js = read_joint_states(joints, mdl.joint_names, mdl.home, unit,
                            prismatic=[t == 'prismatic' for t in mdl.joint_types])
     files = list_images(folder)
@@ -341,6 +383,264 @@ def capture_folder(project, sensor, folder: str, joints, board_rec: dict | None 
     if progress:
         progress(1.0, f'{src["detected"]} of {len(files)} images with the board')
     return sess
+
+
+# =========================================================================== a session from a dataset
+def _key_words(text: str) -> str:
+    t = re.sub(r'\([^)]*\)', ' ', str(text).lower())
+    return '_'.join(w for w in re.split(r'[^a-z0-9]+', t) if w)
+
+
+def camera_key_for(sensor, keys) -> str | None:
+    """The dataset camera key that names the sensor (module docstring), or None."""
+    keys = list(keys)
+    if len(keys) == 1:
+        return keys[0]
+    want = _key_words(getattr(sensor, 'name', ''))
+    if not want:
+        return None
+    hits = [k for k in keys if _key_words(k).endswith(want)]
+    if len(hits) == 1:
+        return hits[0]
+    hits = [k for k in keys if want in _key_words(k)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _speeds(t, Q, x) -> np.ndarray:
+    """(M,) deg/s: the fastest joint's speed at times x, from the rows' finite differences (the segment holding x
+    and, at a row's own time, the segment before it too)."""
+    t = np.asarray(t, float)
+    if len(t) < 2:
+        return np.zeros(len(x))
+    dt = np.diff(t)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        V = np.where(dt[:, None] > 0, np.diff(Q, axis=0) / np.where(dt > 0, dt, 1.0)[:, None], 0.0)
+    v = np.degrees(np.nanmax(np.abs(V), axis=1)) if V.shape[1] else np.zeros(len(dt))
+    k = np.clip(np.searchsorted(t, x, side='right') - 1, 0, len(dt) - 1)
+    sp = v[k]
+    at = np.isclose(x, t[np.clip(k, 0, len(t) - 1)], rtol=0, atol=1e-9) & (k > 0)
+    sp[at] = np.maximum(sp[at], v[k[at] - 1])
+    return sp
+
+
+def _scaled_model(cam, w: int, h: int):
+    """(the camera model at the frames' size, (sx, sy)) or CaptureError when the shapes differ."""
+    if (w, h) == (cam.width, cam.height):
+        return cam, (1.0, 1.0)
+    if abs((w / h) / (cam.width / cam.height) - 1.0) > ASPECT_TOL:
+        raise CaptureError(f'The dataset\'s frames are {w} × {h} px and the camera model is {cam.width} × '
+                           f'{cam.height} px: a different shape (a crop?), so the board corners cannot be placed in '
+                           'the model\'s pixels. Choose the camera stream of this sensor, or set the sensor\'s stream '
+                           'size to the recording\'s.')
+    return cam.scaled(w, h), (cam.width / w, cam.height / h)
+
+
+def _merge_still(views: list) -> tuple[list, int]:
+    """One view per run of still frames at one pose (module docstring): (kept views, frames merged away)."""
+    out, run = [], []
+
+    def flush():
+        if run:
+            best = max(len(v['ids']) for v in run)
+            cand = [i for i, v in enumerate(run) if len(v['ids']) == best]
+            out.append(run[min(cand, key=lambda i: abs(i - (len(run) - 1) / 2))])
+    for v in views:
+        if run and v['still'] and run[-1]['still'] and v['episode'] == run[-1]['episode'] and \
+                np.degrees(np.max(np.abs(np.asarray(v['q']) - np.asarray(run[0]['q'])))) <= STILL_SAME_DEG:
+            run.append(v)
+            continue
+        flush()
+        run = [v]
+    flush()
+    return out, len(views) - len(out)
+
+
+def capture_dataset(project, dataset, sensor_uid: str, episodes=None, every_n: int = 1, *, camera: str | None = None,
+                    board_rec: dict | None = None, unit: str = 'rad', offset_s: float = 0.0, still_only: bool = True,
+                    merge_still: bool = True, max_views: int = MAX_VIEWS, progress=None, cancel=None) -> dict:
+    """A session record (records.py) from a recorded dataset (spec §8.1 'a LeRobot episode', 'ROS 2 topics'): the
+    frames of the sensor's camera stream with the board in view and the joint states at the frame times
+    (interpolated; module docstring). dataset: a core.datasets Dataset or a path open_dataset reads (LeRobot v2.1 /
+    v3.0, a ROS 2 bag in MCAP or SQLite, RLDS). episodes: the dataset's episode indices (None: all); every_n: look at
+    every Nth frame. Raises CaptureError (a plain sentence)."""
+    from ..datasets import DatasetError, open_dataset
+    from ..datasets.joints import interpolate, on_model
+    from . import records as RC
+    from .detect import detect, to_gray
+    sensor = project.variant.sensor(sensor_uid) if sensor_uid else None
+    if sensor is None:
+        raise CaptureError('The camera to calibrate is not in this rig: choose one of its cameras.')
+    try:
+        every_n, offset_s, max_views = int(every_n), float(offset_s), int(max_views)
+    except (TypeError, ValueError):
+        raise CaptureError('"Every N frames" and the view limit must be whole numbers and the time offset a number '
+                           'of seconds.') from None
+    if every_n < 1 or max_views < 3 or not math.isfinite(offset_s):
+        raise CaptureError('"Every N frames" must be 1 or more, the view limit 3 or more and the time offset finite.')
+    im, mode, rec, board, robot_uid, link, mdl = _session_context(project, sensor, board_rec)
+    own = isinstance(dataset, str)
+    try:
+        ds = open_dataset(dataset) if own else dataset
+    except DatasetError as e:
+        raise CaptureError(str(e)) from None
+    try:
+        refs = ds.episodes()
+        have = [r.index for r in refs]
+        if not have:
+            raise CaptureError('The dataset has no episodes.')
+        want = have if episodes is None else [int(e) for e in (episodes if isinstance(episodes, (list, tuple, set,
+                                                                                                  range))
+                                                                else [episodes])]
+        bad = [e for e in want if e not in set(have)]
+        if bad:
+            raise CaptureError(f'The dataset has no episode {bad[0]} (its episodes are {have[0]} to {have[-1]}).')
+        base = os.path.basename(os.path.normpath(str(getattr(ds, 'path', '') or ''))) or 'dataset'
+        cam0 = im.camera
+        views, notes, ep_docs, map_notes = [], [], [], []
+        looked = matched = found = moving = outside = 0
+        key = camera
+        det_cam, scale = None, (1.0, 1.0)
+        steps = False
+        for n_ep, e in enumerate(want):
+            if cancel is not None and cancel():
+                notes.append(f'Stopped after {n_ep} of {len(want)} episodes.')
+                break
+            ep = ds.load(e)
+            if key is None:
+                key = camera_key_for(sensor, ep.cameras)
+                if key is None:
+                    keys = sorted(ep.cameras)
+                    raise CaptureError(
+                        'The dataset records no camera.' if not keys else
+                        f'Which camera stream is {sensor.name}? The dataset has {", ".join(keys[:6])}'
+                        f'{"…" if len(keys) > 6 else ""}: choose one.')
+            if key not in ep.cameras:
+                raise CaptureError(f'Episode {e} has no camera stream {key} (it has '
+                                   f'{", ".join(sorted(ep.cameras)) or "none"}).')
+            cs = ep.cameras[key]
+            steps = steps or (ep.meta or {}).get('time_base') == 'steps'
+            jm = on_model(ep, mdl, unit)
+            for t_ in jm.notes:
+                if t_ not in map_notes:
+                    map_notes.append(t_)
+            ts = np.asarray(cs.timestamps, float).reshape(-1)
+            rows_t = np.asarray(ep.t, float).reshape(-1)
+            idx = np.arange(0, len(ts), every_n)
+            tq = ts[idx] + offset_s
+            Qf = interpolate(rows_t, jm.Q, tq)
+            sp = _speeds(rows_t, jm.Q, tq)
+            near = np.array([float(rows_t[np.argmin(np.abs(rows_t - x))] - x) for x in tq]) if len(rows_t) else \
+                np.full(len(tq), np.nan)
+            ok = np.isfinite(Qf).all(axis=1)
+            outside += int((~ok).sum())
+            still = sp <= MOVING_DEG_S
+            take = ok & (still | (not still_only))
+            moving += int((ok & ~still).sum())
+            looked += len(idx)
+            matched += int(take.sum())
+            ep_doc = {'episode': int(e), 'id': str(ep.id), 'frames': int(len(ts)), 'looked_at': int(len(idx)),
+                      'with_joints': int(ok.sum()), 'still': int((ok & still).sum()), 'board': 0,
+                      'camera_start_minus_joints_s': float(ts[0] - rows_t[0]) if len(ts) and len(rows_t) else None,
+                      'nearest_row_ms_median': float(1000 * np.median(np.abs(near[ok]))) if ok.any() else None}
+            sel = [int(i) for i in idx[take]]
+            pos = {int(i): j for j, i in enumerate(idx)}
+            if cs.intrinsics and cs.intrinsics.get('K') is not None and n_ep == 0:
+                try:
+                    fx = float(np.asarray(cs.intrinsics['K'], float).reshape(3, 3)[0, 0])
+                    w0 = int(cs.intrinsics.get('width') or cs.width or cam0.width)
+                    fx_m = cam0.fx * w0 / cam0.width
+                    if fx_m > 0 and abs(fx / fx_m - 1.0) > 0.01:
+                        notes.append(f'The dataset\'s own intrinsics give fx {fx:.1f} px at {w0} px wide; the '
+                                     f'sensor\'s lens model {fx_m:.1f} px. The solve uses the lens model: refine the '
+                                     'intrinsics, or enter the calibration on the Sensors page.')
+                except (TypeError, ValueError, KeyError):
+                    pass
+            for k_, (i, img) in enumerate(cs.frames(sel) if sel else []):
+                if cancel is not None and cancel():
+                    break
+                if progress and k_ % 10 == 0:
+                    progress((n_ep + k_ / max(len(sel), 1)) / len(want),
+                             f'Episode {e}: looking for the board in frame {i}')
+                h, w = img.shape[:2]
+                if det_cam is None or (det_cam.width, det_cam.height) != (w, h):
+                    det_cam, scale = _scaled_model(cam0, w, h)
+                    if scale != (1.0, 1.0):
+                        notes.append(f'The frames are {w} × {h} px, the camera model {cam0.width} × {cam0.height} '
+                                     'px: the board is found in the frames and its corners are scaled to the model\'s '
+                                     'pixels (the same lens, resampled).')
+                det = detect(to_gray(img), board, det_cam)
+                if det is None:
+                    continue
+                uv = np.asarray(det.corners, float).reshape(-1, 2)
+                uv = np.stack([(uv[:, 0] + 0.5) * scale[0] - 0.5, (uv[:, 1] + 0.5) * scale[1] - 0.5], axis=1)
+                j = pos[int(i)]
+                found += 1
+                ep_doc['board'] += 1
+                note = '' if still[j] else f'the robot was moving ({sp[j]:.2f}°/s at this frame)'
+                views.append({'name': f'episode {e} frame {i}', 'image': f'{key} frame {i}',
+                              't_image': float(ts[i]), 't_joints': float(tq[j]), 'dt_s': float(near[j]),
+                              'q': [float(v) for v in Qf[j]], 'joint_names': list(mdl.joint_names),
+                              'ids': [int(x) for x in det.ids], 'uv': uv.tolist(), 'note': note,
+                              'episode': int(e), 'still': bool(still[j])})
+            ep_docs.append(ep_doc)
+        if progress:
+            progress(1.0, f'The board found in {found} frames')
+        if not views:
+            why = []
+            if outside:
+                why.append(f'{outside} had no joint reading around them')
+            if moving and still_only:
+                why.append(f'{moving} were taken while the robot moved (look at moving frames too, or record still '
+                           'poses)')
+            raise CaptureError(f'The board was not found in any of the {looked} frames of {key} looked at'
+                               + (f' ({"; ".join(why)})' if why else '') + '. Check the camera stream, the board '
+                               'definition and that the board is in view.')
+        merged = 0
+        if merge_still:
+            views, merged = _merge_still(views)
+        if len(views) > max_views:
+            pick = np.unique(np.linspace(0, len(views) - 1, max_views).round().astype(int))
+            notes.append(f'{len(views)} views with the board; {len(pick)} evenly spread ones are kept (at most '
+                         f'{max_views}, {"a default" if max_views == MAX_VIEWS else "yours"}).')
+            views = [views[i] for i in pick]
+        same_clock = ('The camera and joint times are taken as one clock' if offset_s == 0 else
+                      f'Joint times are read {1000 * offset_s:+.1f} ms from the frame times')
+        timing = (f'Joint states interpolated linearly at each frame\'s time. {same_clock} (offset '
+                  f'{1000 * offset_s:.1f} ms{", a default" if offset_s == 0 else ", yours"}).')
+        med = [d['nearest_row_ms_median'] for d in ep_docs if d['nearest_row_ms_median'] is not None]
+        if med:
+            timing += f' The nearest joint row is {float(np.median(med)):.1f} ms from a frame (median).'
+        notes.insert(0, timing)
+        if merged:
+            notes.append(f'{merged + len(views)} frames with the board; still frames at one pose are one view (joints '
+                         f'within {STILL_SAME_DEG:g}°, a default): {len(views)} views.')
+        if moving:
+            notes.append(f'{moving} frames were taken while the robot moved faster than {MOVING_DEG_S:g}°/s (a '
+                         'default)' + (': left out (the solve assumes still poses).' if still_only else
+                                       ': kept and marked.'))
+        if outside:
+            notes.append(f'{outside} frames had no joint reading around them (outside the joint states\' time span, '
+                         'or joints not yet recorded) and were left out.')
+        if steps:
+            notes.append('The dataset stores no times (RLDS): frames and joint rows are paired by step.')
+        notes += map_notes
+        poses = [{k_: v for k_, v in p.items() if k_ not in ('episode', 'still')} for p in views]
+        src = {'kind': 'dataset', 'folder': base, 'dataset': base, 'format': str(getattr(ds, 'format', '')),
+               'version': str(getattr(ds, 'version', '')), 'camera': key, 'episodes': ep_docs, 'every_n': every_n,
+               'images': looked, 'matched': matched, 'board_frames': found, 'detected': len(poses),
+               'offset_s': offset_s, 'times': 'joint states interpolated at the frame times', 'notes': notes}
+        sess = RC.session_record(sensor, im, mode, str(rec.get('uid') or ''), robot_uid, link, poses, src,
+                                 name=f'{sensor.name} · {base}',
+                                 settings={'every_n': every_n, 'unit': unit, 'offset_s': offset_s,
+                                           'still_only': bool(still_only), 'merge_still': bool(merge_still),
+                                           'offset_default': offset_s == 0.0})
+        sess['board'] = None if RC.find_board(project, rec.get('uid')) else rec
+        return sess
+    except DatasetError as e:
+        raise CaptureError(str(e)) from None
+    finally:
+        if own:
+            ds.close()
 
 
 # =========================================================================== a session as a problem

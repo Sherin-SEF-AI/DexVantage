@@ -197,7 +197,7 @@ def test_robot_inspector_and_delete(app, win, no_dialogs, tmp_path):
     assert st.undo.count() == n + 1 and r.uid not in st.q
     st.undo.undo()
     assert [x.uid for x in st.project.robots] == [r.uid] and len(st.project.sources) == n_src
-    assert len(st.project.tasks.trajectories) == 1 and len(st.q[r.uid]) == 14
+    assert len(st.project.tasks.trajectories) == 2 and len(st.q[r.uid]) == 14      # the sample's pick and q.csv
 
 
 def test_trajectory_select_play_and_delete(app, win, no_dialogs, tmp_path):

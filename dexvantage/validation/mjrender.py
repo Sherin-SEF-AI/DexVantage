@@ -1,12 +1,24 @@
 """MuJoCo offscreen renders for the validation checks: segmentation, depth and RGB from a camera of a compiled model.
 
-    render(jobs, timeout=180) -> (images, info)
+    render(jobs, timeout=180, device=None) -> (images, info)
         jobs: [{'model': mujoco.MjModel, 'qpos': array | None, 'camera': camera name, 'width': w, 'height': h,
-                'outputs': ('seg', 'depth', 'rgb')}]
+                'outputs': ('seg', 'depth', 'rgb'), 'camera_pose': None or (x, y, z, qw, qx, qy, qz),
+                'camera_intrinsic': None or {'sensorsize': (w, h), 'intrinsic': (fx, fy, px, py)} (lengths)}]
+                camera_pose and camera_intrinsic (optional) replace the camera's pose in its body (MuJoCo's cam_pos,
+                cam_quat) and its intrinsics (cam_sensorsize, cam_intrinsic, which MuJoCo reads at every render) for
+                that job only (core/sim/render.py: a perturbed mount, the wide pinhole or cube faces a distorted lens
+                is remapped from)
         images: one dict per job: 'seg' (H, W) int32 geom id (-1: no geom), 'depth' (H, W) float32 metres along the
                 camera's viewing axis (MuJoCo's "distance from camera plane"), 'rgb' (H, W, 3) uint8; row 0 is the top
                 of the image and column 0 its left, as mujoco.Renderer returns them.
-        info: {'renderer': the OpenGL renderer string, 'mujoco': version, 'gl': 'egl', 'seconds'}
+        info: {'renderer': the OpenGL renderer string, 'mujoco': version, 'gl': 'egl', 'seconds' (the call, with the
+               worker's start), 'render_seconds' (the renders alone, in the worker), 'frames', 'device'}
+    Session(device=None, timeout=180)   the same render(jobs) from a worker that stays up between calls (python -m
+        dexvantage.validation.mjrender --serve): models are written once per session and stay loaded with their
+        renderers (at most MAX_RENDERERS GL contexts, least recently used closed). A context manager.
+    device: None or 'auto' is MuJoCo's own choice, the first EGL device that initialises (mujoco/egl/__init__.py,
+        MuJoCo 3.17.0), unless DEXVANTAGE_EGL says 'EGL device N'; an int (or 'EGL device N') sets
+        MUJOCO_EGL_DEVICE_ID for the worker.
     mujoco_camera(m, d, name) -> (R_optical (3,3), position (3,)): the camera's optical frame (z forward, x right,
         y down) in the world, from MuJoCo's camera frame (it looks along its -z axis, +x right, +y up:
         R_optical = R_mujoco · diag(1, −1, −1)).
@@ -148,33 +160,91 @@ def copy_qpos(model, q, m_scene) -> np.ndarray:
     return out
 
 
-def render(jobs: list, timeout: float = 180.0) -> tuple[list, dict]:
-    """Render the jobs in a worker process (see the module docstring). Raises RenderUnavailable."""
+def _job_spec(jobs: list, folder: str, saved: dict, keep: dict | None = None, absolute: bool = False) -> list:
+    """Write the jobs' models (once per model object: saved maps id(model) to its file) and joint states into
+    folder; the jobs as the worker reads them. keep holds the models saved (so their ids are not reused)."""
     import mujoco
+    spec = []
+    for k, j in enumerate(jobs):
+        m = j['model']
+        if id(m) not in saved:
+            path = os.path.join(folder if not absolute else keep['__dir__'], f'model_{len(saved)}.mjb')
+            mujoco.mj_saveModel(m, path, None)
+            saved[id(m)] = path if absolute else os.path.basename(path)
+            if keep is not None:
+                keep[id(m)] = m
+        q = j.get('qpos')
+        if q is not None:
+            np.save(os.path.join(folder, f'qpos_{k}.npy'), np.asarray(q, float))
+        outs = tuple(o for o in j.get('outputs', ('seg', 'depth')) if o in OUTPUTS)
+        cp, ci = j.get('camera_pose'), j.get('camera_intrinsic')
+        spec.append({'model': saved[id(m)], 'qpos': f'qpos_{k}.npy' if q is not None else None,
+                     'camera': str(j['camera']), 'width': int(j['width']), 'height': int(j['height']),
+                     'outputs': list(outs),
+                     'camera_pose': None if cp is None else [float(v) for v in np.asarray(cp, float).reshape(7)],
+                     'camera_intrinsic': None if ci is None else
+                     {'sensorsize': [float(v) for v in np.asarray(ci['sensorsize'], float).reshape(2)],
+                      'intrinsic': [float(v) for v in np.asarray(ci['intrinsic'], float).reshape(4)]}})
+    with open(os.path.join(folder, 'jobs.json'), 'w', encoding='utf-8') as f:
+        json.dump(spec, f)
+    return spec
+
+
+def _read_out(folder: str, spec: list) -> list:
+    out = []
+    with np.load(os.path.join(folder, 'out.npz'), allow_pickle=False) as z:
+        for k, j in enumerate(spec):
+            out.append({o: z[f'{k}_{o}'] for o in j['outputs']})
+    return out
+
+
+def worker_env(device=None) -> tuple[dict, str]:
+    """(environment, root) for a render worker: MUJOCO_GL=egl and PYOPENGL_PLATFORM=egl, the package on the path, and
+    MUJOCO_EGL_DEVICE_ID when device names one (an int, or 'EGL device N'; also read from DEXVANTAGE_EGL when it says
+    'EGL device N'). Without one MuJoCo takes the first EGL device that initialises (mujoco/egl/__init__.py)."""
+    env = dict(os.environ, MUJOCO_GL='egl', PYOPENGL_PLATFORM='egl')
+    env.setdefault('EGL_LOG_LEVEL', 'fatal')
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    env['PYTHONPATH'] = root + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
+    idx = _device_index(device)
+    if idx is None and device in (None, 'auto'):
+        idx = _device_index(os.environ.get('DEXVANTAGE_EGL', ''))
+    if idx is not None:
+        env['MUJOCO_EGL_DEVICE_ID'] = str(idx)
+    return env, root
+
+
+def _device_index(device):
+    if isinstance(device, bool):
+        return None
+    if isinstance(device, int):
+        return device if device >= 0 else None
+    s = str(device or '').strip().lower()
+    if s.startswith('egl device'):
+        s = s[len('egl device'):].strip()
+    return int(s) if s.isdigit() else None
+
+
+def device_text(device=None) -> str:
+    """Which EGL device a worker started with device uses, in words."""
+    env, _root = worker_env(device)
+    d = env.get('MUJOCO_EGL_DEVICE_ID')
+    return f'EGL device {d}' if d is not None else 'the first EGL device that initialises'
+
+
+def _unavailable(why: str) -> RenderUnavailable:
+    return RenderUnavailable('MuJoCo cannot render offscreen through EGL on this machine, so the rendered reference is '
+                             f'missing: {why}. Rendered checks need an OpenGL driver with EGL (a GPU driver, or Mesa '
+                             'for software rendering).')
+
+
+def render(jobs: list, timeout: float = 180.0, device=None) -> tuple[list, dict]:
+    """Render the jobs in a worker process (see the module docstring). device: None or 'auto' (MuJoCo's choice, or
+    DEXVANTAGE_EGL='EGL device N'), or an EGL device index. Raises RenderUnavailable."""
     t0 = time.perf_counter()
     with tempfile.TemporaryDirectory(prefix='dexvantage-mjrender-') as tmp:
-        spec, saved = [], {}
-        for k, j in enumerate(jobs):
-            m = j['model']
-            if id(m) not in saved:
-                path = os.path.join(tmp, f'model_{len(saved)}.mjb')
-                m.vis.global_.offwidth = max(int(m.vis.global_.offwidth), int(j['width']))
-                m.vis.global_.offheight = max(int(m.vis.global_.offheight), int(j['height']))
-                mujoco.mj_saveModel(m, path, None)
-                saved[id(m)] = os.path.basename(path)
-            q = j.get('qpos')
-            if q is not None:
-                np.save(os.path.join(tmp, f'qpos_{k}.npy'), np.asarray(q, float))
-            outs = tuple(o for o in j.get('outputs', ('seg', 'depth')) if o in OUTPUTS)
-            spec.append({'model': saved[id(m)], 'qpos': f'qpos_{k}.npy' if q is not None else None,
-                         'camera': str(j['camera']), 'width': int(j['width']), 'height': int(j['height']),
-                         'outputs': list(outs)})
-        with open(os.path.join(tmp, 'jobs.json'), 'w', encoding='utf-8') as f:
-            json.dump(spec, f)
-        env = dict(os.environ, MUJOCO_GL='egl', PYOPENGL_PLATFORM='egl')
-        env.setdefault('EGL_LOG_LEVEL', 'fatal')
-        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        env['PYTHONPATH'] = root + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
+        spec = _job_spec(jobs, tmp, {})
+        env, root = worker_env(device)
         try:
             pr = subprocess.run([sys.executable, '-m', 'dexvantage.validation.mjrender', tmp], env=env, cwd=root,
                                 capture_output=True, timeout=timeout)
@@ -190,53 +260,211 @@ def render(jobs: list, timeout: float = 180.0) -> tuple[list, dict]:
             if not why:
                 err = pr.stderr.decode('utf-8', 'replace').strip().splitlines()
                 why = err[-1] if err else f'the worker stopped with exit code {pr.returncode}'
-            raise RenderUnavailable('MuJoCo cannot render offscreen through EGL on this machine, so the rendered '
-                                    f'reference is missing: {why}. Rendered checks need an OpenGL driver with EGL '
-                                    '(a GPU driver, or Mesa for software rendering).')
+            raise _unavailable(why)
         info = json.loads(last[len('ok\t'):])
-        out = []
-        with np.load(os.path.join(tmp, 'out.npz'), allow_pickle=False) as z:
-            for k, j in enumerate(spec):
-                out.append({o: z[f'{k}_{o}'] for o in j['outputs']})
+        out = _read_out(tmp, spec)
     info['seconds'] = time.perf_counter() - t0
+    info['device'] = device_text(device)
     return out, info
 
 
-def _worker(tmp: str) -> int:
-    """Render the jobs in folder tmp (jobs.json, *.mjb, qpos_*.npy) into tmp/out.npz; print 'ok\\t{info}' or
-    'error\\t<reason>' as the last line."""
-    os.environ['MUJOCO_GL'] = 'egl'
-    os.environ['PYOPENGL_PLATFORM'] = 'egl'
-    try:
-        import mujoco
-    except Exception as e:                  # noqa: BLE001 — reported to the parent in words
-        print(f'error\tmujoco could not be imported with MUJOCO_GL=egl ({type(e).__name__}: {e})', flush=True)
-        return 3
+class Session:
+    """A render worker that stays up between calls (python -m dexvantage.validation.mjrender --serve): each model is
+    written once per session and the worker keeps it loaded with its renderers, so a call costs the renders only.
+    A context manager; render(jobs) as the module's render(). Raises RenderUnavailable when the worker cannot
+    render (the message says why) and keeps the reason for every later call."""
+
+    def __init__(self, device=None, timeout: float = 180.0):
+        import queue
+        import threading
+        self.device = device
+        self.timeout = float(timeout)
+        self._dir = tempfile.TemporaryDirectory(prefix='dexvantage-mjsession-')
+        self._saved: dict = {}
+        self._keep: dict = {'__dir__': self._dir.name}
+        self._calls = 0
+        self._dead = ''
+        self._err = open(os.path.join(self._dir.name, 'stderr.txt'), 'wb')
+        env, root = worker_env(device)
+        try:
+            self._p = subprocess.Popen([sys.executable, '-m', 'dexvantage.validation.mjrender', '--serve'], env=env,
+                                       cwd=root, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=self._err)
+        except OSError as e:
+            self._p = None
+            self._dead = f'the render worker could not start ({e})'
+            return
+        self._lines: queue.Queue = queue.Queue()
+
+        def pump(f, q):
+            for ln in iter(f.readline, b''):
+                q.put(ln.decode('utf-8', 'replace').rstrip('\n'))
+            q.put(None)
+        self._thread = threading.Thread(target=pump, args=(self._p.stdout, self._lines), daemon=True)
+        self._thread.start()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+    def _reply(self) -> str:
+        import queue
+        t_end = time.perf_counter() + self.timeout
+        while True:
+            left = t_end - time.perf_counter()
+            if left <= 0:
+                self._kill()
+                self._dead = (f'MuJoCo\'s offscreen renderer did not finish within {self.timeout:.0f} s (EGL '
+                              'rendering hung or is very slow on this machine)')
+                raise RenderUnavailable(self._dead + '.')
+            try:
+                ln = self._lines.get(timeout=min(left, 1.0))
+            except queue.Empty:
+                continue
+            if ln is None:
+                return ''
+            if ln.startswith(('ok\t', 'error\t')):
+                return ln
+
+    def render(self, jobs: list) -> tuple[list, dict]:
+        if self._dead:
+            raise _unavailable(self._dead)
+        t0 = time.perf_counter()
+        self._calls += 1
+        folder = os.path.join(self._dir.name, f'call_{self._calls}')
+        os.makedirs(folder)
+        try:
+            spec = _job_spec(jobs, folder, self._saved, self._keep, absolute=True)
+            try:
+                self._p.stdin.write(f'render\t{folder}\n'.encode('utf-8'))
+                self._p.stdin.flush()
+            except (OSError, ValueError):
+                pass                                    # the worker is gone: its last words are read below
+            last = self._reply()
+            if not last.startswith('ok\t'):
+                why = last[len('error\t'):] if last.startswith('error\t') else ''
+                if not why:
+                    self._err.flush()
+                    try:
+                        with open(self._err.name, 'rb') as f:
+                            err = f.read().decode('utf-8', 'replace').strip().splitlines()
+                    except OSError:
+                        err = []
+                    code = self._p.poll()
+                    why = err[-1] if err else f'the worker stopped (exit code {code})'
+                    self._dead = why
+                raise _unavailable(why)
+            info = json.loads(last[len('ok\t'):])
+            out = _read_out(folder, spec)
+        finally:
+            import shutil
+            shutil.rmtree(folder, ignore_errors=True)
+        info['seconds'] = time.perf_counter() - t0
+        info['device'] = device_text(self.device)
+        return out, info
+
+    def _kill(self):
+        if self._p is not None and self._p.poll() is None:
+            self._p.kill()
+            try:
+                self._p.wait(5)
+            except subprocess.TimeoutExpired:
+                pass
+
+    def close(self):
+        if self._p is not None:
+            if self._p.poll() is None:
+                try:
+                    self._p.stdin.write(b'quit\n')
+                    self._p.stdin.flush()
+                    self._p.stdin.close()
+                except (OSError, ValueError):
+                    pass
+                try:
+                    self._p.wait(10)
+                except subprocess.TimeoutExpired:
+                    self._kill()
+            self._p = None
+            self._dead = self._dead or 'the render session is closed'
+        try:
+            self._err.close()
+        except OSError:
+            pass
+        self._keep.clear()
+        self._saved.clear()
+        try:
+            self._dir.cleanup()
+        except OSError:
+            pass
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:                   # noqa: BLE001 — interpreter shutdown
+            pass
+
+
+MAX_RENDERERS = 8                           # renderers (one GL context each) a worker keeps, least recently used out
+
+
+class _State:
+    """What a worker keeps between calls: the loaded models and their renderers."""
+
+    def __init__(self):
+        from collections import OrderedDict
+        self.models: dict = {}
+        self.renderers: OrderedDict = OrderedDict()
+        self.renderer_name = ''
+
+
+def _render_folder(mujoco, tmp: str, state: _State) -> dict:
+    """Render the jobs in folder tmp (jobs.json, models, qpos_*.npy) into tmp/out.npz; the info dict."""
     with open(os.path.join(tmp, 'jobs.json'), encoding='utf-8') as f:
         jobs = json.load(f)
-    models, res, renderer_name = {}, {}, ''
-    renderers = {}
-    try:
-        for k, j in enumerate(jobs):
-            if j['model'] not in models:
-                m = mujoco.MjModel.from_binary_path(os.path.join(tmp, j['model']))
-                m.vis.quality.offsamples = 0          # no multi-sampling: exact ids and depths at pixel centres
-                models[j['model']] = (m, mujoco.MjData(m))
-            m, d = models[j['model']]
-            if j['qpos']:
-                d.qpos[:] = np.load(os.path.join(tmp, j['qpos']))
+    res = {}
+    t_render, frames = 0.0, 0
+    for k, j in enumerate(jobs):
+        path = os.path.join(tmp, j['model'])
+        if path not in state.models:
+            m = mujoco.MjModel.from_binary_path(path)
+            m.vis.quality.offsamples = 0          # no multi-sampling: exact ids and depths at pixel centres
+            state.models[path] = (m, mujoco.MjData(m))
+        m, d = state.models[path]
+        d.qpos[:] = np.load(os.path.join(tmp, j['qpos'])) if j['qpos'] else m.qpos0
+        cp, ci = j.get('camera_pose'), j.get('camera_intrinsic')
+        cid = old = None
+        if cp or ci:
+            cid = m.camera(j['camera']).id
+            old = (m.cam_pos[cid].copy(), m.cam_quat[cid].copy(), m.cam_sensorsize[cid].copy(),
+                   m.cam_intrinsic[cid].copy())
+            if cp:
+                m.cam_pos[cid] = cp[:3]
+                m.cam_quat[cid] = cp[3:]
+            if ci:
+                m.cam_sensorsize[cid] = ci['sensorsize']
+                m.cam_intrinsic[cid] = ci['intrinsic']
+        try:
             mujoco.mj_forward(m, d)
-            key = (j['model'], j['width'], j['height'])
-            r = renderers.get(key)
+            key = (path, j['width'], j['height'])
+            r = state.renderers.get(key)
             if r is None:
-                r = renderers[key] = mujoco.Renderer(m, j['height'], j['width'])
-                if not renderer_name:
+                m.vis.global_.offwidth = max(int(m.vis.global_.offwidth), int(j['width']))
+                m.vis.global_.offheight = max(int(m.vis.global_.offheight), int(j['height']))
+                r = state.renderers[key] = mujoco.Renderer(m, j['height'], j['width'])
+                while len(state.renderers) > MAX_RENDERERS:
+                    _k, old_r = state.renderers.popitem(last=False)
+                    old_r.close()
+                if not state.renderer_name:
                     try:
                         from OpenGL import GL
-                        renderer_name = (GL.glGetString(GL.GL_RENDERER) or b'').decode('utf-8', 'replace')
+                        state.renderer_name = (GL.glGetString(GL.GL_RENDERER) or b'').decode('utf-8', 'replace')
                     except Exception:       # noqa: BLE001 — the name is only reported
-                        renderer_name = 'unknown'
+                        state.renderer_name = 'unknown'
+            else:
+                state.renderers.move_to_end(key)
             for o in j['outputs']:
+                t0 = time.perf_counter()
                 if o == 'seg':
                     r.enable_segmentation_rendering()
                 elif o == 'depth':
@@ -252,17 +480,74 @@ def _worker(tmp: str) -> int:
                     res[f'{k}_depth'] = img.astype(np.float32)
                 else:
                     res[f'{k}_rgb'] = img.astype(np.uint8)
-        np.savez(os.path.join(tmp, 'out.npz'), **res)
-        for r in renderers.values():
+                t_render += time.perf_counter() - t0
+                frames += 1
+        finally:
+            if cid is not None:
+                m.cam_pos[cid], m.cam_quat[cid], m.cam_sensorsize[cid], m.cam_intrinsic[cid] = old
+    np.savez(os.path.join(tmp, 'out.npz'), **res)
+    return {'renderer': state.renderer_name, 'mujoco': mujoco.__version__, 'gl': 'egl',
+            'render_seconds': round(t_render, 6), 'frames': frames}
+
+
+def _import_mujoco():
+    os.environ['MUJOCO_GL'] = 'egl'
+    os.environ['PYOPENGL_PLATFORM'] = 'egl'
+    try:
+        import mujoco
+    except Exception as e:                  # noqa: BLE001 — reported to the parent in words
+        print(f'error\tmujoco could not be imported with MUJOCO_GL=egl ({type(e).__name__}: {e})', flush=True)
+        return None
+    return mujoco
+
+
+def _error_line(e: Exception) -> str:
+    msg = str(e).strip().splitlines()
+    return f'error\t{type(e).__name__}: {msg[0] if msg else ""}'
+
+
+def _worker(tmp: str) -> int:
+    """Render the jobs in folder tmp (jobs.json, *.mjb, qpos_*.npy) into tmp/out.npz; print 'ok\\t{info}' or
+    'error\\t<reason>' as the last line."""
+    mujoco = _import_mujoco()
+    if mujoco is None:
+        return 3
+    state = _State()
+    try:
+        info = _render_folder(mujoco, tmp, state)
+        for r in state.renderers.values():
             r.close()
     except Exception as e:                  # noqa: BLE001 — reported to the parent in words
-        msg = str(e).strip().splitlines()
-        print(f'error\t{type(e).__name__}: {msg[0] if msg else ""}', flush=True)
+        print(_error_line(e), flush=True)
         os._exit(3)
-    print('ok\t' + json.dumps({'renderer': renderer_name, 'mujoco': mujoco.__version__, 'gl': 'egl'}), flush=True)
+    print('ok\t' + json.dumps(info), flush=True)
     sys.stdout.flush()
     os._exit(0)                             # skip EGL teardown at exit (MuJoCo's deallocators print errors there)
 
 
+def _serve() -> int:
+    """The Session worker: one 'render\\t<folder>' per line on stdin, one 'ok\\t{info}' or 'error\\t<reason>' line per
+    request on stdout; 'quit' or the end of stdin stops it."""
+    mujoco = _import_mujoco()
+    if mujoco is None:
+        os._exit(3)
+    state = _State()
+    for line in sys.stdin:
+        line = line.rstrip('\n')
+        if line == 'quit':
+            break
+        if not line.startswith('render\t'):
+            continue
+        try:
+            info = _render_folder(mujoco, line[len('render\t'):], state)
+            print('ok\t' + json.dumps(info), flush=True)
+        except Exception as e:              # noqa: BLE001 — reported to the parent in words
+            print(_error_line(e), flush=True)
+    sys.stdout.flush()
+    os._exit(0)                             # skip EGL teardown at exit
+
+
 if __name__ == '__main__':
+    if sys.argv[1:2] == ['--serve']:
+        raise SystemExit(_serve())
     raise SystemExit(_worker(sys.argv[1]))

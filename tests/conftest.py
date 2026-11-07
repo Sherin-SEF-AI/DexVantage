@@ -15,6 +15,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 import pytest  # noqa: E402
 
+# Run first: the in-process quick validation run of every check grows the process by about 2.7 GB for a while. At the
+# end of the suite (alphabetical order) it came on top of the suite's creep (to about 4.7 GB, heap the allocator keeps)
+# and passed the 7 GB cap (peak 7.4 GB measured 2026-11-07); first, it starts from about 0.2 GB.
+RUN_FIRST = ('tests/test_validation.py::test_every_check_passes_and_names_its_reference',)
+
+
+def pytest_collection_modifyitems(session, config, items):
+    first = [it for it in items if it.nodeid in RUN_FIRST]
+    if first:
+        items[:] = first + [it for it in items if it.nodeid not in RUN_FIRST]
+
 
 @pytest.fixture(scope='session', autouse=True)
 def app():
@@ -88,6 +99,8 @@ def _free_caches_between_modules():
     model.clear_cache()
     grasps._PAD_CACHE.clear()
     synthetic._RAYS.clear()
+    from dexvantage.validation.suite import release_memory      # cube maps, lens remap plans, the audit campaign
+    release_memory()
     _deferred_deletes()
     gc.collect()
     if sys.platform.startswith('linux'):            # hand freed heap pages back to the system (glibc keeps them)

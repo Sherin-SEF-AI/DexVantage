@@ -4,6 +4,100 @@ All notable changes to DexVantage. The format follows Keep a Changelog; versions
 
 ## [Unreleased]
 
+### Phases 4, 5 and 8: MuJoCo ground truth; teleop, lighting, blur and sync; data
+- MuJoCo ground truth (`core/sim/scene.py`, `core/sim/render.py`, `core/studies/groundtruth.py`, `--groundtruth`,
+  Simulate ▸ Rendered against predicted visibility…, Simulate ▸ Build the MuJoCo scene…): the project as one MuJoCo
+  scene, renders through every lens model (distortion by remapping an oversampled base or cube faces) in an EGL worker,
+  and the grasp study's contact visibility and the depth study's voxels compared with them: 92.8 % of contact points
+  agree on the UR5e sample (over its grasps, home and scripted pick), 84.2 % on the SO-100, depth 99.8 %.
+  `validation/mjrender.py` gained a persistent session,
+  per-job camera pose and intrinsics and the EGL device choice.
+- Synthetic LeRobot episodes (`core/sim/episodes.py`, Simulate ▸ Generate synthetic episodes…, `--synth-episodes
+  OUT_DIR [--synth-settings JSON]`): v2.1 or v3.0 datasets rendered from the project with seeded faults and their
+  ground truth (`dexvantage_truth.json`).
+- Teleop overlap and dead zones (`core/studies/teleop.py`, `--teleop`, the Teleop overlap page takes over the
+  placeholder command): leader arms and GELLO joint to joint, VR and space-mouse volumes by scale and offset, the
+  comfortable workspace, dead zones by cause, a base move suggestion, bimanual overlap and handover; the SO-100 sample
+  carries its leader arm.
+- Lighting, glare and IR wash-out (`core/materials.py`, `core/lights.py`, `core/studies/lighting.py`, `--lighting`):
+  lights in `project.workspace.lights` (3 cited Elgato entries in a new `light` library kind), a GGX microfacet BRDF,
+  relative (ISO 12232 auto-exposure) or absolute saturation, IR wash-out of active-stereo depth (the RealSense
+  projectors' stated optical power added), recommendations with their figures before and after, a glare map in the
+  Camera view.
+- Motion blur and rolling shutter (`core/studies/motion_blur.py`, `--motion-blur`) and time sync
+  (`core/studies/time_sync.py`, `--time-sync`, `project.rig['sync']` clocks and triggers): smear and skew per imager
+  along trajectories, stamp error intervals, the action-label error, suggested exposures and hardware triggers; the
+  RealSense D405 and D435 entries gained their stated exposure ranges and trigger support. The UR5e sample gained a
+  scripted pick trajectory.
+- Action-chunk latency (`core/studies/action_chunk_sync.py`, `--action-chunk`, §7.13): the policy's sensor-to-action
+  loop term by term with sources, overshoot and air-grasp at the demonstrated contact, an overshoot map, a delay offset
+  and temporal-ensemble weight stored on the policy. It uses exposures set on the motion blur page.
+- Visual-to-tactile handoff (§7.15, part 2 of `core/studies/dex_hand_tactile.py`): the share of each contact patch
+  seen against the distance to contact, tactile coverage at contact, the sensory blind gap; a chart on the
+  multi-finger page.
+- Datasets (`core/datasets/lerobot.py`, `bag.py`, `rlds.py`; `core/rosbag.py` ported from Vantage): LeRobot v2.1 and
+  v3.0 read and write, ROS 2 bags (MCAP and SQLite) and RLDS TFRecords read into one Episode shape.
+- The dataset auditor (`core/audit/`, `core/studies/audit.py`, `--audit OUT.json --dataset PATH`, Data ▸ Audit a
+  dataset…): per-episode timing, duplicates, desync, drift, exposure, blur, the hidden gripper, campaign mount slip
+  (ported from Vantage `core/online_calib.py`), verdicts, JSON and HTML reports and a FiftyOne export. Plan against
+  recording (`core/studies/plan_vs_recording.py`, `--plan-vs-recording`).
+- Targetless link-silhouette calibration (`core/calib/render_calib.py`, `core/studies/silhouette_calib.py`,
+  `--silhouette-calib OUT.json --dataset PATH`, Calibrate ▸ Silhouette calibration): a static camera's mount and its
+  drift from the robot's silhouette in recorded frames.
+- Data links: grasp sets from a recorded dataset (Tasks ▸ From a dataset…) and hand-eye capture sessions from a
+  LeRobot dataset or ROS 2 bag (`core/datasets/joints.py` matches joints to the model).
+- Validation: 39 new checks, 113 in all (ground truth 6, teleop 4, lighting 9, timing 7, the handoff 1, data 4,
+  formats 4, data links 2, silhouette 2). Self-test lines "teleop", "lighting", "timing", "datasets", "audit"; the
+  self-test's validation line runs the quick run's cheap checks (`ValidationSettings.cheap_only`); the validation run
+  frees process caches between models (peak 4.8 GB instead of over 6 GB).
+- `scripts/screens.py --only phase458`, `scripts/measure_ui_phase458.py`, `scripts/measure_groundtruth.py`,
+  `scripts/measure_synth.py`, `scripts/record_vantage_slip.py`.
+
+### Changed (Phases 4, 5 and 8 integration)
+- Four validation checks declared no unit (two teleop, the device mapping, the slip comparison); a test now checks
+  every registered check's unit, reference and quantity without running it. `test_validation` runs every check in
+  quick mode (the full run is `dexvantage --validate`), and the test fixtures free the process caches after each
+  module, so the full suite passes under its 7 GB cap.
+- Fixed an abort: a background Camera view render on the silhouette page finishing after the project was replaced
+  raised inside a Qt slot; the silhouette and ground-truth pages now drop late results.
+- The action-chunk study runs on request, not live: on a project without a policy its refusal took the status bar
+  after every edit.
+- The time sync study says "out of sync" with the figure as a lower bound (≥) instead of "at least out of sync".
+- The lighting headline's status follows a large depth loss as well as glare ("low glare; depth washed out"), with
+  labelled default thresholds (5, 15, 30 %).
+- `--dataset` also feeds `--silhouette-calib`; a refusal with the same reason for every episode says it once.
+- Teleop: an empty dead-zone list says why; ground truth: the worst-disagreement thumbnails are packed left; plan
+  against recording: the visibility table's headers are not cut; the handoff and action-chunk curves keep their y label
+  below the title.
+- The quick validation run is shorter: the audit campaign uses 120 rows per episode and the silhouette checks shorter
+  episodes and 10 bootstrap resamples (tolerances unchanged); the suite's MODELS lost the unused `sim` entry and
+  `timing` names the action-chunk module.
+
+### Fixed (Phases 4, 5 and 8 reviews and final gate)
+- Truthfulness: the Elgato lights' stated masses (1.3 kg, 735 g, 1.07 kg) were null; the projector power is the laser
+  maximum (D400 datasheet Table 4-23); the motion-blur word over an upper bound is "may be blurred" (the headline and,
+  since the final gate, the trajectory's segment table); the ground-truth advice no longer calls voxels "surface
+  pixels"; `lighting.white_furnace` is checked by quadrature (8.1 × 10⁻¹² against 10⁻⁶) with the Monte Carlo estimate
+  inside its band; `audit.plan_vs_recording` compares rotation vectors (0.20° against 0.3°), not their sizes.
+- The result cache served the old result when a recorded dataset changed at the same path: the audit,
+  plan-against-recording
+  and silhouette results now key on the dataset's fingerprint, and the key follows lights, teleop devices, the rig's
+  sync block and the data section. Tests pin the lens remap direction, LeRobot frame seeking, CDR alignment, CRC-32C,
+  ACT's ensembling order and the blind gap.
+- Bad inputs are explained: damaged LeRobot files and bags, an empty bag (it audited as "ready"), one damaged episode
+  (dropped, the audit goes on), a recording of another robot (plan against recording crashed), a `StudyError`
+  subclass on a page, an unexpected batch error, `--dataset` alone (it opened the window), a dataset path with
+  nothing there. A long status message no longer widens the window; the plan preview names sensors; the silhouette
+  page follows Apply and undo.
+- Added for the spec: `--teleop-overlap` and `--sync` aliases; `--audit-html OUT.html` and `--fiftyone OUT_DIR` with
+  `--audit`; the check `formats.mjcf_scene`; the recorded camera-joint offset against the time-sync prediction in plan
+  against recording; object materials on the Lighting page; LeRobot datasets streamed from the Hugging Face Hub
+  (`core/datasets/hub.py`, public datasets, cached per commit).
+- The audit's "Episode readable" row counts every episode ("2 of 3", not "0 of 1"); "1 gap", not "1 gaps"; the
+  action-chunk Apply is disabled when its recommendation is already stored.
+- Tests: `test_validation`'s in-process run of every check runs first, so the full suite (1 886 tests) passes under
+  its 7 GB cap (it was killed at 95 %, peak 7.4 GB).
+
 ### Phases 3, 6 and 7: grasps, VLA tokens, dexterous hands; hardware engineering; hand-eye calibration
 - Grasp sets (`core/grasps.py`, the Tasks page): sampled over a task volume (top-down pinch, side, angled, bimanual
   handoff), imported from CSV or JSON, or taken from a trajectory; contact pads and the grasp centre measured from the

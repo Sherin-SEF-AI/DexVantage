@@ -86,11 +86,36 @@ def library_ids(project) -> list:
     return [i for i in ids if i]
 
 
+DATASET_STUDIES = ('audit', 'plan_vs_recording', 'silhouette_calib')     # studies that read a recorded dataset
+
+
+def dataset_fingerprint(sid: str, project) -> str:
+    """'' for a study that reads no recorded dataset; else core/studies/audit.fingerprint of the dataset it reads
+    (its files' names, sizes and modification times): the project only names the dataset's path, so a dataset
+    re-recorded or re-generated at the same path must still miss the cache."""
+    if sid not in DATASET_STUDIES:
+        return ''
+    import os
+
+    from .studies import audit as AU
+    try:
+        if sid == 'silhouette_calib':
+            path = str((project.analysis.studies.get(sid) or {}).get('dataset') or '')
+        else:
+            path = AU.dataset_path_for(project, sid)
+    except StudyError:
+        return ''
+    if not path or not os.path.exists(path):
+        return ''
+    return AU.fingerprint(path)
+
+
 class ResultCache:
-    """A small LRU of study results keyed by (study, project content hash, settings hash, library hash); thread-safe.
-    The library hash is the content of the library entries the project names (its sensors, policies, hosts and
-    cables: library_ids): a result depends on the entry's figures, and a custom entry can be changed in place under
-    the same id."""
+    """A small LRU of study results keyed by (study, project content hash, settings hash, library hash, dataset
+    fingerprint); thread-safe. The library hash is the content of the library entries the project names (its sensors,
+    policies, hosts and cables: library_ids): a result depends on the entry's figures, and a custom entry can be
+    changed in place under the same id. The dataset fingerprint (dataset_fingerprint) does the same for the recorded
+    dataset a data study reads from disk."""
 
     def __init__(self, size=CACHE_SIZE):
         self.size = size
@@ -105,7 +130,7 @@ class ResultCache:
         settings = project.analysis.studies.get(sid, {})
         ids = [s.model_id for v in project.variants for s in v.sensors] + library_ids(project)
         return (sid, PV.project_digest(project)['sha256'], PV.sha256(PV.canonical(settings)),
-                LB.entries_digest(ids))
+                LB.entries_digest(ids), dataset_fingerprint(sid, project))
 
     def get(self, key):
         with self._lock:

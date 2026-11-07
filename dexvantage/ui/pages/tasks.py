@@ -1,14 +1,17 @@
-"""The Tasks page (spec §13, §7.3): the project's grasp sets, made by sampling the task volume, imported from a file or
-taken from a trajectory, listed with their counts, deletable, and drawn in the 3D view as small gripper glyphs.
+"""The Tasks page (spec §13, §7.3): the project's grasp sets, made by sampling the task volume, imported from a file,
+taken from a trajectory or from a recorded dataset, listed with their counts, deletable, and drawn in the 3D view as
+small gripper glyphs.
 
 What it shows: the number of grasps in the project (the headline, "ready" when a set exists for a robot in the project),
-a form for a sampled set (robot, kinds, count, seed, task volume, handover zone), Import file…, a trajectory picker
-taking the grasps where the gripper closes or every N samples, and the table of sets (name, source, robot, poses,
-kinds). Every change is one undo step. The selected set (or the preview of the form's set) is drawn as glyphs: a stem
-along −approach, a palm across the closing axis and two fingers ending at the grasp centre, coloured by kind; at most
-MAX_GLYPHS are drawn (evenly picked), and the Camera view shows the first MAX_CAM_GLYPHS of them. Grasp sets are written
-only through core/grasps.py. "Swept volume" draws the robot see-through along the chosen trajectory
-(core/robot/swept.py; the first time per robot its meshes are simplified as a background job).
+a form for a sampled set (robot, kinds, count, seed, task volume, handover zone), Import file…, From a dataset… (the
+grasps where the gripper closes in the episodes of a LeRobot dataset, ROS 2 bag or RLDS dataset, read on a worker
+thread; errors said in words), a trajectory picker taking the grasps where the gripper closes or every N samples, and
+the table of sets (name, source, robot, poses, kinds). Every change is one undo step. The selected set (or the preview
+of the form's set) is drawn as glyphs: a stem along −approach, a palm across the closing axis and two fingers ending at
+the grasp centre, coloured by kind; at most MAX_GLYPHS are drawn (evenly picked), and the Camera view shows the first
+MAX_CAM_GLYPHS of them. Grasp sets are written only through core/grasps.py. "Swept volume" draws the robot see-through
+along the chosen trajectory (core/robot/swept.py; the first time per robot its meshes are simplified as a background
+job).
 """
 from __future__ import annotations
 
@@ -146,6 +149,11 @@ class TasksPage(StudyPage):
         self.b_import = button('Import file…', icon_name='import', tip='A CSV or JSON file of gripper poses (columns '
                                'id, x, y, z, qx, qy, qz, qw, optionally ax, ay, az, kind, object)')
         self.b_import.clicked.connect(lambda: self.import_path())
+        self.b_dataset = button('From a dataset…', icon_name='import',
+                                tip='The grasps in a recorded dataset (LeRobot v2.1 or v3.0, a ROS 2 bag, RLDS): one '
+                                    'each time the gripper closes in an episode\'s joint states, for the form\'s '
+                                    'robot (one undo step)')
+        self.b_dataset.clicked.connect(lambda: self.add_from_dataset(background=True))
         self.traj_combo = QComboBox()
         self.traj_combo.setToolTip('A joint trajectory of the project: the grasps in it, or the gripper frame at its '
                                    'samples')
@@ -168,7 +176,7 @@ class TasksPage(StudyPage):
         self.swept.toggled.connect(lambda _on: self.show_swept())
         self.traj_combo.currentIndexChanged.connect(lambda _i: self.show_swept() if self.swept.isChecked() else None)
         self._ghost = []
-        layout.addWidget(row(self.b_import))
+        layout.addWidget(row(self.b_import, self.b_dataset))
         layout.addWidget(row(label('Trajectory'), self.traj_combo, self.traj_mode, self.every, self.b_traj))
         layout.addWidget(row(self.swept))
 
@@ -476,6 +484,71 @@ class TasksPage(StudyPage):
             self._say(f'Added {len(gs["poses"])} gripper poses from the trajectory.')
         return uid
 
+    def add_from_dataset(self, path: str | None = None, robot_uid: str | None = None, mode: str | None = None,
+                         episodes=None, every: int | None = None, unit: str = 'rad',
+                         background: bool = False) -> str | None:
+        """Add a set from a recorded dataset (core/grasps.from_dataset; one undo step): mode 'closures' (default)
+        or 'every'. Without a path the dialog asks (dataset, episodes, mode, unit). background: read on a worker
+        thread (the button) and add the set when done; the call then returns None at once."""
+        if path is None:
+            from ..dialogs.dataset_source import DatasetSourceDialog
+            d = DatasetSourceDialog(self, 'grasps')
+            if not d.exec():
+                return None
+            try:
+                v = d.values()
+            except ValueError as e:
+                self._say(str(e), 'warning')
+                return None
+            path, episodes, unit, mode = v['path'], v['episodes'], v['unit'], v['mode']
+            every = v['every'] if mode == 'every' else 1
+        robot_uid = robot_uid or self.robot_combo.currentData() or ''
+        if not robot_uid:
+            self._say('There is no robot to take the grasps for: import one first (Robot ▸ Import robot…).',
+                      'warning')
+            return None
+        mode = mode or 'closures'
+        every = int(every or 1)
+        snap = self.ctx.store.project.snapshot() if background else self.ctx.store.project
+        name = os.path.basename(os.path.normpath(path))
+
+        def work(progress=None, cancel=None):
+            try:
+                return {'gs': GR.from_dataset(snap, path, robot_uid, mode, episodes, every, unit=unit,
+                                              progress=progress, cancel=cancel)}
+            except GR.GraspError as e:
+                return {'error': str(e)}
+
+        def done(res):
+            if 'error' in res:
+                self._say(f'No grasps from {name}: {res["error"]}', 'warning')
+                return None
+            gs = res['gs']
+            uid = self._add(gs, f'Add grasp set {gs["name"]}')
+            n_ep = len(gs['settings'].get('episodes') or [])
+            what = (f'the gripper closes {len(gs["poses"])} times' if mode == 'closures' else
+                    f'every {every} rows')
+            self._say(f'Added {len(gs["poses"])} grasps from {n_ep} episode(s) of {name}: {what}. '
+                      + ' '.join(gs['settings'].get('notes') or []))
+            return uid
+
+        def failed(_message):                           # the window logged the traceback
+            self._say(f'{name} could not be read (an unexpected error). Details are in the log.', 'critical')
+        win = self.ctx.window
+        if background and win is not None and hasattr(win, 'run_job'):
+            if win.run_job('grasp_dataset', f'Reading grasps from {name}', work, done, failed):
+                self._say(f'Reading the episodes of {name}…')
+            else:
+                self._say('A dataset is already being read: wait for it to finish.', 'warning')
+            return None
+        try:
+            res = work()
+        except Exception:                               # noqa: BLE001 — explained, the traceback logged
+            traceback.print_exc()
+            failed('')
+            return None
+        return done(res)
+
     def delete_set(self, uid: str | None = None) -> bool:
         uid = uid or self.selected_uid()
         gs = GR.get_set(self.ctx.store.project, uid) if uid else None
@@ -666,6 +739,9 @@ class TasksPage(StudyPage):
             'falls by 5 mm or more (a default), one grasp at the moment it starts to close, its approach the '
             'direction the tool centre moved over its last 20 mm (a default). "Every N samples" takes the gripper '
             'frame at every Nth sample.\n\n'
+            'From a dataset (LeRobot v2.1 or v3.0, a ROS 2 bag, RLDS): each episode\'s recorded joint states are '
+            'read as a trajectory, matched to the robot\'s joints by name, and its grasps found the same way. Joints '
+            'recorded in degrees need "deg" in the dialog.\n\n'
             'Known limits: sampling does not check reach or collisions (the grasp study\'s IK does and says why a '
             'grasp is infeasible); object grasps use the bounding box, not the shape.')
 

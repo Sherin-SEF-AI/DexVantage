@@ -57,8 +57,9 @@ RESOURCES = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path
 BUILTIN_DIR = os.path.join(RESOURCES, 'library')
 SCHEMA_PATH = os.path.join(RESOURCES, 'library.schema.json')
 
-# 'policy': robot-learning policies (core/policies.py); 'cable': cables across joints (core/cables.py)
-KINDS = ('depth', 'camera', 'tactile', 'host', 'policy', 'cable')
+# 'policy': robot-learning policies (core/policies.py); 'cable': cables across joints (core/cables.py); 'light': lab
+# light sources (core/lights.py)
+KINDS = ('depth', 'camera', 'tactile', 'host', 'policy', 'cable', 'light')
 ROLES = ('ir_left', 'ir_right', 'rgb', 'mono', 'tof')
 LENS_MODELS = ('pinhole', 'brown', 'kb', 'equidistant', 'equisolid', 'stereographic')
 NOT_STATED = 'not stated by the maker'
@@ -216,7 +217,7 @@ def validate_minimal(d) -> list:
         if not (isinstance(s, dict) and isinstance(s.get('imager'), str) and isinstance(s.get('width'), int)
                 and isinstance(s.get('height'), int)):
             msgs.append(f'streams[{i}]: needs imager, width and height')
-    for k in ('tactile', 'host', 'cable'):
+    for k in ('tactile', 'host', 'cable', 'light'):
         if d.get(k) is not None and not isinstance(d[k], dict):
             msgs.append(f'{k}: must be an object or null')
     return msgs

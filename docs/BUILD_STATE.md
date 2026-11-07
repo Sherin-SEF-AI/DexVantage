@@ -3,6 +3,278 @@
 The resume point for the next session: what is done, what is next, open issues, and the decisions taken. Updated at
 the end of every phase.
 
+## Phases 4, 5 and 8: MuJoCo ground truth; teleop, lighting, blur and sync; data (done, 2026-11-07)
+
+Built in parallel by separate agents (ground truth; synthetic episodes; LeRobot read and write; bags and RLDS; teleop;
+lighting; motion blur and time sync; action-chunk latency and the tactile handoff; the auditor, plan against recording
+and FiftyOne; silhouette calibration; the data links), then integrated, then reviewed four times (truthfulness,
+correctness, a researcher's workflows, spec completeness).
+
+**Final gate (after the four reviews, 2026-11-07)**
+- Tests: **1 886 passed**, 0 failed, 0 skipped (`python -m pytest tests`, offscreen, memory-capped at 7 GB, 1 054 s;
+  process peak 6.55 GB, the cgroup's `memory.peak` 7.11 GB with page cache). The reviews added test_spec_review_p458 13,
+  test_review_phase458_product 11, test_review_phase458_correctness 8, test_truthfulness_review_p458 6 and regression
+  asserts in existing files (1 886 collected; the integration gate ended at 1 841). At first the suite was killed by
+  its 7 GB cap at 95 %: `test_validation`'s in-process quick run of every check grows the process by about 2.7 GB for
+  a while, and at the end of the alphabetical order it came on top of the suite's creep (4.7 GB): peak 7.4 GB,
+  measured under a 12 GB cap, where all 1 886 passed (1 087 s). `tests/conftest.py` now runs that one test first
+  (`RUN_FIRST`; alone it peaks at 4.45 GB). The two tests the reviews saw fail only under load
+  (`test_review_phase458_product::test_recording_of_another_robot_is_compared_not_crashed`, the `test_sensors_ui`
+  drag size) passed in both full runs.
+- Validation: **113 of 113 checks pass** (`--validate out/validation`, full run 303 s with the test suite running
+  alongside, peak 4.7 GB, renders on the NVIDIA GeForce RTX 5080 through EGL device 0). New since the integration:
+  `formats.mjcf_scene` (the saved MuJoCo scene loaded by MuJoCo on its own, 5.8 × 10⁻⁷ m against 2 × 10⁻⁶ m).
+  Changed by the reviews: `lighting.white_furnace` by adaptive quadrature 8.1 × 10⁻¹² (10⁻⁶; the Monte Carlo
+  estimate, 0.0065 from 1, must lie inside its 4 standard-error band, 0.024); `audit.plan_vs_recording` compares
+  rotation vectors, 0.204° (0.3°). With the UR5e's trajectory frames `groundtruth.ur5e_contacts` measures 1 − 0.928 =
+  0.072 (0.15). Every other figure as at the integration gate.
+- `dexvantage --self-test`: **21 of 21 ok** (25 s; its validation line 77 of 77 cheap checks in 18.9 s; the occlusion
+  and grasp lines on the RTX 5080, the OpenGL line on the default display, the integrated Radeon).
+- `ruff check dexvantage tests scripts`: clean.
+- Batch, every Phase 4/5/8 flag (with the spec aliases) on the three samples, 4 GB cap, RTX 5080 through EGL, times
+  include start-up; results exit 0, refusals one sentence and exit 2:
+  - `--groundtruth`: SO-100 4.5 s (84.2 %, "mostly agrees"), UR5e 8.9 s (92.8 % of 20 992 points over 41 poses,
+    "agrees"), dexhand 1.8 s (depth only, 99.6 %; head camera surfaces 91.4 %, 97.7 % inside the task volume).
+  - `--teleop` = `--teleop-overlap`: SO-100 7.8 s (96.7 %, "clear"), UR5e 10.7 s and dexhand 5.4 s ("no device").
+  - `--lighting`: 0.4–0.7 s, "no lights" on every sample.
+  - `--motion-blur`: SO-100 0.5 s ("exposure not set"), UR5e 0.9 s (up to 38.04 px, "may be blurred"), dexhand
+    0.7 s ("no motion").
+  - `--time-sync` = `--sync`: SO-100 0.5 s ("incomplete"), UR5e 0.8 s and dexhand 0.8 s (≥ 54.4 ms, "out of sync").
+  - `--action-chunk`: UR5e 0.6 s (π0, 0.0 mm, "on contact"); SO-100 refuses (SmolVLA's inference time not stated),
+    dexhand refuses (no policy).
+  - `--synth-episodes`: SO-100 11.2 s (4 episodes, every fault on), a second SO-100 campaign with the slip from
+    episode 1 8.1 s (3 episodes), UR5e 8.9 s (2 episodes); dexhand refuses (no trajectory, no grasp set); a folder
+    that is not empty is refused.
+  - On those campaigns (`--dataset`): `--audit` SO-100 9.1 s (0 of 4 pass, "not usable"; with `--audit-html` and
+    `--fiftyone`, 8 samples), UR5e 14.5 s (0 of 2, "not usable"); `--plan-vs-recording` SO-100 9.7 s (7 of 10,
+    "differs"), UR5e 15.8 s (10 of 12, "mostly matches"), the UR5e plan against the SO-100 recording 2.5 s (0 of 4,
+    "does not match", no crash); `--silhouette-calib` SO-100 18.8 s (2.42 mm, 1.64° ± 0.72 mm, 0.11°; truth 3 mm,
+    1.5°), the second campaign 13.7 s (4.06 mm, 1.65°), UR5e 10.1 s (3.30 mm, 1.39°). Refused in one sentence:
+    `--audit` without `--dataset`, a dataset path with nothing there, `--audit-html` without `--audit`.
+- Screenshots: `python scripts/screens.py --only phase458` (25 images, 112 s, none unfinished). Looked at:
+  `p458-so100-audit-page.png` (0 / 4, "not usable"; the requirement table read "1 gaps": now "1 gap"),
+  `p458-ur5e-groundtruth-page.png` (92.8 %, "agrees", the confusion matrix and why they disagree: fine),
+  `p458-ur5e-motion-blur-page.png` (the headline said "may be blurred" but the trajectory's segment table said
+  "blurred" in red for the same upper bounds: fixed), `p458-ur5e-action-chunk-page.png` (0.0 mm, "on contact", the
+  loop bars "at least 120 ms": fine).
+- Hygiene: every tracked and untracked file (479) grepped for personal paths, user and host names, e-mail addresses,
+  keys (`sk-ant-`, `sk-`, AWS, GitHub, Slack, Google, private-key blocks) and AI attribution lines: none (the only hits
+  are the rules and the tests that assert their absence). No file over 5 MB was added (the largest new file is
+  `core/rosbag.py`, 87 kB).
+
+**Review fixes (Phases 4, 5 and 8)**
+- Truthfulness (every figure re-read at its source on 2026-11-07: the Elgato pages, Intel's D400 datasheet rev 023,
+  refractiveindex.info, ISO 12232's relative rule, the GELLO and LeRobot quotes): the three Elgato lights' masses were
+  null although their pages state them (1.3 kg, 735 g, 1.07 kg); the projector power is said to be the laser maximum
+  (Table 4-23, 30 mW steps); the ground-truth advice called voxels "surface pixels"; the motion-blur word over an
+  upper bound is "may be blurred"; the white furnace check by quadrature instead of a Monte Carlo band 3.7 times its
+  measured error; the plan-against-recording check compared the sizes of two rotations (0.020°) instead of the
+  vectors (0.20°); the audit docs' "±12 ms" desync is the measured 16.9 ms.
+- Correctness (one bug, conventions pinned): the audit, plan-against-recording and silhouette studies read a dataset
+  the project names only by its path, so a dataset re-recorded at the same path hit the result cache (the silhouette
+  page passed no fingerprint at all); the cache key now carries the dataset's fingerprint (`jobs.DATASET_STUDIES`) and
+  follows lights, teleop devices, the rig's sync block and the data section. Pinned against independent references:
+  the lens remap direction, LeRobot frame seeking (v2.1, v3.0, across episodes and drops), CDR alignment and byte
+  order, CRC-32C (RFC 3720), ACT's ensembling order, the blind gap.
+- Workflows (eleven problems, on the SO-100 and UR5e samples and bad inputs): a `StudyError` subclass reached the page
+  as "stopped with an unexpected error (DatasetError)"; damaged datasets (a broken `meta/info.json`, Parquet file or
+  bag file) are explained, an empty bag audited as "ready" and is now refused, one damaged episode is dropped instead
+  of stopping the audit; a recording of another robot crashed plan against recording; a long status message widened
+  the main window to thousands of pixels; `--dataset` alone opened the window (now a batch refusal); an unexpected
+  batch error is one sentence; the plan preview named sensors by uid; the silhouette page says when its mount is
+  applied and offers Apply again after an undo; the time-sync preview message is cut (the full text in the tooltip).
+- Spec completeness (eight gaps): the §11 names `--teleop-overlap` and `--sync` as aliases; `--audit-html OUT.html`
+  and `--fiftyone OUT_DIR` with `--audit` (§8.2); the check `formats.mjcf_scene` (§10); plan against recording compares
+  the recorded camera-joint offset with the time-sync prediction (§8.3); the Lighting page sets object materials;
+  the MuJoCo scene's lights follow the lighting contract; LeRobot datasets streamed from the Hugging Face Hub
+  (`core/datasets/hub.py`, `hf://datasets/<org>/<name>[@rev]`, public datasets only, files cached per commit, video by
+  range requests; this replaces "Hub datasets are read only from a local snapshot"); the page and docs no longer claim
+  a LeRobot training-config exporter (Phase 10).
+- Final gate: the audit's "Episode readable" row counted only unreadable episodes ("0 of 1", now "2 of 3"); the
+  action-chunk Apply stayed enabled when the recommendation was already stored; the motion-blur segment table said
+  "blurred" over an upper bound; "1 gaps"; a dataset path that never existed was "not there any more" (now "not there
+  (nothing at that path)"); `test_validation`'s in-process run moved first (above). Figures corrected in the overview,
+  README, user guide and `docs/models/groundtruth.md` (the UR5e's 92.8 %, the white furnace, the plan mount, "may be
+  blurred", 113 checks); the dexhand head camera's surface agreement is now explained in `groundtruth.md`.
+
+**Integration gate (2026-11-07)**
+- Tests: **1 841 passed**, 0 failed, 0 skipped (`python -m pytest tests`, offscreen, memory-capped at 7 GB, 1 043 s). New test files:
+  test_groundtruth 24, test_lerobot_io 23, test_bag_reader 73, test_rlds_reader 21, test_teleop 21,
+  test_lighting 21, test_motion_blur and test_time_sync 23, test_action_chunk, test_handoff (and test_dexhand)
+  46, test_synth_episodes 13, test_audit 18, test_plan_vs_recording 6, test_render_calib 9, test_dataset_links 16
+  plus test_validation 2 (1 841 collected; the Phases 3, 6 and 7 gate ended at 1 538).
+- Validation: **112 of 112 checks pass** (`--validate out/validation`, full run 258 s, 294 s with the test suite running
+  alongside; peak memory 4.8 GB; RTX 5080 through EGL device 0). 38 new: groundtruth 6, teleop 4, lighting 9, timing 7, data 4, formats 3, grasp 1
+  (`grasp.dataset_closures`), hand-eye 3 (`dataset_capture`, `silhouette_recovery`, `silhouette_vs_board`), dexhand 1
+  (`blind_gap_bruteforce`). Measured: rendered fiducials of six lens models 0.20 px (0.4); compiled intrinsics
+  8.8 × 10⁻⁵ px (10⁻³); per-pixel owner against the Camera view's renderer 2.2 × 10⁻⁵ of 2.3 M pixels (10⁻³); UR5e
+  contacts 1 − 0.913 (0.15); UR5e depth 1 − 0.998 (0.01); synthetic episodes written and read back 0 mismatches;
+  teleop 2R 1.4 × 10⁻¹⁶ m², finite-difference Jacobian 3.8 × 10⁻⁹, leader workspace 0 missed (0.05), device mapping
+  0.19 (1); GGX normalised 1.4 × 10⁻¹³, white furnace 0.0065 (Monte Carlo band 0.024; since the review by quadrature, 8.1 × 10⁻¹² against 10⁻⁶), energy 0, reciprocity 1.3 ×
+  10⁻¹⁴, specular peak 2.2 × 10⁻¹³, Schlick 0.036 (0.04), inverse square 0.0033 (0.005), area lights 0.022 (0.025),
+  visibility against ray casting 0.0066 (0.015); image velocity 2.8 × 10⁻⁹ (10⁻⁵), smear 2.4 × 10⁻¹¹, rolling shutter
+  0.024 (0.05), stamp intervals 3.5 × 10⁻¹⁸ s, action-label error 2.2 × 10⁻⁴ (0.02), chunk loop 2.9 × 10⁻⁵ m
+  (5 × 10⁻⁵), ensemble 3.3 × 10⁻¹³; blind gap 0 m (2 mm); audit recall floors 0 shortfall, desync 16.9 ms (20),
+  slip classifier against Vantage 0 (10⁻⁹), plan mount 0.020° (0.2°; the review found this compared the sizes of the rotations: as rotation vectors 0.20° against 0.3°); LeRobot, MCAP and TFRecord round trips 0;
+  dataset grasps 6.2 × 10⁻⁸ m (10⁻⁶), dataset hand-eye 0.046 mm (0.2 mm); silhouette recovery 1.66 px and against
+  the board solve 1.65 px (2 px). The quick run (all 112) takes 136 s (peak 4.4 GB; it took 205 s and 6.7 GB before the integration
+  fixes): the self-test now runs only its 77 cheap checks (18 s).
+- `dexvantage --self-test`: **21 of 21 ok** (25 s). New lines: "teleop" (the study's IK and dexterity on a 2R arm
+  against the closed form, 0.25 s), "lighting" (the lit UR5e scene: 0.0 % glare, "low glare; depth washed out",
+  1.1 s), "timing" (motion blur, time sync and action chunk on the UR5e: 38.0 px, 54.4 ms, 0.0 mm; 0.35 s),
+  "datasets" (LeRobot v2.1 and v3.0 and MCAP round trips, 0.9 s), "audit" (the slip classifier against Vantage, 0.3 s).
+- `ruff check dexvantage tests scripts`: clean.
+- Batch, every new flag (times include start-up; RTX 5080 through EGL; results exit 0, refusals one sentence and
+  exit 2):
+  - `--groundtruth`: SO-100 4.4 s (84.2 %, "mostly agrees"), UR5e 8.4 s (91.3 %, "agrees"), dexhand 2.4 s (depth
+    only, 99.6 %).
+  - `--teleop`: SO-100 7.6 s (96.7 % teleoperable, "clear"), UR5e 10.9 s and dexhand 6.9 s ("no device": the reach
+    and dexterity are shown).
+  - `--lighting`: 0.4–0.8 s on every sample ("no lights": the samples have none; the lit UR5e scene of the checks and
+    the guide reads 0.0 % glare and 73.8 % depth lost on the Overhead D435).
+  - `--motion-blur`: SO-100 0.6 s ("exposure not set": its cameras have no device), UR5e 1.0 s (up to 38.04 px,
+    "blurred"; since the review "may be blurred", the smear being an upper bound), dexhand 0.7 s ("no motion").
+  - `--time-sync`: SO-100 0.5 s ("incomplete"), UR5e 0.8 s (≥ 54.4 ms, "out of sync"), dexhand 0.7 s.
+  - `--action-chunk`: UR5e 1.0 s (π0, 0.0 mm "on contact": the scripted pick holds still as the gripper closes);
+    SO-100 refuses (SmolVLA's inference time is not stated by its source) and dexhand refuses (no policy).
+  - `--synth-episodes out/synth_so100` on the SO-100: 4 episodes × 120 rows, 920 frames of 320 × 240 from 2 cameras,
+    v3.0, 7.4 s (124 frames/s, RTX 5080).
+  - With `--dataset out/synth_so100` (the campaign above, every fault on, a slip from episode 2): `--audit` 13.9 s
+    (0 of 4 episodes pass, "not usable"), `--plan-vs-recording` 16.6 s (5 of 10 comparisons match, "differs").
+    `--silhouette-calib` refuses a 4:3 recording of a 16:9 imager in one sentence; on a 16:9 campaign
+    (`out/synth_so100w`, a slip from episode 1) 7.1 s: 4.2 mm and 1.45° ± 2.8 mm and 0.27°, "mount moved"
+    (1 680 renders).
+- **Measured MuJoCo agreement** (`--groundtruth`, 50 grasps, seed 0): contact points UR5e 91.3 % (IoU 86.3 %, 16 896
+  points over 33 poses; Wrist D405 96.1 %, Overhead D435 86.5 %), SO-100 84.2 % (IoU 78.1 %); the grasp-level verdict
+  the same on 32 of 32 and 44 of 44 grasps; occlusion disagreements away from an edge 0.5 % and 0.4 %; most of the
+  rest within a pixel of a segmentation edge or the definition (2 mm in front of the pad against the pad face). Depth:
+  voxels 99.89 % (Wrist D405), 99.66 % (Overhead D435), 99.58 % (dexhand head camera); on rendered surfaces 91.6 %
+  for the overhead D435 (texel depth over the 1 mm tolerance on the far table, 99.6 % inside the task volume).
+- **Render and generation throughput:** the renderer (`scripts/measure_groundtruth.py`, the UR5e's 1280 × 720 D405 and
+  1920 × 1080 D435, segmentation, depth and RGB, 8 views per call) 76–99 renderer frames/s and 14.7–17.5 views/s end
+  to end on the **NVIDIA GeForce RTX 5080** (EGL device 0), 68 and 14.2 views/s on the **Ryzen 9 9900X's integrated
+  Radeon** (radeonsi, EGL device 2); EGL device 1 cannot open a display (said in words). Distorted lenses: Brown-
+  Conrady 2.4 views/s, a cube-face fisheye 0.7 views/s. Synthetic episodes (`scripts/measure_synth.py`, every fault
+  on, 2 × 640 × 360, AV1): 70.9 camera frames/s on the RTX 5080, 55.4 on the integrated Radeon (8.6 of 14.8 s outside
+  rendering, mostly AV1 encoding); 545 frames/s at 64 × 48; 11.8 frames/s at stream size.
+- UI-thread budget: no step over 100 ms (`scripts/measure_ui_phase458.py`, offscreen, measured while the full suite
+  ran alongside): largest the events after Apply on the multi-finger page with the handoff 80.8 ms, its Apply 67.6 ms
+  and Camera view overlay 70.4 ms worst; every new page's Apply under 30 ms (lighting 29.8, silhouette 27.4, teleop
+  27.0, action chunk 23.6 ms); the ground-truth result arriving 13.8 ms. Worker times: ground truth 7.6 s, teleop
+  7.2 s, audit 11.5 s, plan against recording 12.8 s, silhouette 5.7 s, the multi-finger study with the handoff 12.8 s.
+- Screenshots: `python scripts/screens.py --only phase458` → `out/screens/p458-*` (25 images, 102 s, none unfinished). Looked at and
+  fixed: the time sync status read "at least out of sync" (now "out of sync" with the figure as "≥"); the lighting
+  headline said "low glare" in green while the Overhead D435 lost 73.8 % of its depth (now "low glare; depth washed
+  out", critical); the teleop dead-zone list was empty without a word on the sample (now a row saying why; a second
+  shot with the leader scaled 1.25 × shows a joint-limit dead zone); the handoff and action-chunk charts drew their y
+  label under the title; the plan-against-recording visibility headers were cut; the ground-truth thumbnails spread
+  across the page; the motion blur and time sync Camera view overlays need a frame chosen (the screenshots now pick
+  the worst).
+
+**Integration fixes**
+- `validation/suite.py` MODELS: the unused `sim` entry removed (the synthetic-episode check uses `groundtruth`);
+  `timing` lists the action-chunk module. Overview anchors added for every model id the report links (`groundtruth`,
+  `teleop`, `lighting`, `timing`, `data`).
+- Memory: the full validation run grew past 6.7 GB and the full test suite was killed by its 7 GB cap at the self-test
+  (its quick validation run in a subprocess). The suite now frees the process caches (compiled robot models, cube
+  maps, lens remap plans, rendered board rays, the audit campaign) between models: peak 4.8 GB. The test fixtures free
+  the same caches after every module (`release_memory`). The suite's process still creeps from 0.2 to about 4.2 GB
+  over its 1 841 tests (measured per module), and `test_validation`'s in-process full run (with its render worker
+  processes, in the same 7 GB cgroup) was killed twice; it now runs every check in quick mode (same tolerances, fewer
+  samples); the full run is the `--validate` gate above. Under a 10 GB cap the suite with the full in-process run
+  passed 1 841 of 1 841 (19 min 42 s).
+- Time: the quick run (every check) took 205 s; three tests run it as plumbing (`test_batch`, `test_gui`,
+  `test_selftest`, limits 60–180 s). `ValidationSettings.cheap_only` selects the 77 cheap checks (the self-test's
+  line, 18 s); the plumbing tests run two or three cheap models; the quick audit campaign uses 120 rows per episode
+  and the quick silhouette checks shorter episodes and 10 bootstrap resamples (tolerances unchanged, measured to pass).
+- The action-chunk study was registered live (`quick=True`): on every project without a policy its refusal took the
+  status bar after each edit and logged a traceback; it now runs on request. It now also reads exposures and
+  readouts set on the motion blur page (the time sync study already did).
+- A crash: the silhouette page's background Camera view render could finish after the project was replaced; its
+  callback then read the cleared result and raised inside a Qt slot, which PyQt turns into an abort (the full suite
+  died in `test_render_calib.py::test_page`; the agent had seen it once). The callbacks of the silhouette and
+  ground-truth pages now drop late results and log instead of raising.
+- Four checks declared no unit (`teleop.jacobian_fd`, `teleop.leader_workspace`, `teleop.cartesian_mapping`,
+  `audit.slip_vs_vantage`), which `test_validation` caught only after its 255 s full run; a new test checks every
+  registered check's unit, reference and quantity without running them.
+- Batch: `--dataset` feeds `--silhouette-calib` too (it read the project's settings only); a refusal with one reason
+  for every episode says it once.
+- `tests/test_gui.py`: the placeholder count is now at least 1 (export_formats, Phase 10); the Data audit workspace
+  opens on the audit page; the validation job test runs two cheap models. The audit workspace's status line no longer
+  says "(Phase 8)".
+- Self-test lines "teleop", "lighting", "timing", "datasets", "audit"; `scripts/screens.py --only phase458`;
+  `scripts/measure_ui_phase458.py`.
+- Docs: overview sections (groundtruth, synth_episodes, teleop, lighting, timing, data, render_calib, datalinks; the
+  handoff in the multi-finger section; `swept.md` and every new model document in the table); user-guide chapters 8–10,
+  the batch flags, the dataset links, silhouette calibration, the simulated capture and joint sessions; THIRD_PARTY
+  (ported `core/rosbag.py` and `core/audit/slip.py`, Vantage's recorded slip outputs, the light, projector, exposure,
+  refractive-index and format sources, the optional pyarrow, av, zstandard, lz4 and test-only mcap and protobuf);
+  README; CHANGELOG.
+
+**Done**
+- Phase 4: `core/sim/scene.py`, `core/sim/render.py`, `core/studies/groundtruth.py` (`--groundtruth`) and the Rendered
+  against predicted page (Simulate menu; Build the MuJoCo scene…); `validation/mjrender.py` extended (a persistent
+  session, per-job pose and intrinsics, the EGL device); `core/sim/episodes.py` (`--synth-episodes`, Simulate ▸
+  Generate synthetic episodes…, `ui/dialogs/synth_episodes.py`); `core/datasets/lerobot.py` (the writer, and the
+  reader for Phase 8).
+- Phase 5: `core/studies/teleop.py` (`--teleop`) and the Teleop overlap page; `core/materials.py`, `core/lights.py`,
+  `core/studies/lighting.py` (`--lighting`), the light library kind (3 entries) and the Lighting page;
+  `core/studies/motion_blur.py` (`--motion-blur`), `core/studies/time_sync.py` (`--time-sync`, `project.rig['sync']`)
+  and their pages; `core/studies/action_chunk_sync.py` (`--action-chunk`) and its page; the tactile handoff in
+  `core/studies/dex_hand_tactile.py` and its chart on the multi-finger page.
+- Phase 8: `core/rosbag.py` (ported), `core/datasets/bag.py`, `core/datasets/rlds.py`, `core/datasets/joints.py`;
+  `core/audit/` and the studies `audit` (`--audit`) and `plan_vs_recording` (`--plan-vs-recording`) with their pages
+  in the Data audit workspace and the FiftyOne export; `core/calib/render_calib.py`, `core/studies/silhouette_calib.py`
+  (`--silhouette-calib`) and the Silhouette calibration page; grasp sets from datasets (`core/grasps.from_dataset`,
+  Tasks ▸ From a dataset…) and hand-eye capture from datasets (`core/calib/capture.capture_dataset`).
+- Validation: `checks_groundtruth.py`, `checks_synth.py`, `checks_teleop.py`, `checks_lighting.py`, `checks_blur.py`,
+  `checks_sync.py`, `checks_chunk.py`, `checks_audit.py`, `checks_render_calib.py`, `checks_datalinks.py`, and in
+  `checks_formats.py` the LeRobot, MCAP and TFRecord round trips (`formats_bags.py`).
+- Docs: `docs/models/` and `docs/guide/` groundtruth, synth_episodes, teleop, lighting, motion_blur, time_sync,
+  action_chunk, handoff, datasets (and guide bags_rlds), audit, render_calib, datalinks (guides: grasps, handeye).
+
+**Decisions (Phases 4, 5 and 8)**
+1. **The render contract:** renders go through `core/sim/render.Renderer` (MuJoCo in an EGL worker process); a lens
+   with distortion is rendered as an oversampled pinhole base (or cube faces for wide lenses) remapped through
+   `CameraModel`. The principal-point convention ((W−1)/2 − px) is the one Phase 2 measured on renders.
+2. **Contact agreement is reported as measured** (91.3 % / 84.2 %): the grasp study's definition (2 mm in front of
+   the pad) is kept; the render asks whether the pad face shows. The occlusion-only disagreement (0.5 %) is in the
+   result.
+3. **Saturation is relative** (an ISO 12232 auto-exposure metering 18 % grey) unless the user enters a sensor's
+   sensitivity, f-number and exposure; no library camera states a sensitivity. The lighting headline's status is the
+   worse of glare and depth loss (depth thresholds 5, 15, 30 %, labelled defaults).
+4. **Bounds, not guesses:** without a set exposure the frame period bounds the smear; a missing readout or device
+   latency makes the sync skew a lower bound shown as "≥"; a policy whose inference time no source states is refused.
+5. **Teleop comfort** is the central 0.8 of each leader joint range (a default), not a human-factors model; reach is
+   position-only with a free orientation.
+6. **The auditor reads only the data**: the synthetic sidecar is never read by it; tests and checks audit a copy
+   without it. Floors per fault are what the method supports at the injected sizes; in-episode drift is reported, not
+   claimed.
+7. **Synthetic fault sizes are defaults chosen to show in a short episode** (drift 5000 ppm, desync 50 ms, gain 1.4,
+   a 0.25 s USB gap), said in the docs; the gripper occluder is painted, not geometry.
+8. **LeRobot files follow the source** at commit d490e47 (v3.0) and tag v0.3.3 (v2.1); v3.0 H.264 is written without
+   B-frames so packets can be remuxed; AV1 is the default codec.
+9. **The action-chunk study runs on request**, not live, and shares the motion blur page's exposures.
+10. **The self-test validates only the cheap checks**; `--validate` runs all 113 (112 at integration).
+
+**Spec corrections (Phases 4, 5 and 8)**
+1. **§11 flag names:** `--teleop-overlap` is `--teleop`, `--sync` is `--time-sync`, `--silhouette-calib dataset/` is
+   `--silhouette-calib OUT.json --dataset dataset/` (the study registry's automatic flags take OUT.json; `--dataset`
+   names the recording for `--audit`, `--plan-vs-recording` and `--silhouette-calib`). MCP names arrive in Phase 10.
+2. **§9.1 principal point:** MuJoCo 3.17.0's XML reference does not say which way the principal-point offset moves the
+   image; the convention used is the one measured on renders (Phase 2) and checked again by the fiducial and
+   per-pixel checks. `focalpixel` is converted with `sensorsize / resolution`, `fovy` is ignored once `sensorsize` is
+   set, and a camera's `intrinsic` set directly compiles to zero (measured on 3.17.0).
+3. **§8.2 "LeRobot compatible":** LeRobot's own loader was not run (the `lerobot` package is not installed); the files
+   follow the source and are read back independently with pyarrow and ffmpeg. FiftyOne's importer likewise.
+4. **§7.8 IR figures:** no lab IR source with a stated irradiance was found; the light library has no IR figures and
+   users enter meter readings. Intel's D400 datasheet gives two D415 projector FOVs (67° and 64° horizontal); the
+   entry keeps 67°.
+5. **§7.4 VR and space mice:** no maker (Meta Quest, Apple Vision Pro, 3Dconnexion) publishes a tracking volume as
+   such; their volumes are null until the user enters one.
+6. **§7.9/§7.10 timing figures:** no library entry states a rolling-shutter readout time or a device's processing
+   latency; only the D405 and D435 entries carry exposure ranges and trigger support so far.
+
 ## Phases 3, 6 and 7: grasps, VLA tokens and dexterous hands; hardware engineering; calibration (done, 2026-11-06)
 
 Built in parallel by separate agents (grasp sets; the grasp study; policies; VLA tokens; the multi-finger study and
@@ -498,18 +770,18 @@ Final gate, after the three reviews (truthfulness and licences, kinematics corre
   `ui/dialogs/misc.py` (shortcuts, coordinate frames, about), `app.py`, `batch.py`, `selftest.py`.
 
 
-## Next: Phases 4, 5 and 8
+## Next: Phases 9 and 10
 
-- **Phase 4, MuJoCo ground truth:** the scene builder, renders with distortion remap, predicted against rendered
-  visibility and depth (the grasp study's contact visibility is the first candidate), synthetic LeRobot episodes.
-- **Phase 5, teleop, lighting, blur and sync:** teleop overlap and dead zones, glare and IR, motion blur and rolling
-  shutter, time sync, action-chunk latency (§7.13, reads the policies' cited inference times and horizons) and the
-  visual-to-tactile handoff (§7.15, part 2 of `core/studies/dex_hand_tactile.py`: `tactile_handoff`,
-  `visibility_at` and the result's `handoff` key are in place).
-- **Phase 8, data:** LeRobot, RLDS and MCAP readers, the auditor, plan against recording, targetless link-silhouette
-  calibration, FiftyOne tags; then grasp sets from datasets and hand-eye capture from ROS 2 and LeRobot.
-- Throughput (both the grasp study and the planner): read back only the cube-map texels the points need, or draw
-  several maps per pass, in `core/occlusion.py`; upload each link's mesh once and pass link transforms as uniforms.
+- **Phase 9, optimisation and requirements:** tolerance Monte Carlo, experiments, the optimiser and the design agent;
+  requirements and the `--check` scorecard; the extrinsic perturbation export (§8.5; the synthetic generator's
+  `extrinsic_delta` and the renderer's `render_pose` are ready for it).
+- **Phase 10, export, the assistant and MCP:** every exporter with round-trip checks (LeRobot train configs carrying
+  the action-chunk study's delay offset and ensemble weight; Isaac Lab camera configs; Plücker maps as a batch
+  format), the canonical view warp (§7.16), the Rerun bridge (§9.4), the assistant, Copilot plans, the page-aware
+  context and the MCP server (tool names per study, e.g. `get_teleop_overlap`).
+- Throughput (grasp study, planner, lighting): read back only the cube-map texels the points need, or draw several
+  maps per pass, in `core/occlusion.py`; ground truth with distorted lenses: crop the cube faces to the region the lens
+  uses, or move images through shared memory instead of `.npz` files.
 
 ## Spec additions (2026-11-06)
 
@@ -563,6 +835,68 @@ self-test's OpenGL line and `scripts/measure_ui.py` use the default display (rad
 must say which GPU it measured.
 
 ## Open issues
+
+Phases 4, 5 and 8:
+- **Ground truth:** the prediction leaves out the camera's seat on its mount link and the render does not; MuJoCo draws
+  smooth primitives, the predictions 24-gons; depth compared at home only; distorted lenses are slow (2.4 and 0.7
+  views/s at full size); `device='auto'` takes MuJoCo's first EGL device rather than searching for a discrete GPU as
+  `core/occlusion` does. The depth study can call a point on a far surface hidden from itself (a texel spans more
+  depth than its 1 mm tolerance: 91.6 % on the overhead D435's table); an eps that grows with distance in
+  `core/occlusion` or the depth study would fix it.
+- **Occlusion GPU path:** at 256 texels it missed about 8 texels of a cylinder's top cap seen exactly along its axis
+  (exact ray casting and numpy hit it); the lighting study defaults to 512 texels. To be looked at in
+  `core/occlusion.py`.
+- **Synthetic episodes:** duplicates are re-encoded by the codec (g = 2), so decoded duplicates are 36–40 dB from their
+  original, not identical; grasp approaches do not close the gripper and are not checked against obstacles; one
+  imager per sensor; no depth videos; a faults dict overrides only the faults it names.
+- **Teleop:** no library teleop-device entries; reach is position-only; a primary-robot base move does not move
+  hand-eye board placements.
+- **Lighting:** direct light only; the Library panel has no Lights group and the Outliner does not list lights (added
+  from the Lighting page); the Inspector cannot edit material tags; the schema describes `workspace.lights` as plain
+  objects (the contract's keys are not spelled out in either schema copy).
+- **Motion blur and sync:** a per-sensor exposure applies to all its imagers (the D435's IR and RGB exposures are
+  separate controls); clock offsets and jitter are not added to the action-chunk loop; the default command latency
+  (one control period) is large for a 10 Hz policy.
+- **Handoff:** the multi-finger study with the handoff takes about 12.8 s on the dexhand sample (6 s more than
+  without); the fingers do not close during the approach.
+- **Datasets:** LeRobot's own loader and FiftyOne's importer have not been run (not installed); Parquet files carry no
+  HF `huggingface` schema metadata; `tasks.parquet`'s pandas index block is hand-written; rollover is measured on
+  Arrow and packet bytes, not files on disk; depth videos are listed but not dequantised. Bags: actions, dynamic `/tf`
+  and vendor exposure metadata are not read. RLDS: no timestamps, intrinsics or extrinsics; without an fps, times
+  count steps (`meta['time_base'] == 'steps'`); `open_dataset(path)` cannot pass an fps.
+- **Auditor:** in-episode drift is not resolved (recall 0 at 5000 ppm); duplicates on the small third-person view
+  0.5; desync on cameras on the robot biased by up to about 50 ms on textureless scenes; blur false positives 0.1.
+- **Silhouette calibration:** on the SO-100 third-person camera (robot about 4 % of the image) 2.4 mm and 0.30° off,
+  σ understating by up to 7 σ; a camera–joint desync biases the mount.
+- **Data links:** the hand-eye solve study's batch flag captures only from a folder (datasets are captured from the
+  page or `capture_dataset`); no clock offset is estimated; grippers stored as a percentage are not converted.
+- **Validation time:** the quick run of all checks took 136 s at 112 checks (the audit campaign and the silhouette
+  checks
+  most of it); the self-test and the plumbing tests run cheap checks only.
+- **Test memory:** the suite passes under its 7 GB cap with little margin (process peak 6.55 GB, cgroup 7.11 GB with
+  page cache): the process still creeps from 0.2 to about 4.7 GB over 1 886 tests (after two GUI modules `gc` found
+  one window and no robot model or page alive, so most of it is native or allocator heap), and the module that reaches
+  the 6.55 GB peak
+  was not identified. Lowering the creep, or running the heavy GUI modules in their own process, is the next step.
+- **After the reviews:** the dexhand head camera's surface agreement (91.4 %, 97.7 % inside the task volume) has the
+  D435's pattern (almost all "occluded → valid") but was not traced pixel by pixel; `batch.py` keeps its own copy of
+  `DATASET_STUDIES` (it could import `core.jobs`'s); the audit and plan pages still pass their own fingerprint
+  (redundant with the cache key, one extra pass over the files off the UI thread); the time-sync camera-pairs table
+  uses half the longer frame period (an upper bound); a bag CDR message with an encapsulation other than XCDR1 is
+  refused; §8.3 sync against the plan gives no verdict while the time-sync budget is incomplete (every library device
+  today: no maker states its processing latency); `lighting.schlick_vs_fresnel` bounds Schlick's own approximation
+  error (0.036 against 0.04) rather than validating the model; Schlick 1994 "eq. 15" and the page range of Heitz 2014
+  (JCGT) were not re-read (not freely fetchable); the software 3D paint (offscreen QPainter fallback) takes
+  150–1100 ms per frame on the UI thread; the Analysis dock gets about 180 px in the Placement workspace at
+  1680 × 1000.
+- **Hub streaming:** video bytes read by range requests are not kept on disk (a second pass reads them again unless
+  they are among the 24 blocks of 4 MiB in memory); gated and private datasets are refused (no token); the cache key
+  does not follow a branch's newest commit (the commit pinned at open is recorded in the result).
+- **Phase 10 (spec §9.2, §11, §7):** the LeRobot training-config exporter (delay offset and ensemble weight m),
+  `--mujoco-validate out/` as a folder (now `--groundtruth OUT.json`), `--export … lerobot,fiftyone`, `--rerun`, and
+  each study's assistant and MCP tools.
+- **Samples:** no light, no exposure set, no teleop device on the UR5e and dexhand samples, no policy on the dexhand
+  sample, and SmolVLA's inference time is not stated, so `--lighting`, `--teleop` and `--action-chunk` say so on them.
 
 Phases 3, 6 and 7:
 - **Grasp study:** the fingers stay at their home opening (not closed to the object); obstacles are not checked along
@@ -618,8 +952,8 @@ Phases 3, 6 and 7:
     for the faster ports; a field needs project, schema and UI changes); USB 2.0 devices on a USB 3 controller are
     counted against the SuperSpeed capacity (conservative); the 5 % overhead default disagrees with the NanEyeC's
     stated serial framing (about 26 %), reported, not changed.
-  - Grasps: "from a recorded dataset" waits for Phase 8; trajectory closures with no object (a test close, a
-    regrasp) count as grasps. 10 000-grasp sets stall the UI 150 ms–1 s after Add set (worker threads holding the
+  - Grasps: trajectory closures with no object (a test close, a regrasp) count as grasps (also from datasets,
+    Phase 8). 10 000-grasp sets stall the UI 150 ms–1 s after Add set (worker threads holding the
     GIL in the project hash, JSON encoding and Camera view rendering; at 2 000 grasps every step is within 100 ms);
     a cheaper per-study cache key (the store revision) or process workers would fix it. Export on study pages hashes
     the project on the UI thread (`PV.stamp`, about 190 ms with 10 000 grasps): it should be a window job.
@@ -634,8 +968,6 @@ Phases 3, 6 and 7:
     VideoCrop code (the paper-stated figures in those entries were verified).
   - Window: the Camera view dock gets about 100 px of image when the Analysis dock is tall, and its legend then
     covers the image. Simulated captures have no batch flag. The swept-volume ghosts are not drawn in the Camera view.
-  - Docs: `docs/models/swept.md` is not yet linked from `docs/overview.md`, and the user guide does not yet describe
-    the simulated capture, position-first planning for 5-joint arms, trajectory closures or joint sessions.
 
 Phase 2:
 - **Camera view study overlays are outlines only**: the Coverage page draws its slice outline and the Depth page the

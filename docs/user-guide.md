@@ -45,7 +45,22 @@ dexvantage --sample ur5e --cables cables.json            # cable flex (suggested
 dexvantage --sample ur5e --brackets brackets.json        # brackets and their clearance
 dexvantage --sample ur5e --handeye-plan plan.json        # a hand-eye calibration pose plan
 dexvantage cell.dexv --handeye-solve solve.json          # solve a recorded hand-eye session of the project
+dexvantage --sample ur5e --groundtruth gt.json           # rendered against predicted visibility and depth (MuJoCo)
+dexvantage --sample so100 --teleop teleop.json           # teleop overlap and dead zones (the sample's leader arm)
+dexvantage cell.dexv --lighting light.json               # glare and IR wash-out (needs lights in the project)
+dexvantage --sample ur5e --motion-blur blur.json         # smear and rolling-shutter skew along the scripted pick
+dexvantage --sample ur5e --time-sync sync.json           # stamp skew and the action-label error
+dexvantage --sample ur5e --action-chunk chunk.json       # the policy's loop latency, overshoot and delay offset
+dexvantage --sample so100 --synth-episodes out/synth     # synthetic LeRobot episodes with known faults
+dexvantage --sample so100 --audit audit.json --dataset out/synth              # audit a recorded dataset
+dexvantage --sample so100 --plan-vs-recording pvr.json --dataset out/synth    # the plan against the recording
+dexvantage --sample so100 --silhouette-calib sil.json --dataset out/synth     # a static camera's mount from frames
 ```
+
+`--synth-settings` takes the generator's settings as JSON text or a file, e.g.
+`--synth-settings '{"episodes": 4, "frames": 120, "version": "v2.1"}'`. A study that cannot work with its inputs says
+why in one sentence and exits 2 (for example `--action-chunk` on the SO-100 sample: SmolVLA's inference time is not
+stated by its source, so enter a measured figure on the Policies page).
 
 ## 3. Robots (Phase 1) {#robots}
 
@@ -269,9 +284,11 @@ The models behind this chapter: [models/grasps.md](models/grasps.md), [models/gr
 A grasp set is the input of the grasp studies: gripper poses at contact, each with its approach direction. On the
 **Tasks** page sample one over a task volume (top-down pinch, side grasp, angled, bimanual handoff in a handover
 volume; count and seed), **Preview** it as glyphs in the 3D view and the Camera view, then **Add set** (one undo
-step); or **Import file…** (CSV or JSON of gripper poses) or take one from a trajectory. The grasp centre and the
-gripper's axes are measured from the contact pads, not typed in. The UR5e and SO-100 samples come with a set.
-Worked example: [guide/grasps.md](guide/grasps.md).
+step); or **Import file…** (CSV or JSON of gripper poses), take one from a trajectory (a grasp wherever the gripper
+closes), or **From a dataset…** (each time the gripper closes in a recorded LeRobot, RLDS or ROS 2 episode; the
+recording's joints are matched to the model by name, then by order). The grasp centre and the gripper's axes are
+measured from the contact pads, not typed in. The UR5e and SO-100 samples come with a set. Worked example:
+[guide/grasps.md](guide/grasps.md); the dataset link: [models/datalinks.md](models/datalinks.md).
 
 ### Grasp self-occlusion (Analysis ▸ Grasp self-occlusion) {#grasp}
 
@@ -303,7 +320,10 @@ Plücker ray maps (`.npy` or `.safetensors`) at the policy's input resolution. W
 For a dexterous hand (`dexvantage --sample dexhand`: a Shadow Hand on a UR5e with a palm micro camera, a dorsal
 wrist camera and a head camera): a finger × camera matrix of how much of each fingertip's contact patch the camera does
 not see over power, precision and tripod grasp sweeps (or a grasp set), what hides it, the mounts ranked, and a
-suggested turn of a camera. Worked example: [guide/dexhand.md](guide/dexhand.md).
+suggested turn of a camera. Below the matrix, the **visual-to-tactile handoff** chart follows each fingertip's contact
+patch from 50 mm out to contact: how much of it some camera sees, and how much a tactile pad covers at contact; the
+**sensory blind gap** is the distance over which a contact is neither seen nor touched. Worked examples:
+[guide/dexhand.md](guide/dexhand.md) and [guide/handoff.md](guide/handoff.md).
 
 ## 6. Hardware engineering (Phase 6)
 
@@ -341,5 +361,83 @@ that the arm reaches without collision with the board in view, chosen to pin the
 **Print board…** writes the ChArUco or AprilGrid board as a PDF. **Calibrate ▸ Solve hand-eye…** imports a folder of
 board images with a `joint_states` file, detects the corners, solves (closed form, then one bundle adjustment; optional
 joint zero offsets and intrinsics), shows per-view residuals, outliers and the covariance, says which pose to take next
-(the coach), and **Apply** writes the calibrated mount (one undo step). ROS 2 topics and LeRobot episodes arrive in
-Phase 8. Worked example: [guide/handeye.md](guide/handeye.md).
+(the coach), and **Apply** writes the calibrated mount (one undo step). **From a LeRobot dataset or ROS 2 bag…**
+takes the frames with the board in view and the joints at their times from a recording; **Simulate a capture…**
+renders board images at the planned poses with a known offset that the solve should recover. A 5-joint arm such as
+the SO-100 is planned position-first; several sessions can be solved in one bundle adjustment. Worked example:
+[guide/handeye.md](guide/handeye.md).
+
+### Silhouette calibration (Calibrate ▸ Silhouette calibration) {#render_calib}
+
+No board: a static camera's mount from the robot's own silhouette in recorded frames. Choose the dataset and the
+camera, **Run**: per episode the mount's offset from the project's (with its 1σ and whether every direction is
+observable), the steps between episodes (a bracket knocked), and **Apply** writes the recovered mount (one undo
+step). The Camera view draws the robot through the recovered mount. It needs the robot to move and to look like its
+model, and the frames' timing to be right (audit it first). Worked example: [guide/render_calib.md](guide/render_calib.md).
+
+## 8. MuJoCo ground truth (Phase 4) {#groundtruth}
+
+The models: [models/groundtruth.md](models/groundtruth.md) and [models/synth_episodes.md](models/synth_episodes.md).
+**Simulate ▸ Rendered against predicted visibility…** renders the scene in MuJoCo through every camera's lens model
+and compares it with the predictions: the grasp study's contact points (a confusion matrix, the worst disagreements
+side by side, why they disagree: at an edge, the rule, occlusion) and the depth study's valid voxels. On the UR5e
+sample 92.8 % of 20 992 contact points agree over 41 poses, "agrees". **Simulate ▸ Build the MuJoCo scene…** writes the scene as a
+folder MuJoCo loads. **Simulate ▸ Generate synthetic episodes…** writes LeRobot v2.1 or v3.0 episodes rendered from
+the project with known faults (dropped frames, desync, blur, mount slip…) and their ground truth beside them, to test
+the auditor or a training pipeline. Worked examples: [guide/groundtruth.md](guide/groundtruth.md) and
+[guide/synth_episodes.md](guide/synth_episodes.md).
+
+## 9. Teleop, lighting, blur and sync (Phase 5)
+
+### Teleop overlap (Analysis ▸ Teleop overlap, the Teleop workspace) {#teleop}
+
+Add the teleop device (a leader arm or GELLO, a VR headset or a space mouse with the volume you measured): the page
+shows where in the task volume the operator is comfortable and the follower reaches well, and the **dead zones**
+where the operator is comfortable but the follower is near a singularity, a joint limit or itself, or out of reach
+(click one to pose the follower there). **Apply** moves the follower's base by the suggested step. The SO-100 sample
+has its leader arm: 96.7 % teleoperable, "clear". Model: [models/teleop.md](models/teleop.md); worked example:
+[guide/teleop.md](guide/teleop.md).
+
+### Lighting and glare (Analysis ▸ Lighting and glare) {#lighting}
+
+Add the lab's lights (from the library or with the figures you measured, each with its source) and the objects'
+materials; **Run** gives each camera's share of the object and gripper in specular saturation (relative to an
+auto-exposure unless you enter the sensor's sensitivity), a glare map in the Camera view, and for active-stereo depth
+cameras the share of depth the ambient IR washes out. Each recommendation (a polariser, moving or dimming a light,
+tilting the camera, blinding a window) shows the figure before and after; **Apply** makes it. Model:
+[models/lighting.md](models/lighting.md); worked example: [guide/lighting.md](guide/lighting.md).
+
+### Motion blur and time sync (Analysis ▸ Motion blur and rolling shutter, Analysis ▸ Time sync) {#timing}
+
+Along the project's trajectories: how far the image moves during one exposure (smear) and across a rolling-shutter
+readout (skew) per camera, the longest exposure that keeps the smear to 1 px (**Apply** records those exposures), and
+the smear vectors in the Camera view. Time sync gives each stream's timestamp error against the joint states by clock
+and trigger, and the action-label error it causes; **Apply** sets the suggested hardware trigger. A figure the maker
+does not state makes the result a bound, said as "at most" or "≥". Models: [models/motion_blur.md](models/motion_blur.md),
+[models/time_sync.md](models/time_sync.md); worked examples: [guide/motion_blur.md](guide/motion_blur.md),
+[guide/time_sync.md](guide/time_sync.md).
+
+### Action-chunk latency (Analysis ▸ Action-chunk latency) {#action_chunk}
+
+For the project's policy (ACT, Diffusion Policy, π0…): the sensor-to-action loop per camera term by term with each
+term's source, when the gripper closes relative to the demonstrated contact (overshoot or air-grasp), an overshoot
+map over the task volume, and the delay offset and temporal-ensemble weight to train with; **Apply** stores them on
+the policy. Model: [models/action_chunk.md](models/action_chunk.md); worked example:
+[guide/action_chunk.md](guide/action_chunk.md).
+
+## 10. Data (Phase 8) {#data}
+
+The models: [models/datasets.md](models/datasets.md), [models/audit.md](models/audit.md) and
+[models/datalinks.md](models/datalinks.md). DexVantage reads LeRobot v2.1 and v3.0 (and writes them), ROS 2 bags
+(MCAP and SQLite) and RLDS / Open X-Embodiment TFRecords.
+
+- **Data ▸ Audit a dataset…** (the Data audit workspace): add a dataset folder or bag, **Run**: per episode and camera
+  the dropped and duplicated frames, frame rate, jitter, USB gaps, camera-joint offset, clock drift, exposure steps,
+  blur and a hidden gripper, mount slip across the campaign, and a verdict (pass, fix, recalibrate, drop) against your
+  requirements (defaults labelled). **Export report…** writes JSON and HTML; **Export to FiftyOne…** writes a dataset
+  with per-frame tags.
+- **Data ▸ Plan against recording…**: each recorded camera against the plan (resolution, frame rate, mount, sync,
+  what the grasp study predicted the camera would see); the Camera view draws the recorded frame's outline.
+
+Worked examples: [guide/datasets.md](guide/datasets.md), [guide/bags_rlds.md](guide/bags_rlds.md) and
+[guide/audit.md](guide/audit.md).

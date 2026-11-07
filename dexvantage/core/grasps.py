@@ -1,5 +1,5 @@
-"""Grasp sets (spec §7.3): sampled over a task volume, imported from a file, taken from a trajectory, and the contact
-patches of the posed fingertips. Grasp sets are written and read only through this module.
+"""Grasp sets (spec §7.3): sampled over a task volume, imported from a file, taken from a trajectory or from a recorded
+dataset, and the contact patches of the posed fingertips. Grasp sets are written and read only through this module.
 
 A grasp set lives in project.tasks.grasp_sets as a plain record:
 
@@ -16,6 +16,7 @@ gripper travels into the grasp. Positions in metres, quaternions (x, y, z, w) (c
     sample(project, robot_uid, kinds, n, rng_seed, volume_uid=None, handover_uid=None, **options) -> grasp set
     import_file(path, project=None, robot_uid='') -> grasp set   (CSV or JSON; GraspError names the row and column)
     from_trajectory(project, traj_uid, every=1, mode='every' | 'closures') -> grasp set
+    from_dataset(project, dataset, robot_uid, mode='closures' | 'every', episodes=None, every=1) -> grasp set
     pad_opening(project, robot_uid, Q) -> (N,), closure_events(opening) -> [(onset, end, drop)]   grasps in a trajectory
     pre_contact_poses(grasp, distances_m) -> [4 × 4]             the gripper backed off along −approach
     contact_points(project, robot_uid, q) -> {fingertip: (K, 3)} world points on the fingertip contact pads
@@ -99,14 +100,23 @@ home opening there) and its approach the direction the TCP travelled over its la
 onset, or the gripper's approach axis when it did not travel that far. All three are labelled defaults; the set's
 settings list the strokes (onset and end times, how far the opening fell).
 
+From a recorded dataset (from_dataset). Each episode of a LeRobot (v2.1, v3.0), ROS 2 bag or RLDS dataset
+(core/datasets) is read as a trajectory: its joint state rows q(t) put on the robot's model by joint name
+(core/datasets/joints.on_model, unit 'rad' or 'deg'), clipped to the limits, rows without every joint recorded left
+out; then the same rules as from_trajectory at the episode's rows (closing strokes, or every Nth row). The pose ids
+name the episode ('e3c1'), t is the time in the episode, and the settings list each episode's strokes, the dataset's
+folder or file name (not its path), format and version, and how the joints were matched.
+
 Known limits: the samplers do not check reachability or collisions (the grasp study's IK does, and says why a grasp
 is infeasible); object grasps use the object's axis-aligned world bounding box, not its shape, so a grasp on a
 rotated or concave object can miss it; the closing axis is fixed by the kind (a side grasp never closes vertically);
 the TCP and axes are measured at the home pose, so a gripper whose home is closed and asymmetric gets a biased TCP;
-'dataset' sets arrive with the dataset readers (Phase 8); an imported row's approach is not checked against its
-orientation; grasps found in a trajectory are its closing strokes, so a trajectory that closes the gripper without
-grasping (a test close, a regrasp) gives a grasp there too, and fingers that close by less than FLAT_MM between two
-samples (slow fingers, dense samples) are not seen to close.
+an imported row's approach is not checked against its orientation; grasps found in a trajectory are its closing
+strokes, so a trajectory that closes the gripper without grasping (a test close, a regrasp) gives a grasp there too,
+and fingers that close by less than FLAT_MM between two samples (slow fingers, dense samples) are not seen to close;
+from a dataset, a gripper recorded as a percentage of
+its stroke or a command rather than a joint angle (some LeRobot recordings) must be converted first, and only the
+robot's own joints are read (one robot per state vector).
 """
 from __future__ import annotations
 
@@ -1110,6 +1120,31 @@ def from_trajectory(project, traj_uid: str, every: int = 1, name: str | None = N
                           'settings': settings})
 
 
+def _closure_poses(model, geom: dict, ts, Q, opening, events, approach_mm: float, prefix: str = 'c',
+                   extra: dict | None = None) -> tuple[list, list, int]:
+    """(pose records, event records, how many took the gripper's approach axis) of closing strokes `events` found in
+    the joint rows Q at times ts: the gripper frame at each onset, the approach the tool centre's travel over its last
+    approach_mm before it (from_trajectory's rule). extra: fields added to every event record (the episode)."""
+    i = model.link_index(geom['frame'])
+    T = model.fk_batch(Q)[:, i]
+    tcp = T[:, :3, :3] @ np.asarray(geom['tcp'], float) + T[:, :3, 3]
+    poses, axis_used, events_doc = [], 0, []
+    for n, (k0, k1, drop) in enumerate(events):
+        a = T[k0, :3, :3] @ geom['approach']
+        back = np.linalg.norm(tcp[:k0 + 1] - tcp[k0], axis=1)
+        far = np.nonzero(back >= approach_mm / 1000.0)[0]
+        if approach_mm > 0 and len(far):
+            v = tcp[k0] - tcp[far[-1]]
+            a = v / np.linalg.norm(v)
+        else:
+            axis_used += 1
+        pid = f'{prefix}{n + 1}'
+        poses.append(_pose_rec(pid, T[k0], a, 'trajectory', t=float(ts[k0])))
+        events_doc.append(dict(extra or {}, id=pid, t=float(ts[k0]), t_end=float(ts[k1]), drop_m=drop,
+                               opening_m=float(opening[k0])))
+    return poses, events_doc, axis_used
+
+
 def _closures_from_trajectory(project, tr: dict, name, close_mm, approach_mm) -> dict:
     from .robot import trajectory as TR
     try:
@@ -1120,7 +1155,6 @@ def _closures_from_trajectory(project, tr: dict, name, close_mm, approach_mm) ->
         raise GraspError('The closing distance must be 0.1 to 500 mm and the approach distance 0 to 2000 mm.')
     robot, model = _robot_and_model(project, tr.get('robot_uid', ''))
     geom = gripper_geometry(project, robot.uid)
-    i = model.link_index(geom['frame'])
     ts = [float(t) for t in tr.get('t') or []]
     if len(ts) < 2:
         raise GraspError(f'The trajectory {tr.get("name", "")} has fewer than two samples: no closing can be seen.')
@@ -1133,21 +1167,8 @@ def _closures_from_trajectory(project, tr: dict, name, close_mm, approach_mm) ->
                          'lower the closing distance, or take every Nth sample instead.')
     if len(events) > MAX_GRASPS:
         raise GraspError(f'The trajectory closes the gripper {len(events)} times; a set holds at most {MAX_GRASPS}.')
-    T = model.fk_batch(Q)[:, i]
-    tcp = T[:, :3, :3] @ np.asarray(geom['tcp'], float) + T[:, :3, 3]
-    poses, notes, axis_used, events_doc = [], [], 0, []
-    for n, (k0, k1, drop) in enumerate(events):
-        a = T[k0, :3, :3] @ geom['approach']
-        back = np.linalg.norm(tcp[:k0 + 1] - tcp[k0], axis=1)
-        far = np.nonzero(back >= approach_mm / 1000.0)[0]
-        if approach_mm > 0 and len(far):
-            v = tcp[k0] - tcp[far[-1]]
-            a = v / np.linalg.norm(v)
-        else:
-            axis_used += 1
-        poses.append(_pose_rec(f'c{n + 1}', T[k0], a, 'trajectory', t=ts[k0]))
-        events_doc.append({'id': f'c{n + 1}', 't': ts[k0], 't_end': ts[k1], 'drop_m': drop,
-                           'opening_m': float(opening[k0])})
+    poses, events_doc, axis_used = _closure_poses(model, geom, ts, Q, opening, events, approach_mm)
+    notes = []
     if axis_used:
         notes.append(f'{axis_used} of {len(events)} grasps were reached without the tool centre moving '
                      f'{approach_mm:g} mm first: their approach is the gripper\'s approach axis.')
@@ -1161,6 +1182,167 @@ def _closures_from_trajectory(project, tr: dict, name, close_mm, approach_mm) ->
     return normalise_set({'uid': new_uid(), 'name': name or f'{tr.get("name", "Trajectory")} (grasps)',
                           'source': 'trajectory', 'robot_uid': robot.uid, 'frame': geom['frame'], 'poses': poses,
                           'settings': settings})
+
+
+# ====================================================================== from a recorded dataset
+DATASET_MODES = TRAJECTORY_MODES
+
+
+def _episode_list(ds, episodes) -> list:
+    refs = ds.episodes()
+    have = [r.index for r in refs]
+    if episodes is None:
+        return have
+    want = [int(e) for e in (episodes if isinstance(episodes, (list, tuple, set, range)) else [episodes])]
+    bad = [e for e in want if e not in set(have)]
+    if bad:
+        span = f'{have[0]} to {have[-1]}' if have else 'none'
+        raise GraspError(f'The dataset has no episode {bad[0]} (its episodes are {span}).')
+    return want
+
+
+def from_dataset(project, dataset, robot_uid: str, mode: str = 'closures', episodes=None, every: int = 1,
+                 name: str | None = None, close_mm: float = CLOSE_MM, approach_mm: float = APPROACH_MM,
+                 unit: str = 'rad', progress=None, cancel=None) -> dict:
+    """A grasp set from a recorded dataset (spec §7.3 'taken from a recorded dataset'; not added to the project).
+
+    dataset: a core.datasets Dataset or a path open_dataset reads (LeRobot v2.1 / v3.0, RLDS, a ROS 2 bag). Each
+    episode's joint state q(t) is put on the robot's model (core/datasets/joints.on_model: by joint name, unit 'rad'
+    or 'deg'), clipped to the joint limits as a trajectory is, and read exactly as from_trajectory reads a
+    trajectory's samples: mode 'closures' (default) one grasp each time the gripper closes by close_mm or more
+    (closure_events on pad_opening at the episode's rows), mode 'every' the gripper frame at every Nth row. The pose
+    ids name the episode ('e3c1': episode 3, its first closing); t is the time in the episode; the settings record
+    the dataset (its folder or file name only), each episode's strokes and how the joints were matched. episodes:
+    the dataset's episode indices (None: all). Rows whose joints are not all recorded yet (NaN, a bag whose first
+    message names only some joints) are left out and counted. Raises GraspError in plain words."""
+    from .datasets import DatasetError, open_dataset
+    from .datasets.joints import on_model
+    if mode not in DATASET_MODES:
+        raise GraspError(f'The dataset mode must be one of {", ".join(DATASET_MODES)}.')
+    try:
+        close_mm, approach_mm, every = float(close_mm), float(approach_mm), int(every)
+    except (TypeError, ValueError):
+        raise GraspError('The closing and approach distances must be numbers of millimetres and "every" a whole '
+                         'number.') from None
+    if not (0.1 <= close_mm <= 500.0) or not (0.0 <= approach_mm <= 2000.0):
+        raise GraspError('The closing distance must be 0.1 to 500 mm and the approach distance 0 to 2000 mm.')
+    if every < 1:
+        raise GraspError('"Every" must be 1 or more (1 takes every row).')
+    robot, model = _robot_and_model(project, robot_uid)
+    geom = gripper_geometry(project, robot.uid)
+    own = isinstance(dataset, str)
+    try:
+        ds = open_dataset(dataset) if own else dataset
+    except DatasetError as e:
+        raise GraspError(str(e)) from None
+    try:
+        return _from_dataset(project, ds, robot, model, geom, mode, episodes, every, name, close_mm, approach_mm,
+                             unit, progress, cancel, on_model)
+    except DatasetError as e:
+        raise GraspError(str(e)) from None
+    finally:
+        if own:
+            ds.close()
+
+
+def _from_dataset(project, ds, robot, model, geom, mode, episodes, every, name, close_mm, approach_mm, unit,
+                  progress, cancel, on_model) -> dict:
+    import os as _os
+    idx = _episode_list(ds, episodes)
+    if not idx:
+        raise GraspError('The dataset has no episodes.')
+    i_frame = model.link_index(geom['frame'])
+    base = _os.path.basename(_os.path.normpath(str(getattr(ds, 'path', '') or ''))) or 'dataset'
+    poses, events_doc, per_ep, notes = [], [], [], []
+    axis_used = nan_rows = 0
+    map_notes: list = []
+    how = set()
+    never = []
+    for n_ep, e in enumerate(idx):
+        if cancel is not None and cancel():
+            notes.append(f'Stopped after {n_ep} of {len(idx)} episodes.')
+            break
+        if progress:
+            progress(n_ep / len(idx), f'Episode {e}')
+        ep = ds.load(e)
+        jm = on_model(ep, model, unit)
+        how.add(jm.how)
+        for t_ in jm.notes:
+            if t_ not in map_notes:
+                map_notes.append(t_)
+        ts = np.asarray(ep.t, float).reshape(-1)
+        ok = np.isfinite(jm.Q).all(axis=1) & np.isfinite(ts)
+        nan_rows += int((~ok).sum())
+        ts, Q = ts[ok], np.clip(jm.Q[ok], model.lower, model.upper)
+        rec = {'episode': int(e), 'id': str(ep.id), 'rows': int(len(ts)), 'duration_s': float(ts[-1] - ts[0])
+               if len(ts) > 1 else 0.0}
+        if mode == 'every':
+            ks = list(range(0, len(ts), every))
+            if len(poses) + len(ks) > MAX_GRASPS:
+                raise GraspError(f'That takes more than {MAX_GRASPS} poses: take every '
+                                 f'{max(every + 1, math.ceil(every * (len(poses) + len(ks)) / MAX_GRASPS))}th row '
+                                 'or more, or fewer episodes.')
+            if ks:
+                T = model.fk_batch(Q[ks])[:, i_frame]
+                poses += [_pose_rec(f'e{e}t{k}', T[j], T[j, :3, :3] @ geom['approach'], 'trajectory', t=float(ts[k]))
+                          for j, k in enumerate(ks)]
+            rec['poses'] = len(ks)
+            per_ep.append(rec)
+            continue
+        if len(ts) < 2:
+            rec['closures'] = 0
+            per_ep.append(rec)
+            never.append(e)
+            continue
+        opening = pad_opening(project, robot.uid, Q)
+        events = closure_events(opening, close_mm / 1000.0)
+        rec.update(closures=len(events), opening_mm=[1000 * float(opening.min()), 1000 * float(opening.max())])
+        per_ep.append(rec)
+        if not events:
+            never.append(e)
+            continue
+        if len(poses) + len(events) > MAX_GRASPS:
+            raise GraspError(f'The dataset closes the gripper more than {MAX_GRASPS} times; a set holds at most '
+                             f'{MAX_GRASPS}: choose fewer episodes.')
+        ps, ev, au = _closure_poses(model, geom, ts, Q, opening, events, approach_mm, prefix=f'e{e}c',
+                                    extra={'episode': int(e)})
+        poses += ps
+        events_doc += ev
+        axis_used += au
+    if progress:
+        progress(1.0, f'{len(poses)} grasps')
+    if not poses:
+        if mode == 'every':
+            raise GraspError('The episodes chosen have no rows with every joint recorded.')
+        lo = min((r['opening_mm'][0] for r in per_ep if 'opening_mm' in r), default=None)
+        hi = max((r['opening_mm'][1] for r in per_ep if 'opening_mm' in r), default=None)
+        span = f' (its opening runs from {lo:.1f} to {hi:.1f} mm)' if lo is not None else ''
+        raise GraspError(f'The gripper never closes by {close_mm:g} mm or more in the {len(per_ep)} episode(s) read'
+                         f'{span}: lower the closing distance, check the joint unit (degrees?) and the robot, or take '
+                         'every Nth row instead.' + ''.join(' ' + t_ for t_ in map_notes))
+    if mode == 'closures' and never:
+        notes.append(f'{len(never)} of {len(per_ep)} episodes never close the gripper by {close_mm:g} mm: '
+                     + ', '.join(str(e) for e in never[:8]) + ('…' if len(never) > 8 else '') + '.')
+    if axis_used:
+        notes.append(f'{axis_used} of {len(poses)} grasps were reached without the tool centre moving '
+                     f'{approach_mm:g} mm first: their approach is the gripper\'s approach axis.')
+    if nan_rows:
+        notes.append(f'{nan_rows} rows were left out: not every joint of the robot was recorded in them yet.')
+    notes += map_notes
+    if geom['assumed']:
+        notes.append(geom['rule'])
+    settings = {'dataset': base, 'format': str(getattr(ds, 'format', '')), 'version': str(getattr(ds, 'version', '')),
+                'episodes': per_ep, 'mode': mode, 'unit': 'deg' if str(unit).lower().startswith('deg') else 'rad',
+                'joint_match': sorted(how), 'gripper': _geom_json(geom), 'notes': notes}
+    if mode == 'closures':
+        settings.update(close_mm=close_mm, approach_mm=approach_mm, closures=len(events_doc), events=events_doc,
+                        defaults=[k for k, v, d in (('close_mm', close_mm, CLOSE_MM),
+                                                    ('approach_mm', approach_mm, APPROACH_MM)) if v == d])
+    else:
+        settings['every'] = every
+    default = f'{base} (grasps)' if mode == 'closures' else f'{base} (every {every})'
+    return normalise_set({'uid': new_uid(), 'name': name or default, 'source': 'dataset', 'robot_uid': robot.uid,
+                          'frame': geom['frame'], 'poses': poses, 'settings': settings})
 
 
 # ====================================================================== objects

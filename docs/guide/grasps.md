@@ -75,6 +75,33 @@ Tick **Swept volume** to see where the arm goes along the chosen trajectory: the
 spaced times (a default), fainter early and stronger late (`core/robot/swept.py`; the first time for a robot its
 meshes are simplified as a background job, a few hundred milliseconds).
 
+## 5a. From a recorded dataset
+
+**From a dataset…** (next to **Import file…**) reads the grasps a recording performs: each episode's joint states are
+read like a trajectory and one grasp is added each time the gripper closes by 5 mm or more (a default), exactly as
+**Where it closes** above. The dialog asks for the dataset (**Folder…** for a LeRobot v2.1 or v3.0 dataset, a ROS 2
+bag folder or an RLDS folder; **File…** for a single `.mcap` or `.db3` bag, or a LeRobot `meta/info.json`, which
+stands for its dataset), the episodes (`all`, or `0, 2-4`), **Where it closes** or **Every N rows**, and the unit of
+the recorded joints (rad, or deg for recordings that store degrees). The set is for the robot chosen in the form
+above. The episodes are read on a worker thread (the status bar shows the progress); the set is added in one undo
+step.
+
+Worked example on the UR5e sample (measured 2026-11-07):
+
+1. **Simulate ▸ Generate synthetic episodes…** with 2 episodes, the faults unticked, writes a LeRobot v3.0 dataset of
+   the sample's scripted pick (2 × 136 rows at 30 fps, both cameras rendered in MuJoCo on the RTX 5080, 8.4 s).
+2. **Tasks ▸ From a dataset…**, **Folder…** that dataset, **Read**. The message says "Added 2 grasps from 2
+   episode(s) of synth: the gripper closes 2 times", and the set's poses are named `e0c1` and `e1c1` (episode 0, its
+   first closing), each at 1.50 s: the row before the 2F-85's fingers start to move. Reading the two episodes took
+   24 ms; 200 episodes of the same pick, 27 200 rows, took 0.87 s (31 000 rows/s, on this machine's CPU).
+3. Run the grasp study on the set to see whether the cameras saw the fingertips at those moments.
+
+Joint names are matched to the robot's by name; LeRobot's `shoulder_pan.pos` or `main_shoulder_pan` style names are
+also matched (the set's settings say which rule matched). A recording whose joints are not the robot's is refused in
+words ("it looks like another robot's recording"); one whose joints are degrees read as radians is said in the notes
+("the values look like degrees"). A gripper stored as a percentage of its stroke, as some LeRobot SO-100 recordings
+do, is not a joint angle: convert it first.
+
 ## 6. Export and delete
 
 **Export…** writes the selected set as JSON with the provenance block. **Delete set** removes it in one undo step.
@@ -89,3 +116,4 @@ meshes are simplified as a background job, a few hundred milliseconds).
     tips = grasps.contact_points(p, p.robots[0].uid, q)        # {'gripper_right_pad': (128, 3), ...}
     approach = grasps.pre_contact_poses(gs['poses'][0], [0.02, 0.04, 0.06])
     picks = grasps.from_trajectory(p, traj_uid, mode='closures')  # one grasp per closing of the gripper
+    rec = grasps.from_dataset(p, 'path/to/lerobot_dataset', p.robots[0].uid, episodes=[0, 1], unit='rad')

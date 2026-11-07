@@ -19,7 +19,7 @@ import traceback
 from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QObject, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QActionGroup, QGuiApplication, QKeySequence
 from PyQt6.QtWidgets import (QComboBox, QDockWidget, QFileDialog, QLabel, QMainWindow, QMessageBox, QProgressBar,
-                             QStatusBar, QToolBar, QVBoxLayout, QWidget)
+                             QSizePolicy, QStatusBar, QToolBar, QVBoxLayout, QWidget)
 
 from ..core import project as P
 from ..core.frames import Pose, quat_from_rpy
@@ -47,10 +47,10 @@ WORKSPACES = {
     'placement': (('outliner', 'library', 'inspector', 'camview', 'bottom'), 'summary', 'Place sensors and mounts'),
     'grasp': (('outliner', 'inspector', 'camview', 'bottom'), 'summary',
               'Grasp self-occlusion, VLA tokens and dexterous hands'),
-    'teleop': (('outliner', 'inspector', 'bottom'), 'summary', 'Teleop overlap and dead zones (Phase 5)'),
+    'teleop': (('outliner', 'inspector', 'bottom'), 'summary', 'Teleop overlap and dead zones'),
     'calibration': (('outliner', 'inspector', 'camview', 'bottom'), 'summary',
                     'Hand-eye calibration: plan, record, solve'),
-    'audit': (('outliner', 'inspector', 'bottom'), 'log', 'Dataset and episode audit (Phase 8)'),
+    'audit': (('outliner', 'inspector', 'bottom'), 'log', 'Dataset audit and plan against recording'),
     'review': (('outliner', 'inspector', 'bottom'), 'log', 'Variants, requirements and the design log'),
 }
 WORKSPACE_TITLES = {'placement': 'Placement', 'grasp': 'Grasp study', 'teleop': 'Teleop', 'calibration': 'Calibration',
@@ -261,6 +261,10 @@ class MainWindow(QMainWindow):
         A('handeye_solve', 'Solve hand-eye…', category='Calibrate', icon='target', phase=7)
         A('mujoco_scene', 'Build the MuJoCo scene…', category='Simulate', icon='cube', phase=4)
         A('mujoco_validate', 'Rendered against predicted visibility…', category='Simulate', icon='compare', phase=4)
+        A('synth_episodes', 'Generate synthetic episodes…',
+          lambda: __import__('dexvantage.ui.dialogs.synth_episodes', fromlist=['open_dialog']).open_dialog(self),
+          category='Simulate', icon='dataset',
+          tip='LeRobot v2.1 or v3.0 episodes rendered in MuJoCo, with known faults and their ground truth')
         A('audit', 'Audit a dataset…', category='Data', icon='dataset', phase=8,
           tip='LeRobot, RLDS / Open X-Embodiment or a ROS 2 bag.')
         A('plan_vs_recording', 'Plan against recording…', category='Data', icon='compare', phase=8)
@@ -322,7 +326,7 @@ class MainWindow(QMainWindow):
         menu('&Analysis', ['run_summary', 'live', 'cancel_jobs', '-', 'coverage', 'depth_validity', 'grasp_study',
                            'teleop_overlap'])
         menu('&Calibrate', ['handeye_plan', 'handeye_solve'])
-        menu('Si&mulate', ['mujoco_scene', 'mujoco_validate'])
+        menu('Si&mulate', ['mujoco_scene', 'mujoco_validate', 'synth_episodes'])
         menu('&Data', ['audit', 'plan_vs_recording'])
         menu('E&xport', ['export_summary', 'export_formats'])
         menu('&Window', [f'ws_{k}' for k in WORKSPACE_TITLES] + ['-', 'ws_save', 'ws_reset', '-', 'assistant'])
@@ -417,7 +421,9 @@ class MainWindow(QMainWindow):
         self.sel_label = QLabel('')
         self.ws_label = QLabel('')
         for w in (self.msg_label, self.coord_label, self.sel_label, self.ws_label):
-            sb.addWidget(w)
+            sb.addWidget(w, 1 if w is self.msg_label else 0)
+        # a long message must not widen the window (it did, to several thousand px): it is cut, in full in its tip
+        self.msg_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.msg_label.hide()
         self.job_label = QLabel('')
         self.job_label.setMaximumWidth(JOB_LABEL_W + 8)
@@ -462,6 +468,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ status
     def msg(self, text, ms=3000):
         self.msg_label.setText(text)
+        self.msg_label.setToolTip(text if len(text) > 120 else '')    # a long one is cut at the bar's edge
         self.msg_label.show()
         self._msg_timer.start(ms)
 
@@ -868,15 +875,16 @@ class MainWindow(QMainWindow):
         from .dialogs.misc import AboutDialog
         AboutDialog(self).exec()
 
-    def validate_models(self, folder=None, open_report=True, quick=False):
-        """Help ▸ Validate the models: the suite in the background, the report into the working folder."""
+    def validate_models(self, folder=None, open_report=True, quick=False, models=None):
+        """Help ▸ Validate the models: the suite in the background, the report into the working folder (models: a
+        list of model ids, default every model)."""
         from .. import validation as VA, workdir
         from ..core import provenance as PV
         project = self.store.project.snapshot()
         if folder is None:
             folder = workdir.project_dir(project, workdir.get(self.ctx.settings), 'validation',
                                          time.strftime('%Y%m%d-%H%M%S'))
-        st = VA.ValidationSettings.from_dict({'quick': bool(quick)})
+        st = VA.ValidationSettings.from_dict({'quick': bool(quick), 'models': list(models or ())})
 
         def work(progress, cancel):
             res = VA.run(project, settings=st, progress=lambda f: progress(f, f'{f * 100:.0f} % of the checks'),

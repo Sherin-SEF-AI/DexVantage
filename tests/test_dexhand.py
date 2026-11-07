@@ -252,7 +252,7 @@ def test_study_on_the_sample(dex, doc):
             for i, f in enumerate(doc['fingers']):
                 assert bits[at:at + f['points']].mean() * 100 == pytest.approx(pc['seen_pct'][j][i], abs=0.01)
                 at += f['points']
-    assert doc['handoff'] is None and doc['occlusion']['backend'] == 'raycast'
+    assert set(D.HANDOFF_FIELDS) <= set(doc['handoff']) and doc['occlusion']['backend'] == 'raycast'   # part 2
     assert any('sample postures' in n_ for n_ in doc['notes'])
     assert 'q' not in dex.analysis.studies[D.STUDY_ID]      # the project is not changed
 
@@ -325,7 +325,7 @@ def test_study_refuses_what_it_cannot_use():
     p.robots[0].fingertip_frames = []
     with pytest.raises(StudyError, match='fingertip'):
         jobs.run_study(D.STUDY_ID, p)
-    with pytest.raises(StudyError, match='Phase 5'):
+    with pytest.raises(StudyError, match='fingertip'):            # part 2 refuses the same robot
         D.tactile_handoff(p)
 
 
@@ -345,7 +345,7 @@ def test_validation_checks_pass_quick():
     suite.load_checks()
     specs = [s for s in suite.CHECKS if s.model == 'dexhand']
     assert {s.id for s in specs} == {'dexhand.matrix_vs_analytic', 'dexhand.owner_vs_bruteforce',
-                                     'dexhand.cube_owner_union'}
+                                     'dexhand.cube_owner_union', 'dexhand.blind_gap_bruteforce'}   # part 2's
     ctx = suite.Ctx(None, None, None, suite.ValidationSettings(quick=True))
     try:
         for s in specs:

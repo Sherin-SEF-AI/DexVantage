@@ -1,5 +1,4 @@
-"""Dexterous multi-finger self-occlusion (spec §7.14, part 1) and the extension point of the visual-to-tactile
-handoff (spec §7.15, part 2, Phase 5).
+"""Dexterous multi-finger self-occlusion (spec §7.14, part 1) and the visual-to-tactile handoff (spec §7.15, part 2).
 
     @jobs.study('dex_occlusion', 'Multi-finger occlusion', quick=False, batch='dex-occlusion')  → --dex-occlusion OUT
     run(project, ctx) -> dict                 the study (also through core.jobs.run_study('dex_occlusion', project))
@@ -7,6 +6,9 @@ handoff (spec §7.15, part 2, Phase 5).
     visibility_owner_raycast(...)             the same answer by exact ray casting (backend 'raycast', the default)
     patch_counts(in_view, visible, owner, n_groups)    a patch's points: hidden by each group, outside, seen
     status_for(pct, settings) -> (status, word)
+    tactile_handoff(project, ctx=None) -> dict   part 2 alone (the document run() puts under 'handoff')
+    tactile_pads(project, robot, hand, q), pad_coverage(points, pad, gap_m), gap_from_samples(dist, seen)
+    blind_gap_check(project)                  part 2's adaptive scan against a brute-force scan (validation)
 
 What it computes. The hand is the robot whose fingertips are tagged (settings robot_uid, else the first robot with
 two or more fingertip frames); its fingers, palm and the rest of the robot come from core/dexhand.py structure()
@@ -67,9 +69,32 @@ points are in view: the cube maps (world-axis aligned around the centre) are reu
 rendering. The best turn that raises the headline (or, when it is equal, the rig's mean share of patch seen by 0.5
 points or more) is the suggestion; Apply sets that mount pose (one undo step).
 
-Part 2 (spec §7.15, Phase 5) belongs in this module and is not built here: tactile_handoff() is its entry point and
-says so. visibility_at(project, q, settings) is the part 1 kernel for one joint state, for part 2 to call along each
-approach (core/grasps.py pre_contact_poses), and HANDOFF_FIELDS lists what part 2 adds to the result.
+Part 2, the visual-to-tactile handoff (spec §7.15; settings handoff, default on). The approaches end at the contact
+cases: each grasp of a grasp set (reached by IK), or each grasp posture fully closed (at most handoff_max_cases,
+default 6, evenly spaced). Along each, the gripper frame is backed off along −approach (the grasp's approach, else
+the gripper's approach axis, core/grasps.py gripper_geometry, turned with the frame) by a distance d, and the arm is
+solved by IK from the solution at the nearer distance ('nearest_q0', one seed, self-collision not checked: the hand
+keeps the case's closed posture), as the grasp study poses its pre-contact steps. At each d, part 1's kernel
+(visibility_at) gives every fingertip's share of its contact patch that some camera sees (the rig's union), with the
+task objects occluding (handoff_objects_occlude, default True: the object is what hides the contact as the fingers
+close on it). A fingertip is seen at d from min_visible_pct (50 %) of its patch. The distances: 0 to handoff_max_mm
+(default 50 mm, the grasp study's pre-contact default) in handoff_step_mm (10 mm), then every handoff_refine_mm
+(2 mm) inside each coarse interval where a fingertip's seen state changes (all three defaults).
+
+At contact (d = 0), the tactile pads: every tactile sensor in use mounted on a link of a finger covers that finger's
+patch points within pad_gap_mm (default 3 mm) of its sensing plane and inside its pad (the library entry's pad_mm,
+cited; not stated: coverage not known). A pad left at its link's origin (the mount pose not set) is taken to sit
+centred on the patch, facing along its mean normal (an assumption, labelled in the result); a placed pad senses along
+its mount's body x axis. A fingertip is touched from min_touch_pct (50 %) of its patch on a pad.
+
+The SENSORY BLIND GAP of a fingertip along an approach is the distance before contact over which it is neither seen
+nor touched: from contact to the midpoint between the last distance not seen and the first seen (0 when seen at
+contact; the whole scanned distance, "or more", when never seen). Touch begins only at contact, so a fingertip
+neither seen nor touched at contact is "unsensed at contact" whatever its gap. Flags: a gap above blind_gap_max_mm
+(default 10 mm) or a contact unsensed. Status: good with no flag, warning for flagged gaps up to 2 × the threshold,
+serious above, critical when a contact is unsensed (defaults). The result's 'handoff' holds HANDOFF_FIELDS
+(approach_visibility: per approach the distances, the seen share per fingertip, the gaps; tactile_coverage; blind_gap_m,
+the worst) and the flags, status and notes, or {'error'} when part 2 could not run.
 
 Settings (project.analysis.studies['dex_occlusion'], every key optional): robot_uid; source ('synergy' |
 'grasp_set'); synergies (records, core/dexhand.py Synergy.to_dict; the 'dexhand' sample stores the Shadow Hand's);
@@ -83,12 +108,13 @@ The result is JSON-able: the fingers, the owner groups, the cameras with their f
 dominant owner and the seen patch points (seen_bits: per camera, every finger's points in order, pack_bits), the
 rig's headline with its status, the comparison, the suggestion, the timings and the notes.
 
-Validation (validation/checks_dexhand.py): dexhand.matrix_vs_analytic builds a scripted two-finger scene whose
-occlusion is known in closed form (a box finger's shadow, by central projection, on the other's pad, and a palm
-plate's edge seen from a low side camera) and compares this module's matrix entries with it;
-dexhand.owner_vs_bruteforce compares the per-point owners with an all-pairs Möller–Trumbore ray cast that records
-the owner of every hit; dexhand.cube_owner_union checks d = min_g d_g against one cube map of the whole scene on the
-sample.
+Validation (validation/checks_dexhand.py, and validation/checks_chunk.py for part 2): dexhand.matrix_vs_analytic builds
+a scripted two-finger scene whose occlusion is known in closed form (a box finger's shadow, by central projection, on
+the other's pad, and a palm plate's edge seen from a low side camera) and compares this module's matrix entries with it;
+dexhand.owner_vs_bruteforce compares the per-point owners with an all-pairs Möller–Trumbore ray cast that records the
+owner of every hit; dexhand.cube_owner_union checks d = min_g d_g against one cube map of the whole scene on the sample;
+dexhand.blind_gap_bruteforce compares part 2's adaptive scan of an approach with a scan of every distance at the refine
+spacing, on the sample with a wall that hides some fingertips near contact.
 
 Known limits: with a cube-map backend visibility is judged per texel (a point within about a texel of a silhouette,
 or on its own surface seen at a grazing angle, may go either way); the patch is a fixed point set carried with the
@@ -96,7 +122,12 @@ fingertip link (its contact area does not change with the object); the postures 
 joint vectors, not measured synergies (core/dexhand.py), and tendon-coupled joints move independently; the arm's
 joints are fixed during the synergy sweep; grasp-set IK holds the hand at one posture for every grasp and does not
 check self-collision by default; no camera housing occludes; the re-aim search tries single turns of one camera,
-not combinations or moves; lighting, blur and the tactile side are other studies (part 2 arrives in Phase 5).
+not combinations or moves; lighting and blur are other studies. Part 2: the approach is a straight line in the
+gripper frame's position with the hand already in its contact posture (the fingers do not close as it comes in); a
+seen or hidden stretch shorter than the coarse step inside one interval can be missed (the validation check measures
+it on one scene); IK that fails at a distance leaves it out; touch is judged only at contact, by geometry (a pad's
+footprint on the patch), not by contact force or the sensor's sensitivity; a pad's assumed placement is a guess the
+result labels, and only its mount pose says where it really is.
 """
 from __future__ import annotations
 
@@ -126,17 +157,32 @@ DEFAULTS = {
     'objects_occlude': False,
     'suggest_deg': 10.0,         # default: the re-aim search step
     'depth_imager': 'rgb',
+    # part 2, the visual-to-tactile handoff (§7.15); every figure a default
+    'handoff': True,             # default: run the handoff with the occlusion matrix
+    'handoff_max_mm': 50.0,      # default: the last 5 cm of the approach (the grasp study's pre-contact default)
+    'handoff_step_mm': 10.0,     # default: coarse distances along the approach
+    'handoff_refine_mm': 2.0,    # default: the spacing inside an interval where a fingertip's seen state changes
+    'handoff_max_cases': 6,      # default: approaches taken (evenly spaced over the contact cases)
+    'handoff_objects_occlude': True,   # default: along the approach the task objects hide the contact
+    'min_touch_pct': 50.0,       # default: a fingertip counts as touched from this share of its patch on a pad
+    'pad_gap_mm': 3.0,           # default: a patch point this close to a pad's plane is on the pad
+    'blind_gap_max_mm': 10.0,    # default: a blind gap longer than this is flagged
 }
 LIMITS = {'steps': (1, 20), 'max_grasps': (1, 5000), 'ik_seeds': (1, 32), 'min_visible_pct': (0.0, 100.0),
           'good_pct': (0.0, 100.0), 'warn_pct': (0.0, 100.0), 'serious_pct': (0.0, 100.0), 'cube_n': (16, 4096),
-          'grasp_closure': (0.0, 1.0), 'suggest_deg': (0.0, 45.0)}
+          'grasp_closure': (0.0, 1.0), 'suggest_deg': (0.0, 45.0), 'handoff_max_mm': (0.5, 1000.0),
+          'handoff_step_mm': (0.1, 500.0), 'handoff_refine_mm': (0.05, 100.0), 'handoff_max_cases': (1, 500),
+          'min_touch_pct': (0.0, 100.0), 'pad_gap_mm': (0.0, 50.0), 'blind_gap_max_mm': (0.0, 1000.0)}
+INT_SETTINGS = ('steps', 'max_grasps', 'ik_seeds', 'cube_n', 'handoff_max_cases')
 BACKENDS = ('raycast', 'auto', 'gl', 'numpy')
 WORDS = {'good': 'fingertips seen', 'warning': 'partly hidden', 'serious': 'mostly hidden',
          'critical': 'fingertips blind'}
 OUT = 'out_of_view'
 GROUP_TITLES = {'palm': 'Palm', 'arm': 'Wrist and arm', 'objects': 'Task objects', 'scene': 'Rest of the scene',
                 OUT: 'Outside the image'}
-HANDOFF_FIELDS = ('approach_visibility', 'tactile_coverage', 'blind_gap_m')     # part 2 (Phase 5)
+HANDOFF_FIELDS = ('approach_visibility', 'tactile_coverage', 'blind_gap_m')     # part 2: the result's handoff keys
+HANDOFF_WORDS = {'good': 'no blind gap', 'warning': 'short blind gap', 'serious': 'blind gap',
+                 'critical': 'contact unsensed'}
 OCC_NEAR = 0.005                 # m, the ray casting's start along each ray: core/occlusion.py's NEAR_M default
 
 
@@ -155,13 +201,15 @@ def settings_of(project) -> dict:
             raise StudyError(f'The multi-finger occlusion setting {k} must be a number; got {out[k]!r}.') from None
         if not math.isfinite(v) or v < lo or v > hi:
             raise StudyError(f'The multi-finger occlusion setting {k} must be between {lo:g} and {hi:g}; got {v:g}.')
-        out[k] = int(v) if isinstance(DEFAULTS.get(k), int) or k in ('steps', 'max_grasps', 'ik_seeds', 'cube_n') \
-            else v
+        out[k] = int(v) if k in INT_SETTINGS else v
     if out['backend'] not in BACKENDS:
         raise StudyError(f'The occlusion backend must be one of {", ".join(BACKENDS)}; got "{out["backend"]}".')
     if out['source'] not in ('synergy', 'grasp_set'):
         raise StudyError('The cases come from "synergy" (the grasp postures) or "grasp_set"; got '
                          f'"{out["source"]}".')
+    if out['handoff_refine_mm'] > out['handoff_step_mm']:
+        raise StudyError('The handoff\'s refine spacing must not be larger than its coarse step.')
+    out['handoff'] = bool(out.get('handoff', True))
     if not (out['good_pct'] >= out['warn_pct'] >= out['serious_pct']):
         raise StudyError('The status thresholds must satisfy good_pct ≥ warn_pct ≥ serious_pct.')
     out['sensors'] = list(out.get('sensors') or [])
@@ -400,7 +448,7 @@ def _grasp_cases(project, robot, model, syns: list, st: dict, base_q, notes: lis
             g = poses[int(i)]
             cases.append({'id': f'grasp:{g.get("id", i)}', 'label': f'Grasp {g.get("id", i)} ({g.get("kind", "")})',
                           'synergy': syn.id, 'closure': st['grasp_closure'], 'grasp': str(g.get('id', i)),
-                          'q': res.q[k]})
+                          'q': res.q[k], 'approach': g.get('approach')})
     report = {'set_uid': gs.get('uid', ''), 'set_name': gs.get('name', ''), 'taken': int(len(idx)),
               'feasible': int(res.ok.sum()), 'counts': res.counts(), 'synergy': syn.id,
               'closure': st['grasp_closure'], 'collision_checked': bool(st['ik_collision'])}
@@ -696,6 +744,16 @@ def run(project, ctx: jobs.Ctx) -> dict:  # noqa: C901 — one pass over the cas
                             f'{un * 100:.1f} % (fingertip-cases seen stay at {rig_pct:.1f} %).')),
             }
 
+    # ---------------------------------------------------------------- part 2: the visual-to-tactile handoff
+    handoff = None
+    if st['handoff'] and not cancelled:
+        ctx.report(0.97, 'The visual-to-tactile handoff')
+        try:
+            handoff = _handoff(project, robot, model, hand, cams, st, qd, cases[:Kd], ctx)
+        except StudyError as e:
+            handoff = {'error': str(e)}
+            notes.append(f'The visual-to-tactile handoff could not run: {e}')
+
     # ---------------------------------------------------------------- the result
     best_cam = cam_rows[ranking[0]]
     worst_i = int(np.argmin(union_frac.mean(axis=0)))
@@ -759,7 +817,7 @@ def run(project, ctx: jobs.Ctx) -> dict:  # noqa: C901 — one pass over the cas
                 'worst_finger': fingers[worst_i].name},
         'advice': advice,
         'suggestion': suggestion,
-        'handoff': None,                                  # part 2 (spec §7.15, Phase 5): HANDOFF_FIELDS
+        'handoff': handoff,                               # part 2 (spec §7.15): HANDOFF_FIELDS, or None
         'settings': {k: v for k, v in st.items() if k not in ('synergies', 'q')},
         'q': {uid: [_r(x, 6) for x in np.asarray(v, float)] for uid, v in qd.items()},
         'notes': notes,
@@ -774,10 +832,411 @@ def run(project, ctx: jobs.Ctx) -> dict:  # noqa: C901 — one pass over the cas
 
 
 # ====================================================================== part 2: the visual-to-tactile handoff
+def _identity(pose) -> bool:
+    q = np.asarray(pose.quaternion, float)
+    return float(np.linalg.norm(pose.position)) < 1e-9 and abs(abs(q[3]) - 1.0) < 1e-9
+
+
+def tactile_pads(project, robot, hand, q, notes: list | None = None) -> list:
+    """The tactile sensors in use on the hand's links at joint state q {robot uid: q}: [{'uid', 'name', 'model_id',
+    'finger', 'link', 'pad_mm' (from the library entry, or None: not stated), 'placement', 'center', 'normal', 'u',
+    'v'}] (world; u along the pad's first side, v along its second). A pad at its link's origin (the mount pose left
+    at identity, as Library ▸ add puts it) is taken to sit centred on that finger's contact patch, facing along the
+    patch's mean normal, its longer side along the patch's longer extent (an assumption, labelled); a placed pad
+    senses on its mount's body x axis (REP-103 forward), its first side along body y, its second along body z."""
+    from .. import grasps as GK
+    from .. import library as LB
+    from .. import scenegeom as SG
+    notes = notes if notes is not None else []
+    out = []
+    patches = None
+    for s in project.variant.sensors:
+        if s.kind != 'tactile' or not s.enabled or s.mount.robot_uid != robot.uid:
+            continue
+        link = s.mount.parent_frame
+        finger = hand.link_group.get(link)
+        e = LB.get(s.model_id) if s.model_id else None
+        pad = ((e.data.get('tactile') or {}).get('pad_mm') if e is not None else None)
+        rec = {'uid': s.uid, 'name': s.name, 'model_id': s.model_id, 'finger': finger or '', 'link': link,
+               'pad_mm': [float(x) for x in pad] if pad else None,
+               'pad_source': (f'{e.title} library entry' if pad else
+                              ('not stated by the maker' if e is not None else 'no device chosen'))}
+        if finger is None or finger in ('palm', 'arm'):
+            rec['placement'] = f'on {link}, not a fingertip\'s finger: it covers no fingertip patch here'
+            out.append(rec)
+            continue
+        if _identity(s.mount.pose):
+            if patches is None:
+                patches = GK.contact_patches(project, robot.uid, q.get(robot.uid))
+            pts = [v for v in patches.values() if hand.link_group.get(v['link']) == finger]
+            if not pts:
+                rec['placement'] = 'its finger has no contact patch'
+                out.append(rec)
+                continue
+            P = np.concatenate([v['points'] for v in pts])
+            N = np.concatenate([v['normals'] for v in pts])
+            c = P.mean(axis=0)
+            n = N.mean(axis=0)
+            n = n / max(float(np.linalg.norm(n)), 1e-300)
+            Q = (P - c) - np.outer((P - c) @ n, n)
+            _w, V = np.linalg.eigh(Q.T @ Q)
+            u = V[:, 2] - (V[:, 2] @ n) * n
+            u = u / max(float(np.linalg.norm(u)), 1e-300)
+            v = np.cross(n, u)
+            if rec['pad_mm'] and rec['pad_mm'][1] > rec['pad_mm'][0]:
+                u, v = v, u                              # the pad's longer side along the patch's longer extent
+            rec.update(placement='assumed: centred on the finger\'s contact patch (the mount pose is not set)',
+                       center=c, normal=n, u=u, v=v)
+        else:
+            T = SG.sensor_world_pose(project, s, q).matrix()
+            rec.update(placement='at its mount pose (senses along body x)', center=T[:3, 3], normal=T[:3, 0],
+                       u=T[:3, 1], v=T[:3, 2])
+        out.append(rec)
+    return out
+
+
+def pad_coverage(points, pad: dict, gap_m: float) -> np.ndarray:
+    """(K,) True for the patch points on the pad: within gap_m of its plane and inside its w × h rectangle."""
+    P = np.asarray(points, float).reshape(-1, 3)
+    if pad.get('pad_mm') is None or 'center' not in pad:
+        return np.zeros(len(P), bool)
+    d = P - pad['center']
+    w, h = (x / 1000.0 for x in pad['pad_mm'])
+    return (np.abs(d @ pad['normal']) <= gap_m + 1e-12) & (np.abs(d @ pad['u']) <= w / 2 + 1e-12) & \
+        (np.abs(d @ pad['v']) <= h / 2 + 1e-12)
+
+
+def gap_from_samples(dist, seen) -> tuple[float, bool, float]:
+    """(blind gap m, censored, total hidden m) of one fingertip along an approach from (distance, seen) samples:
+    the gap runs from contact to the midpoint between the last distance not seen and the first seen (0 when seen at
+    contact; the whole scanned distance, censored, when never seen); the hidden total counts every stretch not seen,
+    a change of state at the midpoint between two samples."""
+    d = np.asarray(dist, float)
+    s = np.asarray(seen, bool)
+    order = np.argsort(d)
+    d, s = d[order], s[order]
+    if not len(d):
+        return 0.0, True, 0.0
+    if s[0] and d[0] <= 1e-12:
+        gap, cens = 0.0, False
+    elif s.any():
+        i = int(np.argmax(s))
+        gap, cens = 0.5 * (d[i - 1] + d[i]) if i > 0 else d[0], False
+    else:
+        gap, cens = float(d[-1]), True
+    hid = 0.0
+    for k in range(len(d) - 1):
+        a, b = (not s[k]), (not s[k + 1])
+        hid += (d[k + 1] - d[k]) * (1.0 if a and b else (0.5 if a or b else 0.0))
+    return float(gap), cens, float(hid)
+
+
+def _handoff_cases(cases: list, st: dict) -> list:
+    """The contact cases the approaches end at: grasp cases, or each posture fully closed (its last case)."""
+    if st['source'] == 'grasp_set':
+        pick = [c for c in cases if c.get('grasp')]
+    else:
+        last = {}
+        for c in cases:
+            if c['synergy']:
+                if c['synergy'] not in last or c['closure'] >= last[c['synergy']]['closure']:
+                    last[c['synergy']] = c
+        pick = list(last.values())
+    if len(pick) > st['handoff_max_cases']:
+        idx = np.unique(np.linspace(0, len(pick) - 1, st['handoff_max_cases']).round().astype(int))
+        pick = [pick[i] for i in idx]
+    return pick
+
+
+class _Approach:
+    """Visibility along the straight approaches into a set of contact cases: the gripper frame backed off along
+    −approach by a distance, the arm solved by IK from the nearer pose ('nearest_q0', so it keeps its branch; the hand
+    keeps the case's posture), and the rig's union of what each camera sees of every fingertip's patch (part 1's
+    kernel, visibility_at)."""
+
+    def __init__(self, project, robot, model, hand, cams, st, qd, cases):
+        from .. import grasps as GK
+        self.p, self.robot, self.model, self.hand, self.cams, self.st, self.qd = (project, robot, model, hand, cams,
+                                                                                  st, qd)
+        geom = GK.gripper_geometry(project, robot.uid)
+        self.link = geom['frame']
+        self.cases = cases
+        self.T0, self.a = [], []
+        for c in cases:
+            T = model.link_pose(c['q'], self.link)
+            a = np.asarray(c.get('approach') if c.get('approach') is not None else T[:3, :3] @ geom['approach'],
+                           float)
+            self.T0.append(T)
+            self.a.append(a / max(float(np.linalg.norm(a)), 1e-300))
+        self.evals = 0
+        self.ik_failed = 0
+        self.names = [f.name for f in hand.fingers]
+        self.vst = dict(st, objects_occlude=bool(st.get('handoff_objects_occlude', True)))
+
+    def solve(self, idx, dists, q0) -> tuple[np.ndarray, np.ndarray]:
+        from ..robot import ik
+        T = np.array([self.T0[i].copy() for i in idx])
+        for k, (i, d) in enumerate(zip(idx, dists)):
+            T[k, :3, 3] = self.T0[i][:3, 3] - float(d) * self.a[i]
+        res = ik.solve_batch(self.model, self.link, T, q0=np.asarray(q0, float), seeds=1, rule='nearest_q0',
+                             collision=False, retry_seeds=0)
+        return np.asarray(res.q, float), np.asarray(res.ok, bool)
+
+    def seen(self, q) -> np.ndarray:
+        """(F,) share of each fingertip's patch some camera sees at the robot's joint vector q."""
+        qq = dict(self.qd)
+        qq[self.robot.uid] = q
+        res = visibility_at(self.p, qq, self.vst, hand=self.hand, cams=self.cams)
+        self.evals += 1
+        out = np.zeros(len(self.names))
+        for i, n in enumerate(self.names):
+            m = np.zeros(len(res['points'][n]), bool)
+            for c in res['cameras']:
+                m |= c['in_view'][n] & c['visible'][n]
+            out[i] = m.mean() if len(m) else 0.0
+        return out
+
+    def scan(self, dists_per_case, cancel=None) -> list:
+        """For each case: {distance (m): (F,) seen share or None where IK failed}, distances solved in order from
+        contact, each from the solution at the previous distance."""
+        out = []
+        for i, c in enumerate(self.cases):
+            rec, q_prev = {}, np.asarray(c['q'], float)
+            for d in sorted(dists_per_case[i]):
+                if cancel is not None and cancel():
+                    break
+                if d <= 1e-12:
+                    rec[0.0] = self.seen(q_prev)
+                    continue
+                q, ok = self.solve([i], [d], q_prev[None])
+                if not ok[0]:
+                    self.ik_failed += 1
+                    rec[float(d)] = None
+                    continue
+                q_prev = q[0]
+                rec[float(d)] = self.seen(q_prev)
+            out.append(rec)
+        return out
+
+    def adaptive(self, cancel=None) -> list:
+        """Coarse distances, then the refine spacing inside every coarse interval where a fingertip's seen state
+        changes (module docstring of part 2)."""
+        st = self.st
+        dmax, step, ref = (st[k] / 1000.0 for k in ('handoff_max_mm', 'handoff_step_mm', 'handoff_refine_mm'))
+        coarse = sorted(set(np.round(np.r_[np.arange(0.0, dmax + 1e-12, step), dmax], 9)))
+        thr = st['min_visible_pct'] / 100.0
+        recs = self.scan([coarse] * len(self.cases), cancel)
+        for i, rec in enumerate(recs):
+            ds = sorted(d for d, v in rec.items() if v is not None)
+            extra = []
+            for a, b in zip(ds[:-1], ds[1:]):
+                if np.any((rec[a] >= thr - 1e-12) != (rec[b] >= thr - 1e-12)):
+                    n = int(round((b - a) / ref))
+                    extra += [round(a + k * (b - a) / n, 9) for k in range(1, n)]
+            if extra:
+                more = self.scan_one(i, rec, extra)
+                rec.update(more)
+        return recs
+
+    def scan_one(self, i, rec, extra) -> dict:
+        """Distances inside known intervals, each solved from the nearest solved distance below it."""
+        out = {}
+        solved = {}
+        for d in sorted(extra):
+            below = max([x for x in list(rec) + list(out) if x < d and (rec.get(x) if x in rec else out.get(x))
+                         is not None], default=None)
+            q0 = solved.get(below)
+            if q0 is None:
+                q0 = self._q_at(i, below)
+            q, ok = self.solve([i], [d], q0[None])
+            if not ok[0]:
+                self.ik_failed += 1
+                out[d] = None
+                continue
+            solved[d] = q[0]
+            out[d] = self.seen(q[0])
+        return out
+
+    def _q_at(self, i, d):
+        q = np.asarray(self.cases[i]['q'], float)
+        if d is None or d <= 1e-12:
+            return q
+        sol, ok = self.solve([i], [d], q[None])
+        return sol[0] if ok[0] else q
+
+
+def _handoff(project, robot, model, hand, cams, st, qd, cases, ctx=None) -> dict:  # noqa: C901 — the gap, spelled out
+    t0 = time.perf_counter()
+    hc = _handoff_cases(cases, st)
+    if not hc:
+        raise StudyError('There is no contact case to approach (a fully closed posture or a reached grasp).')
+    ap = _Approach(project, robot, model, hand, cams, st, qd, hc)
+    recs = ap.adaptive(ctx.cancelled if ctx is not None else None)
+    thr = st['min_visible_pct'] / 100.0
+    touch_thr = st['min_touch_pct'] / 100.0
+    gap_m = st['pad_gap_mm'] / 1000.0
+    notes = []
+    approaches, worst = [], None
+    cov_rows: dict = {}
+    for i, (c, rec) in enumerate(zip(hc, recs)):
+        q = dict(qd)
+        q[robot.uid] = c['q']
+        pads = tactile_pads(project, robot, hand, q, notes)
+        from .. import grasps as GK
+        patches = GK.contact_patches(project, robot.uid, c['q'])
+        ds = sorted(rec)
+        ok_ds = [d for d in ds if rec[d] is not None]
+        fingers = []
+        for j, f in enumerate(hand.fingers):
+            P = [v['points'] for v in patches.values() if hand.link_group.get(v['link']) == f.name]
+            P = np.concatenate(P) if P else np.zeros((0, 3))
+            on = np.zeros(len(P), bool)
+            mine = [p for p in pads if p.get('finger') == f.name]
+            per_pad = []
+            for p in mine:
+                m = pad_coverage(P, p, gap_m)
+                on |= m
+                per_pad.append({'uid': p['uid'], 'name': p['name'], 'model_id': p['model_id'], 'pad_mm': p['pad_mm'],
+                                'pad_source': p['pad_source'], 'placement': p.get('placement', ''),
+                                'coverage_pct': _r(m.mean() * 100 if len(m) else 0.0, 2)})
+            cov = float(on.mean()) if len(on) else 0.0
+            touched = bool(mine) and cov >= touch_thr - 1e-12
+            if not mine:
+                why = 'no tactile pad on this finger'
+            elif all(p['pad_mm'] is None for p in mine):
+                why = 'the pad size is not stated, so its coverage is not known'
+            else:
+                why = '' if touched else (f'the pads cover {cov * 100:.0f} % of the patch (below '
+                                          f'{st["min_touch_pct"]:g} %)')
+            cov_rows.setdefault(f.name, []).append({'case': c['id'], 'coverage_pct': _r(cov * 100, 2),
+                                                    'touched': touched, 'why': why, 'pads': per_pad})
+            seen = [bool(rec[d][j] >= thr - 1e-12) for d in ok_ds]
+            gap, cens, hid = gap_from_samples(ok_ds, seen)
+            seen0 = bool(ok_ds and ok_ds[0] <= 1e-12 and seen[0])
+            sensed = seen0 or touched
+            flagged = (gap > st['blind_gap_max_mm'] / 1000.0 + 1e-12) or not sensed
+            row = {'name': f.name, 'title': f.title, 'blind_gap_m': _r(gap, 5), 'censored': cens,
+                   'hidden_m': _r(hid, 5), 'seen_at_contact': seen0, 'touched': touched,
+                   'coverage_pct': _r(cov * 100, 2), 'sensed_at_contact': sensed, 'flagged': flagged}
+            fingers.append(row)
+            key = (not sensed, gap)
+            if worst is None or key > worst[0]:
+                worst = (key, c, row)
+        approaches.append({'case': c['id'], 'label': c['label'], 'distances_m': [_r(d, 6) for d in ds],
+                           'ik_ok': [rec[d] is not None for d in ds],
+                           'seen_pct': [None if rec[d] is None else [_r(x * 100, 2) for x in rec[d]] for d in ds],
+                           'approach': [_r(x, 6) for x in ap.a[i]], 'fingers': fingers})
+    gaps = [r['blind_gap_m'] for a in approaches for r in a['fingers']]
+    worst_gap = max(gaps) if gaps else 0.0
+    thr_m = st['blind_gap_max_mm'] / 1000.0
+    unsensed = [(a, r) for a in approaches for r in a['fingers'] if not r['sensed_at_contact']]
+    flagged = [(a, r) for a in approaches for r in a['fingers'] if r['flagged']]
+    if unsensed:
+        status = 'critical'
+    elif worst_gap > 2 * thr_m + 1e-12:
+        status = 'serious'
+    elif flagged:
+        status = 'warning'
+    else:
+        status = 'good'
+    flags = []
+    for a, r in flagged:
+        what = (f'{r["title"]} in "{a["label"]}": ' + (f'not seen for the last {r["blind_gap_m"] * 1000:.0f} mm'
+                                                       + (' or more' if r['censored'] else '') + ' of the approach'
+                                                       if r['blind_gap_m'] > 0 else 'seen up to contact'))
+        if not r['sensed_at_contact']:
+            what += ', and at contact neither seen nor touched'
+        flags.append(what + '.')
+    if not any(p for rows in cov_rows.values() for x in rows for p in x['pads']):
+        notes.append('No tactile sensor is on the hand\'s fingers: add one from the Library (Tactile sensors) and '
+                     'mount it on a fingertip link; until then nothing is touched at contact.')
+    (_k, wc, wr) = worst
+    text = (f'Worst: {wr["title"]} in "{wc["label"]}", '
+            + (f'blind for {wr["blind_gap_m"] * 1000:.0f} mm' + (' or more' if wr['censored'] else '')
+               + ' before contact' if wr['blind_gap_m'] > 0 else 'seen up to contact')
+            + ('; at contact it is neither seen nor touched.' if not wr['sensed_at_contact'] else '.'))
+    if ap.ik_failed:
+        notes.append(f'{ap.ik_failed} approach distances could not be reached by IK and are left out.')
+    return {
+        'approach_visibility': approaches,
+        'tactile_coverage': [{'name': f.name, 'title': f.title, 'cases': cov_rows.get(f.name, [])}
+                             for f in hand.fingers],
+        'blind_gap_m': _r(worst_gap, 5),
+        'worst': {'case': wc['id'], 'finger': wr['name']},
+        'flags': flags, 'status': status, 'status_word': HANDOFF_WORDS[status], 'text': text,
+        'threshold_m': _r(thr_m, 6), 'notes': notes,
+        'settings': {k: st[k] for k in ('handoff_max_mm', 'handoff_step_mm', 'handoff_refine_mm', 'handoff_max_cases',
+                                        'handoff_objects_occlude', 'min_visible_pct', 'min_touch_pct',
+                                        'pad_gap_mm', 'blind_gap_max_mm')},
+        'defaults': [k for k in st.get('defaults', []) if k.startswith('handoff') or k in (
+            'min_touch_pct', 'pad_gap_mm', 'blind_gap_max_mm')],
+        'evaluations': ap.evals, 'seconds': _r(time.perf_counter() - t0, 3),
+    }
+
+
+def _setup(project, st, notes):
+    """(robot, model, hand, synergies, cases, cameras, joint state) as run() builds them."""
+    from .. import dexhand as DH
+    from ..robot.model import RobotModelError, get_model
+    robot = hand_robot(project, st)
+    try:
+        model = get_model(project, robot.uid)
+        hand = DH.structure(project, robot.uid, model)
+        syns = DH.synergies(project, robot.uid, st, model)
+    except (RobotModelError, DH.HandError) as e:
+        raise StudyError(str(e)) from None
+    if st.get('synergy_ids'):
+        syns = [s for s in syns if s.id in set(st['synergy_ids'])] or syns
+    qd = _joint_state(project, st, notes)
+    base_q = qd.get(robot.uid, model.home)
+    if st['source'] == 'grasp_set':
+        cases, _rep = _grasp_cases(project, robot, model, syns, st, base_q, notes, jobs.Ctx())
+    else:
+        if not syns:
+            raise StudyError(f'{robot.name} has no grasp postures to approach with.')
+        cases = _synergy_cases(model, syns, st, base_q)
+    return robot, model, hand, cases, _cameras(project, st, notes), qd
+
+
 def tactile_handoff(project, ctx: jobs.Ctx | None = None) -> dict:
-    """Spec §7.15 (Phase 5), the extension point: along each approach (core/grasps.py pre_contact_poses), the
-    visibility of the contact region from visibility_at() against the distance to contact, the tactile pads'
-    coverage once in contact (the tactile model of §6), and the sensory blind gap (the approach distance over which
-    the contact is neither seen nor touched; a user threshold with a labelled default). Its result goes into the
-    part 1 document under 'handoff' with the keys HANDOFF_FIELDS. Not built in this phase."""
-    raise StudyError('The visual-to-tactile handoff (blind gap) arrives in Phase 5.')
+    """Spec §7.15: the handoff part of the study on its own (the same document run() puts under 'handoff'): along
+    each approach (the gripper frame backed off along −approach, solved by IK) the share of each fingertip's contact
+    patch the rig sees against the distance to contact, the tactile pads' coverage of the patch at contact, and the
+    sensory blind gap (module docstring)."""
+    st = settings_of(project)
+    notes: list = []
+    robot, model, hand, cases, cams, qd = _setup(project, st, notes)
+    out = _handoff(project, robot, model, hand, cams, st, qd, cases, ctx)
+    out['notes'] = notes + out['notes']
+    return out
+
+
+def blind_gap_check(project) -> dict:
+    """For validation (checks_chunk.py dexhand.blind_gap_bruteforce): the first approach's gaps from the adaptive
+    scan against a scan of every distance at the refine spacing."""
+    st = settings_of(project)
+    notes: list = []
+    robot, model, hand, cases, cams, qd = _setup(project, st, notes)
+    hc = _handoff_cases(cases, st)[:1]
+    thr = st['min_visible_pct'] / 100.0
+    a = _Approach(project, robot, model, hand, cams, st, qd, hc)
+    rec_a = a.adaptive()[0]
+    b = _Approach(project, robot, model, hand, cams, st, qd, hc)
+    ref = st['handoff_refine_mm'] / 1000.0
+    dense = sorted(set(np.round(np.r_[np.arange(0.0, st['handoff_max_mm'] / 1000.0 + 1e-12, ref),
+                                      st['handoff_max_mm'] / 1000.0], 9)))
+    rec_b = b.scan([dense])[0]
+    out_a, out_b = [], []
+    for j, _f in enumerate(hand.fingers):
+        for rec, out in ((rec_a, out_a), (rec_b, out_b)):
+            ds = [d for d in sorted(rec) if rec[d] is not None]
+            out.append(gap_from_samples(ds, [rec[d][j] >= thr - 1e-12 for d in ds]))
+    err = max(max(abs(x[0] - y[0]), abs(x[2] - y[2])) for x, y in zip(out_a, out_b))
+    return {'case': hc[0]['id'], 'fingers': [f.name for f in hand.fingers], 'adaptive_m': [x[0] for x in out_a],
+            'brute_m': [x[0] for x in out_b], 'adaptive_hidden_m': [x[2] for x in out_a],
+            'brute_hidden_m': [x[2] for x in out_b], 'error_m': float(err), 'refine_m': ref,
+            'evaluations_adaptive': a.evals, 'evaluations_brute': b.evals,
+            'transitions': int(sum(1 for j in range(len(hand.fingers)) for d1, d2 in zip(
+                [d for d in sorted(rec_b) if rec_b[d] is not None][:-1],
+                [d for d in sorted(rec_b) if rec_b[d] is not None][1:])
+                if (rec_b[d1][j] >= thr - 1e-12) != (rec_b[d2][j] >= thr - 1e-12)))}

@@ -8,8 +8,13 @@ grasp self-occlusion page after a run (with its worst-case gallery), the VLA tok
 patch grid, the bandwidth page with a host topology, the cables page, the brackets page with the generated bracket in
 the 3D view, the hand-eye plan and solve pages (a synthetic capture rendered and imported); on the dexhand sample the
 multi-finger occlusion matrix.
+Phases 4, 5 and 8 (p458-*): on the UR5e sample the ground-truth page and its confusion matrix, motion blur, time
+sync, action-chunk latency (its overshoot map and curve); the lighting page and its glare map in the Camera view on
+the UR5e sample with a can and a key light (the lighting checks' scene); on the SO-100 sample teleop dead zones, the
+dataset audit, plan against recording and the silhouette calibration over synthetic campaigns written into out/; on
+the dexhand sample the visual-to-tactile handoff chart.
 
-    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3]
+    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3 | --only phase458]
 """
 import os
 import sys
@@ -184,9 +189,153 @@ def phase3():
     dw.hide()
 
 
-if '--only' in sys.argv and sys.argv[sys.argv.index('--only') + 1] == 'phase3':
+# ---------------------------------------------------------------- Phases 4, 5 and 8: ground truth, timing, data
+def phase458():
+    """p458-*: the new pages of Phases 4, 5 and 8 after a run, with their Camera view overlays."""
+    import time
+
+    from dexvantage.core.robot.samples import sample_project as sp
+    from dexvantage.core.sim import episodes as SE
+    from dexvantage.validation.checks_lighting import lit_sample
+
+    def wait_sid(win, sid, timeout=300.0):
+        t0 = time.time()
+        while time.time() - t0 < timeout:
+            pump(5)
+            if sid in win.ctx.analysis.results and not win.ctx.analysis.busy():
+                return True
+            time.sleep(0.02)
+        return False
+
+    def window(project):
+        pw = MainWindow(project, soft_3d=True, settings=settings)
+        pw.resize(1680, 1000)
+        pw.show()
+        pw.ctx.analysis.wait(5)
+        pw.resizeDocks([pw.docks['inspector'], pw.docks['camview']], [380, 460], Qt.Orientation.Vertical)
+        pw.resizeDocks([pw.docks['inspector']], [430], Qt.Orientation.Horizontal)
+        pw.resizeDocks([pw.docks['bottom']], [470], Qt.Orientation.Vertical)
+        pump()
+        pw.viewport.frame_box(*pw.scene.home_box(pw.viewport))
+        return pw
+
+    def run_page(pw, pid, tag, timeout=600.0):
+        pw.open_page(pid)
+        pump()
+        page = pw.pages[pid]
+        pw.ctx.analysis.results.pop(page.STUDY, None)
+        page.run()
+        t0 = time.time()                         # pages that fingerprint a dataset first start the study a bit later
+        while page.STUDY not in pw.ctx.analysis.results and not pw.ctx.analysis.busy() and time.time() - t0 < 30:
+            pump(5)
+            time.sleep(0.02)
+        ok = wait_sid(pw, page.STUDY, timeout)
+        pump(40)
+        shot(pw, f'p458-{tag}.png' if ok else f'p458-{tag}-NOT-FINISHED.png')
+        return page
+
+    def camview(pw, sensor_name, tag):
+        s = next(s for s in pw.ctx.store.project.variant.sensors if s.name == sensor_name)
+        pw.ctx.store.select(('sensor', s.uid))
+        pump()
+        pw.camview.render_sync()
+        pw.camview.wait(20)
+        pump(60)
+        time.sleep(0.5)                          # page overlays rendered in the background (ground truth, silhouette)
+        pump(60)
+        pw.camview.render_sync()
+        pump(40)
+        shot(pw.docks['camview'], f'p458-camview-{tag}.png')
+
+    def tall(pw, page, widget, name):
+        pw.resizeDocks([pw.docks['bottom']], [900], Qt.Orientation.Vertical)
+        pump()
+        page.body.parentWidget().parentWidget().ensureWidgetVisible(widget)
+        pump(20)
+        shot(page, name)
+        pw.resizeDocks([pw.docks['bottom']], [470], Qt.Orientation.Vertical)
+        pump()
+
+    # the synthetic campaigns the data pages read (made once into out/)
+    data = os.path.join(ROOT, 'out', 'synth_so100')
+    data_w = os.path.join(ROOT, 'out', 'synth_so100w')
+    if not os.path.isdir(data):
+        SE.generate(sp('so100'), data, {'episodes': 4, 'frames': 120, 'size': [320, 240], 'seed': 7,
+                                        'faults': {'mount_slip': {'from_episode': 2}}})
+    if not os.path.isdir(data_w):
+        SE.generate(sp('so100'), data_w, {'episodes': 2, 'frames': 90, 'max_width': 320, 'seed': 3,
+                                          'faults': {**{k: False for k in SE.FAULT_KINDS},
+                                                     'mount_slip': {'from_episode': 1}}})
+
+    pw = window(sp('ur5e'))
+    gt = run_page(pw, 'groundtruth', 'ur5e-groundtruth-page')
+    tall(pw, gt, gt.matrix, 'p458-ur5e-groundtruth-matrix.png')
+    camview(pw, 'Wrist D405', 'groundtruth-wrist')
+    mb = run_page(pw, 'motion_blur', 'ur5e-motion-blur-page')
+    if mb.show_frame():                          # the worst camera's kept frame: its smear vectors in the Camera view
+        pw.camview.render_sync()
+        pw.camview.wait(20)
+        pump(40)
+        shot(pw.docks['camview'], 'p458-camview-motion-blur-frame.png')
+    camview(pw, 'Wrist D405', 'motion-blur-wrist')
+    ts = run_page(pw, 'time_sync', 'ur5e-time-sync-page')
+    ts.show_worst()
+    camview(pw, 'Wrist D405', 'time-sync-wrist')
+    ac = run_page(pw, 'action_chunk', 'ur5e-action-chunk-page')
+    if ac.b_show_map.isEnabled():
+        ac.b_show_map.click()
+        pump(40)
+    pw.viewport.frame_box(*pw.scene.home_box(pw.viewport))
+    shot(pw, 'p458-ur5e-action-chunk-overshoot-map.png')
+    tall(pw, ac, ac.curve, 'p458-ur5e-action-chunk-curve.png')
+    pw.cancel_jobs()
+    pw.hide()
+
+    lw = window(lit_sample())
+    run_page(lw, 'lighting', 'ur5e-lighting-page')
+    camview(lw, 'Overhead D435', 'lighting-overhead')
+    camview(lw, 'Wrist D405', 'lighting-wrist')
+    lw.cancel_jobs()
+    lw.hide()
+
+    sw = window(sp('so100'))
+    tp = run_page(sw, 'teleop', 'so100-teleop-page')
+    tall(sw, tp, tp.zone_list, 'p458-so100-teleop-no-zones.png')
+
+    def scaled(p):                               # a leader mapped at 1.25 × reaches past the follower's joint limits
+        d = p.tasks.teleop_devices[0]
+        p.tasks.teleop_devices[0] = dict(d, mapping=dict(d.get('mapping') or {}, scale=1.25))
+    sw.ctx.store.edit('tasks', scaled, 'Teleop · leader scale 1.25 (screenshot)')
+    run_page(sw, 'teleop', 'so100-teleop-dead-zones')
+    tall(sw, tp, tp.zone_list, 'p458-so100-teleop-zones.png')
+    sw.ctx.store.undo.undo()
+    au = sw.pages['audit']
+    sw.open_page('audit')
+    au._opened({'path': data, 'format': 'lerobot', 'version': 'v3.0', 'episodes': 4})
+    run_page(sw, 'audit', 'so100-audit-page')
+    run_page(sw, 'plan_vs_recording', 'so100-plan-vs-recording-page')
+    camview(sw, 'Third-person camera (sample placement)', 'plan-vs-recording-third-person')
+    si = sw.pages['silhouette']
+    sw.open_page('silhouette')
+    si.choose_dataset(data_w)
+    run_page(sw, 'silhouette', 'so100-silhouette-page')
+    if si.b_preview.isEnabled():
+        si.preview()
+        pump(20)
+    camview(sw, 'Third-person camera (sample placement)', 'silhouette-third-person')
+    sw.cancel_jobs()
+    sw.hide()
+
+    dw = window(sp('dexhand'))
+    dh = run_page(dw, 'dexhand', 'dexhand-page')
+    tall(dw, dh, dh.handoff, 'p458-dexhand-handoff-chart.png')
+    dw.cancel_jobs()
+    dw.hide()
+
+
+if '--only' in sys.argv and sys.argv[sys.argv.index('--only') + 1] in ('phase3', 'phase458'):
     w.hide()
-    phase3()
+    (phase3 if sys.argv[sys.argv.index('--only') + 1] == 'phase3' else phase458)()
     QTimer.singleShot(0, app.quit)
     sys.exit(0)
 
@@ -333,5 +482,6 @@ shot(ew.docks['camview'], 'phase2-camview-empty.png')
 ew.hide()
 
 phase3()
+phase458()
 
 QTimer.singleShot(0, app.quit)

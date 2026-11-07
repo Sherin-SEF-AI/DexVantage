@@ -317,7 +317,10 @@ class AnalysisController(QObject):
             if _closed(e):
                 return
             try:
-                self.failed.emit(sid, f'{type(e).__name__}: {e}\n{traceback.format_exc()}')
+                # every StudyError subclass (DatasetError, PolicyError, SynthError, CalibError, ...) is explained
+                kind = type(e).__name__ if type(e).__name__ in EXPLAINED_ERRORS or not isinstance(
+                    e, jobs.StudyError) else 'StudyError'
+                self.failed.emit(sid, f'{kind}: {e}\n{traceback.format_exc()}')
             except RuntimeError:
                 pass
         finally:

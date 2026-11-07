@@ -1,0 +1,43 @@
+{
+  "id": "elgato-key-light",
+  "kind": "light",
+  "maker": "Elgato",
+  "name": "Key Light",
+  "family": "Key Light",
+  "sources": [
+    {
+      "url": "https://www.elgato.com/us/en/p/key-light",
+      "title": "Elgato Key Light product page (comparison table and Tech specs)",
+      "read": "2026-11-07",
+      "covers": "luminous flux, colour temperature range, panel dimensions, power consumption, mass"
+    }
+  ],
+  "note": "The page states \"2,800 lumens\" (comparison table) and \"2800 Lumens, adjustable\" (Tech specs): the figure is the maximum. Panel 350 x 250 mm (W x H); the page gives its depth as 35 mm in the comparison table and 30 mm in Tech specs (35 mm is entered). The emitting face is taken as the whole front of the panel (an ASSUMPTION: the page does not state the diffuser's size), so the luminance DexVantage derives, flux / (pi x area), is for a Lambertian emitter of that size. CRI: the page gives both \"> 94%\" and \"> 92%\" (not entered). Mass: Tech specs \"Weight 2.86 lb / 1.3 kg\" and the comparison table \"Weight (light only) 2.86 lbs (1,300 g)\" (re-read 2026-11-07; an earlier reading had missed it). Not stated: luminance, beam profile, IR output.",
+  "interface": "Wi-Fi",
+  "power_w": 45.0,
+  "mass_g": 1300.0,
+  "size_mm": [
+    35.0,
+    350.0,
+    250.0
+  ],
+  "light": {
+    "type": "panel",
+    "luminous_flux_lm": 2800.0,
+    "luminance_cd_m2": null,
+    "cct_k": null,
+    "cct_k_range": [
+      2900.0,
+      7000.0
+    ],
+    "emitting_size_m": [
+      0.35,
+      0.25
+    ],
+    "ring_inner_m": null,
+    "beam_deg": null,
+    "ir_irradiance_w_m2": null,
+    "ir_at_m": null,
+    "what": "\"Brightness 2800 Lumens, adjustable\"; \"Color range 2900 - 7000K, adjustable\"; \"13.78 x 9.84 x 1.38 (350 x 250 x 35 mm)\"; \"Up to 45 W\"; \"Weight 2.86 lb / 1.3 kg\""
+  }
+}

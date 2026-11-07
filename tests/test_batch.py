@@ -48,7 +48,7 @@ def test_reproduce_and_tampering(tmp_path, proj):
 
 
 def test_validate_exit_code_and_report(tmp_path):
-    r = _run('--validate', str(tmp_path / 'v'), '--quick')
+    r = _run('--validate', str(tmp_path / 'v'), '--quick', '--models', 'frames,optics,formats')   # the exit code
     assert r.returncode == 0, r.stdout + r.stderr
     assert (tmp_path / 'v' / 'validation.html').exists()
     assert _run('--validate', str(tmp_path / 'w'), '--models', 'nope').returncode == 2

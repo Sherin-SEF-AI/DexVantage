@@ -335,13 +335,15 @@ def test_image_times_and_matching(tmp_path):
         CAP.match_times(times + [('c.png', None)], js2)
 
 
-def test_ros2_and_lerobot_arrive_in_phase_8():
+def test_ros2_and_lerobot_are_read_from_a_dataset():
+    # Phase 8: ROS 2 bags and LeRobot episodes are the 'dataset' source (capture_dataset, tests/test_dataset_links.py)
     from dexvantage.core.calib import capture as CAP
-    for k in ('ros2', 'lerobot'):
-        with pytest.raises(CAP.CaptureError, match='Phase 8'):
-            CAP.check_source(k)
-    CAP.check_source('folder')
-    assert 'Phase 8' in CAP.SOURCE_LABELS['ros2'] and 'Phase 8' in CAP.SOURCE_LABELS['lerobot']
+    for k in ('ros2', 'lerobot', 'dataset'):
+        assert CAP.check_source(k) == 'dataset'
+    assert CAP.check_source('folder') == 'folder'
+    with pytest.raises(CAP.CaptureError, match='Unknown capture source'):
+        CAP.check_source('carrier pigeon')
+    assert 'LeRobot' in CAP.SOURCE_LABELS['dataset'] and 'ROS 2' in CAP.SOURCE_LABELS['dataset']
 
 
 def render_capture(project, rig, poses, folder, joints_path, noise=1.0):

@@ -1,0 +1,39 @@
+{
+  "id": "elgato-ring-light",
+  "kind": "light",
+  "maker": "Elgato",
+  "name": "Ring Light",
+  "family": "Ring Light",
+  "sources": [
+    {
+      "url": "https://www.elgato.com/us/en/p/ring-light",
+      "title": "Elgato Ring Light product page (Tech specs; the page says the product is no longer available)",
+      "read": "2026-11-07",
+      "covers": "luminous flux, colour temperature range, outer and inner diameter, power consumption, mass"
+    }
+  ],
+  "note": "Discontinued (the page says so; SKU 10LAC9901). \"Brightness: 2500 lumens, adjustable\" (the maximum). \"Outer diameter: 43.2 cm / 17 in (Inner diameter: 31 cm / 12.2 in)\": the emitting area is taken as the annulus between them (an ASSUMPTION: the page does not state the diffuser's width). CRI \"> 94%\" (not entered). Not stated: luminance, beam profile, IR output.",
+  "interface": "Wi-Fi",
+  "power_w": 45.0,
+  "mass_g": 1070.0,
+  "size_mm": null,
+  "light": {
+    "type": "ring",
+    "luminous_flux_lm": 2500.0,
+    "luminance_cd_m2": null,
+    "cct_k": null,
+    "cct_k_range": [
+      2900.0,
+      7000.0
+    ],
+    "emitting_size_m": [
+      0.432,
+      0.432
+    ],
+    "ring_inner_m": 0.31,
+    "beam_deg": null,
+    "ir_irradiance_w_m2": null,
+    "ir_at_m": null,
+    "what": "\"Brightness: 2500 lumens, adjustable\"; \"Color range: 2900 - 7000 K, adjustable\"; \"Outer diameter: 43.2 cm / 17 in (Inner diameter: 31 cm / 12.2 in)\"; \"Power consumption: up to 45 W\"; \"Weight: 1070 g\""
+  }
+}

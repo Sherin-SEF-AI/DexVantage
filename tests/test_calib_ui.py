@@ -127,10 +127,10 @@ def test_solve_page_imports_solves_applies_and_coaches(app, ur5e, tmp_path):
     page = win.pages['handeye_solve']
     win.open_page('handeye_solve')
     pump(app, 0.05)
-    # the sources that are not here yet say so
-    page.source.setCurrentIndex(page.source.findData('ros2'))
+    # a recording is read with its own command (tests/test_dataset_links.py), not by Import
+    page.source.setCurrentIndex(page.source.findData('dataset'))
     assert page.import_capture(str(tmp_path / 'img'), str(tmp_path / 'joints.csv')) is None
-    assert 'Phase 8' in page.import_note.text()
+    assert 'From a LeRobot dataset or ROS 2 bag' in page.import_note.text()
     page.source.setCurrentIndex(page.source.findData('folder'))
     sid = page.import_capture(str(tmp_path / 'img'), str(tmp_path / 'joints.csv'))
     assert sid and RC.find_session(p, sid)['source']['detected'] == 8

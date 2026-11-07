@@ -3,7 +3,8 @@
     sample_project('so100')    LeRobot SO-100 arm (MuJoCo Menagerie trs_so_arm100): a wrist camera on the gripper and
                                a third-person camera on a tripod, a tabletop task volume
     sample_project('ur5e')     UR5e with a Robotiq 2F-85 on its flange: a wrist depth camera ("Wrist D405") and an
-                               overhead one ("Overhead D435"), a tabletop task volume
+                               overhead one ("Overhead D435"), a tabletop task volume and a scripted pick trajectory
+                               (a sample motion for the motion blur and time sync studies)
     sample_project('dexhand')  UR5e with the right Shadow Hand on its flange: a palm micro camera, an angled dorsal
                                wrist camera and a head camera (core/robot/dexhand_sample.py), for the multi-finger
                                occlusion study (spec §7.14)
@@ -200,6 +201,16 @@ def _so100() -> Project:
     # entry); top-down pinches because the five-joint arm cannot hold most side grasps)
     _add_sample_grasps(p, 'so100', ('top_down',), 100, 'Top-down pinches over the tabletop (sample)')
     p.policies.append(Policy(name='SmolVLA (sample)', library_id='smolvla-base'))
+    # the kit's leader arm (core/studies/teleop.py): an SO-100 of the same joints through the wrist, mapped joint to
+    # joint (LeRobot's SO-100 guide, read 2026-11-07); its comfortable joint share is the study's labelled default
+    p.tasks.teleop_devices.append({
+        'uid': new_uid(), 'name': 'SO-100 leader arm (sample)', 'kind': 'leader_arm', 'follower_uid': robot.uid,
+        'leader': {'robot_uid': robot.uid},
+        'mapping': {'kind': 'joint', 'scale': 1.0, 'offset': Pose().to_dict(), 'joint_map': {}},
+        'volume': None,
+        'source': {'leader': 'LeRobot SO-100 guide, https://huggingface.co/docs/lerobot/so100 (read 2026-11-07): the '
+                             'leader arm repeats the follower\'s assembly steps 1-23 and both arms are calibrated to '
+                             'the same joint positions, so the leader is the follower\'s own model, joint to joint'}})
     p.notes = (f'Sample (spec §14.2): the LeRobot SO-100 arm from MuJoCo Menagerie trs_so_arm100 (Apache-2.0). '
                f'{SAMPLE_NOTE} The cameras have no library device: no maker in the library states a camera for '
                'the SO-100, so both use the labelled default camera until you choose one. The SO-101 is in '
@@ -242,12 +253,49 @@ def _ur5e() -> Project:
     # a grasp set and a policy, so the grasp and VLA token studies run as the sample opens (sample choices)
     _add_sample_grasps(p, 'ur5e', ('top_down', 'side', 'angled'), 200, 'Tabletop grasps (sample)')
     p.policies.append(Policy(name='π0 (sample)', library_id='pi0'))
+    p.tasks.trajectories.append(_ur5e_pick(robot.uid, model))
     p.notes = ('Sample (spec §14.3): the UR5e and Robotiq 2F-85 from MuJoCo Menagerie (BSD-3-Clause and '
                f'BSD-2-Clause). {SAMPLE_NOTE} "Wrist D405" and "Overhead D435" name the intended Intel RealSense '
                'models; their lenses, depth range and minimum Z come from the library entries (Phase 2), read from '
                'Intel\'s D400 series datasheet; the entries\' notes say what the datasheet does not state.')
     p.add_log('sample', 'Opened the UR5e + Robotiq 2F-85 sample')
     return p
+
+
+def _ur5e_pick(robot_uid: str, model) -> dict:
+    """A short scripted pick for the UR5e sample (a sample choice, not a recorded motion), so the motion blur and
+    time sync studies have a motion to analyse. The gripper keeps its home orientation; its TCP (between the pads)
+    goes from home down to 0.17 m above the base plane over 1 s, the 2F-85 closes (spring links 0 to 0.5 rad over
+    0.5 s), the arm lifts it to 0.30 m (1 s) and carries it 0.15 m along −y and 0.15 m along −x (1.5 s). Each waypoint
+    is solved by IK from the one before (core/robot/ik.py, nearest to it; its self-collision rule is off because the
+    2F-85's own linkage links already touch at home); the trajectory is linear in the joints between waypoints
+    (core/robot/trajectory.py), so the TCP path bows a little between them."""
+    from .ik import solve
+    names = [str(n) for n in model.joint_names]      # (this module rebinds list: see the end)
+    J = {n: i for i, n in enumerate(names)}
+    link = 'gripper_base'
+    tcp = np.eye(4)
+    tcp[:3, 3] = _site_in_body(model, 'gripper_pinch', link)[:3]
+    T0 = model.link_pose(model.home, link) @ tcp
+    p0 = T0[:3, 3]
+    goals = [None, (p0[0], p0[1], 0.17), None, None, (p0[0], p0[1], 0.30), (p0[0] - 0.15, p0[1] - 0.15, 0.30)]
+    t = [0.0, 1.0, 1.5, 2.0, 3.0, 4.5]
+    grip = [0.0, 0.0, 0.0, 0.5, 0.5, 0.5]
+    rows, q = [], np.array(model.home, float)
+    for goal, g in zip(goals, grip):
+        if goal is not None:
+            T = T0.copy()
+            T[:3, 3] = goal
+            r = solve(model, link, T, q0=q, tcp=tcp, rule='nearest_q0', rng=0, collision=False)
+            if not r.ok:
+                raise SampleError(f'The UR5e sample\'s scripted pick could not be solved ({r.reason}).')
+            q = np.array(r.q, float)
+        q = q.copy()
+        for side in ('right', 'left'):
+            q[J[f'gripper_{side}_spring_link_joint']] = g
+        rows.append([float(v) for v in model.clip(q)])
+    return {'uid': new_uid(), 'name': 'Scripted pick (sample)', 'robot_uid': robot_uid, 'joints': names, 't': t,
+            'q': rows}
 
 
 def _dexhand() -> Project:

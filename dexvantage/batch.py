@@ -18,6 +18,9 @@ import os
 import sys
 
 EXIT_OK, EXIT_FAIL, EXIT_ERROR = 0, 1, 2
+DATASET_STUDIES = ('audit', 'plan_vs_recording', 'silhouette_calib')     # studies that read --dataset
+# the flag names of the specification (§11) where a study's own flag differs: both work
+BATCH_ALIASES = {'teleop': ('teleop-overlap',), 'time_sync': ('sync',)}
 
 
 def add_arguments(ap):
@@ -29,12 +32,23 @@ def add_arguments(ap):
     g.add_argument('--reproduce', metavar='RESULT.json', help='re-run the study that wrote RESULT.json and compare')
     g.add_argument('--tolerance', action='append', metavar='[PATTERN=]VALUE[%]',
                    help='with --reproduce: allowed differences, e.g. 1e-9 or voxels*=0')
+    g.add_argument('--synth-episodes', metavar='OUT_DIR', help='generate synthetic LeRobot episodes with known faults '
+                   'and their ground truth into a new or empty folder (core/sim/episodes.py)')
+    g.add_argument('--synth-settings', metavar='JSON', help='with --synth-episodes: settings as JSON text or a .json '
+                   'file, e.g. {"episodes": 2, "version": "v2.1"}')
+    g.add_argument('--dataset', metavar='PATH', help='with --audit, --plan-vs-recording or --silhouette-calib: the '
+                   'recorded dataset (a LeRobot folder, an RLDS folder or a ROS 2 bag)')
+    g.add_argument('--audit-html', metavar='OUT.html', help='with --audit: also write the audit report as a standalone '
+                   'HTML page (core/audit/report.py)')
+    g.add_argument('--fiftyone', metavar='OUT_DIR', help='with --audit: also export the per-episode audit scores as a '
+                   'FiftyOne dataset (sample tags and fields; a new or empty folder)')
     from .core import jobs
     jobs.load_studies()
     s = ap.add_argument_group('studies (each writes its result as JSON with provenance; "-" for stdout)')
     for info in jobs.STUDIES.values():
         if info.batch:
-            s.add_argument(f'--{info.batch}', metavar='OUT.json', dest=f'study__{info.id}', help=info.title)
+            s.add_argument(f'--{info.batch}', *[f'--{a}' for a in BATCH_ALIASES.get(info.id, ())], metavar='OUT.json',
+                           dest=f'study__{info.id}', help=info.title)
 
 
 def _study_flags(args) -> list:
@@ -42,7 +56,9 @@ def _study_flags(args) -> list:
 
 
 def wanted(args) -> bool:
-    return bool(args.analyse or args.validate or args.reproduce or _study_flags(args))
+    return bool(args.analyse or args.validate or args.reproduce or _study_flags(args)
+                or getattr(args, 'synth_episodes', None) or getattr(args, 'audit_html', None)
+                or getattr(args, 'fiftyone', None) or getattr(args, 'dataset', None))
 
 
 def _load(args):
@@ -60,6 +76,23 @@ def _load(args):
 def _err(text) -> int:
     print(f'dexvantage: {text}', file=sys.stderr)
     return EXIT_ERROR
+
+
+def _unexpected(title: str, e: Exception) -> int:
+    """An error no study explains: one sentence on stderr, the traceback in a file (or on stderr with
+    DEXVANTAGE_DEBUG=1)."""
+    import tempfile
+    import traceback
+    first = (str(e).splitlines() or [''])[0][:300]
+    if os.environ.get('DEXVANTAGE_DEBUG'):
+        traceback.print_exc()
+        where = 'above'
+    else:
+        fd, where = tempfile.mkstemp(prefix='dexvantage-error-', suffix='.txt')
+        with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+            traceback.print_exc(file=fh)
+    return _err(f'{title} stopped with an unexpected error ({type(e).__name__}: {first}). This is a bug or an input '
+                f'DexVantage does not expect; the details are in {where}.')
 
 
 def _write(doc, dest):
@@ -98,6 +131,11 @@ def run(args) -> int:
         if project is not None:
             PV.note_project(project)
         code = EXIT_OK
+        if (getattr(args, 'audit_html', None) or getattr(args, 'fiftyone', None)) and \
+                'audit' not in [sid for sid, _ in _study_flags(args)]:
+            return _err('--audit-html and --fiftyone go with --audit OUT.json (and --dataset PATH)')
+        if getattr(args, 'dataset', None) and not any(sid in DATASET_STUDIES for sid, _ in _study_flags(args)):
+            return _err('--dataset goes with --audit, --plan-vs-recording or --silhouette-calib OUT.json')
         if args.analyse:
             if project is None:
                 return _err('--analyse needs a project file')
@@ -109,18 +147,39 @@ def run(args) -> int:
                       f'{sum(v["voxels_dense"] for v in vols):,} voxels at {doc["voxel_mm"]:g} mm → {args.analyse}')
         for sid, dest in _study_flags(args):
             from .core import jobs
-            if project is None:
+            snap = project.snapshot() if project is not None else None
+            if sid in DATASET_STUDIES and getattr(args, 'dataset', None):
+                from .core.project import blank_project
+                from .core.studies.audit import use_dataset
+                snap = snap if snap is not None else (blank_project('No project') if sid == 'audit' else None)
+                if snap is not None:
+                    use_dataset(snap, args.dataset, sid)
+            if snap is None:
                 return _err(f'--{jobs.STUDIES[sid].batch} needs a project file')
             try:
-                doc = jobs.run_study(sid, project.snapshot())
+                doc = jobs.run_study(sid, snap)
             except jobs.StudyError as e:
                 return _err(str(e))
+            except Exception as e:                      # noqa: BLE001 — a sentence here, the traceback in a file
+                return _unexpected(jobs.STUDIES[sid].title, e)
             doc = {k: v for k, v in doc.items() if k != 'cached'}
             option = jobs.STUDIES[sid].batch.replace('-', '_')
-            doc = PV.stamp(doc, project, output=PV.batch_output(doc, dest, option=option))
+            doc = PV.stamp(doc, project if project is not None else snap,
+                           output=PV.batch_output(doc, dest, option=option))
             _write(doc, dest)
             if dest != '-':
                 print(f'{jobs.STUDIES[sid].title} → {dest}')
+            if sid == 'audit':
+                code = max(code, _audit_exports(args, doc, project if project is not None else snap, snap))
+        if getattr(args, 'synth_episodes', None):
+            from .core import jobs
+            from .core.sim.episodes import batch_generate
+            if project is None:
+                return _err('--synth-episodes needs a project file (or --sample)')
+            try:
+                print(batch_generate(project, args.synth_episodes, args.synth_settings))
+            except jobs.StudyError as e:
+                return _err(str(e))
         if args.validate:
             from . import validation as VA
             from .validation.suite import qt_app
@@ -144,6 +203,29 @@ def run(args) -> int:
     finally:
         if ctx is not None:
             PV.end_batch()
+
+
+def _audit_exports(args, doc, project, snap) -> int:
+    """--audit-html and --fiftyone after --audit: the HTML report and the FiftyOne export of the audit just run."""
+    from .core import jobs
+    from .core.audit import report as RP
+    from .core.studies.audit import dataset_path
+    if getattr(args, 'audit_html', None):
+        try:
+            RP.write_html(doc, project, args.audit_html)
+        except OSError as e:
+            return _err(f'could not write {args.audit_html}: {e.strerror or e}. Choose a folder that exists and that '
+                        'you can write to.')
+        print(f'Dataset audit report → {args.audit_html}')
+    if getattr(args, 'fiftyone', None):
+        try:
+            out = RP.export_fiftyone(doc, dataset_path(snap), args.fiftyone, snap)
+        except jobs.StudyError as e:
+            return _err(str(e))
+        except OSError as e:
+            return _err(f'could not write {args.fiftyone}: {e.strerror or e}.')
+        print(f'FiftyOne export ({out.get("samples", "?")} samples) → {args.fiftyone}')
+    return EXIT_OK
 
 
 def _reproduce(args, project) -> int:

@@ -32,7 +32,16 @@
           "upstream": {"type": "string", "description": "the controller or hub uid it plugs into"}}}},
         "links": {"type": "array", "items": {"type": "object", "required": ["sensor_uid", "via"], "properties": {
           "sensor_uid": {"type": "string"}, "stream_ids": {"type": "array", "items": {"type": "string"}, "description": "imager|WxH|fps|format; empty = the default streams"},
-          "via": {"type": "string", "description": "the controller or hub uid"}, "cable_uid": {"type": "string"}}}}
+          "via": {"type": "string", "description": "the controller or hub uid"}, "cable_uid": {"type": "string"}}}},
+        "sync": {"type": "object", "description": "Time sync (core/studies/time_sync.py, docs/models/time_sync.md): the rig's clocks, with the figures their sources state, and each stream's clock and trigger.",
+          "properties": {
+            "clocks": {"type": "array", "items": {"type": "object", "required": ["uid", "name", "kind"], "properties": {
+              "uid": {"type": "string"}, "name": {"type": "string"}, "kind": {"enum": ["camera_hw", "host", "ptp", "ntp", "robot"]},
+              "offset_s": {"$ref": "#/$defs/sourced_number"}, "jitter_s": {"$ref": "#/$defs/sourced_number"}, "drift_ppm": {"$ref": "#/$defs/sourced_number"}}}},
+            "streams": {"type": "object", "description": "sensor uid or 'joint_states' -> its clock and trigger",
+              "additionalProperties": {"type": "object", "properties": {
+                "clock": {"type": "string", "description": "a clock uid; empty: stamped on arrival by the host"},
+                "trigger": {"enum": ["free", "hardware", "sync_cable"]}}}}}}
       }},
     "cables": {"type": "array", "description": "Cables across the robot's joints (core/cables.py, docs/models/cables.md). Lengths and radii in metres; points in the link frame.",
       "items": {"type": "object", "required": ["uid", "name", "attachments"], "properties": {
@@ -57,7 +66,10 @@
         "cameras": {"type": "array", "items": {"type": "string"}, "description": "sensor uids; empty = every camera and depth sensor of the rig"},
         "overrides": {"type": "object", "description": "field -> the user's figure and where it comes from",
           "additionalProperties": {"type": "object", "required": ["value", "source"], "properties": {
-            "value": {}, "source": {"type": "string", "minLength": 1, "description": "e.g. measured by the user ..."}}}}}}},
+            "value": {}, "source": {"type": "string", "minLength": 1, "description": "e.g. measured by the user ..."}}}},
+        "recommendations": {"type": "object", "description": "training-config recommendations a study stored (core/studies/action_chunk_sync.py: delay_offset_s, temporal_ensemble_m), each with its value and where it comes from",
+          "additionalProperties": {"type": "object", "required": ["value", "source"], "properties": {
+            "value": {}, "source": {"type": "string"}}}}}}},
     "calibration": {"type": "object", "description": "Hand-eye calibration (core/calib/records.py, docs/models/handeye.md): boards with their placement, and capture sessions (planned or recorded poses, detections and the solve). Units: metres, radians, pixels (OpenCV pixel centres).",
       "properties": {
         "boards": {"type": "array", "items": {"type": "object", "required": ["uid", "board", "mount"], "properties": {
@@ -77,12 +89,22 @@
             "note": {"type": "string"}}}},
           "result": {"type": "object", "description": "the solve (schema dexvantage.handeye/1) and whether it was applied"}}}}
       }},
+    "data": {"type": "object", "description": "Recorded datasets the project audits and the audit's requirements (core/audit, docs/models/audit.md). A dataset's path is the one the user chose; requirements are the user's values over the labelled defaults of core/audit/episode.py REQUIREMENTS and SETTINGS.",
+      "properties": {
+        "datasets": {"type": "array", "items": {"type": "object", "required": ["uid", "path"], "properties": {
+          "uid": {"type": "string"}, "name": {"type": "string"}, "path": {"type": "string"},
+          "format": {"type": "string", "description": "lerobot | rlds | mcap | rosbag2-sqlite"}, "version": {"type": "string"},
+          "episodes": {"type": ["integer", "null"], "minimum": 0},
+          "cameras": {"type": "object", "additionalProperties": {"type": "string"}, "description": "dataset camera key -> sensor uid (overrides matching by name)"},
+          "exclude": {"type": "array", "items": {"type": "integer", "minimum": 0}, "description": "episodes the audit's Apply marked to drop or re-record"}}}},
+        "requirements": {"type": "object", "description": "requirement or detection setting id -> value (a number, or [low, high] for action_lag_rows)"}}},
     "log": {"type": "array", "items": {"type": "object", "properties": {"t": {"type": "string"}, "kind": {"type": "string"}, "text": {"type": "string"}}, "required": ["t", "kind", "text"]}},
     "meshes": {"type": "array", "items": {"type": "string"}, "description": "keys of the arrays in meshes.npz"},
     "sources": {"type": "array", "items": {"type": "string"}, "description": "file names under sources/"}
   },
   "$defs": {
     "uid": {"type": "string", "pattern": "^[0-9a-f]{10}$"},
+    "sourced_number": {"description": "a figure and where it comes from; null: not stated", "oneOf": [{"type": "null"}, {"type": "object", "required": ["value", "source"], "properties": {"value": {"type": "number"}, "source": {"type": "string"}}}]},
     "vec3": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
     "quat": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4, "description": "(x, y, z, w), unit length"},
     "pose": {

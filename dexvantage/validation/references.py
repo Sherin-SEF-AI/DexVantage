@@ -80,7 +80,8 @@ REFERENCES = {
     'miyamoto1964': 'K. Miyamoto, "Fish eye lens", Journal of the Optical Society of America 54(8), 1060–1061, 1964.',
     'ray2002': 'S. F. Ray, Applied Photographic Optics, 3rd ed., Focal Press, 2002 (depth of field and hyperfocal '
                'distance of a thin lens).',
-    'hecht2017': 'E. Hecht, Optics, 5th ed., Pearson, 2017 (the Gaussian thin-lens equation).',
+    'hecht2017': 'E. Hecht, Optics, 5th ed., Pearson, 2017 (the Gaussian thin-lens equation; the Fresnel equations, '
+                 '§4.6; Malus\'s law, §8.2).',
     # depth validity (checks_depth.py)
     'gallup2008': 'D. Gallup, J.-M. Frahm, P. Mordohai and M. Pollefeys, "Variable baseline/resolution stereo", '
                   'IEEE CVPR 2008 (stereo depth error growing as z² / (b f)).',
@@ -185,6 +186,158 @@ REFERENCES = {
                  '1979 (the percentile bootstrap interval).',
     'wilson1927': 'E. B. Wilson, "Probable inference, the law of succession, and statistical inference", Journal of '
                   'the American Statistical Association 22(158), 209–212, 1927 (the score interval of a proportion).',
+    # LeRobot datasets (checks_formats.py formats.lerobot_roundtrip)
+    'lerobot_dataset_format': 'Hugging Face, LeRobot dataset format: v3.0 from src/lerobot/datasets/{utils, '
+                              'dataset_metadata, dataset_writer, io_utils, compute_stats, video_utils}.py, '
+                              'src/lerobot/scripts/convert_dataset_v21_to_v30.py and docs/source/'
+                              'lerobot-dataset-v3.mdx at commit d490e472a5d1a207cfe0255caaaf74b6d66e4656; v2.1 from '
+                              'the same files at tag v0.3.3 (commit b883328e6c95681ca90a18b102e4ae5e1f91e2bf), '
+                              'https://github.com/huggingface/lerobot, read 2026-11-07.',
+    'apache_parquet': 'Apache Parquet file format, https://parquet.apache.org/docs/file-format/ (read here through '
+                      'pyarrow.parquet, https://arrow.apache.org/docs/python/parquet.html).',
+    'ffmpeg_cli': 'FFmpeg command-line tools ffmpeg and ffprobe (rawvideo rgb24 output, frame pts_time), '
+                  'https://ffmpeg.org/ffmpeg.html and https://ffmpeg.org/ffprobe.html.',
+    # ROS 2 bags and RLDS (checks_formats.py, formats_bags.py; core/rosbag.py, core/datasets/bag.py and rlds.py)
+    'mcap_spec': 'Foxglove, MCAP file format specification (records, chunks, message indexes, summary, CRC-32 fields), '
+                 'https://mcap.dev/spec, read 2026-11-07.',
+    'mcap_python': 'Foxglove, mcap Python package (mcap.reader.make_reader with validate_crcs), MIT licence, '
+                   'https://github.com/foxglove/mcap/tree/main/python/mcap, version 1.6.0 used 2026-11-07.',
+    'rosbag2_mcap': 'ROS 2 rosbag2 storage plugins rosbag2_storage_mcap (profile ros2, ros2msg schemas, cdr messages) '
+                    'and rosbag2_storage_sqlite3 (topics and messages tables), https://github.com/ros2/rosbag2.',
+    'omg_xtypes_cdr': 'Object Management Group, DDS-XTypes 1.3, section 7.4 (XCDR1 "plain CDR" serialisation: '
+                      'encapsulation header, alignment of primitives to their size), '
+                      'https://www.omg.org/spec/DDS-XTypes/1.3.',
+    'rfc3720': 'J. Satran et al., RFC 3720, Internet Small Computer Systems Interface (iSCSI), April 2004, appendix '
+               'B.4 CRC examples (CRC32C test vectors), https://www.rfc-editor.org/rfc/rfc3720.txt, read 2026-11-07.',
+    'crc_catalogue': 'G. Cook, Catalogue of parametrised CRC algorithms, CRC-32/ISCSI (CRC-32C, Castagnoli): poly '
+                     '0x1edc6f41, init and xorout 0xffffffff, reflected, check 0xe3069283, '
+                     'https://reveng.sourceforge.io/crc-catalogue/17plus.htm, read 2026-11-07.',
+    'tfrecord_format': 'TensorFlow TFRecord format: uint64 length, uint32 masked CRC-32C of the length, data, uint32 '
+                       'masked CRC-32C of the data; mask = rotate right 15 + 0xa282ead8 (xla/tsl/lib/io/'
+                       'record_writer.h and xla/tsl/lib/hash/crc32c.h, https://github.com/openxla/xla; '
+                       'https://www.tensorflow.org/tutorials/load_data/tfrecord), read 2026-11-07.',
+    'tf_example_proto': 'TensorFlow tensorflow/core/example/example.proto and feature.proto (Example, '
+                        'SequenceExample, Features, Feature, BytesList / FloatList / Int64List), '
+                        'https://github.com/tensorflow/tensorflow, read 2026-11-07.',
+    'protobuf_encoding': 'Protocol Buffers encoding guide (varints, wire types, packed repeated fields, maps), '
+                         'https://protobuf.dev/programming-guides/encoding/, read 2026-11-07.',
+    'tfds_serializer': 'TensorFlow Datasets tensorflow_datasets/core/example_serializer.py and features/ '
+                       '(flattened feature names, stacked sequences, Tensor encodings none / bytes / zlib, float32 '
+                       'images bitcast to 4-channel PNG), https://github.com/tensorflow/datasets, read 2026-11-07.',
+    'rlds2021': 'S. Ramos et al., "RLDS: an ecosystem to generate, share and use datasets in reinforcement learning", '
+                'arXiv:2111.02767, 2021; dataset format in https://github.com/google-research/rlds (README), read '
+                '2026-11-07.',
+    'lerobot_so100': 'Hugging Face, LeRobot documentation, "SO-100" (the leader arm is built from the follower\'s '
+                     'parts through the wrist and both are calibrated to the same joint positions), '
+                     'https://huggingface.co/docs/lerobot/so100, read 2026-11-07.',
+    'gello2023': 'P. Wu, Y. Shentu, Z. Yi, X. Lin and P. Abbeel, "GELLO: A General, Low-Cost, and Intuitive '
+                 'Teleoperation Framework for Robot Manipulators", arXiv:2309.13037, 2023.',
+    # action-chunk latency (checks_chunk.py)
+    'zhao2023_act': 'T. Z. Zhao, V. Kumar, S. Levine and C. Finn, "Learning fine-grained bimanual manipulation with '
+                    'low-cost hardware" (ACT, temporal ensembling w_i = exp(-m i)), RSS 2023, '
+                    'https://arxiv.org/abs/2304.13705.',
+    'act_code': 'ACT official code, imitate_episodes.py, temporal_agg (all_time_actions rows by issue step, '
+                'exp_weights = np.exp(-k * np.arange(n)), k = 0.01: row 0, the oldest chunk, weighs most), '
+                'https://github.com/tonyzhaozh/act/blob/742c753c0d4a5d87076c8f69e5628c79a8cc5488/imitate_episodes.py, '
+                'read 2026-11-07.',
+    'lerobot_act_ensembler': 'Hugging Face, LeRobot, src/lerobot/policies/act/modeling_act.py ACTTemporalEnsembler '
+                             '("w_0 is the oldest action"), https://github.com/huggingface/lerobot/blob/'
+                             'd490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies/act/modeling_act.py, '
+                             'read 2026-11-07.',
+    # lighting, glare and IR (checks_lighting.py, core/materials.py, core/lights.py, core/studies/lighting.py)
+    'walter2007': 'B. Walter, S. R. Marschner, H. Li and K. E. Torrance, "Microfacet models for refraction through '
+                  'rough surfaces", Eurographics Symposium on Rendering 2007, 195–206 (the GGX distribution, eq. 33; '
+                  'Smith G1, eq. 34; the microfacet BRDF, eq. 20; sampling, eqs. 35–36).',
+    'trowbridge1975': 'T. S. Trowbridge and K. P. Reitz, "Average irregularity representation of a rough surface for '
+                      'ray reflection", Journal of the Optical Society of America 65(5), 531–536, 1975.',
+    'smith1967': 'B. Smith, "Geometrical shadowing of a random rough surface", IEEE Transactions on Antennas and '
+                 'Propagation 15(5), 668–671, 1967.',
+    'schlick1994': 'C. Schlick, "An inexpensive BRDF model for physically-based rendering", Computer Graphics Forum '
+                   '13(3), 233–246, 1994 (the Fresnel approximation, eq. 15).',
+    'ashikhmin2000': 'M. Ashikhmin and P. Shirley, "An anisotropic Phong BRDF model", Journal of Graphics Tools 5(2), '
+                     '25–32, 2000 (the energy-coupled diffuse term, eq. 5).',
+    'heitz2014': 'E. Heitz, "Understanding the masking-shadowing function in microfacet-based BRDFs", Journal of '
+                 'Computer Graphics Techniques 3(2), 48–107, 2014 (the weak white furnace test).',
+    'veach1997': 'E. Veach, Robust Monte Carlo Methods for Light Transport Simulation, PhD thesis, Stanford '
+                 'University, 1997 (multiple importance sampling, chapter 9).',
+    'matusik2003': 'W. Matusik, H. Pfister, M. Brand and L. McMillan, "A data-driven reflectance model", ACM '
+                   'Transactions on Graphics 22(3), 759–769, 2003 (the MERL BRDF database).',
+    'lowe2012': 'J. Löw, J. Kronander, A. Ynnerman and J. Unger, "BRDF models for accurate and efficient rendering of '
+                'glossy surfaces", ACM Transactions on Graphics 31(1), 9, 2012 (microfacet fits to MERL).',
+    'sultanova2009': 'N. Sultanova, S. Kasarova and I. Nikolov, "Dispersion properties of optical polymers", Acta '
+                     'Physica Polonica A 116, 585–587, 2009 (PMMA; via the refractiveindex.info database, CC0, read '
+                     '2026-11-07).',
+    'schott_bk7': 'SCHOTT optical glass catalogue 2017-01-20b, N-BK7 Sellmeier coefficients (via the '
+                  'refractiveindex.info database, CC0, read 2026-11-07).',
+    'mcpeak2015': 'K. M. McPeak et al., "Plasmonic films can easily be better: rules and recipes", ACS Photonics 2, '
+                  '326–333, 2015 (aluminium n, k; via the refractiveindex.info database, CC0, read 2026-11-07).',
+    'mcluney2014': 'W. R. McCluney, Introduction to Radiometry and Photometry, 2nd ed., Artech House, 2014 (the '
+                   'inverse-square law, Lambertian sources).',
+    'howell_catalog': 'J. R. Howell, A Catalog of Radiation Heat Transfer Configuration Factors, configuration B-3 '
+                      '(plane element parallel to a rectangle, its normal through a corner), '
+                      'http://www.thermalradiation.net/indexCat.html.',
+    'iso12232': 'ISO 12232, Photography — Digital still cameras — Determination of exposure index, ISO speed '
+                'ratings, standard output sensitivity and recommended exposure index (saturation-based speed '
+                '78 lx·s / H_sat: 18 % grey at 18 %/√2 of saturation), as described in Wikipedia, "Film speed", read '
+                '2026-11-07.',
+    'intel_d400_projector': 'RealSense Product Family D400 Series Datasheet, document 337029-017, March 2026, Tables '
+                            '3-16 and 3-17 (projector optical power 360 mW average, 850 nm), read 2026-11-07.',
+    'williams1978': 'L. Williams, "Casting curved shadows on curved surfaces", SIGGRAPH \'78, Computer Graphics 12(3), '
+                    '270–274, 1978 (shadow maps and their depth bias).',
+    'scipy_quad': 'SciPy, scipy.integrate.quad (adaptive quadrature, QUADPACK), '
+                  'https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.quad.html.',
+    # motion blur and time sync (checks_blur.py, checks_sync.py)
+    'liang2008': 'C.-K. Liang, L.-W. Chang and H. H. Chen, "Analysis and compensation of rolling shutter effect", '
+                 'IEEE Transactions on Image Processing 17(8), 1323–1330, 2008.',
+    'ms_usb_isoch': 'Microsoft, "How to transfer data to USB isochronous endpoints", Windows driver documentation, '
+                    '2024-01-17: "For high speed and SuperSpeed, the bus interval is a microframe. The length of a '
+                    'microframe is 125 microseconds", https://learn.microsoft.com/windows-hardware/drivers/usbcon/'
+                    'transfer-data-to-isochronous-endpoints (read 2026-11-07).',
+    # MuJoCo ground truth (checks_groundtruth.py)
+    'mujoco_camera_317': 'MuJoCo XML reference at tag 3.17.0 (the installed version), body/camera: fovy, resolution, '
+                         'sensorsize ("When specified, all intrinsic attributes become active and fovy is ignored"), '
+                         'focal / focalpixel, principal / principalpixel ("Offset of the principal point ... from '
+                         'the image center"), and visual/map znear, zfar; doc/XMLreference.rst of '
+                         'https://github.com/google-deepmind/mujoco/blob/3.17.0/doc/XMLreference.rst, read '
+                         '2026-11-07.',
+    'opencv_remap': 'OpenCV imgproc, cv2.remap (dst(x, y) = src(map_x(x, y), map_y(x, y)), nearest and bilinear '
+                    'interpolation), https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html.',
+    # the dataset auditor (checks_audit.py, core/audit)
+    'knapp_carter1976': 'C. H. Knapp and G. C. Carter, "The generalized correlation method for estimation of time '
+                        'delay", IEEE Transactions on Acoustics, Speech, and Signal Processing 24(4), 320–327, 1976.',
+    'spearman1904': 'C. Spearman, "The proof and measurement of association between two things", The American '
+                    'Journal of Psychology 15(1), 72–101, 1904 (the rank correlation).',
+    'kunsch1989': 'H. R. Künsch, "The jackknife and the bootstrap for general stationary observations", The Annals of '
+                  'Statistics 17(3), 1217–1241, 1989 (the moving-block bootstrap).',
+    'kass_raftery1995': 'R. E. Kass and A. E. Raftery, "Bayes factors", Journal of the American Statistical '
+                        'Association 90(430), 773–795, 1995 (BIC differences over 6: strong evidence).',
+    'lucas_kanade1981': 'B. D. Lucas and T. Kanade, "An iterative image registration technique with an application '
+                        'to stereo vision", IJCAI 1981, 674–679.',
+    'baker_matthews2004': 'S. Baker and I. Matthews, "Lucas-Kanade 20 years on: a unifying framework", International '
+                          'Journal of Computer Vision 56(3), 221–255, 2004.',
+    'pech_pacheco2000': 'J. L. Pech-Pacheco, G. Cristóbal, J. Chamorro-Martínez and J. Fernández-Valdivia, '
+                        '"Diatom autofocusing in brightfield microscopy: a comparative study", ICPR 2000, vol. 3, '
+                        '314–317 (the variance of the Laplacian as a focus measure).',
+    'huber1964': 'P. J. Huber, "Robust estimation of a location parameter", The Annals of Mathematical Statistics '
+                 '35(1), 73–101, 1964.',
+    'fiftyone_format': 'Voxel51, FiftyOne, fiftyone/utils/data/importers.py (FiftyOneDatasetImporter, '
+                       'LegacyFiftyOneDatasetImporter) and fiftyone/core/sample.py (Sample.from_dict), '
+                       'https://github.com/voxel51/fiftyone (branch develop), and the user guide "Exporting FiftyOne '
+                       'Datasets", https://docs.voxel51.com/user_guide/export_datasets.html, read 2026-11-07.',
+    # targetless link-silhouette calibration (checks_render_calib.py, core/calib/render_calib.py)
+    'barrow1977': 'H. G. Barrow, J. M. Tenenbaum, R. C. Bolles and H. C. Wolf, "Parametric correspondence and chamfer '
+                  'matching: two new techniques for image matching", Proc. 5th IJCAI, 659–663, 1977.',
+    'borgefors1988': 'G. Borgefors, "Hierarchical chamfer matching: a parametric edge matching algorithm", IEEE '
+                     'Transactions on Pattern Analysis and Machine Intelligence 10(6), 849–865, 1988.',
+    'canny1986': 'J. Canny, "A computational approach to edge detection", IEEE Transactions on Pattern Analysis and '
+                 'Machine Intelligence 8(6), 679–698, 1986.',
+    'liu2010_fdcm': 'M.-Y. Liu, O. Tuzel, A. Veeraraghavan and R. Chellappa, "Fast directional chamfer matching", '
+                    'IEEE CVPR 2010, 1696–1703 (edges matched within orientation channels).',
+    'opencv_distance_transform': 'OpenCV imgproc, cv2.distanceTransform and cv2.distanceTransformWithLabels '
+                                 '(DIST_L2 with a 5 × 5 mask, DIST_LABEL_PIXEL), '
+                                 'https://docs.opencv.org/4.x/d7/d1b/group__imgproc__misc.html.',
+    'liang_zeger1986': 'K.-Y. Liang and S. L. Zeger, "Longitudinal data analysis using generalized linear models", '
+                       'Biometrika 73(1), 13–22, 1986 (the cluster-robust "sandwich" covariance).',
 }
 
 

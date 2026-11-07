@@ -9,12 +9,13 @@ plan as a calibration session (one undo step); Preview moves the robot to the ne
 planned camera and gripper poses, the path between them and the board; the Camera view draws the board's outline.
 
 Hand-eye solve (Calibrate ▸ Solve hand-eye…): import a folder of board images and a joint_states file (CSV or JSON,
-matched by time within a tolerance, default 50 ms; core/calib/capture.py) as a session (one undo step); ROS 2 topics
-and LeRobot episodes arrive in Phase 8 and say so. Run solves the session (core/calib/handeye.py): the headline is the
-calibrated camera's loosest 1σ, the residual table each view's RMS and whether it was used, the covariance table σ of
-X and Z. Apply writes the sensor's mount pose (and its lens calibration when the intrinsics were estimated) and marks
-the session applied, one undo step. The coach (core/calib/coach.py) says which pose to take next and why; Preview
-moves the robot there.
+matched by time within a tolerance, default 50 ms; core/calib/capture.py) as a session (one undo step), or, with "From
+a LeRobot dataset or ROS 2 bag…", the frames of a recording with the board in view and the joint states at their times
+(capture_dataset, on a worker thread; errors said in words). Run solves the session (core/calib/handeye.py): the
+headline is the calibrated camera's loosest 1σ, the residual table each view's RMS and whether it was used, the
+covariance table σ of X and Z. Apply writes the sensor's mount pose (and its lens calibration when the intrinsics
+were estimated) and marks the session applied, one undo step. The coach (core/calib/coach.py) says which pose to take
+next and why; Preview moves the robot there.
 """
 from __future__ import annotations
 
@@ -694,17 +695,13 @@ class HandEyeSolvePage(_HandEyeBase):
         self.folder = ''
         self.joints = ''
         layout.addWidget(label('Recording', bold=True))
-        self.source = QComboBox()
+        self.source = QComboBox()                       # kept for scripts: the Import button reads a folder
         for k in CAP.SOURCES:
             self.source.addItem(CAP.SOURCE_LABELS[k], k)
-        model = self.source.model()
-        for i in range(self.source.count()):
-            if self.source.itemData(i) != 'folder':
-                model.item(i).setEnabled(False)
-                model.item(i).setToolTip('Arrives in Phase 8, with the dataset readers')
-        self.source_note = label('ROS 2 topics and LeRobot episodes arrive in Phase 8 (with the dataset readers). '
-                                 'Until then, save the board images and a joint_states file.', muted=True, wrap=True)
-        layout.addWidget(row(label('Source'), self.source))
+        self.source.setVisible(False)
+        self.source_note = label('A folder of board images with a joint_states file, or a recording: a LeRobot '
+                                 'dataset or a ROS 2 bag, whose frames with the board in view are taken with the '
+                                 'joint states at their times.', muted=True, wrap=True)
         layout.addWidget(self.source_note)
         self.b_folder = button('Images folder…', role='ghost', tip='The folder of board images (one per pose)')
         self.b_joints = button('Joint states…', role='ghost', tip='CSV or JSON: a time column t (s) and one column per '
@@ -734,6 +731,12 @@ class HandEyeSolvePage(_HandEyeBase):
         self.b_simulate.clicked.connect(lambda: self.simulate_capture())
         layout.addWidget(row(label('Match within'), self.tol, self.tol_label, label('Joints in'), self.unit,
                              self.b_import, self.b_simulate))
+        self.b_dataset = button('From a LeRobot dataset or ROS 2 bag…', role='ghost', icon_name='import',
+                                tip='Take the frames of the camera\'s stream with the board in view, with the joint '
+                                    'states at their times (interpolated), from a LeRobot dataset (v2.1 or v3.0), a '
+                                    'ROS 2 bag (MCAP or SQLite) or RLDS, as a session (one undo step)')
+        self.b_dataset.clicked.connect(lambda: self.import_dataset(background=True))
+        layout.addWidget(row(self.b_dataset))
         self.import_note = label('', muted=True, wrap=True)
         layout.addWidget(self.import_note)
         self.b_folder.clicked.connect(self._choose_folder)
@@ -830,9 +833,13 @@ class HandEyeSolvePage(_HandEyeBase):
         folder = folder or self.folder
         joints = joints or self.joints
         try:
-            CAP.check_source(self.source.currentData() or 'folder')
+            kind = CAP.check_source(self.source.currentData() or 'folder')
         except CAP.CaptureError as e:
             self.import_note.setText(str(e))
+            return None
+        if kind == 'dataset':
+            self.import_note.setText('A recording is read with "From a LeRobot dataset or ROS 2 bag…"; Import reads a '
+                                     'folder of board images and a joint states file.')
             return None
         if not folder or not joints:
             self.import_note.setText('Choose the images folder and the joint states file first.')
@@ -881,6 +888,90 @@ class HandEyeSolvePage(_HandEyeBase):
             self.import_note.setText('The capture could not be read (an unexpected error; the details are in the log).')
             return None
         return self._add_session(sess)
+
+    def _dataset_sensor(self, sensor_uid: str | None):
+        p = self.ctx.store.project
+        plan_st = p.analysis.studies.get(PLAN) or {}
+        sensor = p.variant.sensor(sensor_uid or plan_st.get('sensor') or '')
+        if sensor is None and not sensor_uid:
+            sensor = next((s for s in p.variant.sensors if s.kind in ('camera', 'depth') and s.mount.on_link),
+                          None) or next((s for s in p.variant.sensors if s.kind in ('camera', 'depth')), None)
+        return sensor
+
+    def import_dataset(self, path: str | None = None, sensor_uid: str | None = None, camera: str | None = None,
+                       episodes=None, every_n: int = 1, unit: str | None = None, offset_s: float = 0.0,
+                       still_only: bool = True, board_uid: str | None = None,
+                       background: bool = False) -> str | None:
+        """Capture a session from a recorded dataset (core/calib/capture.capture_dataset: a LeRobot dataset, a ROS 2
+        bag or RLDS; one undo step); its uid, or None (said why). Without a path the dialog asks. background: read on
+        a worker thread (the button) and add the session when done; the call then returns None at once."""
+        from ...core.calib import capture as CAP
+        from ...core.calib import records as RC
+        p = self.ctx.store.project
+        if path is None:
+            from ..dialogs.dataset_source import DatasetSourceDialog
+            cams = [(s.name, s.uid) for s in p.variant.sensors if s.kind in ('camera', 'depth')]
+            if not cams:
+                self.import_note.setText('The rig has no camera to calibrate: add one (Sensors ▸ Add camera).')
+                return None
+            cur = self._dataset_sensor(None)
+            d = DatasetSourceDialog(self, 'handeye', cams, cur.uid if cur is not None else '')
+            if not d.exec():
+                return None
+            try:
+                v = d.values()
+            except ValueError as e:
+                self.import_note.setText(str(e))
+                return None
+            path, sensor_uid, camera, episodes = v['path'], v['sensor_uid'], v['camera'], v['episodes']
+            every_n, unit, offset_s, still_only = v['every'], v['unit'], v['offset_s'], v['still_only']
+        sensor = self._dataset_sensor(sensor_uid)
+        if sensor is None:
+            self.import_note.setText('The rig has no such camera to calibrate: choose one of its cameras (or add one: '
+                                     'Sensors ▸ Add camera).')
+            return None
+        plan_st = p.analysis.studies.get(PLAN) or {}
+        unit = unit or self.unit.value() or 'rad'
+        name = os.path.basename(os.path.normpath(path))
+        snap = p.snapshot() if background else p
+        rec = RC.find_board(snap, board_uid or plan_st.get('board') or None)
+        suid = sensor.uid
+
+        def work(progress=None, cancel=None):
+            try:
+                return CAP.capture_dataset(snap, path, suid, episodes, every_n, camera=camera, board_rec=rec,
+                                           unit=unit, offset_s=offset_s, still_only=still_only, progress=progress,
+                                           cancel=cancel)
+            except (CAP.CaptureError, ValueError) as e:
+                return {'error': str(e)}
+
+        def done(sess):
+            if 'error' in sess:
+                self.import_note.setText(f'No capture from {name}: {sess["error"]}')
+                return None
+            uid = self._add_session(sess)
+            src = sess['source']
+            self.import_note.setText(
+                f'{src["images"]} frames of {src["camera"]} looked at in {len(src["episodes"])} episode(s) of {name}, '
+                f'the board found in {src["board_frames"]}: {src["detected"]} views. ' + ' '.join(src['notes']))
+            return uid
+
+        def failed(_message):                           # the window logged the traceback
+            self.import_note.setText(f'{name} could not be read (an unexpected error; the details are in the log).')
+        win = self.ctx.window
+        if background and win is not None and hasattr(win, 'run_job'):
+            if win.run_job('handeye_dataset', f'Looking for the board in {name}', work, done, failed):
+                self.import_note.setText(f'Looking for the board in the frames of {name}…')
+            else:
+                self.import_note.setText('A dataset is already being read: wait for it to finish.')
+            return None
+        try:
+            res = work()
+        except Exception:                               # noqa: BLE001 — explained, the traceback logged
+            traceback.print_exc()
+            failed('')
+            return None
+        return done(res)
 
     def simulate_capture(self, folder: str | None = None, background: bool | None = None) -> str | None:
         """Render a simulated capture at the pose plan's poses (core/calib/simcapture.py) into a new folder inside

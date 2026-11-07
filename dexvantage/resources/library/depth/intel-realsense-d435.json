@@ -9,7 +9,7 @@
       "url": "https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf",
       "title": "RealSense Product Family D400 Series Datasheet, Revision 023, March 2026, document 337029-017 (formerly the Intel RealSense Product Family D400 Series Datasheet)",
       "read": "2026-11-06",
-      "covers": "baseline, depth FOV, imager and projector FOV, imager sensor, shutter, f-number, focus, RGB sensor and FOV, min-Z table, depth quality, range, stream modes, power, size, mass, mounting holes (Figure 10-9, Table 4-20)"
+      "covers": "baseline, depth FOV, imager and projector FOV, imager sensor, shutter, f-number, focus, RGB sensor and FOV, min-Z table, depth quality, range, stream modes, power, size, mass, mounting holes (Figure 10-9, Table 4-20); exposure range (Table 4-23), external trigger and multi-camera hardware sync (sections 3.7.4, 7.13), re-read 2026-11-07"
     },
     {
       "url": "https://store.realsenseai.com/buy-realsense-depth-camera-d435.html",
@@ -18,7 +18,7 @@
       "covers": "RGB shutter (rolling), RGB resolution, interface (USB-C 3.1 Gen 1)"
     }
   ],
-  "note": "Poses: the body frame's origin is the left imager's optical centre, which the datasheet names as the depth origin (section 4.8.1, \"the X-Y center of the left imager\"); the right imager sits one baseline along -y (the left imager is on the left looking out, section 3.6.1). Both optical axes are taken as parallel to body x (the rectified stereo geometry the depth output uses); the units' own extrinsics come from calibration. The RGB camera is \"not integrated in the module\" (Table 2-2) and neither source states its offset from the left imager: it is placed at the depth origin as an ASSUMPTION (pose_stated false); the RGB lens's f-number and focus are not stated. Not stated by the maker: pixel size (no table gives it), lens distortion coefficients (the datasheet gives only \"Distortion <= 1.5%\"), the stereo matcher's subpixel accuracy. The lens model is therefore pinhole (a labelled assumption); calibrate a unit for its own K and D. The FOVs vary unit to unit by about +/-3 degrees (mechanical tolerance +/-5%, datasheet Table 3-49 note 3). max_range_m is the upper figure of the datasheet's \"Range\" feature line, which reads \"over\" that figure and \"varies with lighting conditions\" (depth.range_text). Stream modes are the USB 3.1 Gen 1 tables; the USB 2.0 tables (fewer modes) are not entered. power_w is the datasheet's \"All Components\" power at its Max Operating Mode (section 7.4), not a measured average. The datasheet's RGB sensor is an OmniVision OV2740 (Table 3-49) and the stereo imagers OV9282 (module D430, Table 3-13). The store page gives min-Z \"~28 cm\" at max resolution, which matches the datasheet table (280 mm at 1280x720); the feature line reads \"Range 0.2 m to over 3 m\", the store page \"Ideal Range .3 m to 3 m\". Depth accuracy: datasheet Z-accuracy +/-2% (<= 2 m, 80% ROI, HD), store page \"<2% at 2 m\". The projector's position between the imagers is drawn in the datasheet (Figures 3-4 to 3-6) but no offset is given: it is placed at the baseline midpoint as an ASSUMPTION (pose_stated false); its FOV is the datasheet's.",
+  "note": "Poses: the body frame's origin is the left imager's optical centre, which the datasheet names as the depth origin (section 4.8.1, \"the X-Y center of the left imager\"); the right imager sits one baseline along -y (the left imager is on the left looking out, section 3.6.1). Both optical axes are taken as parallel to body x (the rectified stereo geometry the depth output uses); the units' own extrinsics come from calibration. The RGB camera is \"not integrated in the module\" (Table 2-2) and neither source states its offset from the left imager: it is placed at the depth origin as an ASSUMPTION (pose_stated false); the RGB lens's f-number and focus are not stated. Not stated by the maker: pixel size (no table gives it), lens distortion coefficients (the datasheet gives only \"Distortion <= 1.5%\"), the stereo matcher's subpixel accuracy. The lens model is therefore pinhole (a labelled assumption); calibrate a unit for its own K and D. The FOVs vary unit to unit by about +/-3 degrees (mechanical tolerance +/-5%, datasheet Table 3-49 note 3). max_range_m is the upper figure of the datasheet's \"Range\" feature line, which reads \"over\" that figure and \"varies with lighting conditions\" (depth.range_text). Stream modes are the USB 3.1 Gen 1 tables; the USB 2.0 tables (fewer modes) are not entered. power_w is the datasheet's \"All Components\" power at its Max Operating Mode (section 7.4), not a measured average. The datasheet's RGB sensor is an OmniVision OV2740 (Table 3-49) and the stereo imagers OV9282 (module D430, Table 3-13). The store page gives min-Z \"~28 cm\" at max resolution, which matches the datasheet table (280 mm at 1280x720); the feature line reads \"Range 0.2 m to over 3 m\", the store page \"Ideal Range .3 m to 3 m\". Depth accuracy: datasheet Z-accuracy +/-2% (<= 2 m, 80% ROI, HD), store page \"<2% at 2 m\". The projector's position between the imagers is drawn in the datasheet (Figures 3-4 to 3-6) but no offset is given: it is placed at the baseline midpoint as an ASSUMPTION (pose_stated false); its FOV is the datasheet's. Timing (read 2026-11-07): the depth imagers' manual exposure range is Table 4-23's 1 to 166 ms (module 430); the RGB camera's \"Manual Exposure Time\" (Table 4-24) is listed as 1 to 10000 with no unit, so it is not entered (null); no readout time is stated for any imager (null); only the depth sensor takes the external trigger (section 3.7.4).",
   "interface": "USB 3.1 Gen 1 (USB Type-C)",
   "power_w": 3.40297,
   "mass_g": 75.0,
@@ -104,7 +104,13 @@
           "dfov_deg": 89.0,
           "what": "Depth FOV VGA (4:3), Table 3-49, at 2 m"
         }
-      ]
+      ],
+      "exposure_s": {
+        "min": 0.001,
+        "max": 0.166,
+        "what": "Table 4-23 Depth Camera Controls: \"Manual Exposure (ms) Control sensor exposure period (430)\", min 1, max 166"
+      },
+      "readout_s": null
     },
     {
       "name": "IR right",
@@ -156,7 +162,13 @@
           "dfov_deg": 89.0,
           "what": "Depth FOV VGA (4:3), Table 3-49, at 2 m"
         }
-      ]
+      ],
+      "exposure_s": {
+        "min": 0.001,
+        "max": 0.166,
+        "what": "Table 4-23 Depth Camera Controls: \"Manual Exposure (ms) Control sensor exposure period (430)\", min 1, max 166"
+      },
+      "readout_s": null
     },
     {
       "name": "RGB",
@@ -186,7 +198,9 @@
       ],
       "lens_model": "pinhole",
       "f_number": null,
-      "focus": null
+      "focus": null,
+      "exposure_s": null,
+      "readout_s": null
     }
   ],
   "projector": {
@@ -206,7 +220,10 @@
         0.5
       ]
     },
-    "pose_stated": false
+    "pose_stated": false,
+    "optical_power_w": 0.36,
+    "wavelength_nm": 850,
+    "optical_power_what": "D400 Series Datasheet (the first source), Table 3-17, Wide (D43x, D45x) Infrared Projector Parameters: \"Optical Power 360 mW average\", \"Laser Wavelength 850 nm ± 10 nm nominal @ 20°C\"; read 2026-11-07. An average over the PWM drive; the datasheet says laser power is halved when the depth module is above 60 °C (Laser Thermal Control). The laser power is also a control, Table 4-23 \"Manual Laser Power (mW) Laser Power setting (30 mW steps)\" from 0 to 360: the 360 mW used here is its maximum, so the wash-out is predicted at full laser power; a lower setting gives a weaker pattern (not modelled)."
   },
   "depth": {
     "technology": "active_ir_stereo",
@@ -626,5 +643,14 @@
     }
   ],
   "tactile": null,
-  "host": null
+  "host": null,
+  "sync": {
+    "hardware_trigger": true,
+    "sync_cable": true,
+    "imagers": [
+      "IR left",
+      "IR right"
+    ],
+    "what": "Datasheet section 3.7.4 External Sensor Sync Connector: \"For D435, D435i, D435f and D435if, only the depth sensor can be synced by an external trigger.\" Section 7.13 Multi-Camera Hardware Sync: \"For multiple cameras to be hardware synchronized so as to capture data at identical times and frame rates, pins 5 (SYNC) and pins 9 (Ground) on the external sensor sync connector will need to be connected.\""
+  }
 }

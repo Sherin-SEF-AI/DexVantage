@@ -309,6 +309,7 @@ def to_html(result, project=None) -> str:
              f'<p class="meta">DexVantage {e(str(env.get("dexvantage")))} · {e(result.started_utc)} UTC · '
              f'{result.seconds:.1f} s · project: {e(result.project)} · variant: {e(result.variant)} · seed '
              f'{result.settings.seed}{" · quick run" if result.settings.quick else ""}'
+             f'{" · cheap checks only" if getattr(result.settings, "cheap_only", False) else ""}'
              f'{" · cancelled" if result.cancelled else ""}</p>'
              f'<p>Every check compares a quantity one of DexVantage\'s models computes with an independent reference '
              f'(a closed form written out again, another library, a published table, worked example or measurement, '

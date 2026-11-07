@@ -237,6 +237,8 @@ def project_content(project) -> dict:
         **({'policies': d['policies']} if d.get('policies') else {}),
         # hand-eye boards and sessions (§8.1, core/calib/records.py); left out while empty, for the same reason
         **({'calibration': d['calibration']} if any((d.get('calibration') or {}).values()) else {}),
+        # recorded datasets and audit requirements (§8.2, core/audit); left out while empty, for the same reason
+        **({'data': d['data']} if any((d.get('data') or {}).values()) else {}),
     }
 
 

@@ -106,6 +106,15 @@ class Dataset:
         self.close()
 
 
+FORMAT_TITLES = {'lerobot': 'LeRobot', 'rlds': 'RLDS', 'mcap': 'ROS 2 bag (MCAP)',
+                 'rosbag2-sqlite': 'ROS 2 bag (SQLite)', 'synthetic': 'synthetic'}
+
+
+def format_title(fmt: str, version: str = '') -> str:
+    """'LeRobot v3.0', 'ROS 2 bag (MCAP)': a reader's format id in words, for the UI."""
+    return ' '.join(x for x in (FORMAT_TITLES.get(fmt, fmt or ''), version or '') if x)
+
+
 READERS: list = []                             # [(format, sniff(path) -> bool, open(path) -> Dataset)]
 
 
@@ -122,6 +131,10 @@ def open_dataset(path: str) -> Dataset:
     import os
     from . import load_readers
     load_readers()
+    from .hub import is_hub_ref
+    if is_hub_ref(path) and not os.path.exists(path):     # a Hugging Face Hub dataset (LeRobot), streamed
+        from .lerobot import open_lerobot
+        return open_lerobot(path)
     if not os.path.exists(path):
         raise DatasetError(f'There is no dataset at {os.path.basename(path) or path}.')
     for fmt, sniff, opener in READERS:
@@ -131,6 +144,6 @@ def open_dataset(path: str) -> Dataset:
             ok = False
         if ok:
             return opener(path)
-    names = ', '.join(r[0] for r in READERS) or 'none'
-    raise DatasetError(f'{os.path.basename(path) or path} is not a dataset format DexVantage reads (it reads: '
-                       f'{names}).')
+    raise DatasetError(f'{os.path.basename(os.path.normpath(path)) or path} is not a dataset format DexVantage '
+                       'reads (it reads LeRobot v2.1 and v3.0 folders, RLDS folders of TFRecord files, and ROS 2 '
+                       'bags in MCAP or SQLite).')

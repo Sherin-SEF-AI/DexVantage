@@ -222,7 +222,7 @@ def test_study_on_the_sample_suggests_and_is_json(ur5e_doc):
         assert sg['suggested_m'] >= sg['length_max_m'] + 0.05 - 1e-9
         assert sg['length_min_m'] <= sg['length_home_m'] <= sg['length_max_m']
         assert any(f['kind'] == 'unset' for f in sg['flags'])
-        assert sg['bend_radius_min_m'] > 0 and sg['snag_poses_tested'] == 1
+        assert sg['bend_radius_min_m'] > 0 and sg['snag_poses_tested'] > 1     # home and the sample's scripted pick
     assert any(f['kind'] == 'unknown' for f in c['flags'])          # no stated minimum bend radius
     assert doc['summary']['status'] in CS.SEV and doc['summary']['word'] == CS.WORDS[doc['summary']['status']]
     assert len(doc['sheet']) == 6 and '/home/' not in text

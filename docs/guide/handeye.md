@@ -52,8 +52,33 @@ column per joint (radians; the first row of the example below, with the gripper'
     100.004,-1.5707874644,-1.0634923917,1.6950665100,-1.8402133477,-1.5707808154,0.0000013386,...
 
 The image times come from an `images.csv` next to the images (columns `file`, `t`), or from the file names
-(`pose_00_100.000.png`: the last decimal number, in seconds). Recording straight from ROS 2 topics or a LeRobot
-episode arrives in Phase 8; the page shows those sources greyed out and says so.
+(`pose_00_100.000.png`: the last decimal number, in seconds).
+
+**From a recording.** If the calibration was recorded as a LeRobot dataset (v2.1 or v3.0) or a ROS 2 bag (MCAP or
+SQLite), use **From a LeRobot dataset or ROS 2 bag…** on the Hand-eye solve page instead. Hold the robot still at each
+pose for a second or so while recording. The dialog asks for the dataset, the camera to calibrate, its stream
+(empty: the stream named like the camera, `observation.images.wrist_d405` or `/wrist_d405/image_raw` for "Wrist
+D405"), the episodes, every Nth frame, the joint time offset (default 0 ms: the camera and the joints on one clock)
+and the joints' unit. On a worker thread it then
+- reads each frame's joint state by interpolating the recorded rows linearly at the frame's time (+ the offset);
+- leaves out frames taken while the joints moved faster than 0.5°/s (a default; tick **Use frames taken while the
+  robot moves** to keep them, marked) and frames outside the joint rows' time span;
+- looks for the board in the remaining frames; a stream recorded at a smaller size than the sensor's (the same lens,
+  resampled) is handled by scaling the camera model and carrying the corners back to the sensor's pixels;
+- makes one view of each held pose (still frames whose joints agree within 0.05°, a default; the frame with the most
+  corners), and adds the session in one undo step.
+The note under the buttons says how many frames were looked at, in how many the board was found and how many views
+that gave, then the timing: "Joint states interpolated linearly at each frame's time. The camera and joint times are
+taken as one clock (offset 0.0 ms, a default). The nearest joint row is 7.0 ms from a frame (median)."
+
+Worked example on the UR5e sample (the test `tests/test_dataset_links.py`, measured 2026-11-07): 10 planned poses held
+1 s each and joined by 0.8 s moves, recorded at 5 fps through the wrist D405 moved 2.69 mm and 0.62° from its mount,
+at 640 × 360 px (half the stream), as a LeRobot v3.0 episode with AV1 video: 90 frames looked at, the board found in
+the 52 still ones, 10 views (0.19 s on the CPU). The solve finds the camera 0.05 mm and 0.011° from where the frames
+were rendered (the solve's own 1σ: 0.014 mm and 0.007°; the same frames uncoded give 0.049 mm, and full-size frames 0.020 mm:
+rendered corners err alike within a view, which the σ does not assume). The same
+capture as an MCAP bag (joint states at 50 Hz, images stamped 7 ms after a joint row) gives the same 10 views, and
+says the 7 ms.
 
 **No rig yet?** On the Hand-eye solve page, **Simulate a capture…** renders the board at the plan's poses with the
 camera moved a known 2.69 mm and 0.62° from its mount (defaults), saves the images, `joint_states.csv` and `truth.json`
@@ -121,6 +146,15 @@ print(det.n, pnp.rms_px)
 On the 20 rendered views of this example (640 × 480, f = 480 px, 1 grey level of noise) the board was found in
 every view, with 8 to 48 of its 48 corners (in some poses part of the board is out of the image; ChArUco corners
 count one by one, so a partial board still gives a pose).
+
+From a recorded dataset, `capture.capture_dataset` does the detection and the joint reading for every frame and
+returns a session; `capture.session_problem` turns it into the problem below:
+
+```python
+from dexvantage.core.calib import capture
+sess = capture.capture_dataset(project, 'path/to/lerobot_dataset', sensor_uid, episodes=None, every_n=1)
+problem, info = capture.session_problem(project, sess)
+```
 
 ### 3. Solve
 
