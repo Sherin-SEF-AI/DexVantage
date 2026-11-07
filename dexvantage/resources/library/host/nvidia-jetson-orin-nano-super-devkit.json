@@ -13,6 +13,16 @@
     }
   ],
   "note": "USB: Type-A 4x USB 3.2 Gen2, and a USB Type-C connector for UFP (device mode, not a camera port). CSI camera: \"2x MIPI CSI-2 22-pin Camera Connectors\" (the lane count per connector is not in the table, so lanes is null; the Orin Nano module has 8 CSI-2 lanes). PCIe: M.2 Key M x4 PCIe Gen3, M.2 Key M x2 PCIe Gen3, M.2 Key E. Networking: 1x GbE. Power: 7 W - 15 W - 25 W (power_w 25, the upper end). Size \"100 mm x 79 mm x 21 mm (Height includes feet, carrier board, module, and thermal solution)\" (size_mm as stated); mass not stated. Host fields for a Jetson: ports = USB 3.2 Gen 2 ports, stated_mbps = 10000 (the per-port USB 3.2 Gen 2 signalling rate, USB-IF; not an aggregate), lanes = MIPI CSI-2 lanes, gmsl_links = null (GMSL needs a deserializer board). practical_mbps is null (not stated). NVIDIA's footnote: \"USB 3.2, MGBE, and PCIe share UPHY Lanes. See the Product Design Guide for supported UPHY configurations\", so not every listed USB and PCIe port is available together. The full module data sheet (a download from NVIDIA's developer site) was not read; the figures are the specifications table on the page.",
+  "price": {
+    "amount": 399,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_price_list",
+    "source": "https://developer.nvidia.com/embedded/faq",
+    "read": "2026-11-07",
+    "region": "US (MSRP in USD)",
+    "what": "FAQ price table, MSRP (USD): 'Jetson Orin Nano Super Developer Kit $399'"
+  },
   "interface": "USB 3.2 Gen 2 (Type-A), 2x MIPI CSI-2 22-pin connectors, PCIe Gen3",
   "power_w": 25.0,
   "mass_g": null,

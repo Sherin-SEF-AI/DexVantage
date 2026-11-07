@@ -19,6 +19,16 @@
     }
   ],
   "note": "A fisheye GMSL2 camera: the datasheet states a field of view of 202.0 +/- 3 degrees horizontal and 127.2 +/- 2 degrees vertical (no diagonal), focal length 1.34 mm +/- 5 % and F/2.0. The word \"fisheye\" is not used by the maker; a horizontal FOV above 180 degrees cannot be a pinhole, so the lens model is Kannala-Brandt (kb, OpenCV fisheye) fitted to the stated angles - the projection between them is a model, not a maker figure (the maker states no distortion coefficients). The stated focal length is not used by the fit: with 3.0 um pixels it gives 447 px, and an equidistant lens of that focal length would show about 246 degrees across 1920 px, so the stated focal length and FOV disagree with a pure equidistant projection; calibrate a unit. The FOV is taken to refer to the full 1920 x 1200 array (not said). power_w is computed from the stated \"70 mA @ 12 VDC\" (0.84 W), arithmetic on stated figures. size_mm is null: the dimensions are only in a drawing. The 120 fps is \"@ full resolution\" over GMSL2 (10-bit RAW, serializer Maxim MAX9295A/B); through Leopard's USB 3.0 kit (LI-GMSL2-USB) the datasheet gives 1920 x 1200 @ 30 fps. Focus: the product page gives a focusing distance of 50 cm with the lens glued. IP65.",
+  "price": {
+    "amount": 299,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://leopardimaging.com/product/automotive-cameras/cameras-by-interface/adi-gmsl2-cameras/li-ar0234cs-gmsl2-owl/li-ar0234cs-gmsl2-owl/",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer 299.00 USD, in stock"
+  },
   "interface": "GMSL2 (FAKRA Z, power over coax); 10-bit RAW",
   "power_w": 0.84,
   "mass_g": 37.0,

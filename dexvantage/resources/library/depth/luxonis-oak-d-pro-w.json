@@ -31,6 +31,16 @@
     }
   ],
   "note": "The wide-FOV OAK-D Pro: active stereo with an IR laser dot projector and a flood IR LED; the stereo pair has notch IR filters at 940 nm. Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map refers to). Positions are Luxonis's design (\"spec\") translations from its board file (specTranslation in cm, rotation zero): the right camera one baseline along -y, the centre colour camera at the baseline midpoint; a unit's calibration differs from these. Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV. Streams are the sensor modes the RVC2 driver supports with their maximum frame rates (Luxonis sensor pages); the format on the USB link depends on the on-device pipeline, so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the stereo mode). Not stated: subpixel accuracy, distortion, depth FOV (null), f-numbers. Depth accuracy is a median absolute error, not RMS. min_z is the docs' MinZ at 800P and at 400P (the extended-disparity figures are in this note only). Wide variant: stereo OV9282 127/79.5/150 deg H/V/D, global shutter, fixed focus; Luxonis's board file calibrates these cameras with a \"perspective_TILTED\" model, so a pinhole is a poor fit at the edges - calibrate a unit. Variant entered: IMX378 colour, 95/72/120 deg, rolling shutter, fixed focus; the board file gives the colour camera's hfov as 108 deg (a conflict with the docs page's 95, which is entered); the OV9782 variant is a global-shutter colour camera at 127/79.5/150 deg. Baseline 75 mm; ideal range ~70 cm - 12 m; MinZ ~70 cm (800P), ~40 cm (400P or 800P + extended disparity), ~20 cm (400P + extended). Power, mass and size: the docs link the OAK-D S2 datasheet and give only subsystem power figures (base 2.5-3 W, up to 1 W AI, 0.5 W stereo, 0.5 W encoder), so power_w, mass_g and size_mm are null (not stated for this model). Projector: the docs state no field of illumination or position for the Pro W (the OAK-D Pro datasheet's 61 x 78 deg is not carried over): FOV null, placed at the baseline midpoint as an ASSUMPTION (pose_stated false); with no stated cone the depth study does not test projector coverage.",
+  "price": {
+    "amount": 529,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-d-pro-w",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "variant 'Central RGB Camera: IMX378' (SKU A00573), 529.0 USD"
+  },
   "interface": "USB 2/3 (USB Type-C)",
   "power_w": null,
   "mass_g": null,

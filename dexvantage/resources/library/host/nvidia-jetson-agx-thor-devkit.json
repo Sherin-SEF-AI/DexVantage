@@ -13,6 +13,16 @@
     }
   ],
   "note": "Camera: \"HSB camera via QSFP slot | USB camera\" (the kit has no MIPI CSI-2 camera connector in the table, so lanes is null; HSB is NVIDIA's Holoscan Sensor Bridge, over the QSFP28 port). USB: \"2x USB-A (3.2 Gen2) | 2x USB-C (3.1)\" (ports 2 and stated_mbps 10000 are the USB-A 3.2 Gen 2 ports, the USB-IF per-port signalling rate; the USB-C ports' generation is not stated). PCIe: \"M.2 Key M slot with x4 PCIe Gen5 | M.2 Key E slot with x1 PCIe Gen5\". Networking: \"1x 5GbE RJ45 connector | 1x QSFP28 (4x 25GbE)\". Power \"40 W–130 W\" (power_w 130, the upper end). Mechanical \"243.19 mm x 112.40 mm x 56.88 mm\" (size_mm as stated, not an optical frame); mass not stated. The module is a Jetson T5000 (the page's kit table). The page's footnotes: \"* Refer to the Software Features section of the latest NVIDIA Jetson Linux Developer Guide for a list of supported features. ** Low-speed I/O specification is subject to change.\" The module data sheet was not read; the figures are the specifications table on the page. practical_mbps is null (not stated).",
+  "price": {
+    "amount": 5499,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_price_list",
+    "source": "https://developer.nvidia.com/embedded/faq",
+    "read": "2026-11-07",
+    "region": "US (MSRP in USD)",
+    "what": "FAQ 'What is the price of Jetson products?', MSRP (USD): 'Jetson AGX Thor Developer Kit $5499'"
+  },
   "interface": "USB 3.2 Gen 2 (USB-A), USB 3.1 (USB-C, generation not stated), QSFP28 (4x 25GbE, Holoscan Sensor Bridge), PCIe Gen5",
   "power_w": 130.0,
   "mass_g": null,

@@ -19,6 +19,26 @@
     }
   ],
   "note": "The entry is the board camera with e-con's M12 lens and no enclosure (See3CAM_24CUG_CHL_TC); the enclosure variant (See3CAM_24CUG_CHL_TC_BX) is 35.3 x 35.3 x 29 mm and 57 g with lens. The FOV 104.6 (H) x 61.6 (V) x 128.2 (D) degrees is stated \"with the lens provided by e-con\" and, per the datasheet, \"for the maximum resolution\" (1920 x 1200). The datasheet's crop table gives 1920 x 1080 and 1280 x 720 as 0 % horizontal and 10 % vertical crops of the full image (1280 x 720 is therefore also scaled), which is what the library's centred-crop rule assumes. The lens model is pinhole, a labelled assumption: the maker states no projection or distortion, and the stated horizontal, vertical and diagonal angles do not fit one distortion-free pinhole with square pixels (a wide lens with barrel distortion), so a pinhole fitted to the horizontal and vertical angles has non-square pixels and misplaces the corners; calibrate a unit and store its K and D in the sensor calibration. Not stated: f-number, lens focal length, distortion. Stream modes are the USB 3.2 Gen 1 column of Table 2 (USB 2.0 gives fewer fps). bits_per_pixel 16 for UYVY is the format's definition (4:2:2), not a datasheet figure; MJPEG is compressed (null). power_w is the maximum the page states (2.02 W, 1920 x 1200 MJPEG at 114 fps on USB 3.2 Gen 1, Table 8). The page says \"USB 3.1 Gen 1\", the datasheet \"USB 3.2 Gen 1\": the same 5 Gbit/s signalling (USB-IF). size_mm is the stated l x b x h without lens, 30 x 30 x 26 mm, entered as [26, 30, 30] on the reading that h is along the optical axis (an assumption: the page does not say which axis is which).",
+  "price": {
+    "amount": 199,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.e-consystems.com/industrial-cameras/ar0234-usb3-global-shutter-camera.asp",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "'Sample Price' from the site's product price service: product 281, See3CAM_24CUG_CHL_TC, 199.00 USD, 1 unit (the page's 'Volume Price starts at USD 99' is not used; its schema.org block says 184 USD, which the displayed price overrides); read from https://www.e-consystems.com/getproductdetails.asp?IDS=281,1410,1432",
+    "options": [
+      {
+        "label": "See3CAM_24CUG_CHLCC_BX_H01R2",
+        "amount": 249
+      },
+      {
+        "label": "See3CAM_24CUG_CH_TC, 5-pack (920.00 the pack)",
+        "amount": 184
+      }
+    ]
+  },
   "interface": "USB 3.2 Gen 1 (USB Type-C receptacle); UVC",
   "power_w": 2.02,
   "mass_g": 26.0,

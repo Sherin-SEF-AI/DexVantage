@@ -528,7 +528,8 @@ def lerobot_errors(project, folder: str) -> dict:
     entries = [v for k, v in ns.items() if k.isupper() and isinstance(v, dict)]
     ent = next(iter(entries[0].values())) if entries else {}
     if set(ent) != {'image_obs_keys', 'depth_obs_keys', 'state_obs_keys', 'state_encoding', 'action_encoding'} or \
-            set(ent.get('image_obs_keys') or {}) != {'primary', 'secondary', 'wrist'}:
+            set(ent.get('image_obs_keys') or {}) not in ({'primary', 'secondary', 'wrist'},
+                                                         {'primary', 'secondary', 'left_wrist', 'right_wrist'}):
         bad.append('openvla/oxe_dataset_config.py: the OXE entry')
     return {'mismatches': bad, 'detail': detail}
 

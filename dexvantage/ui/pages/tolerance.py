@@ -166,6 +166,8 @@ class TolerancePage(StudyPage):
     HEADLINE = 'Worst requirement under mount tolerances'
 
     def build_body(self, layout):
+        from ..cluster_run import add_run_on
+        add_run_on(self, 'tolerance')                # Run on…: N processes or a Slurm job folder (core/cluster)
         self._preview = False
         self._cache = None
         self._sig = _Sig()

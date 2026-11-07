@@ -19,6 +19,22 @@
     }
   ],
   "note": "Poses: the body origin is the left camera's optical centre; the datasheet says depth is \"calculated from the back of the left eye of the camera\", so the left camera is the reference imager and also the RGB view (both cameras are colour). The right camera sits one stated baseline along -y; both optical axes are taken parallel to body x (the rectified geometry). Roles: both cameras are colour, so both carry role \"rgb\"; depth.stereo_pair names them. Lens model pinhole is a labelled ASSUMPTION fitted to the stated maximum FOV (the maker gives only TV distortion, \"optically corrected\"); calibrate a unit for its K and D. The FOV is stated as \"max.\" without naming the mode; it is attached to the largest output mode. The datasheet calls the 1080p mode a cropping mode (600p a binning mode), so its true FOV is narrower than the stated maximum; the maker gives no per-mode FOV. Focus type is not stated (the lens is called \"fixed focal\", which is the focal length). Not stated by the maker: depth FOV, IR projector (there is none: passive stereo), subpixel accuracy, a per-resolution minimum Z (min_z is empty; depth.min_range_m is the stated device-wide minimum of the depth range), lens distortion coefficients. Depth is computed on the host by the ZED SDK (\"Native video resolution (in Ultra mode)\"), so no depth stream crosses the cable and none is listed. Interface GMSL2 over a FAKRA Z coax connector, powered over the coax (PoC, 5 V to 20 V); power_w is the datasheet's \"Typical consumption: 1.46W (0.122A 12V)\", stated once for ZED X and ZED X Mini. Output format RAW10 (V4L2) or NV21 (Argus); RAW10 (10 bits per pixel) is entered. The datasheet lists the maximum frame rate per mode (1200p 60, 1080p 60 cropping mode, 600p 120 binning mode); the store page's full lists are entered. Sensor 1/2.6\" 2.3 MP, 1928 x 1208 array, 3 um pixels, electronically synchronised global shutter. Dimensions are read as width x height x depth (the maker does not name the axes; an assumption). Wide-lens variant (SKU ZED-311210, ZED-311220 with polarizer); f/2.2, TV distortion < 5.7%. Mass: datasheet 151 g (entered), store page 150 g. Depth accuracy is the datasheet's \"< 1.6% at 2m, < 3% at 4m\" (metric not defined).",
+  "price": {
+    "amount": 549,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.stereolabs.com/en-us/store/products/zed-x-mini-stereo-camera",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer for 'No Polarizer / Wide' (SKU ZED-311210) 549.0 USD; with polarizer (ZED-311220) 599.0 USD",
+    "options": [
+      {
+        "label": "With Polarizer / Wide (ZED-311220)",
+        "amount": 599
+      }
+    ]
+  },
   "interface": "GMSL2 (FAKRA Z coax)",
   "power_w": 1.46,
   "mass_g": 151.0,

@@ -13,6 +13,26 @@
     }
   ],
   "note": "The maker's figures were not read for this build; every figure is null (not found in the sources read).",
+  "price": {
+    "amount": 4545.95,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.trossenrobotics.com/widowx-ai",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "configuration 'Base: Precision Grip End-Effector with Custom Molded Silicone Grip Pads' $4,545.95",
+    "options": [
+      {
+        "label": "Leader: Ambidextrous Hand Grip with Sliding Rail Finger Pinchers",
+        "amount": 4685.95
+      },
+      {
+        "label": "Follower: Precision Grip End-Effector with grip pads and RealSense D405 with arm mount",
+        "amount": 4995.95
+      }
+    ]
+  },
   "imagers": [],
   "streams": [],
   "robot": {

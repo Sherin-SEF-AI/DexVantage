@@ -18,7 +18,17 @@
       "covers": "lens options with FOVs (wide 120 x 110 x 80, narrow 91 x 80 x 52 degrees D x H x V), hardware synchronisation and trigger through GMSL2"
     }
   ],
-  "note": "A monocular global-shutter GMSL2 camera with a BMI088 IMU (not modelled), for custom stereo pairs or surround vision. The FOV is the datasheet's \"Max.\" figure; the native resolution is taken as the stated array size 1928 x 1208 (the FOV's image size is not said). Streams: 1920 x 1200 at 60 fps, 1920 x 1080 at 60 fps (cropping mode), 960 x 600 at 120 fps (binning mode), RAW10 over V4L2 (NV21 through Argus). The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. power_w 0.89 W (12 V, via GMSL2). size_mm read with the long side along the optical axis (the lens), an ASSUMPTION. Narrow lens: 73 (H) x 45 (V) x 87 (D) degrees, focal length 4.6 mm, f/2.0, TV distortion \"-6.7% <\"; 31 x 31 x 49.3 mm, 50 g. The sources disagree: the store page gives the narrow lens as 91 (D) x 80 (H) x 52 (V) degrees; the datasheet figures are entered.",
+  "note": "A monocular global-shutter GMSL2 camera with a BMI088 IMU (not modelled), for custom stereo pairs or surround vision. The FOV is the datasheet's \"Max.\" figure; the native resolution is taken as the stated array size 1928 x 1208 (the FOV's image size is not said). Streams: 1920 x 1200 at 60 fps, 1920 x 1080 at 60 fps (cropping mode), 960 x 600 at 120 fps (binning mode), RAW10 over V4L2 (NV21 through Argus). The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. power_w 0.89 W (12 V, via GMSL2). size_mm read with the long side along the optical axis (the lens), an ASSUMPTION. Narrow lens: 73 (H) x 45 (V) x 87 (D) degrees, focal length 4.6 mm, f/2.0, TV distortion \"-6.7% <\"; 31 x 31 x 49.3 mm, 50 g. The sources disagree: the store page gives the narrow lens as 91 (D) x 80 (H) x 52 (V) degrees; the datasheet figures are entered. FOV consistency: the maker's angles disagree with the lens geometry by up to 2.25°: on the 1928 × 1208 image a centred lens without pincushion distortion keeps the diagonal angle (87°) at most the vertical angle × diagonal / H (84.8°). That is within the makers' stated FOV tolerance of about ±3° and their rounding (validation check library.fov_shape), so the angles are kept as stated.",
+  "price": {
+    "amount": 399,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.stereolabs.com/en-us/store/products/zed-x-one-gs",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer for 'Narrow' (SKU ZED-413010) 399.0 USD"
+  },
   "interface": "GMSL2 (FAKRA Z)",
   "power_w": 0.89,
   "mass_g": 50.0,

@@ -19,6 +19,16 @@
     }
   ],
   "note": "The D435 with an IR-pass filter on the cover glass. The IR-pass filter: \"CLAREX NIR-75N near-infrared filter applied to cover glass, with holes over projector and RGB sensor openings. Filter transmits near-infrared light and absorbs visible light. Filter's thickness = 0.5 mm\" (Table 2-2 notes); Table 3-50 compares the f line: false depth from repetitive patterns and saturation from specular reflections mitigated, indoor range \"limited by IR projector power\", left/right images limited by ambient IR. Poses: the body origin is the left imager's optical centre, the datasheet's depth origin (section 4.8.1); the right imager one baseline along -y, optical axes parallel to body x (the rectified geometry). The projector is placed at the baseline midpoint as an ASSUMPTION (pose_stated false; drawn but not dimensioned). Not stated: pixel size, distortion coefficients (\"Distortion <= 1.5%\"), subpixel accuracy: the lens model is pinhole, a labelled assumption. FOVs vary by about +/-3 degrees unit to unit (Table 3-49 note 3). max_range_m is the upper figure of the \"Range\" feature line (\"over\", \"varies with lighting conditions\"). Streams are the USB 3.1 Gen 1 tables; power_w is the \"All Components\" power at the Max Operating Mode (section 7.4). The RGB camera (OV2740, rolling shutter per the store page, 69 x 42 degrees) is \"not integrated in the module\" and its offset is not stated: placed at the depth origin as an ASSUMPTION (pose_stated false). Depth start point 4.7 mm behind the front glass (Table 4-17; the D435's is 4.2 mm, the filter adds the difference). size_mm: Table 3-52 gives the D43x as 90 x 25 x 25 mm with \"D435f and D435if depth is around 25.8mm (due to the addition of the filter)\"; the store page says 90 x 25.8 x 25 mm (entered). Mass 75 g (Table 3-52, D43x, +/-10%). Only the depth sensor takes the external trigger (section 3.7.4). Mounting holes: the D435 drawing's two M3 and one 1/4-20 (the store page lists the same set for the D435f). Store page: ideal range 0.3-3 m, min-Z ~28 cm at max resolution, depth accuracy <2% at 2 m, depth FOV 87 x 58 (+/-3) degrees.",
+  "price": {
+    "amount": 399,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://store.realsenseai.com/buy-realsense-depth-camera-d435f.html",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "store page price (schema.org offer 399 USD)"
+  },
   "interface": "USB 3.1 Gen 1 (USB Type-C)",
   "power_w": 3.40297,
   "mass_g": 75.0,

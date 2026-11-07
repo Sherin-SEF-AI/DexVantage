@@ -19,6 +19,16 @@
     }
   ],
   "note": "The D455 with an IR-pass filter on the cover glass. The IR-pass filter: \"CLAREX NIR-75N near-infrared filter applied to cover glass, with holes over projector and RGB sensor openings. Filter transmits near-infrared light and absorbs visible light. Filter's thickness = 0.5 mm\" (Table 2-2 notes); Table 3-50 compares the f line: false depth from repetitive patterns and saturation from specular reflections mitigated, indoor range \"limited by IR projector power\", left/right images limited by ambient IR. Poses: the body origin is the left imager's optical centre, the datasheet's depth origin (section 4.8.1); the right imager one baseline along -y, optical axes parallel to body x (the rectified geometry). The projector is placed at the baseline midpoint as an ASSUMPTION (pose_stated false; drawn but not dimensioned). Not stated: pixel size, distortion coefficients (\"Distortion <= 1.5%\"), subpixel accuracy: the lens model is pinhole, a labelled assumption. FOVs vary by about +/-3 degrees unit to unit (Table 3-49 note 3). max_range_m is the upper figure of the \"Range\" feature line (\"over\", \"varies with lighting conditions\"). Streams are the USB 3.1 Gen 1 tables; power_w is the \"All Components\" power at the Max Operating Mode (section 7.4). The RGB sensor (OV9782, global shutter, 90 x 65 degrees, on the D450 module) has no stated offset: placed at the depth origin as an ASSUMPTION (pose_stated false). 6-DoF IMU (not modelled). Depth start point 5.05 mm behind the front glass (Table 4-17). size_mm: 124 x 29 mm with \"D455f depth is around 26.8mm\" (Table 3-53 note; store page 124 x 26.8 x 29 mm). Mass 116 g (Table 3-53). Both the depth and the RGB sensors can be synced by an external trigger (section 3.7.4). Store page: ideal range 0.6-6 m, min-Z ~52 cm, accuracy <2% at 4 m; mounting one 1/4-20 and two M4.",
+  "price": {
+    "amount": 525,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://store.realsenseai.com/buy-realsense-depth-camera-d455f.html",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "store page price (schema.org offer 525 USD)"
+  },
   "interface": "USB 3.1 Gen 1 (USB Type-C)",
   "power_w": 3.46147,
   "mass_g": 116.0,

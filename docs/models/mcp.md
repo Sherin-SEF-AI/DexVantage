@@ -47,7 +47,16 @@ Long studies (`tools.LONG`): `grasp_visibility` (11.5 s on the SO-100 sample, 42
 2026-11-07), `groundtruth`, `audit`, `plan_vs_recording`, `silhouette_calib`, `teleop`, `handeye_plan`,
 `handeye_solve`, `dex_occlusion`, and the studies that run other studies many times: `tolerance` (64 draws, 81 s on
 the UR5e), `experiments` (one run per row), `optimise` (105 s on the UR5e at its default budget) and `design_agent`
-(237 s) (added by the Phase 9/10 product review).
+(237 s) (added by the Phase 9/10 product review), and from research tools part 2 `cells` (figures on every cell) and
+`sim2real` (renders and a silhouette calibration).
+
+Research tools part 2 added nine reading tools (33 in the registry, 39 in the MCP server's `tools/list` with its own
+`dexvantage_status`, `open_project`, `save_project`, `run_batch`, `get_history` and `redo_change`; the counts are
+asserted in `tests/test_integration_rt2.py`): `get_runs` (the experiment tracker's runs), `get_statistics` (success
+counts and the power calculator computed on the spot, else the page's result), `get_campaign`, `get_sim2real`,
+`get_methods_paragraph` (the paper kit's paragraph), `get_cells`, `get_cluster_job` (a Slurm job folder's shards and
+gathered headline), `get_rig_cost` (the cited prices) and `check_robot_file` (what a URDF, MJCF or USD file references
+and whether each file is found, before an import). Each reads; none changes the project.
 
 ## Edits as data (`mcp/edits.py`)
 

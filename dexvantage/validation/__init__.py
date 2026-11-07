@@ -41,9 +41,14 @@ __all__ = ['SCHEMA', 'MODELS', 'MODEL_IDS', 'available_models', 'environment', '
 
 def catalogue(settings: ValidationSettings | None = None) -> list:
     """Every check the settings select, without running them: [{'id', 'model', 'title', 'quantity', 'reference',
-    'tolerance', 'unit', 'references', 'cost'}] (for the documentation and the assistant)."""
+    'tolerance', 'unit', 'references', 'cost'}] (for the documentation and the assistant); 'tolerance' is the one a
+    run with these settings applies (quick or full), and 'tolerance_quick' is added where a quick run's differs."""
+    from .suite import declared_tolerance
+    quick = bool(settings is not None and settings.quick)
     return [{'id': s.id, 'model': s.model, 'title': s.title, 'quantity': s.quantity, 'reference': s.reference,
-             'tolerance': s.tolerance, 'unit': s.unit, 'references': list(s.refs), 'cost': s.cost}
+             'tolerance': declared_tolerance(s, quick), 'unit': s.unit, 'references': list(s.refs), 'cost': s.cost,
+             **({'tolerance_full': s.tolerance, 'tolerance_quick': s.tolerance_quick}
+                if s.tolerance_quick is not None else {})}
             for s in specs(settings)]
 
 

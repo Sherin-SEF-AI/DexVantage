@@ -13,6 +13,16 @@
     }
   ],
   "note": "Finger and wrist motion-capture gloves: \"a proprietary combination of IMU (inertial measurement unit) and EMF (electro-magnetic field) sensor fusion technology - 7 sensors per glove\". Smartgloves II: \"IMU capture rate 250 Hz\" (Smartgloves I: 166.67 Hz); \"Wrist tracking accuracy has improved 3×, from 1.5mm to 0.47mm at fingertip distance\" (accuracy_mm 0.47, as stated); \"TCP-based WiFi streaming\". Not stated: latency (the page says \"low-latency\" without a figure), DoF, mass, range (only \"Twice the effective range with Coil Pro\").",
+  "price": {
+    "amount": 1995,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.rokoko.com/products/smartgloves-ii",
+    "read": "2026-11-07",
+    "region": "rest of world store (USD)",
+    "what": "schema.org offer 1995.00 USD (offer URL store.rokoko.com/products/smartgloves-ii); 'In the box: A pair of textile gloves with embedded sensors, 2x long USB power cables, protective travel case' - the price is for the pair"
+  },
   "interface": "Wi-Fi (TCP streaming)",
   "power_w": null,
   "mass_g": null,

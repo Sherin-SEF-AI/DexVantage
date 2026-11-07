@@ -82,6 +82,18 @@ study, and keep the test.
 - **Tag** one metric per study `'headline'`: `Result.headline` and the API's HTML views use it.
 - **Licences**: bundle only data you may redistribute; a plugin's library entries follow the library schema and cite
   their sources like the built-in ones.
+- **Validation checks**: a plugin's study is a model, and docs/DEVELOPING.md asks every model to be compared with an
+  independent reference. `api.check(id, title, quantity, reference, tolerance, unit, references={key: citation})`
+  registers `fn(ctx) -> api.Outcome(error, detail)` in the validation suite under the plugin's own model
+  (`plugin.<name>`); `--validate`, `--validate --models plugin.<name>`, the self-test's cheap run and Help ▸ Validate
+  the models run it with the built-in checks, and its references join the report's list and `--cite`'s BibTeX.
+  A check id that is taken, or a reference key that DexVantage has with other text, is skipped with a sentence.
+
+      @api.check('my.vs_closed_form', 'My figure against its closed form', 'absolute error', 'the closed form',
+                 1e-9, 'mm', references={'me2026': 'A. Author, "Title", https://..., (read 2026-11-07).'})
+      def _check(ctx):
+          ours, ref = my_figure(), closed_form()
+          return api.Outcome(abs(ours - ref), {'ours': ours, 'reference': ref})
 
 ## Loading, errors and --no-plugins
 
@@ -113,5 +125,5 @@ DexVantage's own `tests/test_plugins.py` installs the template into a temporary 
 A plugin runs in DexVantage's process with its rights: there is no sandbox, so install only plugins you trust.
 Unloading removes what a plugin registered, not modules it imported or other state it changed. Pages are added when
 the window is built, so a plugin loaded later from Python adds its page only after a restart, and a page whose id
-equals a built-in page's is replaced by the built-in one. The plugin interface is version 1; a change to a registry's
+equals a built-in page's is replaced by the built-in one (Help ▸ Plugins says so). The plugin interface is version 1; a change to a registry's
 contract (core/jobs, core/metrics, core/exporters, core/datasets, core/library, ui/pages) is a change for plugins too.

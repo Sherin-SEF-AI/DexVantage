@@ -13,6 +13,22 @@
     }
   ],
   "note": "The entry is the board camera with e-con's M12 lens and no enclosure; with enclosure it is 35.30 x 35.30 x 29 mm and 65.5 g with lens. The FOV 57.6 (H) x 48.13 (V) x 70.6 (D) degrees is stated \"with the lens provided by e-con\", taken here to refer to the full 1600 x 1300 array (the page does not say for which resolution). The lens model is pinhole, a labelled assumption (no projection or distortion is stated; calibrate a unit); the three stated angles agree with one distortion-free pinhole with square pixels over 1600 x 1300 to 0.1 degree, which supports reading them as full-array figures. The page states \"Streams HD @ 90 fps, 2MP @ 60 fps & QVGA @ 280fps\" without the HD and QVGA pixel sizes or crops, so only the full-array 60 fps mode is entered as a stream; the datasheet (not read: it is a download behind e-con's document page) has the full table. Y8 is 8 bits per pixel and Y16 carries raw 10-bit data (page). Not stated: f-number, focal length. power_w is the stated maximum (0.690 W; minimum 0.430 W). size_mm is the stated l x b x h without lens, 30 x 30 x 26.9 mm, entered as [26.9, 30, 30] on the reading that h is along the optical axis (an assumption). The sensor is NIR-sensitive (page), so an IR projector of a nearby depth camera can show in its images.",
+  "price": {
+    "amount": 149,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.e-consystems.com/industrial-cameras/ov2311-monochrome-global-shutter-camera.asp",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "'Sample Price (1 Unit)' from the site's product price service: product 252, See3CAM_20CUG_MHL_TC, 149.00 USD; product 322, See3CAM_20CUG_MHL_TC_BX (with enclosure), 199.00 USD; 'Contact us' instead of 'Buy now'; read from https://www.e-consystems.com/getproductdetails.asp?IDS=252,322",
+    "options": [
+      {
+        "label": "See3CAM_20CUG_MHL_TC_BX",
+        "amount": 199
+      }
+    ]
+  },
   "interface": "USB 3.1 Gen 1 (USB Type-C receptacle); UVC",
   "power_w": 0.69,
   "mass_g": 21.5,

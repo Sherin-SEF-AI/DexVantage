@@ -431,6 +431,7 @@ class RobotModel:
         self._tri_local, self._tri_link, self._tri_rgba = tri, li, rgba
         self._posed_cache = None
         self._posed_lock = threading.Lock()
+        self._bounds_cache = None          # (q, lo, hi): the frame button asks for the same pose many times
 
     # ---------------------------------------------------------------- names
     def joint_name(self, j: int) -> str:
@@ -671,7 +672,17 @@ class RobotModel:
 
     def bounds(self, q=None) -> tuple[np.ndarray, np.ndarray]:
         """World-frame axis-aligned bounds of the visual meshes (or the link origins when there are none) at q."""
-        q = self.home if q is None else q
+        q = self._q(self.home if q is None else q)
+        with self._posed_lock:
+            c = self._bounds_cache
+            if c is not None and c[0].shape == q.shape and np.array_equal(c[0], q):
+                return c[1].copy(), c[2].copy()
+        lo, hi = self._bounds(q)
+        with self._posed_lock:
+            self._bounds_cache = (q.copy(), lo, hi)
+        return lo.copy(), hi.copy()
+
+    def _bounds(self, q):
         if self.n_triangles:
             tri = self.posed_triangles(q)[0].reshape(-1, 3)
         else:

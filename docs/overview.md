@@ -582,6 +582,145 @@ explained when a plugin fails. Neither computes a figure of its own (no validati
 angle is checked in its own test against a closed form. See [guide/api.md](guide/api.md) and
 [guide/plugins.md](guide/plugins.md).
 
+## The workspace check {#workspace}
+
+`core/workspace_check.py` (Workspace ▸ Workspace): whether each task object lies inside a task volume, with a
+one-step suggestion of a volume around the objects outside. **Validation:** `workspace.object_extent` (an object's box
+against the exact box of its true shape: 0.861 of the tessellation bound over 300 random objects, tolerance 1) and
+`workspace.inside_classification` (0 of 240 objects misplaced). **Known limits:** volumes are axis-aligned boxes and the inside test uses the object's
+axis-aligned box. See [models/workspace.md](models/workspace.md) (worked example:
+[guide/workspace.md](guide/workspace.md)).
+
+## Experiment tracker {#tracking}
+
+`core/tracking/` logs every study run, designed experiment, optimiser run, tolerance Monte Carlo and readiness
+scorecard as a **run** (schema `dexvantage.run/1`: start and end in UTC, the project's content hash and variant, the
+study's settings and seeds, every figure with unit and status read through `core/metrics`, the result file and its
+provenance, tags and a note) in a run store beside the project (JSON lines plus one folder per run, atomic renames
+and a file lock). It is off unless the project turns it on (Analysis ▸ Runs, `analysis.studies['tracking']`) or
+batch mode gets `--track DIR`; the setting is left out of the content hash. Runs are compared (deltas against the
+first, the settings that differ and, with replicates, a significance note from `core/stats`, paired by seed),
+re-run through `core/reproduce` and exported as CSV, Parquet, an MLflow 3.17 file store and a W&B replay script.
+Cluster runs (`--jobs`, `--gather`, `dv.cluster`) are logged too. **Validation:** 5 checks, tolerance 0 (storage and
+file formats are exact or wrong): 0 of 434 fields differ after a round trip, 8 writer processes × 100 runs lose none,
+7 of 7 crash cases recover, 0 of 8 240 table cells differ, 0 of 80 fields differ read back by MLflow's own
+`MlflowClient`. **Known limits:** a run keeps the project's hash, not the project; MLflow artifact URIs are
+absolute; single figures are compared by their difference only. See [models/tracking.md](models/tracking.md)
+(worked example: [guide/tracking.md](guide/tracking.md)).
+
+## Statistics and power analysis {#stats}
+
+`core/stats.py` (NumPy and SciPy): Wilson and Clopper-Pearson intervals, BCa bootstrap intervals, exact or Monte
+Carlo permutation tests (paired and unpaired), Welch and paired t, Mann-Whitney and Wilcoxon, Cohen's d and Hedges'
+g with noncentral-t intervals, Cliff's delta, the risk difference (Newcombe) and odds ratio (Woolf), Fisher's exact
+and z tests, Holm, Bonferroni, Benjamini-Hochberg and -Yekutieli corrections, and power and sample size for two
+proportions (normal, arcsine, exact, simulation) and t tests. The study `stats` compares success counts, two variants
+over the tolerance Monte Carlo, an experiment's factor levels or tracker runs; every comparison names its test and
+why, and a difference that is not clear comes with the smallest difference the data detect. The campaign planner and
+the cell comparison use it. **Validation:** 13 checks against SciPy (to 10⁻¹⁵), Benjamini and Hochberg (1995)'s
+worked example, Cohen (1992) Table 2 (within 1 per group), the G*Power 3.1 manual (4.6 × 10⁻⁷) and simulated
+coverage and power (within 1.6 standard errors). **Known limits:** fixed-sample tests only (no sequential testing);
+episodes independent; power for rates and normal data. See [models/stats.md](models/stats.md) (worked example:
+[guide/stats.md](guide/stats.md)).
+
+## Data-collection campaign planner {#campaign}
+
+`core/campaign.py`: the conditions (tasks, rig variants, lighting presets, object sets and teleop devices, crossed or
+listed), demonstrations per condition (entered, or from `core/stats`'s two-proportion power analysis), operators
+counterbalanced by a Williams Latin square, sessions and days within labelled fatigue limits, storage from the
+bandwidth model, the status against the budget, and a schedule exported as CSV, an RFC 5545 calendar and an HTML
+checklist (`--campaign SPEC.json`, Data ▸ Campaign, `dv.campaign`). **Validation:** 6 checks: Williams squares of
+orders 1–12 by brute force (0 violations), 40 seeded campaigns' balance from their CSV (0), 383 sessions within their
+limits, storage against the bandwidth study (0), 34 calendar events through a strict RFC 5545 reader (0), and the
+normal-approximation sample size against exact power by enumeration (0.033 at most, tolerance 0.04). **Known
+limits:** episodes of fixed length; conditions not balanced across days; a compressed format's storage is the raw
+size until a measured ratio is entered. See [models/campaign.md](models/campaign.md) (worked example:
+[guide/campaign.md](guide/campaign.md)).
+
+## Sim-to-real gap {#sim2real}
+
+`core/sim2real/` renders one recorded episode again in MuJoCo through the rig (each camera's lens and mount, the
+robot at the recorded joint states) and compares it with the recording camera by camera: brightness and contrast,
+per-channel histogram distance, an exposure gain and offset, sharpness and blur, noise (Immerkær 1996), the robot's
+silhouette overlap, the mount offset (through the silhouette calibration), latency and a kernel MMD between frame
+sets. Shapley shares rank the causes, and each comes with the change that closes it (Apply, one undo step).
+**Validation:** 7 checks: SciPy's Wasserstein distance (1.7 × 10⁻¹³ DN), MMD against a hand case and the Gaussian
+closed form, known noise (1.2 % against 5 %) and blur (0.0005 px), Shapley by brute force over all orders, and four
+UR5e recordings with one injected gap each, each recovered and ranked first (worst 0.68 of its tolerance). **Known
+limits:** the render is MuJoCo's shading of the project's model (textures, shadows and background are what is
+left); one episode and a constant latency; no FID (no torch). See [models/sim2real.md](models/sim2real.md) (worked
+example: [guide/sim2real.md](guide/sim2real.md)).
+
+## Publication kit {#paper_kit}
+
+`core/publication.py` (Export ▸ Paper kit…, the `paper_kit` export format, `dv.publication`): a methods paragraph,
+booktabs LaTeX tables (sensors, results with their intervals, the scorecard, the experiment, variants, the statistical
+comparisons with their intervals and corrected p-values, the cell comparison and the tracked runs, each when its
+result is present), SVG and PDF figures at one- and two-column widths, a BibTeX file and a reproducibility appendix
+with a run plan. Every number is traced to the project, a library entry, a result or the software environment, and
+checked again. **Validation:** 4 checks, each at 0: every number of the paragraph found in the source data, every
+`\cite` key defined, the LaTeX structure of 10 files, and 60 table cells against their sources. **Known limits:** no
+LaTeX engine on the build machine (the compile test runs where one is installed); the paragraph says what the project
+and results state, nothing more. See [models/paper_kit.md](models/paper_kit.md) (worked example:
+[guide/paper_kit.md](guide/paper_kit.md)).
+
+## Cluster sweeps {#cluster}
+
+`core/cluster/` runs the independent parts of long work on several processes: a designed experiment's runs, a
+tolerance Monte Carlo's draws, each optimiser generation's designs and any list of (project, study, settings) jobs,
+in a spawn process pool (`--jobs N`, Run on… ▸ This machine) or as a Slurm job array (`--slurm FOLDER`,
+`--run-shard`, `--gather`), with a shared on-disk result cache. The gathered result is the in-process one.
+**Validation:** 4 checks at 0: a 6-run experiment and a 6-draw Monte Carlo gathered from separate shard processes
+against the serial runs, the shard partition over m ≤ 300 and N ≤ 40, three processes writing the cache at once, and
+the `#SBATCH` directives through `bash -n`. **Known limits:** Slurm only, a shared filesystem, like machines for
+machine-dependent figures; the design agent is not distributed. See [models/cluster.md](models/cluster.md) (worked
+example: [guide/cluster.md](guide/cluster.md)).
+
+## Multi-cell comparison {#cells}
+
+`core/cells.py` and `core/cells_pool.py` (File ▸ Compare cells…, `--cells`, `dv.cells.compare`): several robot cells
+(other projects, samples, variants) side by side: the figures of merit with the best and worst cell (a difference
+meaningful only beyond the build spread of a tolerance Monte Carlo and, with `core/stats`, a Holm-adjusted
+permutation test), a geometric gap index per camera role (ported from Vantage `core/rig_gap.py`), whether the cells'
+recordings pool for training against the LeRobot feature schema, and the drift of built copies from the plan.
+**Validation:** 6 checks: identical cells give 0, a known rotation and shift come back to 10⁻¹³, the coverage share
+against an exact polygon clip (0.0144, tolerance 0.02), three LeRobot datasets with known differences (0), and known
+drift offsets (10⁻¹⁵). **Known limits:** the gap is geometric, not appearance or success, and its bands are a
+heuristic; pooling reads the schema, not the data. See [models/cells.md](models/cells.md) (worked example:
+[guide/cells.md](guide/cells.md)).
+
+## Robot import and export: USD, URDF inertials, OpenVLA, Isaac {#robot_io}
+
+The USD robot import (spec §13; `core/robot/usd_import.py`, UsdPhysics to MJCF, through the import wizard and
+`dv.robot_io`), a small UsdPhysics writer for the round trip, URDF exports with inertials that MuJoCo loads as
+written, OpenVLA state and action encodings chosen from the rig, and Isaac exports with an off-centre principal
+point. **Validation:** 5 checks: the URDF's sensor frames through MuJoCo's URDF compiler (10⁻⁶ m), three robots
+written to USD and imported back over 50 random states, a third-party USD UR5e (the newton-assets file) against the
+sample (2.6 × 10⁻⁸ m), the OpenVLA rules of six rigs (0 mismatches) and the Isaac intrinsics (4.8 × 10⁻⁵ px).
+**Known limits:** one articulation per USD file; drives, loops and couplings are not imported; joint limits round to
+UsdPhysics' 32-bit floats. See [models/robot_io.md](models/robot_io.md) (worked example:
+[guide/robot_io.md](guide/robot_io.md)).
+
+## Prices and the rig cost {#prices}
+
+81 of the 191 built-in library entries state a cited list price (USD, the maker's store or official price list, the
+page and date read); `rig.cost` adds up the enabled sensors' prices (a lower bound when some state none), and the
+optimiser's cost objective works where every candidate states a price. **Validation:** `library.prices_sound` (every
+built-in price positive, ISO 4217, sourced over https and read within two years: 0 broken) and
+`library.rig_cost_sum` (the rig cost against the stated prices added up again from the entry files, tolerance
+0.005 USD). **Known
+limits:** hosts, lights, cables and robots are priced in the library but not added to the rig total; prices go
+stale. See [models/library.md](models/library.md#prices) (worked example: [guide/prices.md](guide/prices.md)).
+
+## UI responsiveness and the review round's fixes {#ui_fixes}
+
+Hidden analysis pages hold the store's and the analysis controller's signals until they are shown and replay them
+coalesced (`ui/pages/_gate.py`): an edit on the two-arm samples costs 3.6–5.5 ms on the UI thread instead of
+28–39 ms. Adding the G1 is 10–13 ms (171 ms before). Experiments censor figures stated only as bounds
+(`experiments.censored_best`: 0 contradictions in 300 random designs), and the canonical view says when its parallax
+bound is larger than the image. See [models/ui-fixes.md](models/ui-fixes.md) (worked example:
+[guide/ui-fixes.md](guide/ui-fixes.md)).
+
 ## Performance {#performance}
 
 No UI-thread step over 100 ms on the samples with the shader renderer (largest: 68 ms median, 96 ms worst, for a UR5e
@@ -591,7 +730,10 @@ frame after a joint change on an integrated GPU). See [models/performance.md](mo
 Phase 4, 5 and 8 pages add none either (largest: 80.8 ms, the events after Apply on the multi-finger page with the
 handoff; every new page's Apply under 30 ms; `scripts/measure_ui_phase458.py`).
 The Phase 9 and 10 pages add none either (largest: 48.5 ms, Apply on the Tolerances page; every page shows within
-17 ms; `scripts/measure_ui_phase910.py`); File ▸ Open sample builds the project on a window job.
+17 ms; `scripts/measure_ui_phase910.py`); File ▸ Open sample builds the project on a window job. The research tools
+part 2 pages add none either on ALOHA 2 and the G1 (largest: 19.8 ms, the events after the cell comparison arrives;
+every new page shows within 18 ms, Apply 11–14 ms; `scripts/measure_ui_rt2.py`), and hidden pages now hold their
+signals until shown, so an edit costs 6–7 ms with every page built ([models/ui-fixes.md](models/ui-fixes.md)).
 
 ## Provenance {#provenance}
 
@@ -620,9 +762,12 @@ Phases 9 and 10, the samples, the catalogue and research tools part 1: 64 more, 
 library data 6, tolerance 5, experiments 6, optimise 6, formats 11 more (the exporters' round trips and the Rerun
 read-back), the canonical warp 4, assistant 3, requirements 5, copilot 3, versioning 7, samples 5 (each summarised
 in its section above).
+Research tools part 2 and the review round's fixes: 55 more, 232 in all (the two workspace checks came with the
+Phases 9 and 10 reviews) — tracking 5, stats 13, campaign 6, sim2real 7, publication 4, cluster 4, cells 6,
+robot_io 5, library 2 (prices), experiments 1 (`experiments.censored_best`) (each summarised in its section above).
 With no project given, the project-dependent checks run on the bundled SO-100 and UR5e samples (the multi-finger
-checks on the dexhand sample). The self-test runs the quick run's cheap checks (`cheap_only`, 122 of them);
-`--validate` runs them all (177 checks: full run 410 s with the test suite alongside, 2026-11-07).
+checks on the dexhand sample). The self-test runs the quick run's cheap checks (`cheap_only`, 160 of them);
+`--validate` runs them all (232 checks, all passing: full run 397 s, peak 5.3 GB, 2026-11-07).
 
 ## Model documents
 
@@ -674,4 +819,15 @@ checks on the dexhand sample). The self-test runs the quick run's cheap checks (
 | [models/samples.md](models/samples.md) | the ALOHA 2, bimanual Panda and G1 samples: sources, licences, what was changed and how it was checked (worked example: [guide/samples.md](guide/samples.md)) |
 | [models/versioning.md](models/versioning.md) | project diff, three-way merge, the unpacked folder and the git textconv (worked example: [guide/versioning.md](guide/versioning.md)) |
 | [models/publication.md](models/publication.md) | BibTeX of a project's sources and publication figures (worked example: [guide/publication.md](guide/publication.md)) |
+| [models/workspace.md](models/workspace.md) | the workspace check: task objects inside task volumes (worked example: [guide/workspace.md](guide/workspace.md)) |
+| [models/tracking.md](models/tracking.md) | the experiment tracker: runs, the run store, comparisons, re-runs, CSV, Parquet, MLflow and W&B exports (worked example: [guide/tracking.md](guide/tracking.md)) |
+| [models/stats.md](models/stats.md) | statistics and power analysis: intervals, permutation and rank tests, effect sizes, corrections, power and sample size (worked example: [guide/stats.md](guide/stats.md)) |
+| [models/campaign.md](models/campaign.md) | the data-collection campaign planner: conditions, demonstrations, Williams-square schedules, storage, calendar export (worked example: [guide/campaign.md](guide/campaign.md)) |
+| [models/sim2real.md](models/sim2real.md) | the sim-to-real gap: a recorded episode rendered again, per-camera measures, causes and their changes (worked example: [guide/sim2real.md](guide/sim2real.md)) |
+| [models/paper_kit.md](models/paper_kit.md) | the publication kit: methods paragraph, tables, figures, BibTeX and appendix, every number traced (worked example: [guide/paper_kit.md](guide/paper_kit.md)) |
+| [models/cluster.md](models/cluster.md) | cluster sweeps: the process pool, Slurm job arrays, gather, the shared result cache (worked example: [guide/cluster.md](guide/cluster.md)) |
+| [models/cells.md](models/cells.md) | the multi-cell comparison: figures of merit, the geometric gap, dataset pooling, drift (worked example: [guide/cells.md](guide/cells.md)) |
+| [models/robot_io.md](models/robot_io.md) | USD robot import, URDF inertials, OpenVLA encodings, the Isaac principal point (worked example: [guide/robot_io.md](guide/robot_io.md)) |
+| [models/ui-fixes.md](models/ui-fixes.md) | hidden pages that wait until shown, censored experiment figures, the review round's fixes (worked example: [guide/ui-fixes.md](guide/ui-fixes.md)) |
+| [models/library.md#prices](models/library.md#prices) | cited prices and the rig cost (worked example: [guide/prices.md](guide/prices.md)) |
 | [guide/api.md](guide/api.md), [guide/plugins.md](guide/plugins.md) | the Python and notebook API (`import dexvantage as dv`) and the plugin SDK |

@@ -5,6 +5,10 @@ references its checks cite.
 """
 
 REFERENCES = {
+    'helsel2012': 'D. R. Helsel, Statistics for Censored Environmental Data Using Minitab and R, 2nd edition, Wiley, '
+                  '2012 (ISBN 978-0-470-47988-9; substituting a value for a censored one is not an estimate), '
+                  'https://www.wiley.com/en-us/Statistics+for+Censored+Environmental+Data+Using+Minitab+and+R%2C+2nd'
+                  '+Edition-p-9780470479889 (read 2026-11-07).',
     'arvo1990': 'J. Arvo, "Transforming axis-aligned bounding boxes", in A. S. Glassner (ed.), Graphics Gems, '
                 'Academic Press, 548–550, 1990.',
     'mcp_2025_11_25': 'Model Context Protocol specification, version 2025-11-25: basic/lifecycle, basic/transports '
@@ -535,6 +539,173 @@ REFERENCES = {
                        '7c40519e02d7dd16c06b25fe3fa3b67fdeb7cd74, joint "d435_joint" (torso_link to d435_link: xyz '
                        '0.0576235 0.01753 0.42987 m, rpy 0 0.8307767239493009 0 rad), '
                        'https://github.com/unitreerobotics/unitree_ros (read 2026-11-07).',
+    # the data-collection campaign planner (checks_campaign.py)
+    'williams1949': 'E. J. Williams, "Experimental designs balanced for the estimation of residual effects of '
+                    'treatments", Australian Journal of Scientific Research, Series A 2(2), 149-168, 1949, '
+                    'https://doi.org/10.1071/CH9490149 (read 2026-11-07).',
+    'rfc5545': 'B. Desruisseaux (ed.), Internet Calendaring and Scheduling Core Object Specification (iCalendar), RFC '
+               '5545, September 2009 (§3.1 content lines and folding, §3.3.11 TEXT, §3.6 and §3.6.1 required '
+               'properties, §3.8.7.2 DTSTAMP in UTC), https://www.rfc-editor.org/rfc/rfc5545 (read 2026-11-07).',
+    'fleiss2003': 'J. L. Fleiss, B. Levin and M. C. Paik, Statistical Methods for Rates and Proportions, 3rd ed., '
+                  'Wiley, 2003 (sample size for comparing two independent proportions).',
+    'fleiss_tytun_ury1980': 'J. L. Fleiss, A. Tytun and H. K. Ury, "A simple approximation for calculating sample '
+                            'sizes for comparing independent proportions", Biometrics 36(2), 343-346, 1980, '
+                            'https://doi.org/10.2307/2529990 (read 2026-11-07).',
+    # the publication kit (checks_publication.py)
+    'booktabs_fear2020': 'S. Fear, "Publication quality tables in LaTeX", booktabs package documentation, version '
+                         '1.61803398, CTAN, 2020 (section 2: "Never, ever use vertical rules"; "Never use double '
+                         'rules"; "Put the units in the column heading"), https://ctan.org/pkg/booktabs, read '
+                         '2026-11-07.',
+    'siunitx_wright2026': 'J. Wright, "siunitx - A comprehensive (SI) units package", package manual, version 3.6.7, '
+                          'CTAN, 2026 (section 3.4: literal unit input such as \\unit{kg.m/s^2}; \\num, \\qty, '
+                          '\\percent, \\degree), https://ctan.org/pkg/siunitx, read 2026-11-07.',
+    'latex2e_unofficial': 'LaTeX2e: An unofficial reference manual (June 2026), "Environments" ("The '
+                          'environment-name at the beginning must exactly match that at the end"), '
+                          'https://latexref.xyz/Environments.html, read 2026-11-07.',
+    # the experiment tracker (checks_tracking.py)
+    'mlflow_filestore_3172': 'MLflow 3.17.2, mlflow/store/tracking/file_store.py (FileStore: the mlruns/ layout, '
+                             'meta.yaml, metrics/params/tags files) with mlflow/entities/run_info.py, run_status.py, '
+                             'source_type.py and mlflow/utils/validation.py at the same tag, '
+                             'https://github.com/mlflow/mlflow/blob/v3.17.2/mlflow/store/tracking/file_store.py '
+                             '(read 2026-11-07).',
+    'mlflow_client_3172': 'MLflow 3.17.2, mlflow.tracking.MlflowClient over a file: tracking URI (the package '
+                          'mlflow-skinny 3.17.2, an independent reader of the mlruns/ layout), '
+                          'https://mlflow.org/docs/latest/api_reference/python_api/mlflow.client.html (read '
+                          '2026-11-07).',
+    'wandb_init_0300': 'wandb 0.30.0, wandb/sdk/wandb_init.py (wandb.init parameters, mode "offline") and '
+                       'wandb/sdk/wandb_run.py (Run.log, Run.summary, Run.finish), '
+                       'https://github.com/wandb/wandb/blob/v0.30.0/wandb/sdk/wandb_init.py (read 2026-11-07).',
+    'rfc4180': 'Y. Shafranovich, Common Format and MIME Type for Comma-Separated Values (CSV) Files, RFC 4180, '
+               'October 2005, https://www.rfc-editor.org/rfc/rfc4180 (read here through Python\'s csv module).',
+    'parquet_format': 'Apache Parquet file format (read here through pyarrow.parquet, an independent reader), '
+                      'https://parquet.apache.org/docs/file-format/.',
+    'posix_rename_flock': 'POSIX.1-2017 rename() ("a link named new shall remain visible to other threads '
+                          'throughout the renaming operation and refer either to the file referred to by new or old '
+                          'before the operation began"; RATIONALE: "the action of the function be atomic") and '
+                          'Linux flock(2) advisory locks, '
+                          'https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html, '
+                          'https://man7.org/linux/man-pages/man2/flock.2.html (read 2026-11-07).',
+    'json_lines': 'JSON Lines (one JSON value per line, UTF-8, newline-terminated), https://jsonlines.org/ (read '
+                  '2026-11-07).',
+    # the multi-cell comparison (checks_cells.py)
+    'vantage_rig_gap': 'Vantage core/rig_gap.py (the Rig Contrastive Distance: components in 0..1, their weights, the '
+                       'Hungarian camera match, the heuristic transfer bands) and core/fleet.py (measured minus '
+                       'planned, the ok / adjust / re-mount verdict, the robust z-score, the systematic offset), the '
+                       'read-only reference implementation DexVantage ports from.',
+    'hampel1974': 'F. R. Hampel, "The influence curve and its role in robust estimation", Journal of the American '
+                  'Statistical Association 69(346), 383–393, 1974 (the median absolute deviation, 1.4826 × MAD).',
+    'sutherland_hodgman1974': 'I. E. Sutherland and G. W. Hodgman, "Reentrant polygon clipping", Communications of '
+                              'the ACM 17(1), 32–42, 1974.',
+    'kay_kajiya1986': 'T. L. Kay and J. T. Kajiya, "Ray tracing complex scenes", SIGGRAPH \'86, Computer Graphics '
+                      '20(4), 269–278, 1986 (the slab test of a ray against a box).',
+    'kuhn1955': 'H. W. Kuhn, "The Hungarian method for the assignment problem", Naval Research Logistics Quarterly '
+                '2(1–2), 83–97, 1955 (here through scipy.optimize.linear_sum_assignment).',
+    'andrew1979': 'A. M. Andrew, "Another efficient algorithm for convex hulls in two dimensions", Information '
+                  'Processing Letters 9(5), 216–219, 1979 (the monotone chain).',
+    # statistics and power analysis (checks_stats.py)
+    'scipy_stats_tests': 'SciPy 1.18, scipy.stats: binomtest(...).proportion_ci (wilson, exact), bootstrap '
+                         '(percentile, BCa), permutation_test, ttest_ind (equal_var=False), ttest_rel, mannwhitneyu, '
+                         'wilcoxon, fisher_exact, contingency.odds_ratio (kind="sample"): independent '
+                         'implementations, https://docs.scipy.org/doc/scipy/reference/stats.html (read 2026-11-07).',
+    'clopper_pearson1934': 'C. J. Clopper and E. S. Pearson, "The use of confidence or fiducial limits illustrated '
+                           'in the case of the binomial", Biometrika 26(4), 404-413, 1934.',
+    'benjamini_hochberg1995': 'Y. Benjamini and Y. Hochberg, "Controlling the false discovery rate: a practical and '
+                              'powerful approach to multiple testing", Journal of the Royal Statistical Society B '
+                              '57(1), 289-300, 1995: section 3.2, p. 295, the 15 ordered p-values of Neuhaus et al. '
+                              '(1992); Bonferroni at 0.05 rejects 3, Hochberg 3, the FDR procedure at q* = 0.05 '
+                              'rejects 4 (read 2026-11-07 from a scan of the paper).',
+    'holm1979': 'S. Holm, "A simple sequentially rejective multiple test procedure", Scandinavian Journal of '
+                'Statistics 6(2), 65-70, 1979.',
+    'benjamini_yekutieli2001': 'Y. Benjamini and D. Yekutieli, "The control of the false discovery rate in multiple '
+                               'testing under dependency", Annals of Statistics 29(4), 1165-1188, 2001 (the factor '
+                               'c(m) = sum of 1/i).',
+    'cohen1988': 'J. Cohen, Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, 1988 '
+                 '(effect sizes d and h, the power tables).',
+    'cohen1992': 'J. Cohen, "A power primer", Psychological Bulletin 112(1), 155-159, 1992: Table 2, p. 158, N per '
+                 'group for power 0.80 at alpha 0.01, 0.05 and 0.10; row 1 (mean difference, d = 0.2, 0.5, 0.8): '
+                 '586 95 38 / 393 64 26 / 310 50 20; row 5 (P difference, h = 0.2, 0.5, 0.8): 584 93 36 / 392 63 25 '
+                 '/ 309 49 19 (read 2026-11-07 from a scan of the paper).',
+    'gpower31_manual': 'G*Power 3.1 manual (Heinrich-Heine-Universitaet Duesseldorf, June 1, 2023), '
+                       'https://www.psychologie.hhu.de/fileadmin/redaktion/Fakultaeten/'
+                       'Mathematisch-Naturwissenschaftliche_Fakultaet/Psychologie/AAP/gpower/GPowerManual.pdf: '
+                       'section 19.3, p. 48 (matched pairs, two-sided alpha 0.05, N = 50: d_z = 0.421637 gives power '
+                       '0.832114, d_z = 0.2828427 gives 0.500352); section 20.3, p. 50 (one sample: d = 0.625, '
+                       'one-sided alpha 0.05, power 0.95 needs N = 30, actual power 0.955144; d = 0.1, two-sided '
+                       'alpha 0.01, power 0.90 needs N = 1492, actual power 0.900169) (read 2026-11-07).',
+    'newcombe1998': 'R. G. Newcombe, "Interval estimation for the difference between independent proportions: '
+                    'comparison of eleven methods", Statistics in Medicine 17(8), 873-890, 1998 (method 10).',
+    'steiger_fouladi1997': 'J. H. Steiger and R. T. Fouladi, "Noncentrality interval estimation and the evaluation '
+                           'of statistical models", in L. L. Harlow, S. A. Mulaik and J. H. Steiger (eds.), What If '
+                           'There Were No Significance Tests?, Erlbaum, 221-257, 1997.',
+    'cliff1993': 'N. Cliff, "Dominance statistics: ordinal analyses to answer ordinal questions", Psychological '
+                 'Bulletin 114(3), 494-509, 1993.',
+    # cluster sweeps (checks_cluster.py, core/cluster)
+    'slurm_job_array': 'SchedMD, Slurm Workload Manager, "Job Array Support", version 26.05 (--array ranges, comma '
+                       'lists and the % throttle; SLURM_ARRAY_TASK_ID; %A and %a; MaxArraySize default 1001), '
+                       'https://slurm.schedmd.com/job_array.html, read 2026-11-07.',
+    'slurm_sbatch': 'SchedMD, Slurm Workload Manager, "sbatch", version 26.05 (--cpus-per-task, --mem in mebibytes '
+                    'with K, M, G, T, --time formats, --parsable, --dependency=afterany, SLURM_SUBMIT_DIR; #SBATCH '
+                    'directives are read up to the first non-comment, non-whitespace line), '
+                    'https://slurm.schedmd.com/sbatch.html, read 2026-11-07.',
+    'rename2': 'Linux man-pages, rename(2) ("If newpath already exists, it will be atomically replaced, so that there '
+               'is no point at which another process attempting to access newpath will find it missing"; on NFS a '
+               'failed rename may have been done), https://man7.org/linux/man-pages/man2/rename.2.html, read '
+               '2026-11-07.',
+    'flock2': 'Linux man-pages, flock(2) (NFS clients emulate flock with fcntl byte-range locks since Linux 2.6.12; '
+              'SMB: not propagated before 5.5, mandatory after), https://man7.org/linux/man-pages/man2/flock.2.html, '
+              'read 2026-11-07.',
+    'nfs5': 'Linux man-pages, nfs(5) (nolock: locks exclude only applications on the same client; close-to-open cache '
+            'consistency), https://man7.org/linux/man-pages/man5/nfs.5.html, read 2026-11-07.',
+    # the sim-to-real gap (checks_sim2real.py)
+    'immerkaer1996': 'J. Immerkær, "Fast Noise Variance Estimation", Computer Vision and Image Understanding 64(2), '
+                     '300–302, 1996, doi:10.1006/cviu.1996.0060 (bibliographic record and abstract read 2026-11-07; '
+                     'the full text is paywalled, the estimator\'s factors are derived again in '
+                     'core/sim2real/measures.py).',
+    'tai_yang2008': 'S.-C. Tai and S.-M. Yang, "A fast method for image noise estimation using Laplacian operator and '
+                    'adaptive edge detection", 3rd International Symposium on Communications, Control and Signal '
+                    'Processing (ISCCSP 2008), 1077–1081, doi:10.1109/ISCCSP.2008.4537384 (abstract read '
+                    '2026-11-07: Sobel edge pixels left out of Immerkær\'s estimate).',
+    'gretton2012': 'A. Gretton, K. M. Borgwardt, M. J. Rasch, B. Schölkopf and A. Smola, "A Kernel Two-Sample Test", '
+                   'Journal of Machine Learning Research 13(25), 723–773, 2012, '
+                   'https://www.jmlr.org/papers/v13/gretton12a.html (read 2026-11-07; the unbiased MMD² of Lemma 6, '
+                   'eq. 3; the median heuristic, section 8).',
+    'rubner2000': 'Y. Rubner, C. Tomasi and L. J. Guibas, "The Earth Mover\'s Distance as a Metric for Image '
+                  'Retrieval", International Journal of Computer Vision 40(2), 99–121, 2000.',
+    'shapley1953': 'L. S. Shapley, "A value for n-person games", in H. W. Kuhn and A. W. Tucker (eds.), Contributions '
+                   'to the Theory of Games II, Annals of Mathematics Studies 28, Princeton University Press, 307–317, '
+                   '1953.',
+    'scipy_wasserstein': 'SciPy, scipy.stats.wasserstein_distance (the first Wasserstein distance between two 1-D '
+                         'distributions, an independent implementation), '
+                         'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wasserstein_distance.html.',
+    # robot import and export (checks_robot_io.py: URDF inertials, USD import, OpenVLA encodings, Isaac principal point)
+    'openusd_physics': 'OpenUSD UsdPhysics schemas (PhysicsRigidBodyAPI, PhysicsMassAPI, PhysicsArticulationRootAPI, '
+                       'PhysicsRevoluteJoint / PrismaticJoint / FixedJoint: body0, body1, localPos0/1, localRot0/1, '
+                       'axis, lowerLimit and upperLimit in degrees or distance), '
+                       'https://openusd.org/release/api/usd_physics_page_front.html, as implemented by usd-core 26.8 '
+                       '(pxr), read 2026-11-07.',
+    'newton_assets_ur5e': 'newton-physics/newton-assets at commit ac1f172b6f53915f9b81aa9ccd765ae792cc264c, folder '
+                          'universal_robots_ur5e/usd_structured (BSD-3-Clause, ROS Industrial Consortium): written by '
+                          'the mujoco-usd-converter v0.5.0 (https://github.com/newton-physics/mujoco-usd-converter) '
+                          'from MuJoCo Menagerie universal_robots_ur5e/ur5e.xml at commit '
+                          'da76818e269b82289eba39808e2fb91d679d6994, https://github.com/newton-physics/newton-assets '
+                          '(read 2026-11-07).',
+    'openvla_materialize': 'OpenVLA at commit c8f03f48af692657d3060c19588038c7220e9af9, '
+                           'prismatic/vla/datasets/rlds/oxe/materialize.py L32-33 (only EEF_POS and EEF_R6 actions) '
+                           'and configs.py L33-50 (StateEncoding, ActionEncoding), https://github.com/openvla/openvla '
+                           '(read 2026-11-07).',
+    'openvla_oft': 'OpenVLA-OFT at commit e4287e94541f459edc4feabc4e181f537cd569a8, '
+                   'prismatic/vla/datasets/rlds/oxe/materialize.py L32-33 and L43-45 (JOINT_POS_BIMANUAL accepted, '
+                   'all 14 values absolute) and configs.py L681-687 (the ALOHA entries), '
+                   'https://github.com/moojink/openvla-oft (read 2026-11-07).',
+    'isaaclab_intrinsics': 'Isaac Lab v3.0.0 (commit e3f7d9f) sensors/camera/camera.py L828-857 and L879-904 '
+                           '(_read_authored_opencv_intrinsics, _initialize_intrinsics: the authored OpenCV fx, fy, cx, '
+                           'cy rule; without them cx = width / 2) and sim/spawners/sensors/sensors.py L162-165 '
+                           '(aperture offsets ignored); v2.3.2 (commit 37ddf62) camera.py L589-599 (cx = width / 2), '
+                           'https://github.com/isaac-sim/IsaacLab (read 2026-11-07).',
+    'iso4217': 'ISO 4217 Codes for the representation of currencies, list one (current currency and funds code '
+               'list), SIX Financial Information as the maintenance agency, published 2026-09-17, '
+               'https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/'
+               'list-one.xml (read 2026-11-07).',
 }
 
 

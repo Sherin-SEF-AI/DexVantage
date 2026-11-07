@@ -69,8 +69,11 @@ model; the OpenCV attributes' pixel convention is taken to be OpenCV's (pixel ce
 Lab source does not state, and its pinhole K puts the centre at width / 2, half a pixel from OpenCV's (W − 1)/2 if
 its pixels are centred at integers; the USD aperture offsets (an off-centre principal point) are exact for pxr's
 Gf.Camera, but Isaac Lab's spawner warns "Camera aperture offsets are not supported by Omniverse. These parameters
-will be ignored", so in an Isaac render an off-centre cx, cy reaches the image only through the OpenCV lens
-attributes (v2.3.2's file has none: its render is centred); non-square pixels conform to the render's aspect in a
+will be ignored", so the off-centre cx, cy is written through the OpenCV lens attributes (an opencvPinhole model with
+zero distortion when the lens has none), which v3.0.0 authors and projects through (PP_SOURCE['v3']); v2.3.2 has no
+such attributes and ignores the offsets (PP_SOURCE['v2']), so its render is centred, and each such camera is named
+with its offset in the notes, in its config comment, in isaac_cameras.json ('principal_point') and in the Export
+dialog (principal_point_lines); non-square pixels conform to the render's aspect in a
 renderer that does not read the OpenCV attributes; the randomisation is drawn once per config build (per-environment
 draws need Camera.set_world_poses at reset, not generated); sensor housings and the robot itself are not in the file.
 """
@@ -106,6 +109,19 @@ ROOT = 'DexVantage'
 DEFAULTS = {'env_ns': '{ENV_REGEX_NS}', 'robot_prim': 'Robot', 'scale': 1.0, 'usd': 'auto'}
 DISTORTION_API = {'opencvPinhole': 'OmniLensDistortionOpenCvPinholeAPI',
                   'opencvFisheye': 'OmniLensDistortionOpenCvFisheyeAPI'}
+# where an off-centre principal point can reach an Isaac render, at the pinned tags (read 2026-11-07)
+PP_SOURCE = {
+    'v3': 'Isaac Lab v3.0.0 (e3f7d9f) source/isaaclab/isaaclab/sim/spawners/sensors/sensors.py L52-58 and L68-108 (the '
+          'OpenCV lens model authored as omni:lensdistortion:<model>:fx, fy, cx, cy, "the RTX/OVRTX renderer honors '
+          'these attributes natively"), L162-165 ("Camera aperture offsets are not supported by Omniverse. These '
+          'parameters will be ignored."), L190-192; sensors/camera/camera.py L828-857 '
+          '(_read_authored_opencv_intrinsics: "these intrinsics may be non-square (fx != fy) or off-center") and '
+          'L879-904 (_initialize_intrinsics: a prim without the model gets cx = width * 0.5, cy = height * 0.5)',
+    'v2': 'Isaac Lab v2.3.2 (37ddf62) source/isaaclab/isaaclab/sim/spawners/sensors/sensors.py L108-111 (the same '
+          'aperture-offset warning), sim/spawners/sensors/sensors_cfg.py (PinholeCameraCfg: no distortion or OpenCV '
+          'fields), sensors/camera/camera.py L589-599 ("currently rendering does not use aperture offsets"; c_x = '
+          'width * 0.5, c_y = height * 0.5)',
+}
 COEFFS = {'opencvPinhole': ('k1', 'k2', 'k3', 'k4', 'k5', 'k6', 'p1', 'p2', 's1', 's2', 's3', 's4'),
           'opencvFisheye': ('k1', 'k2', 'k3', 'k4')}
 
@@ -209,6 +225,43 @@ def lens_model(cam) -> dict:
                      f'largest gap {err:.3g} px over the image')}
 
 
+def principal_point(cam) -> dict:
+    """{'offset_px': [cx − (W−1)/2, cy − (H−1)/2] (DexVantage's pixel convention: centres at integers),
+    'off_centre': beyond CENTRE_TOL_PX}."""
+    d = [float(cam.cx - (cam.width - 1) / 2), float(cam.cy - (cam.height - 1) / 2)]
+    return {'offset_px': d, 'off_centre': bool(max(abs(d[0]), abs(d[1])) > CENTRE_TOL_PX)}
+
+
+def principal_point_text(title: str, pp: dict) -> str:
+    """One sentence per camera: where its off-centre principal point goes in each Isaac Lab version."""
+    dx, dy = pp['offset_px']
+    return (f'{title}: principal point {dx:+.3g}, {dy:+.3g} px from the centre. Isaac Lab v3.0.0 gets it through the '
+            'OpenCV lens attributes (omni:lensdistortion:opencvPinhole:cx, cy, which its renderer projects through); '
+            'the USD aperture offsets carry it too, but Omniverse ignores them. Isaac Lab v2.3.2 has no OpenCV lens '
+            'attributes and ignores aperture offsets, so its render is centred: '
+            f'{math.hypot(dx, dy):.3g} px off this camera\'s principal point.')
+
+
+def principal_point_lines(project) -> list:
+    """principal_point_text for every imager in use with an off-centre principal point (no forward kinematics:
+    cheap enough for the export dialog)."""
+    from .. import library as LB
+    from ..studies import coverage as CV
+    out = []
+    for s in project.variant.sensors:
+        if not s.enabled or s.kind not in ('camera', 'depth'):
+            continue
+        try:
+            ims = LB.sensor_imagers(s, CV.sensor_mode(s, {}))
+        except LB.LibraryError:
+            continue
+        for im in ims or []:
+            pp = principal_point(im.camera)
+            if pp['off_centre']:
+                out.append(principal_point_text(f'{s.name} · {im.name}', pp))
+    return out
+
+
 def _v2_error(cam) -> float:
     """Largest pixel gap between the lens and the square, centred pinhole Isaac Lab v2.3.2 can show (inf: the lens
     sees rays a pinhole cannot)."""
@@ -292,6 +345,7 @@ def camera_records(project, options: dict | None = None) -> tuple[list, list]:
         if f and mode and tuple(mode) != (cam.width, cam.height):
             f = None
         b = tol.get(rc.sensor.uid)
+        pp = principal_point(cam)
         rec = {
             'name': name, 'sensor_uid': rc.sensor.uid, 'sensor': rc.sensor.name, 'imager': rc.imager.name,
             'role': rc.imager.role, 'primary': rc.primary, 'locked': bool(rc.sensor.locked),
@@ -310,6 +364,10 @@ def camera_records(project, options: dict | None = None) -> tuple[list, list]:
             'usd': usd_lens(cam), 'distortion': lens['distortion'], 'lens_exact': lens['exact'],
             'lens_fit_error_px': _finite(lens['fit_error_px']), 'lens_text': lens['text'],
             'v2_pinhole_error_px': _finite(_v2_error(cam)), 'data_types': types, 'role_note': why,
+            'principal_point': {**pp, 'v3': 'OpenCV lens attributes (omni:lensdistortion:<model>:cx, cy)'
+                                if pp['off_centre'] else 'centred',
+                                'v2': 'not representable: the v2.3.2 render is centred' if pp['off_centre']
+                                else 'centred'},
             'fps': f, 'update_period_s': (1.0 / f) if f else 0.0,
             'tolerance': None if b is None else {'position_m': b['position_m'], 'rotation_deg': b['rotation_deg'],
                                                  'source': b['source'], 'meaning': b['meaning']},
@@ -653,6 +711,10 @@ def config_text(project, records, options: dict, v3: bool = True) -> str:
             'pinhole part only (square, centred); ' + (f'{r["v2_pinhole_error_px"]:.3g} px from the lens'
                                                         if r['v2_pinhole_error_px'] is not None
                                                         else 'the lens sees rays a pinhole cannot'))
+        if r['principal_point']['off_centre']:
+            dx, dy = r['principal_point']['offset_px']
+            why += (f'; principal point {dx:+.3g}, {dy:+.3g} px off centre: carried by the OpenCV lens model' if v3
+                    else f'; its principal point ({dx:+.3g}, {dy:+.3g} px off centre) cannot be shown at v2.3.2')
         out.append(f'# {r["sensor"]} · {r["imager"]} ({r["role"]}): {why}')
         if r['fps'] is None:
             out.append('# update_period 0.0: every step (the stream\'s frame rate is not known)')
@@ -710,6 +772,8 @@ def export_isaac(project, out_dir: str, options: dict, ctx) -> dict:
     files.append(C.write_text(out_dir, V3_FILE, config_text(project, records, o, v3=True)))
     files.append(C.write_text(out_dir, V2_FILE, config_text(project, records, o, v3=False)))
     for r in records:
+        if r['principal_point']['off_centre']:
+            notes.append(principal_point_text(f'{r["sensor"]} · {r["imager"]}', r['principal_point']))
         if not r['lens_exact']:
             notes.append(f'{r["sensor"]} · {r["imager"]}: {r["lens_text"]}.')
         if r['distortion'] is not None and r['lens_model'] != 'pinhole':
@@ -731,6 +795,9 @@ def export_isaac(project, out_dir: str, options: dict, ctx) -> dict:
                            'quaternion_v3': 'xyzw', 'quaternion_v2': 'wxyz',
                            'usd_camera': 'looks along -Z with +Y up: optical frame · diag(1, -1, -1)',
                            'usd_lens': 'pixel size 1 / width (Isaac Lab utils/sensors.py)',
+                           'principal_point': 'off-centre cx, cy: the OpenCV lens attributes at v3.0.0, not '
+                                              'representable at v2.3.2 (' + PP_SOURCE['v3'] + '; ' + PP_SOURCE['v2']
+                                              + ')',
                            'clipping_range_m': list(CLIP_M), 'clipping_range_is_default': True,
                            'tolerance': 'core/tolerance.bounds: shifts along the parent axes (m), turns about the '
                                         'body axes (deg), R\' = R Rx Ry Rz'},

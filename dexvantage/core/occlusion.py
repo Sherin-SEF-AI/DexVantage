@@ -706,7 +706,10 @@ class CubeMap:
 
 
 class CubeCache:
-    """An LRU of cube maps keyed by (geometry digest, origin to 0.1 mm, n, near, backend), bounded in bytes."""
+    """An LRU of cube maps keyed by (geometry digest, the exact origin, n, near, backend), bounded in bytes. The
+    origin is keyed exactly (it was rounded to 0.1 mm before): a map built for a nearby origin was reused, so a
+    long-lived process could differ from a fresh one in the last digits of a coverage figure (found by the cluster
+    sweeps' shard-against-in-process check)."""
 
     def __init__(self, max_bytes: int = CACHE_BYTES):
         self.max_bytes = int(max_bytes)
@@ -717,8 +720,8 @@ class CubeCache:
 
     @staticmethod
     def key(digest: str, origin, n: int, near: float, backend: str) -> tuple:
-        return digest, tuple(np.round(np.asarray(origin, float).reshape(3) * 1e4).astype(np.int64).tolist()), \
-            int(n), round(float(near), 6), backend
+        return digest, tuple(float(x) for x in np.asarray(origin, float).reshape(3)), int(n), \
+            round(float(near), 6), backend
 
     def get(self, occluders, origin, n: int = DEFAULT_N, backend: str = 'auto', near: float = NEAR_M) -> CubeMap:
         be = resolve_backend(backend)

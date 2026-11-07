@@ -4,32 +4,32 @@ sensors where the library states them.
 
     @jobs.study('rig', 'Rig inventory', quick=False, batch='rig-inventory')   → --rig-inventory OUT.json
 
-Each total is {'value', 'unit', 'stated', 'missing', 'reason'}: the sum over the enabled sensors when every one states
-the figure, else value None ("not stated") with the devices that do not state it. The cost reads an optional "price"
-object of a library entry ({"value": number, "currency": "USD", "source": ..., "read": "YYYY-MM-DD"}); prices in
-different currencies are not added (no exchange rate is assumed).
+Each mass and power total is {'value', 'unit', 'stated', 'missing', 'reason'}: the sum over the enabled sensors when
+every one states the figure, else value None ("not stated") with the devices that do not state it. The cost reads the
+cited "price" block of each sensor's library entry (core/prices.py: amount, ISO 4217 currency, unit 'each', source URL,
+date read, kind) and is core/prices.total: the sum when every sensor states a price; a lower bound (bound 'at_least')
+with the parts that state none named and counted when only some do; not stated when none does; refused with a
+sentence when the prices are in different currencies (no exchange rate is assumed).
 
 Known limits: only the sensors are counted (hosts, hubs, cables, lights and brackets are not in the totals); a sensor
-with no library device (the default camera) states nothing; no built-in library entry states a price today, so the
-cost reads "not stated" until a custom entry gives one; mass and power are the maker's figures for the device alone
-(no bracket, no cable).
+with no library device (the default camera) states nothing; prices are list prices on the date read (no tax,
+shipping or discount) and many entries state none (docs/models/library.md#prices); mass and power are the maker's
+figures for the device alone (no bracket, no cable).
 """
 from __future__ import annotations
 
 from .. import jobs
 from .. import library as LB
+from .. import prices as PR
 
 STUDY_ID = 'rig'
 CAMERA_KINDS = ('camera', 'depth')
 
 
 def stated_price(entry) -> tuple:
-    """(value, currency) of a library entry's stated price, or (None, None): the one rule for whether a price is
-    stated (the rig inventory and the optimiser's cost objective use it)."""
-    p = entry.data.get('price') if entry is not None else None
-    if isinstance(p, dict) and isinstance(p.get('value'), (int, float)) and not isinstance(p.get('value'), bool):
-        return float(p['value']), str(p.get('currency') or 'USD')
-    return None, None
+    """(amount, currency) of a library entry's stated price, or (None, None): the one rule for whether a price is
+    stated (the rig inventory and the optimiser's cost objective use it; core/prices.stated)."""
+    return PR.stated(entry)
 
 
 def inventory(project) -> dict:
@@ -39,9 +39,12 @@ def inventory(project) -> dict:
     for s in on:
         e = LB.get(s.model_id) if s.model_id else None
         price, cur = stated_price(e)
+        pb = PR.block(e) if price is not None else None
         rows.append({'uid': s.uid, 'name': s.name, 'kind': s.kind, 'model_id': s.model_id or '',
                      'device': e.title if e is not None else None,
                      'price': price, 'currency': cur,
+                     'price_source': (pb or {}).get('source'), 'price_read': (pb or {}).get('read'),
+                     'price_kind': (pb or {}).get('kind'),
                      'mass_g': e.data.get('mass_g') if e is not None else None,
                      'power_w': e.data.get('power_w') if e is not None else None})
 
@@ -55,13 +58,7 @@ def inventory(project) -> dict:
         return {'value': round(sum(float(r[key]) for r in rows), 6), 'unit': unit, 'stated': len(rows),
                 'missing': [], 'reason': ''}
 
-    cost = total('price', 'USD', 'A price')
-    curs = sorted({r['currency'] for r in rows if r['currency']})
-    if cost['value'] is not None and len(curs) > 1:
-        cost = {'value': None, 'unit': '', 'stated': len(rows), 'missing': [],
-                'reason': f'The prices are in different currencies ({", ".join(curs)}): no exchange rate is assumed.'}
-    elif curs:
-        cost['unit'] = curs[0]
+    cost = PR.total(rows)
     return {'variant': v.name, 'variant_uid': v.uid,
             'cameras': sum(1 for s in on if s.kind in CAMERA_KINDS),
             'sensors': len(on), 'tactile': sum(1 for s in on if s.kind == 'tactile'),
@@ -69,7 +66,9 @@ def inventory(project) -> dict:
             'cost': cost, 'mass_g': total('mass_g', 'g', 'The mass'), 'power_w': total('power_w', 'W', 'The power'),
             'devices': rows,
             'notes': ['Only the enabled sensors of the active variant are counted; hosts, cables, lights and brackets '
-                      'are not in the totals.']}
+                      'are not in the totals.',
+                      'Prices are list prices on the date read (no tax, shipping or discount), each from the source '
+                      'its library entry cites; no exchange rate is applied.']}
 
 
 @jobs.study(STUDY_ID, 'Rig inventory', quick=False, batch='rig-inventory', needs_robot=False)

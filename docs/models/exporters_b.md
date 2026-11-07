@@ -111,7 +111,9 @@ camera_names}` with the camera names, temporal_agg_k and the delay in steps. **D
 (`diffusion_policy/task.yaml`): `shape_meta` (rgb cameras [3, H, W] at the entry's pre_resize, the low-dim state,
 the action) and `n_latency_steps`. **OpenVLA** (`openvla/oxe_dataset_config.py` and `.json`): an
 OXE_DATASET_CONFIGS entry: image_obs_keys primary (the first static camera), secondary (the next), wrist (the first
-link-mounted camera); depth keys none; state_obs_keys ['joint_state']; StateEncoding.JOINT, ActionEncoding.JOINT_POS.
+link-mounted camera; OpenVLA-OFT's primary, secondary, left_wrist and right_wrist for a two-arm rig with an OFT
+policy); depth keys none; state_obs_keys ['joint_state']; the state and action encodings chosen from the project
+(`openvla_encoding`, [robot_io.md](robot_io.md)), with the notes saying when no encoding of the pinned source fits.
 
 ## Reports — `report.py`, `_pdf.py`
 
@@ -150,7 +152,7 @@ Isaac Lab, Isaac Sim, LeRobot, ACT, Diffusion Policy and OpenVLA are not install
 parsing and executing them against the field names of the pinned sources, not by those programs, and the USD is not
 rendered in Isaac Sim. The OpenCV lens attributes' pixel convention is taken to be OpenCV's (centres at integers),
 which the Isaac Lab source does not state; its pinhole K puts the centre at W/2, half a pixel from OpenCV's
-(W − 1)/2 if its pixels are centred at integers. The USD aperture offsets are exact for pxr's `Gf.Camera`, but Isaac Lab's spawner warns "Camera aperture offsets are not supported by Omniverse. These parameters will be ignored": in an Isaac render an off-centre principal point comes only through the OpenCV lens attributes (the v2.3.2 file has none, so its render is centred). OpenVLA's `ActionEncoding.JOINT_POS` is joint *delta* positions (7 joints, padded, + gripper) in its `configs.py`: absolute joint actions need converting, and a two-arm dataset needs the `_BIMANUAL` encodings (the export's notes say so). A renderer that ignores the OpenCV attributes conforms non-square
+(W − 1)/2 if its pixels are centred at integers. The USD aperture offsets are exact for pxr's `Gf.Camera`, but Isaac Lab's spawner warns "Camera aperture offsets are not supported by Omniverse. These parameters will be ignored": so the off-centre principal point is written through the OpenCV lens attributes, which v3.0.0 projects through; the v2.3.2 file has none, so its render is centred, and each such camera is named with its offset in the notes, the config comment, the JSON and the Export dialog ([robot_io.md](robot_io.md)). OpenVLA's encodings are chosen from the rig (`openvla_encoding`): `ActionEncoding.JOINT_POS` is joint *delta* positions and OpenVLA's loader refuses it, which the notes say. A renderer that ignores the OpenCV attributes conforms non-square
 pixels to the render's aspect. IR and ToF imagers are RGB prims; depth outputs have no noise model. The randomisation
 is drawn once per config build (per-environment draws need `Camera.set_world_poses` at reset, not generated). The
 LeRobot state and action are every actuated joint of the robot files (a gripper's linkage joints included; the UR5e

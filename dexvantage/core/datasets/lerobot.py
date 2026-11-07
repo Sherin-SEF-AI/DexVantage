@@ -274,17 +274,22 @@ def _video_decoder(file: str, pts: np.ndarray, key: str):
             return
         done: set = set()
         # frame-threaded decoding first; a packet the threaded decoder refuses ("Invalid data found when processing
-        # input", seen intermittently in the full test suite on AV1 files that decode cleanly on their own) is tried
-        # once more single-threaded from that frame on; a file that fails both ways is damaged and the error stands
-        for threads in ('AUTO', 'NONE'):
+        # input", seen intermittently in the full test suite on AV1 files that decode cleanly on their own), or frames
+        # it does not return (seen once in a full run at integration of research tools part 2: "2 frame(s) … could
+        # not be decoded"), are tried once more single-threaded from that frame on; a file that fails both ways is
+        # damaged and the error stands. A third pass decodes single-threaded from the start of the file with no seek:
+        # the error was seen once more after both passes, deep in a full test run (2026-11-08), on a file that decodes
+        # cleanly on its own, which points at decoder state after a seek rather than at the file
+        passes = (('AUTO', True), ('NONE', True), ('NONE', False))
+        for k, (threads, seek) in enumerate(passes):
             try:
-                yield from _decode_pass(av, threads, [i for i in want_idx if i not in done], done)
+                yield from _decode_pass(av, threads, [i for i in want_idx if i not in done], done, seek)
                 return
-            except av.error.InvalidDataError:
-                if threads == 'NONE':
+            except (av.error.InvalidDataError, DatasetError):
+                if k == len(passes) - 1:
                     raise
 
-    def _decode_pass(av, threads, idx, done):
+    def _decode_pass(av, threads, idx, done, seek=True):
         if not idx:
             return
         with av.open(file() if callable(file) else file) as c:
@@ -299,10 +304,13 @@ def _video_decoder(file: str, pts: np.ndarray, key: str):
                 else:
                     cur.append(i)
             groups.append(cur)
+            if not seek:
+                groups = [idx]
             for g in groups:
                 want = {int(pts[i]): i for i in g}
                 last = int(pts[g[-1]])
-                c.seek(max(0, int(pts[g[0]]) - 1), backward=True, any_frame=False, stream=s)
+                if seek:
+                    c.seek(max(0, int(pts[g[0]]) - 1), backward=True, any_frame=False, stream=s)
                 for fr in c.decode(s):
                     if fr.pts is None:
                         continue

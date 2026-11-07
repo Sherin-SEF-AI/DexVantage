@@ -19,6 +19,22 @@
     }
   ],
   "note": "Menagerie's low_cost_robot_arm is the Koch v1.1 (\"updated by HuggingFace LeRobot Team ... with the name Kochv1.1\"). The README lists parts but states no DoF, reach, payload or mass as figures.",
+  "price": {
+    "amount": 252.92,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "reseller",
+    "source": "https://www.robotis.us/products/koch-v1-1-low-cost-robot-arm-follower",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "ROBOTIS AMERICA store, 'Koch v1.1 Low-Cost Robot Arm: Follower' kit, variant '[3D Printed Parts] Koch Follower ($40)' 252.92 USD (marked not available on the date read); 'No 3D Printed Parts' 212.92 USD. A kit to assemble; the open design has no maker's store; read from the store's product data (https://www.robotis.us/products.json) on the date read",
+    "options": [
+      {
+        "label": "No 3D Printed Parts (SKU INC-312)",
+        "amount": 212.92
+      }
+    ]
+  },
   "imagers": [],
   "streams": [],
   "robot": {

@@ -79,6 +79,15 @@ class _Row(QWidget):
         g.addWidget(label('Options', small=True), r, 0)
         g.addWidget(self.extra, r, 1)
         lay.addLayout(g)
+        self.note = label('', small=True, wrap=True)
+        self.note.setContentsMargins(22, 0, 0, 0)
+        self.note.hide()
+        lay.addWidget(self.note)
+
+    def set_note(self, lines: list):
+        """Statements about this format on the open project (shown under its options; hidden when none)."""
+        self.note.setText('\n'.join(lines))
+        self.note.setVisible(bool(lines))
 
     def options(self) -> dict:
         """The options of this format; raises ValueError (said in words) when the JSON is not an object."""
@@ -128,6 +137,7 @@ class ExportDialog(VDialog):
             self.rows[fid] = row
             il.addWidget(row)
         il.addStretch(1)
+        self._format_notes()
         sc = QScrollArea()
         sc.setWidgetResizable(True)
         sc.setWidget(inner)
@@ -164,6 +174,21 @@ class ExportDialog(VDialog):
         self.buttons.addWidget(c)
         self.buttons.addWidget(self.go)
 
+    def _format_notes(self):
+        """Per-camera statements the Isaac export makes on this project (an off-centre principal point: where it
+        reaches an Isaac render), before anything is exported; plain sentences, never a traceback."""
+        row = self.rows.get('isaac')
+        if row is None:
+            return
+        try:
+            from ...core.exporters import isaac as XI
+            lines = XI.principal_point_lines(self.window_.ctx.store.project)
+        except Exception:                               # noqa: BLE001 — a courtesy line: logged, not shown
+            import traceback
+            traceback.print_exc()
+            lines = []
+        row.set_note(lines)
+
     def _browse(self):
         d = QFileDialog.getExistingDirectory(self, 'Folder for the exported files')
         if d:
@@ -183,10 +208,10 @@ class ExportDialog(VDialog):
             for fid in out:
                 if fid in POSED:
                     out[fid].setdefault('q', q)
-        if 'report' in out:
-            # the report reuses the results the window has already computed for this revision of the design (a
-            # study computed for an earlier revision is run again); run_missing adds every other study
-            rep = out['report']
+        for rid in [f for f in ('report', 'paper_kit') if f in out]:
+            # the report (and the paper kit) reuse the results the window has already computed for this revision of
+            # the design (a study computed for an earlier revision is run again); run_missing adds every other study
+            rep = out[rid]
             run_missing = bool(rep.pop('run_missing', True))
             if 'results' not in rep and not rep.get('results_dir'):
                 an = getattr(self.window_.ctx, 'analysis', None)

@@ -278,6 +278,8 @@ def urdf_roundtrip(ctx):
         Tx, prob = urdf_fk(text, qn)
         problems += [f'{name}: {x}' for x in prob]
         root = ET.fromstring(text)
+        for old in root.findall('mujoco'):            # the file's own compiler element, replaced
+            root.remove(old)
         mj = ET.SubElement(root, 'mujoco')
         ET.SubElement(mj, 'compiler', fusestatic='false', discardvisual='true', boundmass='1e-6',
                       boundinertia='1e-9')
@@ -684,6 +686,8 @@ def selftest_export(tmp: str) -> tuple[bool, str]:
     if bad:
         return False, f'{", ".join(bad)} refused: {man["formats"][bad[0]].get("reason")}'
     root = ET.fromstring(open(os.path.join(tmp, 'ros2', 'rig.urdf'), encoding='utf-8').read())
+    for old in root.findall('mujoco'):            # the file's own compiler element, replaced
+        root.remove(old)
     mj = ET.SubElement(root, 'mujoco')
     ET.SubElement(mj, 'compiler', fusestatic='false', discardvisual='true', boundmass='1e-6', boundinertia='1e-9')
     md = os.path.join(tmp, 'ros2', 'meshes')

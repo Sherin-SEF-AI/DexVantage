@@ -30,10 +30,12 @@ licence shown and the user's consent (spec §1.2).
 | mcap, protobuf (tests only: reference readers for the bag and RLDS checks; extra `test`) | MIT; BSD-3-Clause |
 | fast-simplification 0.2.0 (`scripts/bundle_samples.py` only: the G1 mesh simplification; extra `bundle`) | MIT (its package metadata) |
 | anthropic 2.6.0, keyring 25.7.0 (optional extra `assistant`: the Assistant dock's Claude provider; API keys in the OS keyring) | Apache-2.0; MIT (package metadata, read 2026-11-07) |
-| usd-core 26.8 (optional extra `usd`: Isaac camera prims written by pxr; otherwise a text writer) | Tomorrow Open Source Technology License 1.0, `LicenseRef-TOST-1.0` (its package metadata, read 2026-11-07): read it before redistributing an installation |
+| usd-core 26.8 (optional extra `usd`: Isaac camera prims written by pxr, otherwise a text writer; the USD robot import, `core/robot/usd_import.py`, which says what to install without it) | Tomorrow Open Source Technology License 1.0, `LicenseRef-TOST-1.0` (its package metadata, read 2026-11-07): read it before redistributing an installation |
 | rerun-sdk 0.42.0 (optional extra `rerun`: the Rerun bridge) | MIT OR Apache-2.0 (its package metadata, read 2026-11-07) |
 | gmsh 4.15.2 (optional extra `step`: bracket STEP export) | GPL-2.0-or-later (its package metadata, read 2026-11-07); compatible with DexVantage's GPL-3.0-or-later; not bundled |
 | pandas 2.3.3 (optional extra `research`: `Result.to_frame()` of the Python API) | BSD-3-Clause (its package metadata); pip also installs python-dateutil, pytz and tzdata, unpinned |
+| mlflow-skinny 3.17.2, wandb 0.30.0 (optional extra `tracking`: the experiment tracker's MLflow read-back test and its W&B replay script; core/tracking writes the mlruns/ layout and the replay files without them) | Apache-2.0; MIT (package metadata, read 2026-11-07); pip also installs their dependencies (databricks-sdk, fastapi, opentelemetry, GitPython, …), pinned by them |
+| setuptools 84.2.1 (optional extra `dev`: the plugin template's real `pip install` test, `tests/test_plugins.py`) | MIT (its package metadata, read 2026-11-07) |
 
 None of the optional packages is bundled or imported unless its feature is used; each says how to install it in one
 sentence when it is missing. Isaac Lab, Isaac Sim, LeRobot, ACT, Diffusion Policy, OpenVLA, Kalibr and FiftyOne are
@@ -74,6 +76,12 @@ DexVantage's GPL-3.0-or-later. The `aloha` README (read 2026-11-07) calls its mo
 (MJCF) of the bimanual ALOHA 2 robot", derived from Menagerie's ViperX 300 6DOF model; the `unitree_g1` README "a
 simplified robot description (MJCF)" derived from Unitree's public `g1_29dof_rev_1_0.xml`. The 2026-11-07 folders
 (`aloha`, `franka_emika_panda`, `unitree_g1`) were copied by `scripts/bundle_samples.py`; none has a NOTICE file.
+
+### Bundled USD robot (`dexvantage/resources/usd_robots/`)
+
+| Model | Source | Licence | Version | Checked | Bundled files | Changes |
+|---|---|---|---|---|---|---|
+| Universal Robots UR5e, structured USD (`newton_ur5e`) | https://github.com/newton-physics/newton-assets, folder `universal_robots_ur5e` (written by the mujoco-usd-converter v0.5.0 from MuJoCo Menagerie's `universal_robots_ur5e/ur5e.xml` at commit `da76818e269b82289eba39808e2fb91d679d6994`, as its `usd_structured/README.md` says) | BSD-3-Clause, © 2018 ROS Industrial Consortium (`newton_ur5e/LICENSE`, the folder's own; the repository is Apache-2.0) | repository commit `ac1f172b6f53915f9b81aa9ccd765ae792cc264c` | 2026-11-07 | `LICENSE`, `README.md`, `usd_structured/README.md`, `usd_structured/ur5e.usda`, `usd_structured/Payload/{Contents,Physics,Geometry,Materials}.usda` (0.07 MB) | none (byte for byte). Not bundled: `Payload/GeometryLibrary.usdc` (6.3 MB, the visual meshes: over the 5 MB file budget) and `Payload/MaterialsLibrary.usdc`; the stage composes without them, so the import check reads its bodies, joints, limits, masses and collision primitives only, and says the two layers are missing |
 
 ### Checked, not bundled
 
@@ -125,6 +133,36 @@ drawing, image or text of a maker is bundled, and nothing is downloaded at run t
 The library schema (`dexvantage/resources/library.schema.json`) and every entry are DexVantage's own work under its
 GPL-3.0-or-later licence. Datasheet figures are facts restated with their source; the makers' documents keep their
 own terms and are reached through the cited URLs.
+
+## Research tools part 2: cited sources (figures and formats only; the one bundled asset is the USD UR5e above)
+
+Every source below was read on 2026-11-07 unless its model document says otherwise; full entries are in
+`dexvantage/validation/references.py` and each model document's References section.
+
+- **Experiment tracker** (`docs/models/tracking.md`): the MLflow 3.17.2 file-store layout (`mlflow/store/tracking/
+  file_store.py` and the entity modules, github.com/mlflow/mlflow at tag v3.17.2, Apache-2.0) and the wandb 0.30.0
+  `init`/`log` API (github.com/wandb/wandb at tag v0.30.0, MIT); POSIX `rename()` and Linux `flock(2)`; JSON Lines,
+  RFC 4180, Apache Parquet. No MLflow or W&B code is copied; the export writes their documented layouts.
+- **Statistics** (`docs/models/stats.md`): Wilson 1927, Clopper and Pearson 1934, Newcombe 1998, Efron 1987, Phipson
+  and Smyth 2010, Cohen 1988 and 1992 (Table 2 read from a scan), Benjamini and Hochberg 1995 (p. 295, read from a
+  public copy, not stored), Benjamini and Yekutieli 2001, Holm 1979, Fleiss, Levin and Paik 2003, the G*Power 3.1
+  manual (§19.3, §20.3); SciPy 1.18's `scipy.stats` is the validation reference (BSD-3-Clause, already a dependency).
+- **Campaign planner** (`docs/models/campaign.md`): Williams 1949 (balanced Latin squares), Fleiss, Tytun and Ury 1980
+  (the continuity correction), RFC 5545 (iCalendar).
+- **Sim-to-real gap** (`docs/models/sim2real.md`): Immerkær 1996 (record and abstract; the constants derived again),
+  Tai and Yang 2008, Gretton et al. 2012 (MMD), Rubner et al. 2000 (EMD), Shapley 1953, Pech-Pacheco et al. 2000.
+- **Publication kit** (`docs/models/paper_kit.md`): the booktabs documentation (Fear, CTAN), the siunitx 3.6.7 manual
+  (Wright, CTAN) and the unofficial LaTeX2e reference manual.
+- **Cluster sweeps** (`docs/models/cluster.md`): the Slurm 26.05 documentation (`sbatch`, job arrays), POSIX
+  `rename()`, `flock(2)` and the `nfs(5)` manual page.
+- **Multi-cell comparison** (`docs/models/cells.md`): ported from Vantage `core/rig_gap.py`, `core/fleet.py` and the
+  measurement idea of `core/fleet_twin.py`; Kuhn 1955, Sutherland and Hodgman 1974, Andrew 1979, Hampel 1974; the
+  LeRobot dataset formats at commit `d490e47` (Apache-2.0, as above).
+- **Robot import and export** (`docs/models/robot_io.md`): the OpenUSD UsdPhysics schemas (read through usd-core
+  26.8), MuJoCo's URDF extension element (modeling guide), OpenVLA's `StateEncoding` and `ActionEncoding` and Isaac
+  Lab v3.0.0's intrinsics rule at the pinned commits the document names.
+- **Prices** (`docs/models/library.md#prices`): 81 maker store pages and NVIDIA's official Jetson price list, each
+  entry's page and date in its `price` block.
 
 ## Phases 9 and 10, samples, catalogue and library: cited sources (figures only, nothing bundled)
 

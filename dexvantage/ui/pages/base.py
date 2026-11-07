@@ -5,9 +5,15 @@ Subclass StudyPage, set STUDY and TITLE, build the body in build_body(layout) an
 page re-renders whenever the controller finishes its study. Overlays for the 3D view come from overlays(vp) and are
 drawn while the page is the Analysis dock's current tab (return [] to draw nothing). page_context() is what the
 assistant reads of the page (the headline as shown and what the page is about); a page may add to it.
+
+A page the window builds (pages/_gate.build_page) is held while hidden: its store and study signals wait until it is
+shown, then replay once, coalesced, so an edit does not rebuild every hidden page. page_context, apply, preview,
+export and explain replay what is held first, in subclasses too; flush_pending() does it for any other reader. Set
+DEFER_HIDDEN = False on a page that must follow every signal while hidden.
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 
@@ -31,10 +37,36 @@ class _Headline(Headline):
         super().set(figure, unit, sev, word, explain, tip)
 
 
+_FLUSH_FIRST = ('page_context', 'apply', 'preview', 'export', 'explain')
+
+
+def _flushing(fn):
+    @functools.wraps(fn)
+    def wrapper(self, *a, **kw):
+        self.flush_pending()
+        return fn(self, *a, **kw)
+    wrapper._dv_flushes = True
+    return wrapper
+
+
 class StudyPage(QWidget):
     STUDY: str | None = None
     TITLE = ''
     HEADLINE = ''                      # the headline's title line
+    DEFER_HIDDEN = True                # held while hidden (pages/_gate.py) when the window built the page
+
+    def __init_subclass__(cls, **kw):
+        super().__init_subclass__(**kw)
+        for name in _FLUSH_FIRST:          # a reader of a hidden page sees it up to date
+            fn = cls.__dict__.get(name)
+            if callable(fn) and not getattr(fn, '_dv_flushes', False):
+                setattr(cls, name, _flushing(fn))
+
+    def flush_pending(self):
+        """Replay the store and study signals held while the page was hidden (pages/_gate.py), now."""
+        gate = getattr(self, '_gate', None)
+        if gate is not None:
+            gate.flush()
 
     def __init__(self, ctx):
         super().__init__()
@@ -179,6 +211,10 @@ class StudyPage(QWidget):
         if self.ctx.window is not None:
             self.ctx.window.msg(f'Exported {self.TITLE.lower() or "the result"} to {os.path.basename(path)}', 5000)
         return path
+
+
+for _name in _FLUSH_FIRST:                  # the base's own hooks too (a page that does not override them)
+    setattr(StudyPage, _name, _flushing(getattr(StudyPage, _name)))
 
 
 def row(*widgets) -> QWidget:

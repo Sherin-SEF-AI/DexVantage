@@ -59,7 +59,8 @@ NAME_KEYS = ('name', 'sensor', 'title', 'camera', 'key')
 MAX_BARS = 24
 # studies that run other studies many times (Monte Carlo, designed experiments, the optimiser, the design agent, the
 # variant comparison, the scorecard itself): reported when their results are given, never run by default ('all')
-META_STUDIES = ('tolerance', 'experiments', 'optimise', 'design_agent', 'variants_compare', 'requirements')
+META_STUDIES = ('tolerance', 'experiments', 'optimise', 'design_agent', 'variants_compare', 'requirements',
+                'cells', 'stats', 'sim2real')     # research tools part 2: other cells' figures, Monte Carlo, renders
 
 
 # ====================================================================== the results

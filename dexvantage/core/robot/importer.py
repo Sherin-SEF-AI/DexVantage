@@ -32,8 +32,14 @@ texture does not: the robot is drawn without it and Robot.source.note says so (t
 Units check: a mesh more than 10 m across (MESH_MAX_EXTENT) is almost certainly in millimetres; the import stops and
 says to set scale="0.001 0.001 0.001".
 
-Known limits: xacro files must be expanded to plain URDF first (xacro is a ROS program, not a file format); USD is not
-read yet; URDF <mimic> joints are imported as independent joints; MJCF <model> (attach) assets and plugins are not
+USD (.usd, .usda, .usdc, .usdz; needs the optional usd-core package): a UsdPhysics articulation is converted to MJCF
+by core/robot/usd_import.py (bodies, revolute and prismatic joints with their axes and limits, meshes written as STL,
+collision shapes, mass properties where the file states them) and that MJCF is imported as above; the stored files
+are the converted ones, with <uid>/.dexvantage/usd_source.json recording the USD layers (SHA-256) and the conversion
+notes, and Robot.source.note naming the USD file.
+
+Known limits: xacro files must be expanded to plain URDF first (xacro is a ROS program, not a file format); URDF
+<mimic> joints are imported as independent joints; MJCF <model> (attach) assets and plugins are not
 collected.
 """
 from __future__ import annotations
@@ -89,15 +95,42 @@ USD_EXTS = ('.usd', '.usda', '.usdc', '.usdz')
 
 def check_path(path: str):
     """Raise RobotImportError, in plain words, when path is not a robot file this build can read: missing, a folder,
-    or USD (not read yet)."""
+    or USD without the optional usd-core package."""
     base = os.path.basename(os.path.normpath(path)) or path
     if os.path.isdir(path):
         raise RobotImportError(f'{base} is a folder: pick the robot\'s .urdf or MuJoCo .xml file inside it.')
     if not os.path.isfile(path):
         raise RobotImportError(f'There is no file at {base}.')
     if os.path.splitext(path)[1].lower() in USD_EXTS:
-        raise RobotImportError(f'{base} is a USD file, which this build does not read yet. Export the robot as URDF '
-                               'or MJCF and import that.')
+        from .usd_import import have_pxr, missing_pxr_message
+        if not have_pxr():
+            raise RobotImportError(missing_pxr_message(base))
+
+
+def _import_usd(path: str, name: str | None, uid: str | None, check_units: bool):
+    """A USD robot: converted to MJCF in a temporary folder (core/robot/usd_import.py), imported from there, the
+    conversion record stored beside it."""
+    import shutil
+    import tempfile
+
+    from . import usd_import as U
+    tmp = tempfile.mkdtemp(prefix='dexvantage-usd-')
+    try:
+        try:
+            conv = U.convert_to_folder(path, tmp)
+        except U.UsdImportError as e:
+            raise RobotImportError(str(e)) from None
+        robot, sources = import_robot(os.path.join(tmp, U.MAIN), name or conv.name, uid=uid, check_units=check_units)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    sources[f'{robot.uid}/{U.RECORD}'] = U.record_bytes(conv)
+    base = os.path.basename(path)
+    with open(path, 'rb') as fh:
+        digest = _sha256(fh.read())
+    robot.source.note = ' '.join(x for x in (
+        f'Converted from the USD file {base} (SHA-256 {digest[:12]}…) by DexVantage\'s USD importer; the stored model '
+        f'is the MJCF it wrote ({U.RECORD} lists the layers).', *conv.notes, robot.source.note) if x)
+    return robot, sources
 
 
 def detect_kind(path: str, data: bytes) -> str:
@@ -400,12 +433,14 @@ def _mjcf_records(model) -> tuple[list, list]:
 # ====================================================================== the entry point
 def import_robot(path: str, name: str | None = None, *, uid: str | None = None,
                  check_units: bool = True) -> tuple[Robot, dict[str, bytes]]:
-    """Read a URDF or MJCF file and the files it references: (Robot, {source key: bytes}).
+    """Read a URDF, MJCF or USD file and the files it references: (Robot, {source key: bytes}).
 
     The Robot is not added to any project: the caller adds it and the sources (project.sources.update) as one undo
     step. Raises RobotImportError with a plain-English message for anything it cannot use."""
     from .model import RobotModel, RobotModelError
     check_path(path)
+    if os.path.splitext(path)[1].lower() in USD_EXTS:
+        return _import_usd(path, name, uid, check_units)
     data = _read(path)
     kind = detect_kind(path, data)
     main_rel, manifest, blobs, links, joints, file_name, notes = (_import_urdf if kind == 'urdf' else _import_mjcf)(

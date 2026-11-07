@@ -13,6 +13,16 @@
     }
   ],
   "note": "Discontinued (the page says so; SKU 10LAC9901). \"Brightness: 2500 lumens, adjustable\" (the maximum). \"Outer diameter: 43.2 cm / 17 in (Inner diameter: 31 cm / 12.2 in)\": the emitting area is taken as the annulus between them (an ASSUMPTION: the page does not state the diffuser's width). CRI \"> 94%\" (not entered). Not stated: luminance, beam profile, IR output.",
+  "price": {
+    "amount": 79.99,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.elgato.com/us/en/p/ring-light",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "'Ring Light' (SKU 10LAC9901) regular price 79.99 USD, final price 79.99, discount 0"
+  },
   "interface": "Wi-Fi",
   "power_w": 45.0,
   "mass_g": 1070.0,

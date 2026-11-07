@@ -214,11 +214,13 @@ def suggestion(project, doc: dict, head: dict) -> dict | None:
 
 
 @jobs.study(SID, 'Monte Carlo tolerances', quick=False, batch='tolerance-mc', needs_robot=False)
-def run(project, ctx: jobs.Ctx) -> dict:
+def run(project, ctx: jobs.Ctx, evaluator=None) -> dict:
+    """evaluator: core.tolerance.monte_carlo's (None: core.metrics.evaluate); core/cluster's gather passes one that
+    hands back the figures its shards computed, so the result is the one this function gives in process."""
     st = settings_of(project)
     ids, why = metric_ids(project, st)
     doc = TL.monte_carlo(project, ids, st['n'], st['seed'], st['scale'], st['distribution'], ctx=ctx,
-                         sensors=st['sensors'] or None)
+                         sensors=st['sensors'] or None, evaluator=evaluator)
     head = headline(doc)
     notes = [f'The figures carried are those of {why}.',
              'Mount tolerances are ± bounds per axis (' + ('uniform within them' if st['distribution'] == 'uniform'

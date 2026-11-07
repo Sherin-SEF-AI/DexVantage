@@ -37,6 +37,16 @@
     }
   ],
   "note": "The compact passive-stereo OAK-D (Series 2). Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map refers to). Positions are Luxonis's design (\"spec\") translations from its board file (specTranslation in cm, rotation zero): the right camera one baseline along -y, the centre colour camera at the baseline midpoint; a unit's calibration differs from these. Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV. Streams are the sensor modes the RVC2 driver supports with their maximum frame rates (Luxonis sensor pages); the format on the USB link depends on the on-device pipeline, so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the stereo mode). Not stated: subpixel accuracy, distortion, depth FOV (null), f-numbers. Depth accuracy is a median absolute error, not RMS. min_z is the docs' MinZ at 800P and at 400P (the extended-disparity figures are in this note only). Variant entered: auto-focus IMX378 (66/54/78 deg H/V/D, rolling shutter, AF 8 cm to infinity); the fixed-focus variant is 69/55/82 deg. Stereo OV9282 80/55/89.5 deg, global shutter, no IR filter, fixed focus 19.6 cm to infinity (datasheet). Baseline 75 mm; ideal range ~80 cm - 12 m; MinZ ~80 cm (800P), ~40 cm (400P or 800P + extended disparity), ~20 cm (400P + extended). power_w is the datasheet maximum 7.5 W (typical 6 W, idle 2.5 W). size_mm: datasheet 97 x 29.5 x 22.9 mm (W x H x D). Mass is not stated (null). Passive stereo: no projector.",
+  "price": {
+    "amount": 329,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-d-s2",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "variant 'RGB Camera Focus: Auto-focus' (SKU A00498), 329.0 USD"
+  },
   "interface": "USB 3.1 Gen 1 (USB Type-C)",
   "power_w": 7.5,
   "mass_g": null,

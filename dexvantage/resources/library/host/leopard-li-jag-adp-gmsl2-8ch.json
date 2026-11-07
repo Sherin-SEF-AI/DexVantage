@@ -19,6 +19,16 @@
     }
   ],
   "note": "A GMSL2 deserializer board for the NVIDIA Jetson AGX Orin Developer Kit (NVIDIA part P3762_A03) or Leopard's LI-AGO-CB carrier, through the 120-position J501 connector. \"Supports up to 8 GMSL2 cameras\" (gmsl_links 8) through two 4-position GMSL connectors J1_AA and J1_AB (ports 2), each broken out to four FAKRA cables by the supplied LI-FCB-4T1-SS-0.3M-NP-A0; deserializer \"Maxim MAX96712\" (the datasheet names one). Powered from an external 12 VDC supply (12 V 5 A adapter in the kit; a jumper selects a 9-15 VDC buck-boost input); its own power consumption is not stated. stated_mbps and lanes are null: the board's pages state neither the GMSL2 link rate nor the CSI-2 lanes to the Jetson; they are in Analog Devices' MAX96712 datasheet, whose page timed out when this entry was written (not entered from memory). Operating temperature \"TBD\"; size only in a drawing. mass_g is \"~ 55 g (Without cable and power)\".",
+  "price": {
+    "amount": 557,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://leopardimaging.com/product/accessories/adapters-carrier-boards/for-nvidia-jetson/li-jag-adp-gmsl2-8ch/",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "'8-CH GMSL2 board for NVIDIA Jetson AGX Orin Developer Kit $557.00' (schema.org offer 557.00 USD; a bundle whose optional items are priced separately)"
+  },
   "interface": "GMSL2 in (FAKRA via 4-in-1 cables); MIPI CSI-2 to the Jetson (J501)",
   "power_w": null,
   "mass_g": 55.0,

@@ -13,6 +13,16 @@
     }
   ],
   "note": "A 6-DoF controller cap (\"3Dconnexion® six-degrees-of-freedom (6Dof) sensor\"; \"push, pull, twist or tilt\"), 2 programmable buttons. Dimensions \"Length: 77 mm / 3” | Width: 77 mm / 3” | Height: 54 mm\" (size_mm as stated: length, width, height), \"Weight: 480 g\". The cap's travel and the sample rate are not stated, so its bounds in the teleop study stay \"not stated\" until a measured box is entered; the connection is not given in the specifications read.",
+  "price": {
+    "amount": 179,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://3dconnexion.com/us/product/spacemouse-compact/",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "US store product data: 'SpaceMouse Compact' (item 3DX-700059) price 179, discount 0, currency USD, country US"
+  },
   "interface": null,
   "power_w": null,
   "mass_g": 480.0,

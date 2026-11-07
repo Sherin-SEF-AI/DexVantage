@@ -73,6 +73,8 @@ _UID = re.compile(r'(?<![0-9a-f])[0-9a-f]{10}(?![0-9a-f])')
 _ABS = re.compile(r'(?<![\w:/.\\-])(?:[A-Za-z]:[\\/]|~[\\/]|/)(?:[^\s"\'<>|*?\\/]+[\\/])+([^\s"\'<>|*?\\/]*)')
 _PATH_KEYS = ('path', 'source', 'file', 'folder', 'dir', 'out_dir', 'project_file')
 _UI_ONLY = ('live', 'assistant', 'copilot', 'assistant_log')   # not the design: left out of the hash
+_UI_STUDIES = ('tracking',)               # analysis.studies keys that are not the design either (the tracker's
+                                         # opt-in, core/tracking): left out of the hash
 _BASE_ANALYSIS = ('voxel_mm', 'refine_mm')
 
 # project.analysis.studies key -> (core module, settings accessor): filled as the studies arrive (later phases)
@@ -216,6 +218,16 @@ def arrays_digest(arrays: dict) -> dict:
     return out
 
 
+def _analysis_content(a: dict) -> dict:
+    """The analysis section as hashed: without the view toggles (_UI_ONLY) and the studies' non-design settings
+    (_UI_STUDIES); a project that never had them hashes as before."""
+    out = {k: v for k, v in a.items() if k not in _UI_ONLY}
+    st = out.get('studies')
+    if isinstance(st, dict) and any(k in st for k in _UI_STUDIES):
+        out['studies'] = {k: v for k, v in st.items() if k not in _UI_STUDIES}
+    return out
+
+
 def project_content(project) -> dict:
     """The project's content by section, as hashed (uids not yet replaced)."""
     d = project.to_dict()
@@ -226,7 +238,7 @@ def project_content(project) -> dict:
         'tasks': d['tasks'],
         'variants': [{k: v for k, v in var.items() if k != 'created'} for var in d['variants']],
         'requirements': d['requirements'],
-        'analysis': {k: v for k, v in d['analysis'].items() if k not in _UI_ONLY},
+        'analysis': _analysis_content(d['analysis']),
         'meshes': arrays_digest(project.meshes),
         'sources': {k: _bytes_digest(v) for k, v in sorted(project.sources.items())},
         # the host topology (§7.6); left out while empty so the hashes of projects without one do not change
@@ -385,8 +397,20 @@ def environment() -> dict:
     from .. import __version__
     qt = pyqt = None
     try:
-        from PyQt6.QtCore import PYQT_VERSION_STR, qVersion
-        qt, pyqt = qVersion(), PYQT_VERSION_STR
+        if 'PyQt6.QtCore' in sys.modules:
+            from PyQt6.QtCore import PYQT_VERSION_STR, qVersion
+            qt, pyqt = qVersion(), PYQT_VERSION_STR
+        else:                            # headless (the API, batch): the installed wheels' versions, Qt not imported
+            from importlib.metadata import PackageNotFoundError, version
+            for name in ('PyQt6', 'PyQt6-Qt6'):
+                try:
+                    v = version(name)
+                except PackageNotFoundError:
+                    v = None
+                if name == 'PyQt6':
+                    pyqt = v
+                else:
+                    qt = v
     except Exception:
         pass
     threads = {k: os.environ[k] for k in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS')

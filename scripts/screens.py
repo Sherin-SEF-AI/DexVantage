@@ -19,9 +19,13 @@ Phases 9 and 10 and research tools part 1 (p910-*): tolerances, designed experim
 Pareto front, the requirements scorecard and variants compare, the export dialog, the canonical view, the assistant
 dock with a scripted fake-provider conversation, the plugins dialog, the Library's robots, compare-with (a project
 diff) and each new sample in 3D.
+Research tools part 2 (rt2-*): the Runs page with a comparison, Statistics with a power curve, the campaign plan on
+ALOHA 2, the sim-to-real gap with recorded against rendered frames, the paper kit preview, the cells comparison of three
+samples, the Run on… dialog and the USD import wizard on the bundled UR5e.
 
-    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3 | phase458 | samples | phase910]
+    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3 | phase458 | samples | phase910 | research2]
 """
+import atexit
 import os
 import sys
 import tempfile
@@ -29,8 +33,24 @@ import tempfile
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 sys.path.insert(0, ROOT)
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+_TEMP = []                                              # throw-away folders, removed when the script ends
+
+
+def _mkdtemp(prefix):
+    d = tempfile.mkdtemp(prefix=prefix)
+    _TEMP.append(d)
+    return d
+
+
+def _remove_temp():
+    import shutil
+    for d in _TEMP:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+atexit.register(_remove_temp)
 for k in ('XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME'):
-    os.environ[k] = tempfile.mkdtemp(prefix='dexvantage-screens-')
+    os.environ[k] = _mkdtemp('dexvantage-screens-')
 
 from PyQt6.QtCore import Qt, QTimer  # noqa: E402
 
@@ -173,7 +193,7 @@ def phase3():
         p = pw.ctx.store.project
         rig = PL.rig_from_project(p)
         poses = (hp.doc or {}).get('poses') or []
-        tmp = tempfile.mkdtemp(prefix='dexvantage-screens-capture-')
+        tmp = _mkdtemp('dexvantage-screens-capture-')
         render_capture(p, rig, poses[:12], os.path.join(tmp, 'img'), os.path.join(tmp, 'joints.csv'))
         sv = pw.pages['handeye_solve']
         pw.open_page('handeye_solve')
@@ -525,7 +545,7 @@ def phase910():
         d.resize(900, 900)
         pump(20)
         shot(d, 'p910-export-dialog.png')
-        out = tempfile.mkdtemp(prefix='dexvantage-export-')      # no personal path in the picture
+        out = _mkdtemp('dexvantage-export-')      # no personal path in the picture
         d.folder.setText(out)
         d.set_chosen(['mjcf', 'opencv_yaml', 'perturbations'])
         if d.start():
@@ -627,7 +647,230 @@ def phase910():
         part(sample)
 
 
-ONLY = {'phase3': phase3, 'phase458': phase458, 'samples': new_samples, 'phase910': phase910}
+# ---------------------------------------------------------------- research tools part 2
+def research2():
+    """rt2-*: the Runs page with a comparison, Statistics with a power curve, the campaign plan, the sim-to-real gap
+    with recorded against rendered frames, the paper kit preview, the cells comparison, the Run on… dialog and the USD
+    import wizard."""
+    import time
+
+    from dexvantage.core.robot.samples import sample_project as sp
+
+    tmp = tempfile.mkdtemp(prefix='dexvantage-screens-rt2-')       # no personal path in the pictures
+
+    def wait_idle(win, timeout=600.0, page=None):
+        t0 = time.time()
+        pump(5)
+        while time.time() - t0 < timeout:
+            pump(5)
+            busy = win.ctx.analysis.busy() or bool(getattr(win, '_jobs', None))
+            if page is not None and hasattr(page, '_threads'):
+                busy = busy or any(t.is_alive() for t in page._threads)
+            if not busy:
+                pump(20)
+                return True
+            time.sleep(0.03)
+        return False
+
+    def window(project):
+        pw = MainWindow(project, soft_3d=True, settings=settings)
+        pw.resize(1680, 1000)
+        pw.show()
+        pw.ctx.analysis.wait(5)
+        pw.resizeDocks([pw.docks['inspector'], pw.docks['camview']], [380, 460], Qt.Orientation.Vertical)
+        pw.resizeDocks([pw.docks['inspector']], [430], Qt.Orientation.Horizontal)
+        pw.resizeDocks([pw.docks['bottom']], [560], Qt.Orientation.Vertical)
+        pump()
+        pw.viewport.frame_box(*pw.scene.home_box(pw.viewport))
+        return pw
+
+    def tall(pw, page, name, h=900, widget=None):
+        pw.resizeDocks([pw.docks['bottom']], [h], Qt.Orientation.Vertical)
+        pump(20)
+        if widget is not None:
+            page.body.parentWidget().parentWidget().ensureWidgetVisible(widget)
+            pump(20)
+        shot(page, name)
+        pw.resizeDocks([pw.docks['bottom']], [560], Qt.Orientation.Vertical)
+        pump()
+
+    def part(fn):
+        try:
+            fn()
+        except Exception:                        # noqa: BLE001 — one broken shot must not stop the others
+            import traceback
+            traceback.print_exc()
+
+    def saved(name):
+        p = sp(name)
+        path = os.path.join(tmp, f'{name}.dexv')
+        p.save(path)
+        return P.Project.load(path)
+
+    def runs():
+        p = saved('so100')
+        p.analysis.studies['tracking'] = {'enabled': True, 'quick': True, 'tags': ['screens']}
+        pw = window(p)
+        pw.open_page('runs')
+        page = pw.pages['runs']
+        st = pw.ctx.store
+        pw.ctx.analysis.run('coverage')
+        wait_idle(pw, page=page)
+        uid = st.project.variant.sensors[0].uid
+        st.edit('variant', lambda q: setattr(q.variant.sensor(uid).mount.pose, 'position',
+                                             q.variant.sensor(uid).mount.pose.position + [0.0, 0.0, 0.03]),
+                'Raise a camera 30 mm (screenshot)')
+        wait_idle(pw, page=page)
+        pw.ctx.analysis.run('coverage')
+        wait_idle(pw, page=page)
+        page.refresh()
+        wait_idle(pw, page=page)
+        from dexvantage.core import tracking as TR
+        ids = [r['run_id'] for r in TR.store_for(st.project).runs(study='coverage')][-2:]
+        page.select_ids(ids)
+        page.compare_selected(ids)
+        wait_idle(pw, page=page)
+        shot(pw, 'rt2-so100-runs-page.png')
+        tall(pw, page, 'rt2-so100-runs-compare.png')
+        pw.cancel_jobs()
+        pw.hide()
+
+    def statistics():
+        pw = window(sp('ur5e'))
+        pw.open_page('statistics')
+        page = pw.pages['statistics']
+        page.set_rates([('ACT', 14, 20), ('Diffusion Policy', 19, 20), ('pi0', 17, 20)])
+        wait_idle(pw)
+        page.preview()
+        t0 = time.time()
+        while time.time() - t0 < 60 and not page.pw_answer.text():
+            pump(5)
+            time.sleep(0.03)
+        pump(40)
+        shot(pw, 'rt2-ur5e-statistics-page.png')
+        tall(pw, page, 'rt2-ur5e-statistics-power.png', 980, page.pw_curve)
+        pw.cancel_jobs()
+        pw.hide()
+
+    def campaign():
+        import json
+        spec = os.path.join(tmp, 'campaign.json')
+        with open(spec, 'w', encoding='utf-8') as fh:
+            json.dump({'schema': 'dexvantage.campaign_spec/1', 'name': 'ALOHA handover, two lighting presets',
+                       'operators': ['Ana', 'Ben', 'Chen'], 'lighting': [{'name': 'Bright'}, {'name': 'Dim'}],
+                       'demos': {'mode': 'power', 'p_base': 0.5, 'p_target': 0.7}, 'episode_s': 30,
+                       'start_date': '2026-11-16', 'budget': {'disk_gb': 4000, 'days': 10, 'upload_mbps': 1000,
+                                                              'upload_hours_per_day': 8}}, fh)
+        pw = window(sp('aloha'))
+        pw.open_page('campaign')
+        page = pw.pages['campaign']
+        page.open_spec(spec)
+        wait_idle(pw)
+        shot(pw, 'rt2-aloha-campaign-page.png')
+        tall(pw, page, 'rt2-aloha-campaign-schedule.png', 980, page.sessions)
+        pw.cancel_jobs()
+        pw.hide()
+
+    def sim2real():
+        from dexvantage.core.sim2real import inject as IJ
+        p = sp('ur5e')
+        root = IJ.make_gap_dataset(p, os.path.join(tmp, 's2r'), {'brightness_dn': 20.0, 'blur_px': 1.5,
+                                                                  'camera': 'observation.images.overhead_d435'},
+                                   {'episodes': 1, 'frames': 40, 'size': [320, 180], 'seed': 4})['root']
+        pw = window(p)
+        pw.open_page('sim2real')
+        page = pw.pages['sim2real']
+        page.choose_dataset(root)
+        wait_idle(pw)
+        page.run()
+        t0 = time.time()
+        while time.time() - t0 < 10 and not pw.ctx.analysis.busy('sim2real'):
+            pump(5)
+        wait_idle(pw)
+        ov = [i for i in range(page.cam_box.count()) if 'Overhead' in page.cam_box.itemText(i)]
+        if ov:
+            page.cam_box.setCurrentIndex(ov[0])
+            page._show_camera()
+        pump(40)
+        shot(pw, 'rt2-ur5e-sim2real-page.png')
+        tall(pw, page, 'rt2-ur5e-sim2real-frames.png', 980, page.causes)
+        pw.cancel_jobs()
+        pw.hide()
+
+    def publication():
+        pw = window(sp('so100'))
+        for sid in ('rig', 'bandwidth', 'coverage'):
+            pw.ctx.analysis.run(sid)
+            pw.ctx.analysis.wait(120)
+        pump(20)
+        pw.open_page('publication')
+        page = pw.pages['publication']
+        page.run()
+        t0 = time.time()
+        while time.time() - t0 < 120 and page.kit is None:
+            pump(5)
+            time.sleep(0.03)
+        pump(40)
+        shot(pw, 'rt2-so100-publication-page.png')
+        tall(pw, page, 'rt2-so100-publication-preview.png', 980, page.text)
+        pw.cancel_jobs()
+        pw.hide()
+
+    def cells():
+        pw = window(sp('so100'))
+        pw.open_page('cells')
+        page = pw.pages['cells']
+        page.add_sample('ur5e')
+        page.add_sample('aloha')
+        wait_idle(pw)
+        page.run()
+        t0 = time.time()
+        while time.time() - t0 < 10 and not pw.ctx.analysis.busy('cells'):
+            pump(5)
+        wait_idle(pw)
+        shot(pw, 'rt2-so100-cells-page.png')
+        tall(pw, page, 'rt2-so100-cells-tables.png', 980, page.gap_tab)
+        pw.cancel_jobs()
+        pw.hide()
+
+    def run_on():
+        from dexvantage.ui import cluster_run as CR
+        pw = window(sp('so100'))
+        pw.open_page('experiments')
+        dlg = CR.RunOnDialog(pw, 'Designed experiments')
+        dlg.resize(620, 520)
+        pump(20)
+        shot(dlg, 'rt2-run-on-dialog.png')
+        dlg.slurm.setChecked(True)
+        dlg.folder.setText(os.path.join('out', 'slurm-job'))
+        pump(20)
+        shot(dlg, 'rt2-run-on-dialog-slurm.png')
+        dlg.close()
+        pw.cancel_jobs()
+        pw.hide()
+
+    def usd_wizard():
+        from dexvantage.ui.dialogs.import_wizard import ImportWizard
+        pw = window(P.blank_project('USD import'))
+        path = os.path.join(ROOT, 'dexvantage', 'resources', 'usd_robots', 'newton_ur5e', 'usd_structured',
+                            'ur5e.usda')
+        wz = ImportWizard(pw.ctx, pw)
+        wz.resize(1100, 760)
+        wz.show()
+        wz.load(path, background=False)
+        pump(60)
+        shot(wz, 'rt2-usd-import-wizard.png')
+        wz.close()
+        pw.hide()
+
+    for fn in (runs, statistics, campaign, sim2real, publication, cells, run_on, usd_wizard):
+        part(fn)
+    import shutil
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
+ONLY = {'phase3': phase3, 'phase458': phase458, 'samples': new_samples, 'phase910': phase910,
+        'research2': research2}
 if '--only' in sys.argv and sys.argv[sys.argv.index('--only') + 1] in ONLY:
     w.hide()
     ONLY[sys.argv[sys.argv.index('--only') + 1]]()

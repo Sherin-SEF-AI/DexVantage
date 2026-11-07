@@ -307,8 +307,10 @@ def encode(problem: Problem, values) -> np.ndarray:
 
 def run(problem: Problem, pop: int = 40, budget: int = 2000, seed: int = 0, eta_c: float = 15.0,
         eta_m: float = 20.0, pc: float = 0.9, pm: float | None = None, progress=None, cancel=None,
-        initial=None) -> Result:
-    """NSGA-II on problem (see the module docstring). budget: evaluations in all (at least pop)."""
+        initial=None, prefetch=None) -> Result:
+    """NSGA-II on problem (see the module docstring). budget: evaluations in all (at least pop). prefetch(rows):
+    called with a generation's decoded genomes before they are evaluated one by one (core/cluster scores them in
+    parallel there and the evaluator then finds them in its memo); it changes no result."""
     rng = np.random.default_rng(int(seed))
     nv = len(problem.vars)
     pop = max(2, int(pop))
@@ -337,6 +339,8 @@ def run(problem: Problem, pop: int = 40, budget: int = 2000, seed: int = 0, eta_
             done = X
         else:
             rows_f, rows_g, done = [], [], []
+            if prefetch is not None and len(X) and not stop():
+                prefetch([problem.decode(x) for x in X])
             for x in X:
                 if stop():
                     break

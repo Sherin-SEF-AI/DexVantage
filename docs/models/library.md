@@ -179,6 +179,85 @@ check; a custom device cannot take a built-in id. `remove_custom(id)` deletes it
 the schema, or reuses an id, is skipped with a plain message (`library.problems()`, also logged); the app never stops
 on one.
 
+## Prices {#prices}
+
+`core/prices.py`; schema `price` (`library.schema.json`). An entry's `price` block is the price of **one unit** as the
+maker's own online store or official price list states it on the date read:
+
+    "price": {"amount": 375, "currency": "USD", "unit": "each", "kind": "maker_store",
+              "source": "https://store.realsenseai.com/buy-realsense-depth-camera-d435.html", "read": "2026-11-07",
+              "region": "the store's default price list (USD)", "what": "store page price (schema.org offer 375 USD)"}
+
+- `kind` is `maker_store` (a list price from the maker's own store), `maker_price_list` (the maker's official price
+  list page) or `reseller` (only where the maker sells through that store alone; `what` says why).
+- `min_quantity` marks a volume price (NVIDIA's "(1KU+)" is 1000): such a figure is not what one unit costs.
+- `options` lists other variants and their prices (polarizer, enclosure, gripper, control-box cable). When the price
+  depends on an option the entry does not fix (a cable sold in four lengths), `amount` is `null` and only the options
+  carry prices: nothing is picked for the user.
+- `sale_amount` keeps a temporary sale price; `amount` is the regular price.
+- No price is estimated, and no exchange rate is applied (every price found is in US dollars). A custom entry may still
+  use the older `{"value", "currency"}` form; it reads the same.
+
+**What was found (read 2026-11-07).** 81 of the 191 built-in entries state a price, all in USD: 67 from the maker's
+own store, 11 from NVIDIA's official price list, 3 from a reseller the maker sells through.
+
+| Kind | Priced / entries | Sources |
+|---|---|---|
+| depth | 33 / 33 | RealSense store (D405 325 … D457 599), Luxonis shop (variant by RGB sensor), Stereolabs store (the no-polarizer SKU; the polarizer SKU as an option), Orbbec store (the store's product data; Femto Bolt and Femto Mega were marked not available) |
+| camera | 15 / 33 | Luxonis (OAK-1, OAK-1 W OV9782), Stereolabs (ZED X One GS), e-con Systems (the product page's sample price for one unit, read from the site's own price service: See3CAM_10CUG, _20CUG, _24CUG, _27CUG, _37CUGM, STURDeCAM57), Leopard Imaging store (four GMSL2 cameras) |
+| host | 14 / 18 | NVIDIA Jetson FAQ "What is the price of Jetson products?" (MSRP USD; modules are volume prices at 1000+), Stereolabs ZED Link Quad, Leopard LI-JAG-ADP-GMSL2-8CH and LI-PCIEFG-GMSL2 |
+| cable | 1 / 6 | Stereolabs GMSL2 FAKRA F-F: four lengths as options, amount null |
+| light | 4 / 6 | Elgato US store (regular price, discount 0), amaran store (regular 349, sale 279 on the date read) |
+| tactile | 2 / 10 | GelSight store: GelSight Mini System 510; DIGIT 355 (reseller: Meta does not sell DIGIT; GelSight does) |
+| teleop | 4 / 13 | 3Dconnexion US store (SpaceMouse Compact 179), Apple US store (Vision Pro 256 GB 3699), Rokoko (Smartgloves II 1995, the pair), ROBOTIS America (Koch v1.1 leader kit, reseller: the open design has no maker's store) |
+| robot | 8 / 53 | UFACTORY global store (Lite 6, xArm 7), AgileX (PiPER), I2RT (YAM), ROBOTIS America (OMY-F3M, OP3; Koch v1.1 follower kit as reseller), Trossen (WidowX AI base configuration) |
+
+**What was not found, and why** (the price stays "not stated"):
+
+- *The page read sells by quote or contact only*: MANUS, HaptX, e-con NileCAM56 / STURDeCAM25 / 29 / 39 and
+  See3CAM_37CUG ("Contact us" and no price), Unitree H1 (the store says "Contact us for the real price"; its 90000
+  figure is a placeholder and is not entered), UFACTORY's own pages also offer "Request a Quote" but its store states
+  prices (entered).
+- *No maker store page with a price was found in this pass* (most of these sell through distributors or by quote; that
+  was not verified page by page): Allied Vision, OmniVision, ams-OSRAM, Axis, XELA, PaXini, Contactile, Franka,
+  Universal Robots, KUKA, FANUC, Kinova, Flexiv, Robotiq, Shadow, PAL, Apptronik, Fourier, PNDbotics, Rainbow, Sharpa,
+  Wonik, ARX, Booster, TetherIA, Hello Robot (Stretch 2 and 3), Rethink (Sawyer), Ultraleap, Newnex, VA Imaging and
+  the Basler USB card.
+- *The store's variant is not the entry's*: Unitree G1 (store: G1 and G1 Pro; the entry is the G1 EDU) and Z1 (store:
+  Z1 Pro; the entry's figures are the Z1 AIR).
+- *Marked "DISCONTINUED" on the maker's store*: Trossen ViperX-300, WidowX-250 and the WidowX ALOHA set (so the
+  ALOHA leader arm).
+- *Not sold as the unit the entry describes on the pages read*: GELLO (ROBOTIS America sells a bundle per target arm),
+  LEAP Hand (ROBOTIS America sells a "Lite" bundle, another version). SO-100 / SO-101 arms and leaders and the Seeed
+  reBot DevArm: no maker page with a single-arm price was read (search results showed only resellers' kit bundles,
+  which are not entered).
+- *Research designs with no store*: ALOHA 2, AnySkin, ReSkin, Digit 360, TidyBot++, ToddlerBot, UMI, Berkeley Humanoid,
+  Google Robot.
+- *The page could not be read by an automated fetch* (left not stated rather than reconstructed): Arducam (a bot check),
+  Basler shop (refused), Neewer (rate-limited on every attempt), Meta Quest (the page reached showed "Unavailable" and no
+  price), Teledyne FLIR (the price is filled in by script; the figure in the page's analytics data was not taken as the
+  displayed price).
+- *Not products*: the three USB 3.2 host-port specification entries.
+
+### The rig cost {#rig-cost}
+
+`core/prices.total`, read by the rig inventory (`core/studies/rig_inventory.py`) and the metric `rig.cost` (USD):
+
+    cost = Σ amount_i over the enabled sensors that state a price
+    every sensor priced            -> cost (exact)
+    some priced, k of n unpriced   -> cost with bound 'at_least'; the reason names and counts the k parts
+    none priced                    -> not stated
+    more than one currency         -> refused: "no exchange rate is assumed"; a non-USD total is not stated as rig.cost
+
+A lower bound was chosen over "not stated" because it still decides one direction of a requirement: "cost ≤ 500 USD"
+fails on "at least 574 USD" (the dexhand sample), while "cost ≤ 1000 USD" stays not evaluated until the missing part
+is priced (`core/requirements.decide`). The optimiser uses the cost objective only when every device it can choose
+states a price in US dollars, rig.cost's unit (`optimise/objectives.price_stated`, `optimise/rig._price_gaps`), so it never ranks designs by a bound or by a cost that is not stated; a price without a currency counts as not stated.
+
+On the samples (2026-11-07): ur5e 700 USD (D405 + D435), aloha 1300 (four D405), panda-bimanual 1025, g1 375,
+dexhand at least 574 (See3CAM_24CUG 199 + D435 375; the OVM6948 states no price), so100 not stated (sample placements
+with no library device).
+
 ## Validation
 
 `tests/test_library.py` validates **every file in the folder** (any kind, whoever added it) against the schema with
@@ -218,8 +297,25 @@ H/V is shown to fail the checks.
 A typed figure that drifts from its quote (a glove's 120 Hz entered as 100) or a MB/s figure typed as Mbit/s is shown
 to fail the checks in `tests/test_library_systems.py`.
 
+### Prices (validation/checks_prices.py, model `library`)
+
+| Check | Reference | Tolerance and why | Measured 2026-11-07 |
+|---|---|---|---|
+| `library.prices_sound` | the rules written out again over the entry files read with `json`: amount > 0 (or null with priced options), currency in ISO 4217 list one (SIX, published 2026-09-17), unit `each`, an https source, the kind, and the date read not in the future and at most 730 days old (a default); `core/prices.problems` must flag the same entries | 0 entries (each break is a data error, and a stale price is one) | 0 of 81 priced entries |
+| `library.rig_cost_sum` | the rig inventory's cost on 60 seeded random rigs (1–6 sensors from every camera, depth and tactile entry, priced or not) and the samples, against the stated amounts added up again from the entry files; a wrong bound, missing count or not-stated counts as infinite | 0.005 USD (the total is rounded to cents) | 0.0 over 66 rigs (57 with a cost, 40 of them lower bounds) |
+
+`tests/test_prices.py` checks the schema (a full block, the older `value` form, the options-only cable; eight broken
+blocks refused), that every built-in price has a URL, a date, a kind and a unit, the bound and currency rules, and
+rig.cost on every sample; the self-test line `prices` checks every block and a D405 + D435 rig (700.00 USD).
+
 ## Known limits
 
+- Prices are list prices on the date read: no tax, shipping, duty or discount, and a store can show another price in
+  another region (the `region` field says which list was read; several stores redirected to a regional locale but
+  priced in USD). NVIDIA's module prices are volume prices (1000+). They go stale: `library.prices_sound` fails a price
+  read more than two years before the run, so re-read and update them.
+- The rig cost counts only the enabled sensors (hosts, cables, lights, robots and brackets are priced in the library
+  but not added to `rig.cost`).
 - The figures are the makers' typical values; FOVs vary unit to unit (Intel: about ±3°, mechanical tolerance ±5%).
 - Distortion and pixel size are not published for the Intel cameras: pinhole models fitted to the stated FOV, so pixel
   densities near the image corners carry the unmodelled ≤ 1.5 % distortion. Calibrate a unit for its own K and D.

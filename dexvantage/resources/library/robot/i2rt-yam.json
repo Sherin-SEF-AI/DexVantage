@@ -13,6 +13,16 @@
     }
   ],
   "note": "i2rt.com's product page answered \"404 Not Found\" on 2026-11-07. The maker's figures were not read for this build; every figure is null (not found in the sources read).",
+  "price": {
+    "amount": 2999,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://i2rt.com/products/yam-6-dof-arm",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "I2RT store, 'YAM', variant 'with Gripper' 2999.00 USD (the YAM Leader arm is a separate product, 2999.00 USD); read from the store's product data (https://i2rt.com/products.json) on the date read"
+  },
   "imagers": [],
   "streams": [],
   "robot": {

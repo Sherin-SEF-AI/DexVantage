@@ -148,12 +148,21 @@ class Outliner(QWidget):
             where = s.mount.parent_frame
             self._item(g, s.name, f'{s.kind} · {where}', ('sensor', s.uid),
                        {'camera': 'camera-wide', 'depth': 'depth', 'tactile': 'tactile'}.get(s.kind, 'sensor'))
-        g = self._group('Workspace', 'task-volume', len(p.workspace.volumes) + len(p.workspace.objects))
+        surfaces = [(k, x) for k, x in enumerate(p.workspace.surfaces) if isinstance(x, dict)]
+        g = self._group('Workspace', 'task-volume', len(p.workspace.volumes) + len(p.workspace.objects)
+                        + len(surfaces))
         for v in p.workspace.volumes:
             self._item(g, v.name, f'{v.size[0] * 1000:.0f} × {v.size[1] * 1000:.0f} × {v.size[2] * 1000:.0f} mm',
                        ('volume', v.uid), 'task-volume')
         for o in p.workspace.objects:
             self._item(g, o.name, ', '.join(o.materials), ('object', o.uid), 'cube')
+        for k, x in surfaces:                            # support surfaces: edited on the Workspace page
+            sz = x.get('size') or (0, 0)
+            it = self._item(g, str(x.get('name') or f'Surface {k + 1}'),
+                            f'{float(sz[0]) * 1000:.0f} × {float(sz[1]) * 1000:.0f} mm · z '
+                            f'{float(x.get("z", 0.0)) * 1000:.0f} mm', ('surface', str(x.get('uid') or k)), 'ground')
+            if it is not None:
+                it.setToolTip(0, 'A support surface. Select it to edit it on the Workspace page; Delete removes it.')
         t = p.tasks
         g = self._group('Tasks', 'grasp', len(t.grasp_sets) + len(t.trajectories) + len(t.teleop_devices))
         for tr in t.trajectories:
@@ -462,7 +471,8 @@ class LibraryPanel(QWidget):
                 m.addAction('Add to the rig', lambda: self.add_device(mid))
             elif e is not None and e.kind in PAGE_OF_KIND:
                 m.addAction(f'Open on the {PAGE_OF_KIND[e.kind]} page', lambda: self.add_device(mid))
-            if e is not None and e.kind in SENSOR_KINDS + ('host',):     # the kinds the custom dialog makes
+            from .dialogs.custom_device import KIND_LABEL as CUSTOM_KINDS     # the kinds the custom dialog makes
+            if e is not None and e.kind in CUSTOM_KINDS:
                 m.addAction('Start a custom device from this one…', lambda: self._custom(mid))
             if e is not None and e.is_custom:
                 m.addAction('Remove this custom device', lambda: self._remove(mid))
@@ -532,6 +542,17 @@ class Inspector(QWidget):
             sec.row('Shape', obj.shape)
             sec.row('Size', ' × '.join(f'{s * 1000:.0f}' for s in obj.size) + ' mm')
             sec.row('Materials', ', '.join(obj.materials))
+            v.addWidget(sec)
+        elif kind == 'surface' and obj is not None:
+            self.titleChanged.emit('Surface')
+            sz = obj.get('size') or (0, 0)
+            sec = Section(str(obj.get('name') or 'Surface'))
+            sec.row('Height', f'z {float(obj.get("z", 0.0)) * 1000:.0f} mm')
+            sec.row('Size', f'{float(sz[0]) * 1000:.0f} × {float(sz[1]) * 1000:.0f} mm')
+            sec.row('Material', str(obj.get('material') or 'not set'))
+            b = button('Edit on the Workspace page', role='ghost', tip='Height, size, centre and material')
+            b.clicked.connect(lambda: self.ctx.window.open_page('workspace') if self.ctx.window is not None else None)
+            sec.add(b)
             v.addWidget(sec)
         elif kind == 'project' or not st.sel:
             self.titleChanged.emit('Project')

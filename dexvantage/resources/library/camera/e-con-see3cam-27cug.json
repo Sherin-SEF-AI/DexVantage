@@ -13,6 +13,16 @@
     }
   ],
   "note": "An RGB-IR global-shutter USB camera (one OV2312 sensor giving a colour and an IR stream, both UYVY). FOV 88.4 (D) x 74.65 (H) x 62.76 (V) degrees \"with the lens provided by e-con\". The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rate \"Streams 2MP @ 36 fps\"; the stream size of the \"2MP\" mode is not stated, so no stream is entered (the active area is 1600 x 1300). mass_g is the stated board weight with lens, 20 g (16 g without). Power is not stated (null). size_mm is null: the page gives only \"30 x 30\" (l x b). Not stated: f-number, focal length, distortion.",
+  "price": {
+    "amount": 229,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.e-consystems.com/usb-cameras/2mp-ov2312-global-shutter-rgb-ir-camera.asp",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "'Sample Price (1 Unit)' from the site's product price service: product 1422, See3CAM_27CUG_CHLCC_H01R1, 229.00 USD; 'Contact us' instead of 'Buy now'; read from https://www.e-consystems.com/getproductdetails.asp?IDS=1422"
+  },
   "interface": "USB 3.2 Gen 1 (USB Type-C); UVC",
   "power_w": null,
   "mass_g": 20.0,

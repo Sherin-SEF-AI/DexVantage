@@ -650,6 +650,12 @@ def analyse(project, options: dict | None = None, ctx=None, built: tuple | None 
         advice = (f'Points {abs(rng["h_lo_m"]) * 1000:.0f} mm beyond the plane or {rng["h_hi_m"] * 1000:.0f} mm in '
                   f'front of it land up to {p95:.1f} px (P95) from where {w.canonical.name} would see them; the warp '
                   f'is exact only on the contact plane. {sg["text"] if sg else ""}').strip()
+    width = int(w.canonical.camera.width)
+    beyond = p95 is not None and p95 > width          # the bound is right but past the image: say so, not 11 878 px
+    if beyond:
+        advice = (f'The residual parallax is larger than {w.canonical.name}\'s image (bound {p95:.0f} px P95 against '
+                  f'a {width} px wide image): off the contact plane the warped view does not resemble the canonical '
+                  'one. ' + advice)
     mp = pm['map']
     doc = {
         'convention': CONVENTION,
@@ -668,7 +674,8 @@ def analyse(project, options: dict | None = None, ctx=None, built: tuple | None 
                                              'pixel (on the sampled grid)'},
         'headline': {'value': p95, 'unit': 'px', 'status': sev, 'word': word, 'advice': advice,
                      'max_px': mx, 'thresholds_px': th,
-                     'thresholds_default': th == DEFAULTS['thresholds_px']},
+                     'thresholds_default': th == DEFAULTS['thresholds_px'],
+                     'image_width_px': width, 'beyond_image': bool(beyond)},
         'suggestion': sg,
         'notes': list(w.notes) + ([f'The near end of the depth range is cut to {rng["h_hi_m"] * 1000:.0f} mm: a '
                                    'point must stay in front of the source camera.'] if rng['clamped'] else []),

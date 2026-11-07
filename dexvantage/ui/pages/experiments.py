@@ -198,6 +198,8 @@ class ExperimentsPage(StudyPage):
 
     # ---------------------------------------------------------------- body
     def build_body(self, layout):
+        from ..cluster_run import add_run_on
+        add_run_on(self, 'experiment')                # Run on…: N processes or a Slurm job folder (core/cluster)
         self._syncing = False
         self._overlay3d = None
         self._preview = None
@@ -617,7 +619,8 @@ class ExperimentsPage(StudyPage):
                                  else (r['responses'].get(obj) or 0.0)))
         for r in runs[:MAX_TABLE_ROWS]:
             cells = [str(r['run']), r.get('block') or ''] + [_g(r['values'].get(f['path'])) for f in fs] + \
-                [_g(r['responses'].get(x['id'])) if r['status'].get(x['id']) == 'ok' else r['status'].get(x['id'], '')
+                [{'at_least': '≥ ', 'at_most': '≤ '}.get((r.get('bound') or {}).get(x['id'], ''), '')   # a bound
+                 + _g(r['responses'].get(x['id'])) if r['status'].get(x['id']) == 'ok' else r['status'].get(x['id'], '')
                  for x in rs]
             it = QTreeWidgetItem(cells)
             for k in range(len(cells)):

@@ -13,6 +13,16 @@
     }
   ],
   "note": "The long-baseline (100 mm) Gemini 2 with a global-shutter colour camera. Poses: the body origin is the left IR camera's optical centre, an ASSUMPTION (the datasheet does not say which IR camera the depth map refers to; the Gemini 330 datasheet puts it at the left IR); the right IR one stated baseline along -y. The colour camera's and the projector's offsets are not dimensioned in the text: the colour camera is placed at the depth origin and the projector at the baseline midpoint, both as ASSUMPTIONS (pose_stated false). Depth technology \"Stereo Structure Light\" (an IR speckle projector with stereo IR cameras): entered as active_ir_stereo. IR FOV 94/68/104 deg H/V/D (specification table and Table 3-4-1 agree for the 2 L); depth FOV 91/66/101 deg +/- 3 at 4 m. Colour 1280 x 800, global shutter: 93 x 68 (D 104) deg for 16:10, 93 x 61 (D 101) for 16:9, 65 x 52 (D 78) for 4:3 (specification table; Table 3-4-3 gives the colour camera as 94/68/104 deg). Depth accuracy \"< 2% (1280 x 800 @ 4m & 81% ROI)\", an RMS plane-fit figure by note [2]. min_z is empty: no per-resolution minimum is stated; depth range 0.20-10 m, ideal 0.25-7 m. 60 fps only in Binned Sparse Default. Streams (Table 4-6-3, USB 3.0): depth Y14 (the table reads \"Y14H14\"; packing not stated, bits null), IR Y8, colour MJPEG (compressed, bits null; the table's YUYV rows are not clearly assigned, so they are not entered). Power: typical average < 2.5 W, max average < 3 W (entered), peak < 8.5 W. Size L124 x W29 x D26 mm +/- 0.5, 144 g +/- 3. Depth start point 4.48 mm (1.1 mm cover glass). Mounting 1x 1/4-20 UNC, 2x M4. Projector VCSEL 850 nm, 101 x 72.5 deg +/- 3. Lens model pinhole is a labelled ASSUMPTION. Not stated: pixel size, f-numbers, subpixel accuracy.",
+  "price": {
+    "amount": 319,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://store.orbbec.com/products/gemini-2l",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "store product data (handle gemini-2l, SKU 100100406) 319.00 USD; read from the store's product data (https://store.orbbec.com/products.json) on the date read"
+  },
   "interface": "USB 3.0 (USB Type-C)",
   "power_w": 3.0,
   "mass_g": 144.0,

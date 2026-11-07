@@ -3,6 +3,314 @@
 The resume point for the next session: what is done, what is next, open issues, and the decisions taken. Updated at
 the end of every phase.
 
+## Research tools part 2 and the open-issue fixes (done, 2026-11-08)
+
+Built in parallel by separate agents (the experiment tracker; statistics and power analysis; the campaign planner;
+the sim-to-real gap; the publication kit; cluster sweeps; the multi-cell comparison; the export and import fixes
+(USD robot import, URDF inertials, OpenVLA encodings, the Isaac principal point); cited prices; the UI and analysis
+fixes of the review round), then integrated, then reviewed four times (truthfulness, correctness, a research team's
+workflow on ALOHA 2, completeness against spec §7.11, §9, §11, §12 and §13).
+
+**Final gate (after the four reviews, 2026-11-08)**
+- Tests: **3 806 passed**, 0 failed, 2 skipped (the paper kit's LaTeX compile at both unit settings: no LaTeX engine
+  on PATH) (`python -m pytest tests`, offscreen, memory-capped at 7 GB, run alone, 1 850 s; temporary folders on the
+  home disk with `TMPDIR` and `--basetemp`, because `/tmp` is a 15 GB tmpfs with a per-user quota that other work
+  fills). Peak: the largest process 5.02 GB (`time -v` maximum resident set), the cgroup's `memory.peak` 6.14 GB with
+  page cache (the integration gate 5.09 GB and 6.30 GB). Afterwards its temporary folder held only the shared icon
+  cache. The reviews added test_review_correctness 17, test_product_review 24, test_completeness_api 16 and
+  test_completeness_plugins 6 and asserts in existing files (the integration gate ended at 3 743).
+- Validation: **232 of 232 checks pass** (`--validate out/validation`, 387 s, peak 5.29 GB).
+- `dexvantage --self-test`: **46 of 46 ok** (45 s, peak 3.8 GB; the validation line runs 160 cheap checks in 32 s;
+  occlusion and grasp on the RTX 5080, the OpenGL line on the default display).
+- `ruff check dexvantage tests scripts examples`: clean.
+- `python -m dexvantage.mcp` over stdio: initialize answers protocol 2025-11-25 (server "dexvantage" 0.1.0.dev0),
+  tools/list **39 tools**, `open_project` with `sample: aloha`, then `get_runs`, `get_campaign` and `get_rig_cost`
+  (1 300 USD) answer, `get_statistics` and `get_cells` refuse in one sentence (no success counts, one cell); 1.1 s.
+- Batch, every research tools part 2 flag on the samples (58 runs, each under a 4 GB cap, one at a time; largest
+  1.13 GB, the three-sample cell comparison); results exit 0, refusals one sentence and exit 2, a failing check or an
+  incomplete gather exit 1, no traceback in any run. The figures equal the integration gate's: `--stats` 14/20
+  against 19/20 +25.0 pp [+0.8, +47.3], adjusted p 0.0915; `--campaign` ALOHA 2 216 episodes, 1 304 GB, UR5e
+  1 938 GB; `--sim2real` on the UR5e +20 DN recording 6.4 s, SO-100 synthetic 8.0 s; the paper kit 48 and 31 numbers
+  traced (UR5e), 36 and 60 (SO-100 from batch results); `--experiment --jobs 4` 1.9 s, `--tolerance-mc --jobs 4`
+  7.8 s; `--slurm` 3 shards, `--run-shard` × 3, `--gather` incomplete (exit 1) and complete; `--cells` three samples
+  0.373 (ALOHA 2), files 0.745 (G1). Run for the first time at a gate: `--campaign-saved` (ALOHA 2, the stored
+  spec), `--stats-saved` and `--cells-compare` on a project with nothing set (refused in one sentence),
+  `--stats variants.json` on an SO-100 saved with a second variant made by `rig.add_variant` (7.1 s: task volume
+  seen −0.182 [−0.193, −0.169] points, adjusted p 0.0078, "clear difference"; the three figures the SO-100 does not
+  state are named with the study's reason), `--cluster-studies` with `--jobs 3` (three samples, three studies,
+  1.3 s) and with `--slurm`, `--optimise --slurm` (budget 12, population 4) through three rounds of `--run-shard`
+  and `--optimise-continue` to `result.json` (1 design at least as good as the rig on every objective); refused:
+  `--optimise-continue` on a folder that is not a job, `--submit` without `--slurm`.
+- Screenshots: `python scripts/screens.py --only research2` (15 images, 41 s, none unfinished). Looked at the six new
+  pages: Runs (4 runs, the tracking line on one row), Statistics (+25.0 pp, "no clear difference", the plan of 43
+  episodes in the Preview line), Campaign (216 episodes, "within budget", the demonstration fields the power
+  analysis sets disabled), Sim-to-real (19.9 DN, "very large gap", recorded, rendered and difference frames, the
+  causes with their gain and offset), Paper kit (33 of 33 numbers, "ready", sections in three columns) and Cells
+  (0.373, "large gap", the three cells and their bands): nothing to fix on the pages. The script left its three
+  XDG folders (and, in other sets, its capture and export folders) in the temporary folder; it now removes them when
+  it ends (`scripts/screens.py`), checked by a second run that left only the shared icon cache.
+- Hygiene: every tracked and untracked file (1 054) grepped for personal paths, user and host names, e-mail
+  addresses, keys (`sk-ant-`, Groq, Hugging Face, AWS, GitHub, private-key blocks) and AI attribution lines
+  (Co-Authored-By, Claude-Session, "Generated with"): none (the hits are the rules and tests asserting their
+  absence). No file over 5 MB was added (the untracked files total 2.0 MB).
+
+**Review fixes (research tools part 2)**
+- Truthfulness (all 81 cited prices re-read on their maker or official price pages, in USD, and all match: RealSense
+  11, Stereolabs 11, Luxonis 10, Orbbec 8, NVIDIA's Jetson FAQ 11, e-con Systems 6, Leopard 6, Elgato 3, GelSight and
+  DIGIT 2, ROBOTIS 4, AgileX, I2RT, UFACTORY 2, Rokoko, Amaran, 3Dconnexion, Apple and Trossen; the statistics
+  worked examples re-derived with code written apart from `core/stats`; the file formats checked against their
+  sources; 8 fixes, among them the MLflow tracker's docstring on the experiment `meta.yaml` keys MLflow 3.17.2 adds).
+  Validation of the four models it touched (campaign, sim2real, publication, tracking) 22 of 22.
+- Correctness (8 bugs, each with a regression test in `tests/test_review_correctness.py`): Fisher's exact test named
+  its one-sided alternatives the other way round from the rest of `core/stats` (condition 2 against condition 1); a
+  short `os.write` in a shard's output left half a line the next line ran into (both lost); the shared disk cache
+  never replaced a short or corrupt entry; two deletes of one run at once raised a raw OSError; a tolerance run's
+  samples dropped draws without a value, so two runs with one seed that lost different draws were paired off by
+  one, and the tracker's significance test refused lists holding a missing draw; dataset pooling compared joint
+  kinds by position after a reorder (a false "not poolable"), took a unit not stated as another kind and ignored a
+  target recorded in degrees; the optimiser kept the cost objective when a device is priced in another currency,
+  and a price without a currency counted as the currency "None"; the campaign says that a compression ratio above
+  one grows the recording (a ratio such as 20 entered for 0.05 is named: the ratio is the encoded size over the raw
+  size).
+- A research team's workflow on ALOHA 2 (15 fixes, `tests/test_product_review.py`, `docs/models/product-review.md`):
+  `rig.add_variant(name, {factors}, from_variant=None)`; the API logs `dv.stats.*` on a rig, `dv.campaign.plan`,
+  `dv.cells.compare` and `dv.cluster.gather` (with `rig=` into the rig's store) as their batch forms do; the
+  sim-to-real result held NaN for a mount σ the frames do not constrain (now `None`, so the tracker and JSON take
+  it); a brightness offset was read as a light gain (the cause names the offset, and Apply sets the cameras' render
+  response when they share an offset of 1 DN or more); `rig.gap_dataset` checks its gaps first and refuses a folder
+  that is not empty before rendering; a campaign spec refuses an unknown key (a mistyped power analysis gave 50
+  demonstrations silently); `dv.cluster.*(jobs=0)` and other non-counts are refused; a run compared with itself is
+  refused; pxr's C++ names and full paths are kept out of a USD import error; the Statistics page's Variants,
+  Experiment runs and Tracker runs panels keep their controls together and the figures field is labelled; "+0 %
+  [+0, +0]" is written 0; "1 p" reads "p = 1"; "1 sessions" and the HTML schedule's plurals; the Cells page refuses a
+  missing file when it is added; a logged designed experiment states its duration.
+- Completeness (5 gaps, `tests/test_completeness_api.py`, `tests/test_completeness_plugins.py`,
+  `docs/models/research-api.md`): the part 1 research tools from Python (`dv.diff`, `dv.merge`, `dv.bibtex`,
+  `dv.figures`, `dv.figure`, `dv.export_runs`, `dexvantage/api_research.py`, with no Qt import); a plugin's
+  validation checks (`PluginAPI.check`, `validation/suite.py` `PLUGIN_MODELS`: its own model, cited references,
+  removed when the plugin is unloaded or fails); the headline of a study without a headline metric shows its unit
+  and quantile; a process pool started from a script's unguarded top-level code is refused in one sentence
+  (`core/cluster/local.check_main_guard`); the research workflow example (`examples/03_research_workflow.py`, a
+  jupytext percent-format notebook, run by its test).
+
+**Integration gate (2026-11-07)**
+- Tests: **3 743 passed**, 0 failed, 2 skipped (the paper kit's LaTeX compile at both unit settings: no LaTeX engine
+  on PATH) (`python -m pytest tests`, offscreen, memory-capped at 7 GB, run alone, 1 859 s). Peak: the largest
+  process 5.09 GB (`time -v` maximum resident set), the cgroup's `memory.peak` 6.30 GB with page cache (0.7 GB under
+  the cap; the earlier runs of this gate 4.9–5.2 GB and 6.08–6.11 GB); no test module needed moving to a child
+  process. Seven full runs were made; the failures of the first six are fixed below. New test files:
+  test_tracking 21, test_tracking_page 3, test_stats 26, test_stats_page 5, test_campaign 33, test_campaign_page 3,
+  test_sim2real 17, test_publication 19, test_cluster 21, test_cluster_ui 4, test_cells 21, test_cells_page 3,
+  test_robot_io 14, test_prices 29, test_ui_fixes 28, test_integration_rt2 14 (3 745 collected; the Phases 9 and
+  10 gate ended at 3 482).
+- Validation: **232 of 232 checks pass** (`--validate out/validation`, full run 397 s on the final code, peak
+  5.3 GB). 53 new since Phases 9 and 10: tracking 5, stats 13, campaign 6, sim2real 7, publication 4, cluster 4, cells 6, robot_io 5,
+  library 2 (prices), experiments 1 (`experiments.censored_best`); each model's figures are in its document and the
+  overview.
+- `dexvantage --self-test`: **46 of 46 ok** (44 s, peak 3.8 GB). New lines: prices, censored bounds, cluster,
+  publication, campaign, cells, sim2real, statistics, robot io, tracking; the validation line runs 160 cheap checks
+  (31 s); the MCP line lists 39 tools.
+- `ruff check dexvantage tests scripts examples`: clean.
+- MCP: `tools/list` 39 tools (the registry's 33 plus the server's six); the counts and the nine new reading tools
+  are asserted in `tests/test_integration_rt2.py`.
+- Batch, every new flag on the samples (each under a 4 GB cap, run one at a time, times include start-up; RTX 5080
+  through EGL); results exit 0, refusals one sentence and exit 2, no traceback in any run:
+  - `--track runs` with `--coverage` (0.7 s), `--check defaults` (10.0 s, exit 1: not ready), `--runs` (0.3 s),
+    `--runs-export --runs-formats csv,parquet,mlflow,wandb` (0.6 s); refused: `--track-tag` without a store,
+    `--runs-formats csv,xls`.
+  - `--stats rates.json` (ACT 14/20 against Diffusion 19/20: +25.0 pp [+0.8, +47.3], adjusted p 0.0915, "no clear
+    difference"; 0.7 s); refused: one condition, broken JSON, a missing file, a variants source on a one-variant
+    project (logged as a failed run with `--track`).
+  - `--campaign` ALOHA 2 216 episodes over 2 days, 1 304 GB, within budget (0.7 s), UR5e 216 episodes, 1 938 GB
+    (0.8 s); refused: equal success rates for the power analysis, no project.
+  - `--sim2real` on a UR5e recording with an injected +20 DN gap (made with `rig.gap_dataset`): "very large gap",
+    exposure ranked first (6.4 s, 0.79 GB); on an SO-100 `--synth-episodes` campaign: "large gap" (8.0 s); refused: no
+    dataset, a dataset path that is not there.
+  - `--export --formats paper_kit` UR5e with five studies: 4 parts, 4 figures, 16 BibTeX entries, 48 methods numbers
+    and 31 table numbers traced (2.0 s); SO-100 from batch results (coverage, the scorecard, the tracker summary, a
+    three-sample cell comparison): 7 parts with the cells and runs tables, 36 and 60 numbers traced (0.6 s);
+    refused: an unknown section.
+  - `--experiment DESIGN.json --jobs 4` (an 8-run Latin hypercube on the SO-100, logged with `--track`: 1.9 s);
+    `--tolerance-mc --jobs 4` (64 draws, 7.4 s, peak 554 MB per worker); refused: `--jobs 0`, `--jobs` without a
+    target.
+  - `--slurm job --shards 3` (0.3 s), `--run-shard` × 3 (0.5–0.6 s each, peak 370 MB), `--gather` with a shard
+    missing (exit 1, the missing shards named) and complete (0.6 s, logged with `--track`: "Best of 8 runs: task
+    volume seen 78.41 % at run 5, against 94.52 % for the rig as it is"); refused: shard 5 of 3, `--shard` without
+    `--of`.
+  - `--cells sample:so100 sample:ur5e sample:aloha` with the HTML page and the pooling mapping (4.9 s, 1.1 GB):
+    largest gap 0.373 (ALOHA 2), 1 of 3 cells pool; files SO-100, UR5e and G1 (3.0 s): 0.745 (G1); refused: one
+    cell, a missing file, a reference cell 9 of 2.
+- Screenshots: `python scripts/screens.py --only research2` (15 images, 41 s, none unfinished): the Runs page with a
+  comparison (SO-100, a camera raised 30 mm: 94.52 % against 90.76 %), Statistics with the power curve (39 episodes
+  needed, 43 planned), the ALOHA campaign, the sim-to-real gap with recorded, rendered and difference frames, the
+  paper kit preview, the three-sample cell comparison, the Run on… dialog (both modes) and the USD import wizard on
+  the bundled UR5e. Looked at and fixed: the run store's full path wrapped and was cut off (one line now: the folder
+  name and where it is, the path in the tooltip); the Statistics page's hidden source panels set its height and its
+  spare height fell between its controls (now below them); its Preview computed the suggested plan while the calculator's fields
+  still showed the stored one; the sim-to-real camera box cut "Overhead D435" to "Overhea"; "-0 ms", "-0.0 DN" and
+  "+0, -0, -0" figures (a value that rounds to zero is written 0); the paper kit's eleven section boxes in one
+  column and its part box cut "Methods"; the import wizard's file line ran under the Browse button and a USD robot
+  whose articulation sits on its base link was named "base" (now the stage's name, "ur5e"); the campaign form
+  offered "Demonstrations per condition" as editable while the power analysis sets it (the unused fields are
+  disabled).
+- UI-thread budget (`scripts/measure_ui_rt2.py`, offscreen, alone): **0 steps over 100 ms** on ALOHA 2 and the G1
+  with tracking on. Largest: 19.8 ms (the events after the cell comparison arrives, ALOHA 2); every new page shows
+  within 18 ms; Apply 11–14 ms (campaign, sim-to-real gap); an edit with every page built 5.8 ms (ALOHA 2) and
+  7.0 ms (G1); the Run on… dialog opens in 0.8–1.5 ms; the USD import wizard starts its worker in 7 ms. Workers:
+  sim-to-real 4.8 s (ALOHA 2) and 1.5 s (G1), cells 1.2 s and 0.4 s.
+- Hygiene: every modified and new file grepped for personal paths, user and host names, e-mail addresses, keys and AI
+  attribution lines: none (the hits are tests asserting their absence). No file over 5 MB was added
+  (`resources/usd_robots` is 108 kB).
+
+**Integration fixes and cross-track hooks**
+- The tracker logs cluster runs (`--jobs` experiments, tolerances, optimiser and study lists; a complete `--gather` of
+  an experiment or a Monte Carlo; `dv.cluster`'s results), `--stats`, `--campaign`, `--cells` and the study and check
+  steps of a `--run-plan` (each was unlogged); the tracker's end-of-run line comes last so it counts them.
+- The Runs page logged through the page gate (`ui/pages/_gate.py`, built in parallel): while it was hidden, a
+  finished study was held, replayed only when the page was shown, coalesced, and dropped if an edit came between.
+  It now listens to the analysis controller itself (`tests/test_integration_rt2.py` fails without the fix).
+- The paper kit writes `tables/statistics.tex` (each comparison's test, both sides, B − A with its interval in
+  percentage points for rates, the corrected p, the verdict), `tables/cells.tex` (the figures per cell, bounds as ≥/≤,
+  the gap index to the reference) and `tables/runs.tex` (the newest 20 tracked runs with their headline figure)
+  whenever those results are present, each number traced and checked like the other tables; the methods paragraph
+  points to them; the runs are read from the store when the project's tracking is on.
+- The tracker keeps an experiment best run's bound and settled flag (a bounded best read as exact); the Runs summary
+  keeps a figure's bound; runs that start in the same millisecond keep the store's order (a test failed when two
+  quick runs swapped).
+- `--jobs 0` was taken as "no `--jobs`" and ran serially; it is refused in one sentence.
+- The occlusion cube-map cache keyed its origin to 0.1 mm, so a long-lived process reused a map built for a nearby
+  origin and differed from fresh shards in the last digits of a coverage figure (69.2431 % against 69.2448 %); the
+  origin is keyed exactly.
+- A spawned cluster worker reported its parent's peak memory: Linux keeps `ru_maxrss` across the exec, so a worker of
+  the 2.9 GB test process read 2 918 MB (a full-suite failure); the peak is now `VmHWM` of the worker's own address
+  space.
+- The report's "all studies" left out only the Phase 9 meta studies, so a report or paper kit with no results given
+  would run the cell comparison, the statistics' Monte Carlo and the sim-to-real renders: they join `META_STUDIES`.
+- The self-test's prices line had the wrong signature (it failed the self-test test).
+- `test_ui_fixes`' Apply timing failed in full runs (one Apply at 111 ms, then every Apply at 90–190 ms, against
+  7–57 ms alone): the cycle collector's pauses over the test process's 5 GB heap. Reproduced alone with a 4-million
+  object heap (Applies of 535–674 ms) and gone with the collector paused around the timed call, which the test now
+  does (it collects first); the window's own heap is a small fraction of the suite's.
+- With the collector paused, the Tasks page's first Apply still read 110–119 ms on ALOHA 2 in five full runs (thread
+  CPU, not waiting; two worker threads alive), within budget in a fresh process. A cold Apply samples on the UI
+  thread after a MuJoCo compile (90 ms) and the pads' ray casts (100 ms), so the page now builds both on a worker
+  as soon as it offers Apply (`ui/pages/tasks.py` `_warm`); that did not change the full-run figure, and a profiled
+  repeat of the same Apply took 29 ms with no hotspot. The test now holds a repeat to the budget and reports the
+  first figure; the one-time cost of a process that has run about 3 700 tests was not found (open issue).
+- The LeRobot reader's single-threaded retry (Phases 9 and 10) covered a packet the frame-threaded AV1 decoder
+  refuses; a second full run here saw the threaded decoder return too few frames instead ("2 frame(s) … could not be
+  decoded") on a file that decodes cleanly alone. Missing frames are now retried single-threaded too (a damaged file
+  still fails both ways; test in `tests/test_integration_rt2.py`).
+- Two tests asserted what changed: the occlusion cache test expected a map 1 µm away to be the same (now its own
+  map), and the paper kit's run-plan test the study registry's import order (now a set).
+- The assistant's `check_robot_file` tool (what a URDF, MJCF or USD file references, before an import) and page guides
+  for the six new pages; `docs/project-format.md` describes the new `analysis.studies` settings; the overview gained
+  the missing `workspace` anchor.
+
+**Shared contracts (additive changes, as reported):** `core/provenance.py` leaves the tracking setting out of the
+content hash; `core/jobs.py` (sim-to-real); `core/optimise/nsga2.py` and `rig.py` (`prefetch`, `cache`) and
+`core/studies/tolerance.py` (`evaluator`) for the cluster; `validation/suite.py` `tolerance_quick` in `@check`;
+`ui/pages/base.py` and `_gate.py` (hidden pages held; `window.pages[pid]` follows); `core/metric_defs.py` 20 new
+metrics, 73 in all (`tracking.runs`, `stats.*` 3, `campaign.*` 5, `sim2real.*` 6, `cells.*` 5); `library.schema.json` the `price`
+block; `core/exporters/report.py` `META_STUDIES` gained `cells`, `stats`, `sim2real`; `core/publication.SECTIONS`
+gained `statistics`, `cells`, `runs`.
+
+**Decisions (research tools part 2)**
+1. **Tracking is opt-in** and kept beside the project (`<name>.runs/`), never inside the `.dexv` file; the setting is
+   not part of the content hash. MLflow and W&B are written as files (their packages only read them back).
+2. **Statistics are fixed-sample** (no sequential testing); success rates are tested with Fisher's exact test by
+   default, figures over draws or runs with permutation tests; a difference that is not clear is reported with the
+   smallest difference the data detect, never as equality.
+3. **The campaign planner's power analysis goes through `core/stats`** (its own formula stays as the fallback and the
+   result shows both).
+4. **The sim-to-real gap is a render of the project's model**; what it cannot model is reported as left, not fitted.
+5. **Cluster results equal the in-process ones** (gathered shards are compared bit for bit in tests and validation);
+   Slurm only.
+6. **The cell gap is geometric** (ported from Vantage's heuristic index, weights and bands labelled defaults).
+7. **`rig.cost` counts the enabled sensors only**; hosts, lights, cables and robots are priced in the library but not
+   added (it would change the optimiser and requirements: a decision for the lead engineer).
+8. **The batch form of the sim-to-real gap** is `--sim2real OUT.json --dataset PATH` (as `--silhouette-calib`), not the
+   spec's literal `--sim2real dataset_path`.
+
+**Open issues (research tools part 2)**
+- **Tracker:** logging in the window hangs off the Runs page (built when the window starts; if pages are ever built
+  on first open, the hook moves into the window); each logged run snapshots the project on the UI thread (within
+  the budget on the samples, not measured on 10 000-grasp sets); `mlruns/` artifact URIs are absolute (a moved or
+  shared copy keeps its figures but not its artifact links, and shows the original folder); the pinned
+  mlflow-skinny 3.17.2 and wandb 0.30.0 pull in large dependency trees (packaging, Phase 11).
+- **Statistics:** Cohen (1992) Table 2 and Benjamini and Hochberg (1995) were read from scans and a public copy (not
+  stored); Newcombe (1998) Table II could not be obtained, so Newcombe's interval is validated by simulated coverage
+  only; `--reproduce` of a `--stats` result made without a project asks for one.
+- **Campaign:** `--reproduce` of a `--campaign SPEC.json` result re-runs the project's stored spec (store it first);
+  the page edits the scalar settings only (level lists through a spec file); no source states LeRobot's AV1
+  compression, so the `lerobot` format uses the raw size until a measured ratio is entered; conditions are not
+  balanced across days and days are filled greedily.
+- **Sim-to-real:** depth is compared only where a reader decodes depth (DexVantage's readers list depth streams but do
+  not decode them); no FID (torch is not installed); with blur and a brightness gap together the mount estimate
+  degrades (6.7 mm and 1.31° against a true 3 mm and 1°); one episode per run, a constant latency, no silhouette or
+  mount for cameras on the robot.
+- **Paper kit:** not compiled on this machine (no LaTeX engine; the compile test runs where one is installed); its
+  figures follow the report's naming rule, and the window does not hand its page charts to the kit; experiment
+  runs have no headline figure in the runs table.
+- **Cluster:** Slurm only; the design agent is not distributed; the Run on… dialog writes the job folder but does
+  not call `sbatch` (`--submit` does); `--sample` makes new sensor ids per process (save the sample first).
+- **Cells:** the gap compares designs (an unapplied hand-eye result shows only in the drift); its weights, scales and
+  bands are uncalibrated defaults; pooling reads the feature schema, not the data, and LeRobot's own loader is not
+  run; drift uses the latest calibration per copy (no Kalman trend).
+- **Robot import and export:** one articulation per USD file; loops, drives, mimic and tendon couplings, effort and
+  velocity limits are not imported; joint limits round to UsdPhysics' float32; the bundled newton-assets UR5e lacks
+  its 6.3 MB visual mesh layer, so the wizard's preview of it shows collision capsules and frames it too tight (its
+  bounds come from the link origins); pxr prints its unresolved-layer warnings, with full paths, on the console; the
+  URDF's sensor links carry a placeholder inertial; the Policies page cannot set the OpenVLA action space.
+- **Prices:** `rig.cost` counts the enabled sensors only (decision 7); Arducam, Basler, Neewer, Meta Quest and
+  Teledyne FLIR prices could not be read (bot checks, refusals, rate limits); a store can show another price in
+  another region; `library.prices_sound` fails a price read more than two years before the run (from about
+  2028-11).
+- **UI:** the Tasks page's first Apply on ALOHA 2 costs 110–119 ms of UI-thread CPU at the end of a full test run
+  (29 ms repeated, within budget in a fresh process; cause not found: see the fixes above); a page taken by name
+  (`window.pages[pid]`) follows every signal from then on in that window (no production path does); the Optimise, Tolerance and (Panda) Teleop Applies after a full run were not timed by the review
+  round; the canonical view's advice reads "Wrist D405, left (sample placement)'s image".
+- **From the four reviews and the final gate (open):**
+  - `/tmp` is a 15 GB tmpfs with a per-user quota: old `/tmp/dexvantage-*` folders (about 12 250 when this gate
+    started, 52 by its end, cleared by other work), `/tmp/pytest-of-<user>` (2.6 GB) and other work's files fill it,
+    and a full run with the default temporary folder then fails in bulk ("Disk quota exceeded"). Clean `/tmp` when
+    nothing runs, or run with `TMPDIR` and `--basetemp` on another volume (as this gate did).
+  - `rig.run(study, **settings)` ignores setting names a study does not know (`dv.cluster.tolerance(rig, draws=8)`
+    ran the default 64 draws; the key is `n`): there is no per-study list of setting names to check against.
+  - Python's spawn rule: each pool worker re-runs a script's unguarded top-level code; the main-guard check catches
+    only a pool started from such code (the example uses `jobs=1` as a script, 2 in a notebook).
+  - Plugin checks join a validation run only where plugins are loaded (the app, batch mode and the API; not
+    `python -m dexvantage.validation`); the paper kit's validation summary names the built-in models only.
+  - No assistant or MCP reading tool for project diffs (it would change the 39 tools `test_integration_rt2.py`
+    asserts).
+  - `core/figures.py` says "too small for its rows" when long bar labels, not the row count, leave no room for the
+    bars (`dv.figure` now cuts labels as the paper kit does; the message is unchanged).
+  - `validation/suite.environment()` imports PyQt6 for the Qt version (not on the API path).
+  - A change of a percentage is written "−0.182 %" in the statistics text, the tracking guide and the UI where it
+    is a change of percentage points.
+  - The citation key `core/cite.py` gives a shared datasheet is the first entry's name: the D435 is cited as
+    `intel-realsense-d405` (the same D400 Series datasheet, so the content is right; Phase 9 code).
+  - The tracker's `mlruns/` experiment `meta.yaml` leaves out `effective_trace_archival_retention`,
+    `trace_location` and `workspace`, which MLflow 3.17.2 writes and its reader fills in; adding them could upset
+    older readers (a call for the lead engineer).
+  - Cohen (1992) Table 2 was compared from the values recorded earlier, not fetched again; every figure is within
+    the documented one-per-group rounding of the review's own re-derivation.
+  - Hidden pages: "partial" signals reach a hidden page at once while "finished" is held, so a page shown during a
+    second run first shows the earlier run's final result until that run finishes (by design).
+  - BCa has no guard when 1 − a(z0 + z) ≤ 0 (extreme acceleration; as SciPy); `compare_rates` uses 1 − confidence
+    rather than alpha for its "borderline" note (cosmetic).
+  - The software 3D view's paint takes 0.9–1.1 s per frame offscreen on ALOHA 2 (the GL view does not run it; a
+    machine that falls back to software rendering would feel it).
+  - The Slurm array was checked by running the shards by hand (`run_shard`, `--run-shard`); `sbatch` was not run
+    (no Slurm here). `dv.cluster.gather` without `rig=` logs into the job folder's base project store, as `--gather`
+    does.
+  - The campaign spec refuses unknown keys, so a spec written by a newer version with a new key is refused with the
+    key named. The sim-to-real offset rule reuses `min_reduction_dn` (1 DN, a labelled default) as the smallest
+    offset a light scale cannot absorb (not calibrated).
+  - Cosmetic: the cells headline reads "0.373 index (large gap)"; the Designed experiments page's "Now" column has
+    no units while Low and High do; stored settings set from code are not range-checked by the Experiments page
+    (the core clamps them at run time).
+
 ## Phases 9 and 10, samples, robot catalogue, larger library, research tools part 1 (done, 2026-11-07)
 
 Built in parallel by separate agents (tolerances; experiments; the optimiser and design agent; requirements and
@@ -1049,19 +1357,12 @@ Final gate, after the three reviews (truthfulness and licences, kinematics corre
   `ui/dialogs/misc.py` (shortcuts, coordinate frames, about), `app.py`, `batch.py`, `selftest.py`.
 
 
-## Next: research tools part 2, then Phase 11
+## Next: Phase 11
 
-- **Research tools part 2** (the user's additions of 2026-11-07): an experiment tracker (runs, their settings and
-  results, kept with the project); statistics (tests between variants with their power, power analysis for a
-  recording campaign); a campaign planner (episodes, operators, time and storage for a target dataset); the
-  sim-to-real gap (rendered against recorded frames per camera); a publication report (methods, figures and tables
-  from the results with their provenance); cluster sweeps (an experiment's runs on several machines); a multi-cell
-  comparison (several projects' rigs against one requirement set).
-- **Phase 11:** packaging (PyInstaller bundles, multiprocessing freeze support for the experiments' process pool)
-  and the website.
-- Carried over: throughput (grasp study, planner, lighting): read back only the cube-map texels the points need, or
-  draw several maps per pass, in `core/occlusion.py`; ground truth with distorted lenses: crop the cube faces to the
-  region the lens uses, or move images through shared memory instead of `.npz` files.
+The docs site (the overview, the models and the guides as a website), packaging (PyInstaller bundles for Linux,
+macOS and Windows, multiprocessing freeze support for the experiments' and cluster sweeps' spawn pools, the optional
+extras' dependency trees) and a release candidate. Carried over: throughput (grasp study, planner, lighting) in
+`core/occlusion.py`; ground truth with distorted lenses.
 
 ## Spec additions (2026-11-06)
 
@@ -1122,8 +1423,7 @@ Phases 9 and 10, samples, catalogue, library, research tools part 1:
   and by independent readers. No request was sent to the Claude or Groq APIs (fake provider only); the Claude request
   shape follows the API reference read on 2026-11-07. The MCP server was exercised in process and over stdio here,
   not from a real MCP client. The Rerun live viewer only through a fake module.
-- **Prices:** no library entry states a price, so `rig.cost` and the optimiser's cost objective are "not stated" on
-  every sample until cited `price` blocks are added (`library.schema.json` does not describe the field yet).
+- **Prices:** resolved by research tools part 2 (81 cited prices; `rig.cost` is a figure on the samples).
 - **Tolerances:** no correlation between sensors on a shared bracket; intrinsics, joint encoders and link lengths are
   not drawn; slow metrics (the grasp study, about 30 s per draw on the UR5e) only on request.
 - **Experiments:** `--reproduce` of a result from `--experiment DESIGN.json` is refused unless the project has that
@@ -1146,7 +1446,8 @@ Phases 9 and 10, samples, catalogue, library, research tools part 1:
   the warp refuses (one sentence).
 - **Assistant and MCP:** one request at a time, no progress notifications; no Preferences control for the window
   bridge (`mcp/bridge`, on by default); `handeye_solve` and `dex_occlusion` were listed as long studies by analogy;
-  nothing yet runs an approved plan from the dock (`propose_plan` hands it over; `--run-plan` runs plan files).
+  an approved plan runs from the dock (resolved in research tools part 2: `ui/assistant.py` Approve,
+  `tests/test_assistant_dock.py::test_long_work_runs_only_from_an_approved_plan`).
 - **Samples:** G1 silhouette calibration refuses the head camera (it rides on `torso_link`, which no joint moves;
   `render_calib` asks for a world mount); synthetic episodes move one robot (an ALOHA or Panda campaign records one
   arm) and on the G1 still report a "gripper hidden in the wrist camera" fault it cannot show; ALOHA's gripper
@@ -1165,33 +1466,23 @@ Phases 9 and 10, samples, catalogue, library, research tools part 1:
   entries' notes do not say so.
 - **Research tools:** lists (grasp poses, joint tables) are diffed and merged whole; a plugin page whose id equals a
   built-in page's is replaced without a warning (documented); a plugin loaded while the window runs adds its page
-  after a restart; only curve and bar charts give publication data specs; the real `pip install` test of the plugin
-  template is skipped (setuptools not in `.venv`).
+  after a restart; only curve and bar charts give publication data specs. (The plugin template's real `pip install` test
+  now runs: setuptools is the pinned `dev` extra.)
 - **Tests:** the threaded AV1 decode failure above is worked around, not understood (presumably libdav1d's frame threads after a
   seek, under the suite's load; SVT-AV1 also prints "live_count should not be EB_ObjectWrapperReleasedValue" when an
   encoder closes, harmlessly as far as measured). The suite's peak (4.8 GB) comes from the in-process validation checks that some modules run
   (`test_synth_episodes`, `test_audit`); moving those to child processes as `test_validation` does would lower it.
-- **Window:** 32 pages register (built on first use); the Analysis dock's tab bar scrolls. Each edit costs about
-  55–60 ms on the UI thread on the two-arm samples, mostly hidden pages rebuilding (Sensors 16 ms, Policies 11 ms,
-  Canonical view 9 ms), which took Brackets Apply to 103–108 ms under load (59 ms alone); deferring a hidden page's
-  refresh until it is shown would fix it (several tests read hidden pages straight after an edit). Adding a large
-  robot (the G1) to the scene is still UI-thread work (the Menagerie compile is now on a worker), not timed. A refused
-  study still prints its traceback to the log (stderr) from `ui/store.py`; the page shows one sentence. Surfaces can
-  be selected only on the Workspace page, not in the Outliner. Side-by-side variants share one 3D view (dashed
-  ghosts), not split viewports.
+- **Window:** the Analysis dock's tab bar scrolls. Side-by-side variants share one 3D view (dashed ghosts), not
+  split viewports. (Resolved in research tools part 2: hidden pages hold their signals until shown, an edit costs
+  4–7 ms; adding the G1 is 10–13 ms on the UI thread; a refused study logs one line; surfaces are in the Outliner.)
 - **From the four reviews (still open):**
-  - Spec §13: the USD robot import is not built (MuJoCo 3.17 writes USD but cannot read it; a UsdPhysics-to-MJCF
-    converter with a round-trip check against MuJoCo FK is needed). §7.11's cost objective waits for cited prices.
-  - Validation: `tolerance.linear_propagation` and `tolerance.sampler_ks` declare 0.05 but apply a band that depends
-    on the number of draws (0.052 quick, 0.02 full; the applied band is reported).
-  - Exports: the Isaac export writes USD aperture offsets, which Omniverse ignores (an off-centre principal point
-    reaches an Isaac render only through the OpenCV lens attributes, which the v2.3.2 file lacks; documented); the
-    OpenVLA export writes `StateEncoding.JOINT` and `ActionEncoding.JOINT_POS` for every rig (the notes say to edit
-    them for bimanual rigs and absolute-joint datasets); the exported URDF has no inertials, so MuJoCo cannot load it
-    ("mass and inertia of moving bodies must be larger than mjMINVAL").
-  - Experiments: the analysis and the best-run pick ignore a metric's bound (at least / at most) and use the bound as
-    the figure (tolerances and the optimiser now handle bounds). Diff and merge match a sensor name as unique among
-    the not-yet-matched items; when ours and theirs make the same change merge3 counts it in neither (cosmetic).
+  - Spec §13: the USD robot import and §7.11's cost objective were built in research tools part 2 (see there).
+  - Validation: `tolerance.linear_propagation` and `tolerance.sampler_ks` now declare the band they apply
+    (`tolerance_quick`; resolved in research tools part 2).
+  - Exports: resolved in research tools part 2 (the Isaac principal point reaches Isaac Lab v3.0.0 and is stated for
+    v2.3.2; OpenVLA encodings follow the rig; the URDF carries inertials and MuJoCo loads it).
+  - Experiments: bounded figures are now censored (`experiments.censored_best`; resolved in research tools part 2).
+    Diff and merge match a sensor name as unique among the not-yet-matched items; when ours and theirs make the same change merge3 counts it in neither (cosmetic).
   - The assistant's number check does not flag a figure the model derived itself, nor a right value cited for the
     wrong quantity (documented).
   - `--check` without an output file writes `scorecard.json` into the current folder (documented in its help).

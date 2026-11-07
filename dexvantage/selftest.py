@@ -25,6 +25,8 @@ order a new user meets them.
     audit        the mount-slip classifier against Vantage's recorded outputs
     experiments  a Saltelli design's Sobol indices of the Ishigami function against the analytic ones, and a
                  resolution IV fraction's main effects of a linear model with interactions
+    statistics   the Benjamini-Hochberg (1995) example's rejections and a G*Power paired-t power, and the
+                 evaluation episodes to tell two success rates apart
     opencv       the chessboard detector and the PNG codec
     fonts        the bundled IBM Plex fonts load
     opengl       the shader renderer draws a frame off-screen (a warning only: the 3D view falls back to QPainter)
@@ -383,6 +385,43 @@ def _checks_line(ids, ok_text) -> tuple:
     return OK, ok_text(res) + f' ({ms:.0f} ms)'
 
 
+def _check_censored(S):
+    """The experiments' best run with figures stated only as bounds, against brute force over the figures the bounds
+    allow (validation check experiments.censored_best, quick)."""
+    return _checks_line(['experiments.censored_best'],
+                        lambda r: f'{r[0].detail["trials"]} designs, {r[0].detail["settled_picks"]} settled picks and '
+                                  f'{r[0].detail["verdicts_decided"]} decided verdicts, none contradicted')
+
+
+def _check_sim2real(S):
+    """The sim-to-real gap's measures: the histogram EMD against SciPy, the unbiased MMD² by hand and against the
+    closed form for two Gaussians, Immerkær's noise σ and the blur σ on images of known noise and blur (validation
+    checks sim2real.*, quick, without the rendered recordings)."""
+    return _checks_line(['sim2real.emd_vs_scipy', 'sim2real.mmd_hand_case', 'sim2real.mmd_gaussians',
+                         'sim2real.noise_known', 'sim2real.blur_known'],
+                        lambda r: f'EMD within {r[0].error:.0e} DN of SciPy; MMD² by hand {r[1].error:.0e}, two '
+                                  f'Gaussians within {r[2].error:.1e}; noise σ within {100 * r[3].error:.1f} %; '
+                                  f'blur σ within {r[4].error:.2f} px')
+
+
+def _check_cells(S):
+    """The multi-cell comparison's gap index on synthetic rigs (identical: 0; a camera turned by θ: θ) and the drift of
+    copies with known offsets (validation checks cells.gap_identical, cells.gap_rotation, cells.drift_known, quick)."""
+    return _checks_line(['cells.gap_identical', 'cells.gap_rotation', 'cells.drift_known'],
+                        lambda r: f'identical cells gap {r[0].error:.0e}; turned cameras within {r[1].error:.0e}° of '
+                                  f'the angle; drift offsets within {r[2].error:.0e}')
+
+
+def _check_tracking(S):
+    """The experiment tracker's run store round trip, its reading after writers that died mid-write and its CSV and
+    Parquet tables (validation checks tracking.store_round_trip, tracking.crash_recovery,
+    tracking.csv_parquet_identical, quick)."""
+    return _checks_line(['tracking.store_round_trip', 'tracking.crash_recovery', 'tracking.csv_parquet_identical'],
+                        lambda r: f'{r[0].detail["fields_compared"]} run fields read back exactly; '
+                                  f'{len(r[1].detail["cases"])} crash cases read as they should; '
+                                  f'{r[2].detail["cells"]} table cells identical in CSV and Parquet')
+
+
 def _check_tolerance(S):
     """The tolerance Monte Carlo's seed reproducibility, its rank correlation against SciPy and the perturbation
     export's round trip (validation checks tolerance.seed_reproducible, tolerance.spearman, tolerance.export_roundtrip,
@@ -400,6 +439,24 @@ def _check_versioning(S):
                         lambda r: f'diff lists {r[0].detail["edits"]} of {r[0].detail["edits"]} edits, '
                                   f'{r[1].detail["files"]} folder files byte-stable, SVG data within '
                                   f'{r[2].error:.0e} of range')
+
+
+def _check_publication(S):
+    """The paper kit of the sample: every number of its methods paragraph found in the source data, and its cited
+    keys equal to refs.bib's (validation checks publication.methods_numbers, publication.bibtex_keys, quick)."""
+    return _checks_line(['publication.methods_numbers', 'publication.bibtex_keys'],
+                        lambda r: f'{r[0].detail["numbers"]} numbers of the methods paragraph found in the source '
+                                  f'data, {r[1].detail["cited"]} cited keys all in refs.bib')
+
+
+def _check_campaign(S):
+    """The campaign planner's Williams squares, its schedule balance and session limits on seeded random campaigns and
+    its calendar read back by a strict RFC 5545 reader (validation checks campaign.williams_square,
+    campaign.schedule_balance, campaign.session_limits, campaign.ics_roundtrip, quick)."""
+    return _checks_line(['campaign.williams_square', 'campaign.schedule_balance', 'campaign.session_limits',
+                         'campaign.ics_roundtrip'],
+                        lambda r: f'Williams squares 1-12 balanced, {r[1].detail["campaigns"]} campaigns balanced '
+                                  f'and within their limits, {r[3].detail["events"]} calendar events read back')
 
 
 def _check_workspace(S):
@@ -546,6 +603,23 @@ def _check_experiments(S):
     return OK, (f'Ishigami Sobol indices within {e:.3f} of the analytic ones (N = 1024); a 16-run resolution IV '
                 f'fraction recovers the main effects exactly ({ms:.0f} ms)')
 
+
+def _check_stats(S):
+    import time
+
+    from .core import stats as ST
+    t0 = time.perf_counter()
+    p = (0.0001, 0.0004, 0.0019, 0.0095, 0.0201, 0.0278, 0.0298, 0.0344, 0.0459, 0.3240, 0.4262, 0.5719, 0.6528,
+         0.7590, 1.000)                                  # Benjamini and Hochberg (1995), p. 295
+    k_bh, k_bonf = sum(ST.adjust(p, 'bh')['reject']), sum(ST.adjust(p, 'bonferroni')['reject'])
+    pw = ST.power_t(0.421637, 50, 0.05, paired=True)       # the G*Power 3.1 manual, p. 48: 0.832114
+    n = ST.episodes_needed(0.5, 0.8)
+    ms = (time.perf_counter() - t0) * 1000
+    if (k_bh, k_bonf) != (4, 3) or abs(pw - 0.832114) > 5e-6:
+        return FAIL, (f'Benjamini-Hochberg example: {k_bh} and {k_bonf} rejections (published 4 and 3); paired t '
+                      f'power {pw:.6f} (G*Power 0.832114)')
+    return OK, (f'the Benjamini-Hochberg example rejects 4 (Bonferroni 3) as published; paired t power {pw:.6f} as '
+                f'G*Power; {n["n_per_group"]} episodes per condition tell 50 % from 80 % apart ({ms:.0f} ms)')
 
 def _check_mcp(S):
     import json
@@ -751,6 +825,14 @@ def _check_isaac_lerobot(S):
     return (OK if ok else FAIL), text
 
 
+def _check_robot_io(S):
+    """The exported URDF loads in MuJoCo as written and the USD import round-trips the SO-100 (validation checks
+    robot_io.urdf_mujoco and robot_io.usd_roundtrip run the full comparison)."""
+    from .validation.checks_robot_io import selftest_robot_io
+    ok, text = selftest_robot_io(os.path.join(S['tmp'], 'robot_io'))
+    return (OK if ok else FAIL), text
+
+
 def _check_api(S):
     """The Python API (dexvantage/api.py) on the SO-100 sample: a study, a metric and a factor through dv, the same
     figures as core.jobs gives directly, and the plugins found at start-up (dexvantage/plugin_sdk.py)."""
@@ -794,19 +876,90 @@ def _check_robot_catalogue(S):
     return OK, f'{len(es)} robots; {stated} DoF as the maker states them agree with the imported model'
 
 
+def _check_cluster(S):
+    """Cluster sweeps (core/cluster): shards cover every item once, the disk cache refuses a torn file, the array
+    script's #SBATCH lines, and a work of study jobs run as 3 shards and gathered equals the studies run directly."""
+    import json
+    import os
+    import time
+
+    from .core import cluster as C
+    from .core import jobs
+    from .core.cluster import cache as CA
+    from .core.cluster import slurm as SL
+    from .core.project import blank_project
+    t0 = time.perf_counter()
+    bad = sum(sorted(i for sh in C.partition(m, n) for i in sh) != list(range(m)) for m in range(60) for n in (1, 2, 7))
+    folder = os.path.join(S['tmp'], 'cluster')
+    c = C.DiskResultCache(os.path.join(folder, 'cache'))
+    key = ('summary', 'p', 's', 'l', 0, '')
+    c.put(key, {'x': [1.5, 2]})
+    ok_cache = C.DiskResultCache(os.path.join(folder, 'cache')).get(key) == {'x': [1.5, 2]}
+    with open(c.path(key), 'r+b') as fh:                 # a torn file must read as a miss
+        fh.truncate(os.path.getsize(c.path(key)) - 3)
+    ok_cache = ok_cache and CA.read_entry(c.path(key), key) is None
+    d = dict(SL.directives(SL.sbatch_script(SL.read_settings({'mem': '6G', 'throttle': 2}), 5)))
+    ok_sb = d.get('--array') == '0-4%2' and d.get('--mem') == '6G'
+    projs = [blank_project(f'Cell {k}') for k in range(3)]
+    w = C.studies_work([(p, 'summary', {}) for p in projs])
+    C.slurm_folder(w, os.path.join(folder, 'job'), shards=3)
+    for i in range(3):
+        C.run_shard(os.path.join(folder, 'job', 'work.json'), i, 3)
+    got = C.gather(os.path.join(folder, 'job'), write=False)['result']['jobs']
+    want = [jobs.run_study('summary', p) for p in projs]
+    same = all(json.dumps({k: v for k, v in g['doc'].items() if k != 'seconds'}, sort_keys=True) ==
+               json.dumps({k: v for k, v in x.items() if k not in ('seconds', 'cached')}, sort_keys=True)
+               for g, x in zip(got, want))
+    ms = (time.perf_counter() - t0) * 1000
+    if bad or not ok_cache or not ok_sb or not same:
+        return FAIL, (f'partition failures {bad}, cache {"ok" if ok_cache else "wrong"}, sbatch '
+                      f'{"ok" if ok_sb else "wrong"}, gathered {"equal" if same else "different"}')
+    return OK, (f'shards cover every item once; a torn cache file reads as a miss; 3 shards gathered equal the '
+                f'studies run directly ({ms:.0f} ms)')
+
+
+def _check_prices(S):
+    """Cited prices: every built-in price block sound (core/prices.problems) and the rig cost of a two-camera rig
+    against its two stated prices added up by hand (D405 + D435)."""
+    from .core import library as LB
+    from .core import prices as PR
+    from .core.project import Project, Sensor
+    from .core.studies import rig_inventory as RI
+    t0 = time.perf_counter()
+    blocks = [(e.id, PR.block(e)) for e in LB.entries() if not e.is_custom and PR.block(e) is not None]
+    bad = [i for i, p in blocks if PR.problems(p)]
+    p = Project('Self-test')
+    p.variant.sensors = [Sensor(name='a', model_id='intel-realsense-d405'),
+                         Sensor(name='b', model_id='intel-realsense-d435')]
+    want = sum(LB.get(s.model_id).data['price']['amount'] for s in p.variant.sensors)
+    c = RI.inventory(p)['cost']
+    ms = (time.perf_counter() - t0) * 1000
+    if bad or c['value'] is None or abs(c['value'] - want) > 0.005 or c['bound']:
+        return FAIL, f'price problems in {", ".join(bad[:4]) or "none"}; rig cost {c["value"]} against {want}'
+    return OK, f'{len(blocks)} cited prices sound; a D405 + D435 rig costs {c["value"]:.2f} {c["unit"]} ({ms:.0f} ms)'
+
+
 CHECKS = (('project', _check_project), ('frames', _check_frames), ('mujoco', _check_mujoco), ('robots', _check_robots),
           ('samples', _check_new_samples),
           ('library', _check_library), ('robot catalogue', _check_robot_catalogue),
-          ('library teleop', _check_library_teleop), ('workspace', _check_workspace), ('occlusion', _check_occlusion),
+          ('library teleop', _check_library_teleop), ('prices', _check_prices),
+          ('workspace', _check_workspace), ('occlusion', _check_occlusion),
           ('grasp', _check_grasp),
           ('groundtruth', _check_groundtruth), ('brackets', _check_brackets), ('handeye', _check_handeye),
           ('teleop', _check_teleop), ('lighting', _check_lighting), ('timing', _check_timing),
           ('datasets', _check_datasets), ('audit', _check_audit), ('tolerance', _check_tolerance),
-          ('experiments', _check_experiments), ('optimiser', _check_optimiser),
+          ('experiments', _check_experiments), ('censored bounds', _check_censored),
+          ('optimiser', _check_optimiser), ('cluster', _check_cluster),
           ('requirements', _check_requirements), ('versioning', _check_versioning),
+          ('publication', _check_publication),
+          ('campaign', _check_campaign),
+          ('cells', _check_cells),
+          ('sim2real', _check_sim2real),
+          ('statistics', _check_stats),
           ('mcp server', _check_mcp), ('assistant', _check_assistant), ('opencv', _check_opencv),
           ('exporters', _check_exporters), ('sim exports', _check_isaac_lerobot), ('warp', _check_warp),
-          ('python api', _check_api),
+          ('robot io', _check_robot_io),
+          ('python api', _check_api), ('tracking', _check_tracking),
           ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
           ('software 3d', _check_software_3d), ('validation', _check_validation))
 NAMES = tuple(n for n, _ in CHECKS)

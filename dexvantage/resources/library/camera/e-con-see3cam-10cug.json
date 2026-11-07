@@ -13,6 +13,16 @@
     }
   ],
   "note": "A monochrome global-shutter USB 3.0 camera with a CS-mount; FOV 73.5 (D) x 58.9 (H) x 44.3 (V) degrees \"with the lens provided by e-con\". The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rates: the overview says \"720p@60fps (HD) and 1280x960 resolution@45 fps (Full Resolution)\" over USB 3.0, the key features \"HD @ 60 fps & 1.3 MP @ 54 fps\": the overview's figures (which name the stream size) are entered; 720p is 1280 x 720. Output \"YUY2 (16bits per pixel YUV422 format)\", as stated. power_w is the stated maximum, 0.90 W (minimum 0.87 W). mass_g is the board with lens and without enclosure, 100 g (without lens 23 g; with enclosure 72 g, or 149 g with lens). size_mm is null: the page gives only \"40 x 44mm\". External trigger input (optically isolated). Not stated: f-number, focal length, distortion.",
+  "price": {
+    "amount": 149,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.e-consystems.com/1MP-USB3-Globalshutter-Camera.asp",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "'Sample Price (1 Unit)' filled from the site's product price service (product 46, See3CAM_10CUG_MH, 149.00 USD); the page offers 'Contact us' instead of 'Buy now' for it (lead time not given); read from https://www.e-consystems.com/getproductdetails.asp?IDS=46"
+  },
   "interface": "USB 3.0 (USB Micro-B); UVC",
   "power_w": 0.9,
   "mass_g": 100.0,

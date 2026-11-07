@@ -31,6 +31,16 @@
     }
   ],
   "note": "The OAK-1 with the 1 MP global-shutter colour OV9782 instead of the IMX378 (docs page variant \"Fixed Focus OV9782\"): 89.5 (D) / 80 (H) / 55 (V) degrees, fixed focus. The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor page); the format on the USB link depends on the on-device pipeline (raw, NV12 or encoded), so format and bits_per_pixel are null. Body figures are the OAK-1's (the datasheet and store page do not single out this variant): power_w the datasheet maximum 7.5 W, size [27.88, 35, 54.5] mm from the datasheet (W x H x D 35 x 54.5 x 27.88), mass 53 g (store page). Not stated: f-number, distortion.",
+  "price": {
+    "amount": 319,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-1",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "variant 'RBG Camera Focus: OV9782' (SKU OAK-1-FF-97), 319.0 USD"
+  },
   "interface": "USB 3.1 Gen 1 (USB Type-C)",
   "power_w": 7.5,
   "mass_g": 53.0,

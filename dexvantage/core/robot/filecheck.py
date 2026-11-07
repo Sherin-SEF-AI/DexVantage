@@ -11,7 +11,10 @@ stopping at the first missing one, so the wizard can show the whole picture:
 for textures (a missing texture changes no geometry; the robot is drawn without it); 'message' the importer's plain
 sentence for a missing file, '' when found.
 
-Known limits: as the importer's (xacro and USD are not read; MJCF <model> attach assets are not listed). When an MJCF
+A USD file (core/robot/usd_import.check_references) lists the layers its stage uses and the asset paths that do not
+resolve ('what' layer; a missing one is not required: the stage composes without it).
+
+Known limits: as the importer's (xacro is not read; MJCF <model> attach assets are not listed). When an MJCF
 include is missing, MuJoCo cannot parse the rest, so its assets are not listed until the include is found.
 """
 from __future__ import annotations
@@ -25,6 +28,12 @@ from . import importer as I
 def check_references(path: str) -> dict:
     """See the module docstring. Raises RobotImportError when the file itself cannot be read."""
     I.check_path(path)
+    if os.path.splitext(path)[1].lower() in I.USD_EXTS:
+        from . import usd_import as U
+        try:
+            return U.check_references(path)
+        except U.UsdImportError as e:
+            raise I.RobotImportError(str(e)) from None
     data = I._read(path)
     kind = I.detect_kind(path, data)
     return {'kind': kind, 'items': _urdf(path, data) if kind == 'urdf' else _mjcf(path, data)}

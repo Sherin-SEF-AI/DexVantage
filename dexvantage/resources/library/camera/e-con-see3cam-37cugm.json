@@ -13,6 +13,16 @@
     }
   ],
   "note": "A monochrome global-shutter USB camera board (with e-con's M12 lens; an enclosure variant exists). FOV 111.91 (D) x 89.27 (H) x 65.03 (V) degrees \"@ 2064 x 1552 Resolution (with lens provided by e-con)\". The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rate: \"3MP @72 fps (8-bit)\" and up to 838 fps with a custom ROI (firmware customisation); the page does not give the stream size of the \"3MP\" mode, so no stream is entered (the active area is 2064 x 1552). Output RAW 8-bit or 12-bit. Power \"TBD\" and weight \"TBD\" on the page: power_w and mass_g are null (not stated). size_mm is null: the page gives only \"l x b\" 30 x 30 mm, no depth. The full datasheet sits behind a download form and was not read. Not stated: f-number, focal length, distortion.",
+  "price": {
+    "amount": 249,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.e-consystems.com/usb-cameras/sony-imx900-global-shutter-hdr-monochrome-camera.asp",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "'Sample Price' from the site's product price service: product 1540, See3CAM_37CUG_MHLCC_H02R2, 249.00 USD (schema.org offer 249.00 USD); read from https://www.e-consystems.com/getproductdetails.asp?IDS=1540"
+  },
   "interface": "USB 3.2 Gen 1 (USB Type-C); UVC",
   "power_w": null,
   "mass_g": null,

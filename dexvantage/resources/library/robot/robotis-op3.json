@@ -19,6 +19,16 @@
     }
   ],
   "note": "Height about 510 mm; actuators Dynamixel XM430-W350-R.",
+  "price": {
+    "amount": 13764.35,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.robotis.us/products/robotis-op3us",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "ROBOTIS AMERICA store, 'ROBOTIS OP3[US]' (SKU 905-0036-000) 13764.35 USD; read from the store's product data (https://www.robotis.us/products.json) on the date read"
+  },
   "imagers": [],
   "streams": [],
   "robot": {

@@ -19,6 +19,22 @@
     }
   ],
   "note": "The Koch v1.1 leader is built from its own printed parts (Leader_Base, Leader_Shoulder_To_Elbow, Leader_Elbow_To_Wrist, Leader_Gripper_Handle, Leader_Gripper_Trigger, ...) and \"Dynamixel XL330-M077-T\" servos (6), while the follower uses XL430-W250-T and XL330-M288-T servos. LeRobot calibrates both \"to ensure that the leader and follower arms have the same position values when they are in the same physical position\", so the joints map one to one; the leader's own joint ranges are not stated (same_joints false: DexVantage takes the follower's ranges, an assumption the device record says). \"power the leader arm using the 5V power supply\"; each arm plugs into the computer \"using a USB-C cable\" through a Waveshare serial bus servo driver board. Not stated: mass, sample rate, latency.",
+  "price": {
+    "amount": 244.85,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "reseller",
+    "source": "https://www.robotis.us/products/koch-v1-1-low-cost-robot-arm-leader",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "ROBOTIS AMERICA store, 'Koch v1.1 Low-Cost Robot Arm: Leader' kit, variant '[3D Printed Parts] Koch Leader ($40)' 244.85 USD (marked not available on the date read); 'No 3D Printed Parts' 204.85 USD. A kit to assemble; the open design has no maker's store; read from the store's product data (https://www.robotis.us/products.json) on the date read",
+    "options": [
+      {
+        "label": "No 3D Printed Parts (SKU INC-311)",
+        "amount": 204.85
+      }
+    ]
+  },
   "interface": "DYNAMIXEL XL330 servos, Waveshare serial bus servo driver, USB-C",
   "power_w": null,
   "mass_g": null,

@@ -22,7 +22,8 @@ The check and its suggestion are core/workspace_check.py's (no Qt).
 
 Known limits: those of core/workspace_check.py (an object is inside when its axis-aligned bounding box is, within
 1 mm; volumes are axis-aligned boxes); lights are listed, not edited, here (Lighting page); a mesh object's size
-comes from its mesh and cannot be edited here; surfaces cannot be selected in the Outliner (only on this page).
+comes from its mesh and cannot be edited here. A volume, object or surface selected here is selected in the store
+(the Outliner, the Inspector) and one selected in the Outliner is selected here.
 """
 from __future__ import annotations
 
@@ -266,7 +267,7 @@ class WorkspacePage(StudyPage):
     def select(self, kind, uid):
         """Select an item of the list (tests, the Outliner through the store's selection)."""
         self._sel = (kind, uid)
-        if kind in ('volume', 'object') and tuple(self.ctx.store.sel[:2]) != (kind, uid):
+        if kind in ('volume', 'object', 'surface') and tuple(self.ctx.store.sel[:2]) != (kind, uid):
             self.ctx.store.select((kind, uid))
         self._fill_tree()
         self._fill_editor()
@@ -280,7 +281,7 @@ class WorkspacePage(StudyPage):
 
     def _store_selection(self):
         sel = tuple(self.ctx.store.sel[:2])
-        if len(sel) == 2 and sel[0] in ('volume', 'object') and sel != tuple(self._sel or ()):
+        if len(sel) == 2 and sel[0] in ('volume', 'object', 'surface') and sel != tuple(self._sel or ()):
             self._sel = sel
             self._fill_tree()
             self._fill_editor()

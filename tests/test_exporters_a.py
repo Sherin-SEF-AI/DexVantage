@@ -74,6 +74,8 @@ def odd_project(tmp_path):
 def _mujoco_urdf(folder):
     import mujoco
     root = ET.fromstring(open(os.path.join(folder, 'ros2', 'rig.urdf'), encoding='utf-8').read())
+    for old in root.findall('mujoco'):            # the file's own compiler element, replaced
+        root.remove(old)
     mj = ET.SubElement(root, 'mujoco')
     ET.SubElement(mj, 'compiler', fusestatic='false', discardvisual='true', boundmass='1e-6', boundinertia='1e-9')
     md = os.path.join(folder, 'ros2', 'meshes')

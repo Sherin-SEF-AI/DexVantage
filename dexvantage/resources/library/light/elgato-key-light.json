@@ -13,6 +13,16 @@
     }
   ],
   "note": "The page states \"2,800 lumens\" (comparison table) and \"2800 Lumens, adjustable\" (Tech specs): the figure is the maximum. Panel 350 x 250 mm (W x H); the page gives its depth as 35 mm in the comparison table and 30 mm in Tech specs (35 mm is entered). The emitting face is taken as the whole front of the panel (an ASSUMPTION: the page does not state the diffuser's size), so the luminance DexVantage derives, flux / (pi x area), is for a Lambertian emitter of that size. CRI: the page gives both \"> 94%\" and \"> 92%\" (not entered). Mass: Tech specs \"Weight 2.86 lb / 1.3 kg\" and the comparison table \"Weight (light only) 2.86 lbs (1,300 g)\" (re-read 2026-11-07; an earlier reading had missed it). Not stated: luminance, beam profile, IR output.",
+  "price": {
+    "amount": 179.99,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.elgato.com/us/en/p/key-light",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "'Key Light' (SKU 10GAK9901) regular price 179.99 USD, final price 179.99, discount 0"
+  },
   "interface": "Wi-Fi",
   "power_w": 45.0,
   "mass_g": 1300.0,

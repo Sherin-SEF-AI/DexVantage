@@ -19,6 +19,17 @@
     }
   ],
   "note": "A 60 W RGBWW lensed LED panel. Specifications table: CCT \"2,500K~7,500K\", CRI \"≥95\" (cri 95 is that lower bound), TLCI \"≥96\", \"Beam Angle ( No Accessory) 45°\", \"Max Power Output 60W\", \"Max Power Consumption ≤78W\" (power_w 78, the stated maximum), \"Max Light Output 6,300 lux @ 1m\". The shop page gives \"5,900 Lux @ 1 meter (5600K)\": the entry uses the specifications table's maximum and keeps both here. Modelled as a spot of the stated 45° beam (type spot); its luminous flux is not stated, so the lighting study cannot size it until a flux or luminance is entered. Not stated in what was read: luminous flux, emitting size, mass, IR output.",
+  "price": {
+    "amount": 349,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://amarancreators.com/products/amaran-p60c",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "sale_amount": 279,
+    "what": "regular price $349.00 (shown struck through; the sale price on the date read was $279.00)"
+  },
   "interface": "Bluetooth 5.0 (Sidus Mesh), Sidus Link app; on-board controls",
   "power_w": 78.0,
   "mass_g": null,

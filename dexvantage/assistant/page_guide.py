@@ -108,6 +108,25 @@ GUIDES = {g.page: g for g in [
           ('plan_vs_recording',)),
     Guide('plan_vs_recording', 'The recorded dataset\'s cameras, rates and mounts against the plan.',
           (ROBOT, DATASET), ('audit',), ('silhouette',)),
+    # research tools part 2
+    Guide('runs', 'The experiment tracker: every study run, experiment, optimiser run, tolerance Monte Carlo and '
+          'scorecard logged with its settings, figures and provenance; compare, re-run and export runs.', (), (),
+          ('statistics',)),
+    Guide('statistics', 'Whether a difference between conditions, variants or runs is beyond chance (the test and '
+          'why, the interval, the corrected p-value) and how many episodes or draws it takes to tell.', (), ('runs',),
+          ('campaign',)),
+    Guide('campaign', 'A data-collection campaign plan: episodes per condition (from a power analysis or entered), '
+          'operators, days, storage and a counterbalanced schedule with checklists.', (ROBOT,), ('statistics',),
+          ('audit',)),
+    Guide('sim2real', 'A recorded episode rendered again through the rig and compared camera by camera: exposure, '
+          'blur, noise, silhouette overlap, mount offset and latency, with the change that closes each gap.',
+          (ROBOT, SENSOR), ('audit',), ('silhouette',)),
+    Guide('publication', 'The publication kit: a methods paragraph, LaTeX tables, figures, BibTeX and a '
+          'reproducibility appendix written from the project and the results, every number traced.', (SENSOR,),
+          ('statistics',), ()),
+    Guide('cells', 'The open project against other robot cells: figures of merit side by side, the geometric gap '
+          'of each camera to the reference, whether recordings pool, and drift of built copies.', (SENSOR,), (),
+          ('publication',)),
 ]}
 
 

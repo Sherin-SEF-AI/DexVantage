@@ -43,6 +43,16 @@
     }
   ],
   "note": "Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map is referenced to). Positions are Luxonis's design (\"spec\") translations from its own calibration board file (depthai-boards, specTranslation in cm, rotation zero): the right camera one baseline along -y and the centre camera at the baseline midpoint; a unit's own calibration differs from these design values. Interface: the docs page says \"USB 2/3 (up to 10 Gbps)\", the datasheet \"USB3.1, gen2 10gbps\" with output \"via USB 3.1 Gen1\", the store page \"USB-C (USB 3.2 Gen1, 5 Gbps)\"; USB 3.2 Gen 1 is entered. Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV (no distortion is stated). Not stated by the maker: subpixel accuracy, lens distortion, depth FOV (the depth map takes the reference camera's FOV; not stated separately, so depth_fov is null). Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor pages; lower rates are configurable but not listed); the format on the USB link depends on the on-device pipeline (raw, NV12 or H.264/H.265/MJPEG encoded), so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the chosen stereo mode). Variant entered: auto-focus IMX378 (78/66/54 deg D/H/V, EFL 4.81 mm). The fixed-focus IMX378 variant is 82/69/55 deg (EFL 4.74 mm) and the OV9782 variant a 1 MP global-shutter colour camera at 89.5/80/55 deg; calibrate or edit the entry for those. Projector: the IR dot projector's field of illumination is the datasheet's HFOI 61 +/- 4 deg, VFOI 78 +/- 4 deg (vertical wider than horizontal, as stated); its position is not stated: placed at the baseline midpoint as an ASSUMPTION (pose_stated false). The flood LED (FOI 80 deg, 940 nm) is not entered as a projector. The docs page states no projector FOV. Conflicts: MinZ and ideal range as for OAK-D (docs ~80/~40/~20 cm, entered; store ~70/~35/~20 cm, ideal 70 cm - 12 m); the docs page says \"Pro devices might consume up to 15W\" while the datasheet and store page give 7.5 W (entered). Stereo cameras are IR-sensitive (no IR-cut, 940 nm notch in production per the datasheet). Size 97 x 29.5 x 22.9 mm: the datasheet labels it W x D x H as 97 x 22.9 x 29.5. Depth accuracy is a median absolute error, not RMS. max_range_m is the store page's maximum effective depth range.",
+  "price": {
+    "amount": 429,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-d-pro",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "variant 'RGB Camera Focus: Auto-focus' (SKU A00546), 429.0 USD"
+  },
   "interface": "USB 3.2 Gen 1 (USB Type-C)",
   "power_w": 7.5,
   "mass_g": 91.0,

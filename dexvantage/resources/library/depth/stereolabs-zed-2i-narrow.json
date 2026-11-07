@@ -25,6 +25,22 @@
     }
   ],
   "note": "Poses: the body origin is the left camera's optical centre; the datasheet says depth is \"calculated from the back of the left eye of the camera\", so the left camera is the reference imager and also the RGB view (both cameras are colour). The right camera sits one stated baseline along -y; both optical axes are taken parallel to body x (the rectified geometry). Roles: both cameras are colour, so both carry role \"rgb\"; depth.stereo_pair names them. Lens model pinhole is a labelled ASSUMPTION fitted to the stated maximum FOV (the maker gives only TV distortion, \"optically corrected\"); calibrate a unit for its K and D. The FOV is stated as \"max.\" without naming the mode; it is attached to the largest output mode. The datasheet calls the 1080p mode a cropping mode, so its true FOV is narrower than the stated maximum; the maker gives no per-mode FOV. Focus type is not stated (the lens is called \"fixed focal\", which is the focal length). Not stated by the maker: depth FOV, IR projector (there is none: passive stereo), subpixel accuracy, a per-resolution minimum Z (min_z is empty; depth.min_range_m is the stated device-wide minimum of the depth range), lens distortion coefficients. Depth is computed on the host by the ZED SDK (\"Native video resolution (in Ultra mode)\"), so no depth stream crosses the cable and none is listed. Interface: the datasheet says \"USB 3.0 Type-C\"; the ZED 2 product page summary also says \"USB 3.1\". Output format: the datasheet's first table reads \"YUV 4:2:2 - YUYV(8bits)\", its sensor table \"YUV 4:2:2 - UYV(8bits)\"; bits_per_pixel 16 is derived from the stated 8-bit 4:2:2 format. Left and right images arrive side by side in one frame (2 x width); they are listed as one stream per camera. The smallest mode is \"2x(662x376)\" in the datasheet and \"2x(672x376)\" on the store page and in the ZED Mini datasheet; 672 x 376 is entered. Frame rates are the store page's lists; the datasheet's sensor table agrees (2K 15; 1080p 15/30; 720p 15/30/60; 376p 15/30/60/100). Mass: datasheet 229 g, store page 230 g (229 entered). Dimensions 175.3 x 30.3 x 43.1 mm are read as width x height x depth (the maker does not name the axes; an assumption). power_w is the datasheet's \"Typical consumption: 1.9W (0.38A 5V)\". Sensor: 1/3\" 4MP CMOS, 2688 x 1520 active pixels, 2 um pixels. Narrow-lens variant (SKU ZED-222110, ZED-222120 with polarizer). Conflicts between the maker's pages: the datasheet gives aperture f/2.0 for both lenses, depth range 0.5 m to 35 m and ideal range 0.5 m to 20 m; the ZED 2 product page gives f/1.8 (4.6 mm), \"1.5m to 35m ... with 4 mm lens\" and \"1.5m to 20m ... with 4.6 mm lens\". The datasheet (newer, Rev 1.5) is entered. Depth accuracy is the datasheet's \"< 0.4% at 2m, < 5% at 20m\" (metric not defined). TV distortion < -6.1%.",
+  "price": {
+    "amount": 499,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.stereolabs.com/en-us/store/products/zed-2i",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer for 'No Polarizer / Narrow' (SKU ZED-222110) 499.0 USD; 'With Polarizer / Narrow' (ZED-222120) 549.0 USD",
+    "options": [
+      {
+        "label": "With Polarizer / Narrow (ZED-222120)",
+        "amount": 549
+      }
+    ]
+  },
   "interface": "USB 3.0 (USB Type-C)",
   "power_w": 1.9,
   "mass_g": 229.0,

@@ -515,6 +515,8 @@ and [guide/assistant_dock.md](guide/assistant_dock.md).
 
 - **File ▸ Open sample**: ALOHA 2 (`--sample aloha`), two Franka Pandas (`--sample panda-bimanual`) and the Unitree G1
   upper body (`--sample g1`) join the SO-100, UR5e and dexhand samples ([guide/samples.md](guide/samples.md)).
+- **Workspace ▸ Workspace**: whether each task object lies inside a task volume, with a one-step suggestion
+  ([guide/workspace.md](guide/workspace.md)).
 - **Library ▸ Robots**: 53 robots with the maker's figures and their sources; activating one imports its Menagerie
   model with that model's licence shown ([guide/robots.md](guide/robots.md)).
 - The library holds 138 hardware entries: cameras, depth cameras and tactile sensors
@@ -533,3 +535,54 @@ and [guide/assistant_dock.md](guide/assistant_dock.md).
 - **Python:** `import dexvantage as dv; rig = dv.sample('ur5e'); rig.run('coverage').headline`
   ([guide/api.md](guide/api.md)); plugins add studies, metrics, exporters, readers, library folders and pages
   (Help ▸ Plugins…, [guide/plugins.md](guide/plugins.md)).
+
+## 15. Research workflows (research tools part 2) {#research2}
+
+A research team's day, from a notebook to a paper, on the bundled samples. Each step links its worked example; the
+models and their validation are in the overview ([tracker](overview.md#tracking), [statistics](overview.md#stats),
+[campaign](overview.md#campaign), [sim-to-real](overview.md#sim2real), [paper kit](overview.md#paper_kit),
+[cluster](overview.md#cluster), [cells](overview.md#cells), [robot import and export](overview.md#robot_io)).
+
+1. **Start in a notebook and keep every run.** Save the project, turn tracking on and run studies; each run is logged
+   with its settings, figures, seeds and provenance in `<name>.runs/` beside the file:
+
+   ```python
+   import dexvantage as dv
+   rig = dv.sample('so100'); rig.save('so100.dexv'); rig = dv.open('so100.dexv')
+   rig.factors['setting:tracking.enabled'] = True
+   rig.run('coverage')                                   # logged
+   dv.runs(rig)                                          # a DataFrame of the runs, units in .attrs
+   ```
+
+   In the window the same is **Analysis ▸ Runs** (Apply turns tracking on, one undo step): select two runs and
+   **Compare** for the figures side by side and what differs. Batch mode logs with `--track RUNS_DIR`
+   ([guide/tracking.md](guide/tracking.md)).
+2. **Ask a designed question, on all cores or a cluster.** A designed experiment or a tolerance Monte Carlo runs the
+   same studies many times: **Run on… ▸ This machine** (or `--jobs N`) spreads them over processes, **Write a Slurm
+   job folder** (or `--slurm FOLDER`, then `--gather`) over a cluster; the result is the one a single process gives,
+   and it is logged like any other run ([guide/cluster.md](guide/cluster.md)).
+3. **Is the difference real?** **Analysis ▸ Statistics** compares success counts (Fisher's exact test, the risk
+   difference with Newcombe's interval, corrected across comparisons), two variants over their tolerance draws, an
+   experiment's factor levels or tracker runs, and says which test ran and why. A difference that is not clear comes
+   with the episodes or draws that would settle it, and the power calculator draws power against n
+   ([guide/stats.md](guide/stats.md)).
+4. **Plan the recording.** **Data ▸ Campaign** turns the conditions (tasks, variants, lighting, objects, teleop
+   devices), the demonstrations a power analysis asks for, the operators and the budget into a counterbalanced
+   schedule with storage, a calendar (`.ics`) and checklists (`--campaign SPEC.json`,
+   [guide/campaign.md](guide/campaign.md)).
+5. **After recording: how far is simulation from the real frames?** **Data ▸ Sim-to-real gap** renders a recorded
+   episode again through the rig and compares it camera by camera (exposure, blur, noise, silhouette overlap, mount
+   offset, latency), ranks the causes and offers the change that closes each one (`--sim2real OUT.json --dataset
+   PATH`, [guide/sim2real.md](guide/sim2real.md)).
+6. **Several cells.** **File ▸ Compare cells…** puts other labs' projects, samples or variants beside the open one:
+   figures of merit, the geometric gap of each camera to the reference, whether their recordings pool for training
+   and how the built copies drift (`--cells A.dexv B.dexv …`, [guide/cells.md](guide/cells.md)).
+7. **Write it up.** **Export ▸ Paper kit…** writes the methods paragraph, LaTeX tables (with the statistical
+   comparisons, the cell comparison and the tracked runs when they are present), figures, BibTeX and a
+   reproducibility appendix with a run plan, every number traced to where it came from (`--export OUT --formats
+   paper_kit`, [guide/paper_kit.md](guide/paper_kit.md)).
+
+Also new: **Robot ▸ Import robot…** reads USD robots (`pip install "dexvantage[usd]"`) and the URDF export carries
+inertials MuJoCo loads ([guide/robot_io.md](guide/robot_io.md)); 81 library entries carry cited prices, so `rig.cost`
+is a figure on the samples ([guide/prices.md](guide/prices.md)); hidden pages wait until they are shown, so an edit
+costs a few milliseconds on the UI thread ([guide/ui-fixes.md](guide/ui-fixes.md)).

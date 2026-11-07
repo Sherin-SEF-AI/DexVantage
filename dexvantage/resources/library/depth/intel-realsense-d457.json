@@ -25,6 +25,16 @@
     }
   ],
   "note": "Poses: the body frame's origin is the left imager's optical centre, which the datasheet names as the depth origin (section 4.8.1, \"the X-Y center of the left imager\"); the right imager sits one baseline along -y (the left imager is on the left looking out, section 3.6.1). Both optical axes are taken as parallel to body x (the rectified stereo geometry the depth output uses); the units' own extrinsics come from calibration. The D457 is \"the D450 optical module with a newly developed GMSL 2/FAKRA Vision Processor D4 board (V5)\" (D457 datasheet section 1); its component figures are the D450 module tables of the D400 datasheet, as the D457 datasheet says (section 2.1). The RGB sensor's offset from the left imager is not stated: placed at the depth origin as an ASSUMPTION (pose_stated false). The projector's position between the imagers is drawn in the datasheet (Figures 3-4 to 3-6) but no offset is given: it is placed at the baseline midpoint as an ASSUMPTION (pose_stated false); its FOV is the datasheet's. Not stated by the maker: pixel size (no table gives it), lens distortion coefficients (the datasheet gives only \"Distortion <= 1.5%\"), the stereo matcher's subpixel accuracy. The lens model is therefore pinhole (a labelled assumption); calibrate a unit for its own K and D. The FOVs vary unit to unit by about +/-3 degrees (mechanical tolerance +/-5%, datasheet Table 3-49 note 3). max_range_m is the upper figure of the datasheet's \"Range\" feature line, which reads \"over\" that figure and \"varies with lighting conditions\" (depth.range_text). Stream modes are the FAKRA/GMSL table (Table 4-2). power_w is the datasheet's \"All Components\" power at its Max Operating Mode (section 7.4), not a measured average. Sources disagree: the D457 datasheet's feature line reads \"Range 0.4m to over 10m\" (used) while the D455's reads \"0.4 m to over 6 m\" although the D457 \"supports the same specification ... as the D455\"; the store page gives \"Ideal Range .6 m to 6 m\". The D457 datasheet states its depth FOV at 4 m (Table 3-19), the D400 datasheet the D450's at 2 m. Power: 12 V nominal, 300 mA nominal over FAKRA (Table 3-16); the 3.72 W is \"All Components\" at 848x480 @ 90 fps depth, 848x480 @ 60 fps colour, laser 360 mW (Table 7-3). USB is \"only used for debug and production line\". IP65. 6-DoF IMU (not modelled here). The host needs a GMSL de-serialiser.",
+  "price": {
+    "amount": 599,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://store.realsenseai.com/buy-realsense-depth-camera-d457.html",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "store page price (schema.org offer 599 USD)"
+  },
   "interface": "GMSL2 (FAKRA, C-coding)",
   "power_w": 3.72,
   "mass_g": 145.0,

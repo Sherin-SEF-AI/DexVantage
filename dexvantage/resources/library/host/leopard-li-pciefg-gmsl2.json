@@ -13,6 +13,16 @@
     }
   ],
   "note": "A PCIe video grabber (SX proFRAME 3.0 base board and camera adapters, Maxim MAX9296A deserializers, Xilinx Zynq UltraScale+ ZU4CG) that \"can connect up to 8 cameras\" (gmsl_links 8) on FAKRA Z connectors. Stated: \"2 x SX proFRAME 3.0 Camera Adapter interfaces, each with: 4 x CSI-2 interfaces (4 lanes), each up to 10 Gbit/s, total 40 Gbit/s\" (ports 2: the adapters; ingest lists each adapter); \"PCIe X8 Gen3 (64 Gbit/s, ~51 Gbit/s netto) to backplane\" (the card's uplink; practical_mbps 51000 is that stated net figure, the card's total, not a per-link rate). 8 to 24 VDC power over coax for the cameras; a 12 V external input (J2003); the card's own power is not stated. Weight \"~ 191 g\". Size \"175.26 (L) x 106.68 (W) x 19.45 (D) mm\" with the camera adapter (size_mm as stated: length, width, depth). The GMSL2 link rate is not stated in the datasheet (it is the deserializer's; stated_mbps null). Operating temperature -20 to +85 °C. The supported-camera table lists Leopard GMSL2 modules (IMX490, AR0820, AR0231, AR0233, AR0239) and \"Other YUV GMSL2 modules\".",
+  "price": {
+    "amount": 5692,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://leopardimaging.com/product/platform-partners/solectrix/li-pciefg-gmsl2/",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer 5692.00 USD, out of stock on the date read (listed under the store's 'platform partners / Solectrix')"
+  },
   "interface": "GMSL2 in (8x FAKRA Z); PCIe x8 Gen3 to the host",
   "power_w": null,
   "mass_g": 191.0,

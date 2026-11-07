@@ -13,6 +13,17 @@
     }
   ],
   "note": "The Orin NX series column (16GB and 8GB share it): CSI camera \"Up to 4 cameras (8 via virtual channels***)\", \"8 lanes MIPI CSI-2\", \"D-PHY 2.1 (up to 20Gbps)\" (aggregate); NVIDIA: \"Virtual Channels for Jetson Orin NX and Jetson Orin Nano are subject to change\". USB: \"3x USB 3.2 Gen2 (10 Gbps)\" and \"3x USB 2.0\". PCIe: \"1 x4 + 3 x1 (PCIe Gen4, Root Port, & Endpoint)\". Networking \"1x GbE\". Power as the table lists it for the 16GB column: \"10W - 15W - 25W - 40W\" (power_w 40, the upper end; the page's second table calls the module \"Jetson Orin NX 16GB (Super)\"). Mechanical: \"69.6mm x 45mm\", 260-pin SO-DIMM connector; height not stated (size_mm null); mass not stated. Host fields for a Jetson: ports = USB 3.2 Gen 2 ports, stated_mbps = 10000 (the per-port USB 3.2 Gen 2 signalling rate, USB-IF; not an aggregate), lanes = MIPI CSI-2 lanes, gmsl_links = null (GMSL needs a deserializer board). practical_mbps is null (not stated). ingest lists each way in as stated (the CSI figure is NVIDIA's aggregate). The module data sheet (a download from NVIDIA's developer site) was not read; the figures are the specifications table on the page. NVIDIA's footnote: \"USB 3.2, MGBE, and PCIe share UPHY Lanes. See the Product Design Guide for supported UPHY configurations\", so not every listed USB and PCIe port is available together.",
+  "price": {
+    "amount": 999,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_price_list",
+    "source": "https://developer.nvidia.com/embedded/faq",
+    "read": "2026-11-07",
+    "region": "US (MSRP in USD)",
+    "min_quantity": 1000,
+    "what": "FAQ price table, MSRP (USD): 'Jetson Orin NX 16GB Module $999 (1KU+)'"
+  },
   "interface": "USB 3.2 Gen 2, MIPI CSI-2 (D-PHY 2.1), PCIe Gen4",
   "power_w": 40.0,
   "mass_g": null,

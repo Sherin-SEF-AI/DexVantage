@@ -1,8 +1,9 @@
 """Robot ▸ Import robot…: the import wizard (spec §13), on the step pattern of Vantage ui/dialogs/import_wizard.py.
 
 Steps:
-1. File: a URDF or MuJoCo MJCF file (dropped or browsed); its name in the project. USD needs the optional usd-core
-   package and is not read by this build yet; the step says so.
+1. File: a URDF, MuJoCo MJCF or USD file (dropped or browsed); its name in the project. A USD file (a UsdPhysics
+   articulation; needs the optional usd-core package, and the step says so when it is missing) is converted to MJCF
+   by core/robot/usd_import.py and imported from that; the conversion notes are in the robot's source note.
 2. Meshes: every mesh, included file and texture the model names, found or missing, with the importer's plain
    message for a missing one (core/robot/filecheck.py).
 3. Scale and units: the robot's bounding box at its home pose in millimetres and every mesh's size. A mesh over
@@ -23,8 +24,9 @@ joint's axis.
 The model is read on a worker thread (the window stays responsive for large meshes); load(path, background=False)
 reads it on the calling thread (tests, scripts).
 
-Known limits: frames are links (MJCF sites are not offered yet); pads are axis-aligned boxes in the link frame; USD,
-xacro and Menagerie import are not part of this wizard yet.
+Known limits: frames are links (MJCF sites are not offered yet); pads are axis-aligned boxes in the link frame; xacro
+and Menagerie import are not part of this wizard yet; a USD robot's mesh step lists the stage's layers, not each
+mesh.
 """
 from __future__ import annotations
 
@@ -52,7 +54,7 @@ from ..widgets import ROW_H, ScrubSpinBox, StatusLine, button, hline, label
 from .base import VDialog
 
 STEPS = ['File', 'Meshes', 'Scale and units', 'Joints', 'Gripper and pads', 'Summary']
-HINTS = ['Drop a URDF or MJCF file anywhere on this dialog. The meshes it names are read from the same folder.',
+HINTS = ['Drop a URDF, MJCF or USD file anywhere on this dialog. The meshes it names are read from the same folder.',
          'Every file the model names; a missing mesh stops the import, a missing texture does not.',
          'Robot files are in metres. A mesh of hundreds of metres was exported in millimetres.',
          'Limits are the file\'s own figures and are not edited here. Tick the joints of the gripper.',
@@ -68,12 +70,11 @@ TIP_TOKENS = ('tip', 'fingertip', 'distal')
 
 
 def usd_message() -> str:
+    """Why a USD file cannot be read here, or '' when it can (usd-core installed)."""
     if importlib.util.find_spec('pxr') is None:
         return ('USD files need the optional usd-core package (optional: install usd-core, for example pip install '
-                'usd-core), and this build does not read USD robots yet. Export the robot as URDF or MJCF and '
-                'import that.')
-    return ('This build does not read USD robots yet, although usd-core is installed. Export the robot as URDF or '
-            'MJCF and import that.')
+                '"dexvantage[usd]"), then import the file again; or export the robot as URDF or MJCF and import that.')
+    return ''
 
 
 def _n(k: int, word: str) -> str:
@@ -117,7 +118,7 @@ def load_robot(path: str) -> dict:
     from ...core.robot.filecheck import check_references
     from ...core.robot.model import RobotModelError, get_model
     out = {'path': path, 'check': None, 'robot': None, 'sources': None, 'error': '', 'project': None}
-    if os.path.splitext(path)[1].lower() in USD_EXTS:
+    if os.path.splitext(path)[1].lower() in USD_EXTS and usd_message():
         out['error'] = usd_message()
         return out
     try:
@@ -421,7 +422,7 @@ class ImportWizard(VDialog):
         g.addWidget(label('Supported', ink2=True), 0, 0)
         chips = QHBoxLayout()
         for e, tip in (('URDF', '.urdf (expand a .xacro to plain URDF first)'), ('MJCF', 'MuJoCo .xml'),
-                       ('USD', 'optional: install usd-core; not read by this build yet')):
+                       ('USD', 'a UsdPhysics articulation, converted to MJCF (needs the optional usd-core)')):
             c = label(e, mono_=True)
             c.setToolTip(tip)
             c.setStyleSheet(f'border: 1px solid {THEME.tok["strong"]}; border-radius: 2px; padding: 1px 6px;')
@@ -581,8 +582,8 @@ class ImportWizard(VDialog):
     def browse(self):
         path, _ = QFileDialog.getOpenFileName(
             self, 'Robot model', self.ctx.settings.value('dir/robots', '') if hasattr(self.ctx, 'settings') else '',
-            'Robot model (*.urdf *.xml *.usd *.usda *.usdc);;URDF (*.urdf);;MuJoCo MJCF (*.xml);;'
-            'USD (*.usd *.usda *.usdc)')
+            'Robot model (*.urdf *.xml *.usd *.usda *.usdc *.usdz);;URDF (*.urdf);;MuJoCo MJCF (*.xml);;'
+            'USD (*.usd *.usda *.usdc *.usdz)')
         if path:
             if hasattr(self.ctx, 'settings'):
                 self.ctx.settings.setValue('dir/robots', os.path.dirname(path))
@@ -689,8 +690,8 @@ class ImportWizard(VDialog):
         if self.loading:
             return
         if self.res is None:
-            self.f_status.set('', 'URDF or MuJoCo MJCF, with the meshes it names in the same folder (or its ROS '
-                                  'package).')
+            self.f_status.set('', 'URDF, MuJoCo MJCF or USD, with the meshes it names in the same folder (or its '
+                                  'ROS package).')
             return
         r = self.robot
         if r is None:
@@ -699,8 +700,10 @@ class ImportWizard(VDialog):
             return
         m = self.model
         size = sum(len(b) for b in self.res['sources'].values())
-        self.f_meta.setText(f'{r.source.kind.upper()} · {len(self.res["sources"])} files · '
-                            f'{size / 1e6:.2f} MB\nsha256 {r.source.sha256[:12]}')
+        kind = ('USD, converted to MJCF' if os.path.splitext(self.path or '')[1].lower() in USD_EXTS
+                else r.source.kind.upper())
+        self.f_meta.setText(f'{kind}\n{len(self.res["sources"])} files · {size / 1e6:.2f} MB · '
+                            f'sha256 {r.source.sha256[:12]}')          # two short lines: clear of Browse…
         self.f_status.set('good', f'Read: {_n(len(m.link_names), "link")}, {_n(m.nq, "moving joint")}'
                                   + (f'. {r.source.note}' if r.source.note else '.'))
 
@@ -739,8 +742,11 @@ class ImportWizard(VDialog):
             self.m_status.set('warning' if opt else 'good',
                               (f'All {len(items) - len(opt)} required files found' if len(items) - len(opt) != 1
                                else 'The required file was found')
-                              + (f'; {len(opt)} texture{"s" if len(opt) != 1 else ""} missing: the robot is drawn '
-                                 'without them.' if opt else '.'))
+                              + ((f'; {len(opt)} layer{"s" if len(opt) != 1 else ""} missing: what '
+                                  f'{"they hold" if len(opt) != 1 else "it holds"} (often meshes) is left out.'
+                                  if chk.get('kind') == 'usd' else
+                                  f'; {len(opt)} texture{"s" if len(opt) != 1 else ""} missing: the robot is drawn '
+                                  'without them.') if opt else '.'))
         if self.robot is None and self.res.get('error') and not miss and not unread:
             self.m_status.set('critical', self.res['error'])
         self.m_detail.setText('')

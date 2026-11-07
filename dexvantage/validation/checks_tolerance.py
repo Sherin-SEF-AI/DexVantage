@@ -12,12 +12,14 @@ body matters).
   uncertainty, σ² = Σ (∂f/∂x)² σ²ₓ + the covariance terms (JCGM 100:2008, eq. 13): uniform ± b gives b² / 3, a
   normal with ± b at 2 σ truncated there σ² (1 − 2·2 φ(2) / (2 Φ(2) − 1)) (written out with math.erf), the calibrated
   sensor wᵀ C w. Both distributions are run. Error: |σ_MC / σ − 1| (the worst); tolerance 4 standard errors of a
-  sample σ (√(2 / (4 n)) for a kurtosis up to 3), with the mean within 4 σ / √n as a further condition.
+  sample σ (√(2 / (4 n)) for a kurtosis up to 3), with the mean within 4 σ / √n as a further condition. The band
+  depends on n, so the check declares the one it applies: 0.0200 at n = 20 000 (full), 0.0516 at n = 3 000 (quick).
 - tolerance.sampler_ks: the marginals of the draws, read back from the moved projects (positions, and the turns
   through SciPy's intrinsic "XYZ" Euler angles; the calibrated imager's rotation vector), against the stated
   distribution with the Kolmogorov-Smirnov test (scipy.stats.kstest against uniform, truncnorm and norm). Error: the
-  largest KS statistic D; tolerance the critical D at α = 0.001 / 18 (Bonferroni over the 18 marginals),
-  √(−ln(α / 2) / (2 n)).
+  largest KS statistic D; tolerance the critical D at α = 0.001 / 30 (Bonferroni over the 30 marginals: two
+  distributions × two mounts × six components, and the calibrated sensor's six), √(−ln(α / 2) / (2 n)), declared as
+  applied: 0.0371 at n = 4 000 (full), 0.0606 at n = 1 500 (quick).
 - tolerance.seed_reproducible: two Monte Carlo runs with one seed give identical draws and values, another seed
   different ones, and the perturbation export's draws (a separate code path) are the Monte Carlo's for the same
   seed. Error: the largest difference; tolerance 0.
@@ -40,6 +42,18 @@ from .suite import Outcome, check, figure, series
 N_FULL, N_QUICK = 20000, 3000
 KS_FULL, KS_QUICK = 4000, 1500
 TRUNC_K = 2.0
+KS_MARGINALS = 30                 # 2 distributions × 2 mounts × 6 components + the calibrated sensor's 6
+
+
+def linear_band(n: int) -> float:
+    """tolerance.linear_propagation's tolerance at n draws: 4 standard errors of a sample σ, 4 √(2 / (4 n))."""
+    return 4 * math.sqrt(2 / (4 * n))
+
+
+def ks_band(n: int, marginals: int = KS_MARGINALS) -> float:
+    """tolerance.sampler_ks's tolerance at n draws: the critical KS D at α = 0.001 / marginals, √(−ln(α/2) / (2n))."""
+    alpha = 0.001 / marginals
+    return math.sqrt(-math.log(alpha / 2) / (2 * n))
 
 
 def tol_rig(rng=None):
@@ -121,8 +135,8 @@ def _linear_metric(uids, X0, T_im):
 
 @check('tolerance.linear_propagation', 'tolerance', 'Monte Carlo moments of a linear metric',
        'relative error of the Monte Carlo σ of a linear metric of three mounts', 'the law of propagation of '
-       'uncertainty σ² = Σ (∂f/∂x)² σ²ₓ + covariance terms (JCGM 100:2008), written out here', 0.05, 'relative',
-       refs=('jcgm100_2008', 'jcgm101_2008'), cost='study')
+       'uncertainty σ² = Σ (∂f/∂x)² σ²ₓ + covariance terms (JCGM 100:2008), written out here', linear_band(N_FULL),
+       'relative', refs=('jcgm100_2008', 'jcgm101_2008'), cost='study', tolerance_quick=linear_band(N_QUICK))
 def _linear(ctx):
     from ..core import tolerance as TL
     p, uids, C = tol_rig()
@@ -148,7 +162,7 @@ def _linear(ctx):
         worst = max(worst, rel)
         rows.append({'distribution': dist, 'sigma_analytic': sd, 'sigma_mc': m['std'], 'rel_error': rel,
                      'mean_offset_in_se': mean_z})
-    tol = 4 * math.sqrt(2 / (4 * n))
+    tol = linear_band(n)
     fig = figure('σ of the linear metric', 'distribution (0 uniform, 1 normal)', 'σ',
                  [series('propagation', [0, 1], [r['sigma_analytic'] for r in rows], 'points'),
                   series('Monte Carlo', [0, 1], [r['sigma_mc'] for r in rows], 'points')])
@@ -157,9 +171,10 @@ def _linear(ctx):
 
 
 @check('tolerance.sampler_ks', 'tolerance', 'Perturbation sampler marginals',
-       'largest Kolmogorov-Smirnov statistic D of 18 marginals read back from the moved projects',
+       'largest Kolmogorov-Smirnov statistic D of 30 marginals read back from the moved projects',
        'the stated distributions (uniform, truncated normal, the calibration normal) through scipy.stats.kstest',
-       0.05, 'KS statistic D', refs=('kolmogorov1933', 'smirnov1948', 'scipy_stats', 'scipy_rotation'))
+       ks_band(KS_FULL), 'KS statistic D', refs=('kolmogorov1933', 'smirnov1948', 'scipy_stats', 'scipy_rotation'),
+       tolerance_quick=ks_band(KS_QUICK))
 def _ks(ctx):
     from scipy import stats
     from scipy.spatial.transform import Rotation
@@ -201,8 +216,7 @@ def _ks(ctx):
         worst = max(worst, float(D))
         out.append({'sensor': 'C', 'component': ['wx', 'wy', 'wz', 'vx', 'vy', 'vz'][j], 'distribution': 'calibration',
                     'D': float(D)})
-    alpha = 0.001 / len(out)
-    tol = math.sqrt(-math.log(alpha / 2) / (2 * n))
+    tol = ks_band(n, len(out))
     cov_err = float(np.linalg.norm(np.cov(Cs.T) - C) / np.linalg.norm(C))
     fig = figure('KS statistic per marginal', 'marginal', 'D',
                  [series('D', np.arange(len(out)), [r['D'] for r in out], 'points')], hline=tol,

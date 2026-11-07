@@ -1,6 +1,14 @@
-"""Library ▸ New custom device…: a form for a device of your own (camera, depth camera, tactile sensor or host), every
-figure marked as given (by the maker or a measurement of yours) or not given, saved to your library
-($XDG_DATA_HOME/DexVantage/library, core/library.add_custom) and validated against the library schema.
+"""Library ▸ New custom device…: a form for a device of your own (camera, depth camera, tactile sensor, host, teleop
+device, policy, light or cable), every figure marked as given (by the maker or a measurement of yours) or not given,
+saved to your library ($XDG_DATA_HOME/DexVantage/library, core/library.add_custom) and validated against the library
+schema (and, for a teleop device or a policy, against core/teleop_devices.entry_problems or
+core/policies.entry_problems, as the built-in entries are).
+
+Each kind shows the schema fields of its own block (teleop, policy, light, cable). A figure left unticked is stored
+as null ("not stated"), never filled in. A teleop or policy figure that is ticked is stored as {value, source: 0 (the
+form's source), quote: "user-entered ..."}; the entry's note starts "User-entered custom device." so it is marked as
+entered by the user wherever it is read. A teleop device's mapping follows its kind (joint for a leader arm or GELLO,
+cartesian otherwise); its workspace volume is not entered here (null: the teleop study asks for a measured box).
 
 Ported from Vantage ui/dialogs/hardware_dialog.py (a spec sheet with units, required fields, live validation that
 blocks saving, "start from" a library item). What changed: the fields are those of DexVantage's library schema
@@ -24,11 +32,16 @@ from PyQt6.QtWidgets import (QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QLi
                              QVBoxLayout, QWidget)
 
 from ...core import library
+from ...core import policies as PO
+from ...core import teleop_devices as TD
 from ..rigedit import device_title
 from ..widgets import button, label
 from .base import VDialog
 
-KIND_LABEL = {'camera': 'Camera', 'depth': 'Depth camera', 'tactile': 'Tactile sensor', 'host': 'Host'}
+KIND_LABEL = {'camera': 'Camera', 'depth': 'Depth camera', 'tactile': 'Tactile sensor', 'host': 'Host',
+              'teleop': 'Teleop device', 'policy': 'Policy', 'light': 'Light', 'cable': 'Cable'}
+LIGHT_TYPES = ('panel', 'ring', 'window', 'point', 'spot')
+CABLE_TYPES = ('usb3', 'usb2', 'gmsl2', 'gmsl', 'coax', 'ethernet', 'power', 'other')
 CHOICES = {
     'im_role': ('rgb', 'mono', 'ir_left', 'ir_right', 'tof'),
     'shutter': ('global', 'rolling'),
@@ -36,9 +49,16 @@ CHOICES = {
     'focus': ('fixed', 'auto'),
     'technology': ('active_ir_stereo', 'passive_stereo', 'tof', 'structured_light'),
     'host_type': ('usb_controller', 'pcie_card', 'gmsl_deser', 'compute'),
+    'tp_kind': TD.KINDS,
+    'po_crop_rule': tuple(PO.CROP_RULES),
+    'li_type': LIGHT_TYPES,
+    'ca_type': CABLE_TYPES,
 }
-_ALL = ('camera', 'depth', 'tactile', 'host')
+_ALL = ('camera', 'depth', 'tactile', 'host', 'teleop', 'policy', 'light', 'cable')
+_HW = tuple(k for k in _ALL if k != 'policy')      # a policy is software: no interface, power, mass or size
 _IMG = ('camera', 'depth')
+USER_QUOTE = 'user-entered in the custom device form (the source above)'
+USER_NOTE = 'User-entered custom device.'
 
 
 @dataclass
@@ -46,7 +66,7 @@ class Fig:
     key: str
     text: str
     unit: str = ''
-    type: str = 'float'        # float | int | text | choice | pair | ipair | triple | floats
+    type: str = 'float'        # float | int | text | choice | bool | list | pair | ipair | triple | floats
     kinds: tuple = _ALL
     required: bool = False
     help: str = ''
@@ -60,10 +80,11 @@ FIELDS = (
         Fig('id', 'Library id', type='text', required=True,
             help='Lower-case letters, digits, ".", "_" and "-"; filled from the maker and name until you change it'),
         Fig('family', 'Family', type='text'),
-        Fig('interface', 'Interface', type='text', help='As the maker names it, e.g. "USB 3.1 Gen 1" or "GMSL2"'),
-        Fig('power_w', 'Power', 'W'),
-        Fig('mass_g', 'Mass', 'g'),
-        Fig('size_mm', 'Size', 'mm (x, y, z)', 'triple'),
+        Fig('interface', 'Interface', type='text', kinds=_HW,
+            help='As the maker names it, e.g. "USB 3.1 Gen 1" or "GMSL2"'),
+        Fig('power_w', 'Power', 'W', kinds=_HW),
+        Fig('mass_g', 'Mass', 'g', kinds=_HW),
+        Fig('size_mm', 'Size', 'mm (x, y, z)', 'triple', kinds=_HW),
     ]),
     ('Source', [
         Fig('src_url', 'URL or document', type='text', required=True,
@@ -114,7 +135,62 @@ FIELDS = (
             help='Only when a source states it (a measurement of yours counts: say so in the source)'),
         Fig('gmsl_links', 'GMSL links', type='int', kinds=('host',)),
     ]),
+    ('Teleop', [
+        Fig('tp_kind', 'Device kind', type='choice', kinds=('teleop',), required=True,
+            help='The teleop study\'s kind; a leader arm or GELLO maps joint to joint, the others a tracked position'),
+        Fig('tp_leads', 'Leads', 'followers (list)', 'list', kinds=('teleop',),
+            help='Leader arm or GELLO: the followers the source says it leads, as names ("*" for any arm)'),
+        Fig('tp_same_joints', 'Same joints as the follower', type='bool', kinds=('teleop',),
+            help='Leader arm or GELLO: yes when the source states it has the follower\'s joints'),
+    ] + [Fig(f'tp_{k}', lab, unit, {'int': 'int', 'num': 'float', 'text': 'text'}[typ], kinds=('teleop',))
+         for k, (lab, unit, typ) in TD.FIELDS.items() if typ != 'volume']),
+    ('Policy', [Fig(f'po_{k}', f.label, f.unit + (' (w, h)' if f.kind == 'size' else ''),
+                    {'size': 'ipair', 'int': 'int', 'num': 'float', 'fraction': 'float', 'crop': 'choice',
+                     'ensemble': 'float'}[f.kind], kinds=('policy',), help=f.text)
+                for k, f in PO.FIELDS.items()] + [
+        Fig('po_hardware', 'Inference measured on', type='text', kinds=('policy',),
+            help='The hardware the inference time is for, as the source names it')]),
+    ('Light', [
+        Fig('li_type', 'Type', type='choice', kinds=('light',), required=True,
+            help='How the lighting study models it: a panel, a ring, a window, a point or a spot of the beam below'),
+        Fig('li_luminous_flux_lm', 'Luminous flux', 'lm', kinds=('light',)),
+        Fig('li_luminance_cd_m2', 'Luminance', 'cd/m²', kinds=('light',)),
+        Fig('li_cct_k', 'Colour temperature', 'K', kinds=('light',)),
+        Fig('li_cct_k_range', 'Colour temperature range', 'K (low, high)', 'pair', kinds=('light',)),
+        Fig('li_emitting_size_m', 'Emitting size', 'm (w, h)', 'pair', kinds=('light',),
+            help='The emitting face; a ring: its outer diameter twice'),
+        Fig('li_ring_inner_m', 'Ring inner diameter', 'm', kinds=('light',)),
+        Fig('li_beam_deg', 'Beam angle', '° (full)', kinds=('light',)),
+        Fig('li_ir_irradiance_w_m2', 'IR irradiance', 'W/m²', kinds=('light',),
+            help='In-band IR irradiance on the light\'s axis at the distance below'),
+        Fig('li_ir_at_m', 'IR irradiance at', 'm', kinds=('light',)),
+        Fig('li_cri', 'CRI', kinds=('light',), help='As stated (a lower bound when the maker writes ≥ or +)'),
+        Fig('li_illuminance_lux', 'Illuminance', 'lux', kinds=('light',)),
+        Fig('li_illuminance_at_m', 'Illuminance at', 'm', kinds=('light',)),
+        Fig('li_wavelength_nm', 'Wavelength', 'nm', kinds=('light',), help='An IR illuminator\'s stated wavelength'),
+    ]),
+    ('Cable', [
+        Fig('ca_type', 'Type', type='choice', kinds=('cable',), required=True),
+        Fig('ca_diameter_mm', 'Diameter', 'mm', kinds=('cable',)),
+        Fig('ca_min_bend_static_mm', 'Minimum bend radius, fixed', 'mm', kinds=('cable',)),
+        Fig('ca_min_bend_dynamic_mm', 'Minimum bend radius, moving', 'mm', kinds=('cable',),
+            help='Continuous flexing or a drag chain, as stated'),
+        Fig('ca_flex_cycles', 'Bending cycles', type='int', kinds=('cable',)),
+        Fig('ca_lengths_m', 'Lengths', 'm (list)', 'floats', kinds=('cable',)),
+        Fig('ca_connectors', 'Connectors', '(list)', 'list', kinds=('cable',)),
+        Fig('ca_active', 'Active cable', type='bool', kinds=('cable',)),
+        Fig('ca_stated_mbps', 'Stated data rate', 'Mb/s', kinds=('cable',)),
+        Fig('ca_drag_chain_rated', 'Rated for drag chains', type='bool', kinds=('cable',)),
+        Fig('ca_robotics_rated', 'Rated for robotics', type='bool', kinds=('cable',),
+            help='Torsion and multi-axis flexing, as the maker says'),
+    ]),
 )
+LIGHT_KEYS = ('luminous_flux_lm', 'luminance_cd_m2', 'cct_k', 'cct_k_range', 'emitting_size_m', 'ring_inner_m',
+              'beam_deg', 'ir_irradiance_w_m2', 'ir_at_m', 'cri', 'illuminance_lux', 'illuminance_at_m',
+              'wavelength_nm')
+CABLE_KEYS = ('diameter_mm', 'min_bend_static_mm', 'min_bend_dynamic_mm', 'flex_cycles', 'lengths_m', 'connectors',
+              'active', 'stated_mbps', 'drag_chain_rated', 'robotics_rated')
+CABLE_LISTS = ('lengths_m', 'connectors')          # arrays in the schema: [] when not stated
 FIG = {f.key: f for _t, fs in FIELDS for f in fs}
 _OPTICAL_Q = [-0.5, 0.5, -0.5, 0.5]        # the optical frame of an imager looking along body x (REP-103)
 
@@ -131,6 +207,15 @@ def parse(f: Fig, text: str):
         if not t:
             raise ValueError(f'{f.text}: is empty')
         return t
+    if f.type == 'bool':
+        if t not in ('yes', 'no'):
+            raise ValueError(f'{f.text}: choose yes or no')
+        return t == 'yes'
+    if f.type == 'list':
+        items = [x.strip() for x in re.split(r'[,;]', t) if x.strip()]
+        if not items:
+            raise ValueError(f'{f.text}: is ticked as given but lists nothing')
+        return items
     if not t:
         raise ValueError(f'{f.text}: is ticked as given but has no value')
     parts = [p for p in re.split(r'[\s,;×x]+', t.replace('−', '-')) if p]
@@ -161,6 +246,8 @@ def parse(f: Fig, text: str):
 def fmt(v) -> str:
     if v is None:
         return ''
+    if isinstance(v, bool):
+        return 'yes' if v else 'no'
     if isinstance(v, (list, tuple)):
         return ', '.join(fmt(x) for x in v)
     if isinstance(v, float):
@@ -232,9 +319,9 @@ class CustomDeviceDialog(VDialog):
                                      f'shown as "—" with "{library.NOT_STATED}")')
                     given.toggled.connect(lambda on, k=f.key: self._given(k, on))
                     h.addWidget(given)
-                if f.type == 'choice':
+                if f.type in ('choice', 'bool'):
                     ed = QComboBox()
-                    for c in CHOICES[f.key]:
+                    for c in (CHOICES[f.key] if f.type == 'choice' else ('yes', 'no')):
                         ed.addItem(c, c)
                     ed.currentIndexChanged.connect(self._check)
                 else:
@@ -281,7 +368,7 @@ class CustomDeviceDialog(VDialog):
         f, g, ed, _r, _l = self.rows[key]
         if isinstance(ed, QComboBox):
             if value is not None:
-                ed.setCurrentIndex(max(0, ed.findData(value)))
+                ed.setCurrentIndex(max(0, ed.findData(fmt(value) if f.type == 'bool' else value)))
         else:
             ed.setText(fmt(value))
         if g is not None:
@@ -365,6 +452,26 @@ class CustomDeviceDialog(VDialog):
         for k, src in (('host_type', 'type'), ('ports', 'ports'), ('lanes', 'lanes'), ('stated_mbps', 'stated_mbps'),
                        ('practical_mbps', 'practical_mbps'), ('gmsl_links', 'gmsl_links')):
             self.set_value(k, h.get(src))
+        tp = d.get('teleop') or {}
+        self.set_value('tp_kind', tp.get('device_kind'))
+        self.set_value('tp_leads', tp.get('leads') or None)
+        self.set_value('tp_same_joints', tp.get('same_joints'))
+        for k in TD.FIELDS:
+            if f'tp_{k}' in self.rows:
+                self.set_value(f'tp_{k}', (tp.get(k) or {}).get('value'))
+        pb = d.get('policy') or {}
+        for k in PO.FIELDS:
+            v = (pb.get(k) or {}).get('value')
+            self.set_value(f'po_{k}', None if v is False else v)      # "not used" (false) is not a number here
+        self.set_value('po_hardware', (pb.get('inference_ms') or {}).get('hardware'))
+        li = d.get('light') or {}
+        self.set_value('li_type', li.get('type'))
+        for k in LIGHT_KEYS:
+            self.set_value(f'li_{k}', li.get(k))
+        ca = d.get('cable') or {}
+        self.set_value('ca_type', ca.get('type'))
+        for k in CABLE_KEYS:
+            self.set_value(f'ca_{k}', ca.get(k) if not (k in CABLE_LISTS and not ca.get(k)) else None)
         self.note.setPlainText(f'Started from the library entry {e.id}; its sources are kept below this one.')
         self._check()
 
@@ -402,7 +509,7 @@ class CustomDeviceDialog(VDialog):
         if src['read'] and not re.match(r'^\d{4}-\d{2}-\d{2}$', src['read']):
             errs.append('Date read: write it as YYYY-MM-DD')
         note = self.note.toPlainText().strip()
-        auto = (f'Custom device. Not given: {", ".join(not_given)}.' if not_given else 'Custom device.')
+        auto = USER_NOTE + (f' Not given: {", ".join(not_given)}.' if not_given else '')
         d = dict(base)
         d.update({'id': v.get('id') or '', 'kind': k, 'maker': v.get('maker') or '', 'name': v.get('name') or '',
                   'sources': [src] + [s for s in base.get('sources') or [] if s.get('url') != src['url']],
@@ -413,6 +520,9 @@ class CustomDeviceDialog(VDialog):
             d['family'] = v['family']
         else:
             d.pop('family', None)
+        if k not in _HW:
+            for key in ('interface', 'power_w', 'mass_g', 'size_mm'):
+                d.pop(key, None)
         if k in _IMG:
             ims = copy.deepcopy(base.get('imagers') or [])
             im = ims[0] if ims else {'pose': {'position': [0.0, 0.0, 0.0], 'quaternion': list(_OPTICAL_Q)},
@@ -484,11 +594,21 @@ class CustomDeviceDialog(VDialog):
         d['host'] = ({'type': v.get('host_type'), 'ports': v.get('ports'), 'lanes': v.get('lanes'),
                       'stated_mbps': v.get('stated_mbps'), 'practical_mbps': v.get('practical_mbps'),
                       'gmsl_links': v.get('gmsl_links')} if k == 'host' else None)
+        for kind_, block in (('teleop', _teleop_block), ('policy', _policy_block), ('light', _light_block),
+                             ('cable', _cable_block)):
+            if k == kind_:
+                d[kind_] = block(v, base.get(kind_) if isinstance(base.get(kind_), dict) else {})
+            else:
+                d.pop(kind_, None)
         if k in _IMG and not errs:
             errs += _lens_errors(v)
         old = library.get(d['id']) if d['id'] else None
         if old is not None and not old.is_custom:
             errs.append(f'Library id: "{d["id"]}" is a built-in device; give yours an id of its own')
+        if not errs and k == 'teleop':                    # the block's own words first (the schema's are a dump)
+            errs += [_plain(m) for m in TD.entry_problems(d)]
+        if not errs and k == 'policy':
+            errs += [_plain(m) for m in PO.entry_problems(d)]
         if not errs:
             errs += [_plain(m) for m in library.validate(d)]
         return d, errs
@@ -534,6 +654,60 @@ class CustomDeviceDialog(VDialog):
         d.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         d.show()
         return d
+
+
+def _pf(v, extra: dict | None = None) -> dict:
+    """A teleop or policy field: {value, source}; a typed value cites the form's source (0) and is quoted as
+    user-entered; a value not given is {value: null, source: null}."""
+    if v is None:
+        return {'value': None, 'source': None}
+    return {'value': v, 'source': 0, 'quote': USER_QUOTE, **(extra or {})}
+
+
+def _teleop_block(v: dict, base: dict) -> dict:
+    kind = v.get('tp_kind')
+    t = {'device_kind': kind, 'mapping': 'joint' if kind in TD.ARM_KINDS else 'cartesian'}
+    if kind in TD.ARM_KINDS:
+        t['leads'] = v.get('tp_leads') or []
+        t['same_joints'] = v.get('tp_same_joints')
+    for k in TD.FIELDS:
+        if k == 'workspace':                       # not entered here: kept from the device started from, else null
+            t[k] = copy.deepcopy(base.get(k)) if isinstance(base.get(k), dict) else _pf(None)
+        else:
+            t[k] = _pf(v.get(f'tp_{k}'))
+    return t
+
+
+def _policy_block(v: dict, base: dict) -> dict:
+    out = {}
+    for k in PO.FIELDS:
+        val = v.get(f'po_{k}')
+        if val is None and k == 'temporal_ensemble_m' and (base.get(k) or {}).get('value') is False:
+            out[k] = copy.deepcopy(base[k])                        # "not used", as the entry started from says
+            continue
+        if val is not None:
+            try:
+                val = PO.check_value(k, val)
+            except PO.PolicyError:
+                pass                                               # entry_problems says why
+        hw = v.get('po_hardware') if k == 'inference_ms' else None
+        out[k] = _pf(val, {'hardware': hw} if hw else None)
+    return out
+
+
+def _light_block(v: dict, base: dict) -> dict:
+    out = {k: copy.deepcopy(x) for k, x in base.items() if k not in LIGHT_KEYS and k != 'type'}
+    out['type'] = v.get('li_type')
+    out.update({k: v.get(f'li_{k}') for k in LIGHT_KEYS})
+    return out
+
+
+def _cable_block(v: dict, base: dict) -> dict:
+    out = {'type': v.get('ca_type')}
+    for k in CABLE_KEYS:
+        x = v.get(f'ca_{k}')
+        out[k] = (x or []) if k in CABLE_LISTS else x
+    return out
 
 
 def _lens_errors(v: dict) -> list:

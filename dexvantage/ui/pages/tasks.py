@@ -352,10 +352,34 @@ class TasksPage(StudyPage):
             why = 'Add a task volume to sample grasps in (Workspace ▸ Add task volume).'
         else:
             why = ''
+            self._warm(f['robot_uid'])
         self.form_note.setText(why or 'Defaults (labelled, not standards): 30 mm above the support surface, angled '
                                'grasps 45° from vertical, side and angled headings within ±60° of the line from the '
                                'robot\'s base. Explain says more.')
         self.suggestion_ready(not why)
+
+    def _warm(self, robot_uid: str):
+        """Build the robot's kinematic model and its gripper geometry (pads by ray casting) on a worker thread once
+        Apply is offered, so Apply's sampling finds them in the shared caches: cold, they took about 200 ms on the UI
+        thread on ALOHA 2 (a MuJoCo compile and the pad ray casts), the sampling itself under 2 ms."""
+        import threading
+        p = self.ctx.store.project
+        r = p.robot(robot_uid) if robot_uid else None
+        if r is None:
+            return
+        key = (robot_uid, id(p), len(p.robots))           # cheap: once per robot and project (an edited robot is
+        #                                                    built by the next Apply, as before)
+        if key == getattr(self, '_warmed', None):
+            return
+        self._warmed = key
+        snap = p.snapshot()
+
+        def work():
+            try:
+                GR.gripper_geometry(snap, robot_uid)
+            except Exception:                            # noqa: BLE001 — a warm-up only; Apply says what fails
+                pass
+        threading.Thread(target=work, name='tasks-warm', daemon=True).start()
 
     def make_sampled(self) -> dict | None:
         f = self.form()

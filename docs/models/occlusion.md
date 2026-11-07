@@ -75,7 +75,8 @@ clipped by both backends, so a camera pressed against the surface it is screwed 
 **Visibility.** `cube.visible(points, eps=1e-3)` is true where the point's distance from the centre is at most its
 texel's distance plus `eps` (1 mm, a default), so a point on a surface is visible when nothing else is in front of it.
 `occlusion.visible(points, origin, occluders, n=512)` goes through `occlusion.CACHE`, an LRU of maps (256 MB) keyed
-by (geometry digest, centre to 0.1 mm, n, near, backend).
+by (geometry digest, the exact centre, n, near, backend); the centre was rounded to 0.1 mm before research tools
+part 2, which let a nearby origin reuse a map.
 
 ## Exact ray casting (the reference)
 

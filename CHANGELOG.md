@@ -4,6 +4,103 @@ All notable changes to DexVantage. The format follows Keep a Changelog; versions
 
 ## [Unreleased]
 
+### Research tools part 2 and fixes
+- The experiment tracker (`core/tracking/`, Analysis ▸ Runs, `--track DIR`, `--runs`, `--runs-export`, `dv.runs`,
+  `dv.track`, `dv.run_store`, the assistant's `get_runs`): every study run, designed experiment, optimiser run,
+  tolerance Monte Carlo, scorecard, statistics, campaign and cell comparison logged as a run (settings, seeds,
+  figures with units and status, result and provenance) in a run store beside the project, safe for several writers;
+  compare (with a `core/stats` significance note paired by seed), re-run and export as CSV, Parquet, an MLflow 3.17
+  file store and a W&B replay script (optional extra `tracking`). Opt-in; the setting is left out of the content hash.
+- Statistics and power analysis (`core/stats.py`, `core/statcompare.py`, Analysis ▸ Statistics, `--stats SPEC.json`,
+  `--stats-saved`, `dv.stats`, `get_statistics`): Wilson and Clopper-Pearson intervals, BCa bootstrap, exact and Monte
+  Carlo permutation tests, t and rank tests, effect sizes with intervals, Fisher's exact and z tests, multiplicity
+  corrections, power and sample size, each result naming its test and why.
+- The data-collection campaign planner (`core/campaign.py`, Data ▸ Campaign, `--campaign SPEC.json`,
+  `--campaign-saved`, the `campaign` exporter, `dv.campaign`, `get_campaign`): conditions, demonstrations from a power
+  analysis (through `core/stats`), operators counterbalanced by Williams squares, sessions and days, storage, budget,
+  CSV, iCalendar and HTML checklists.
+- The sim-to-real gap (`core/sim2real/`, Data ▸ Sim-to-real gap, `--sim2real OUT.json --dataset PATH`,
+  `rig.sim2real`, `rig.gap_dataset`, `get_sim2real`): a recorded episode rendered again through the rig, per-camera
+  photometric, geometric and distribution measures, Shapley-ranked causes and the change that closes each.
+- The publication kit (`core/publication.py`, Export ▸ Paper kit…, `--export … --formats paper_kit`,
+  `dv.publication`, `get_methods_paragraph`): a methods paragraph, booktabs tables (now also the statistical
+  comparisons with their intervals, the cell comparison and the tracked runs when present), SVG and PDF figures,
+  BibTeX and a reproducibility appendix, every number traced and checked.
+- Cluster sweeps (`core/cluster/`, `--jobs N`, `--slurm FOLDER`, `--run-shard`, `--gather`, `--cluster-studies`,
+  `--optimise-continue`, Run on… on the Designed experiments and Tolerances pages, `dv.cluster`,
+  `get_cluster_job`): a spawn process pool and Slurm job arrays with a shared result cache; the gathered result is the
+  in-process one.
+- The multi-cell comparison (`core/cells.py`, `core/cells_pool.py`, File ▸ Compare cells…, `--cells`,
+  `--cells-compare`, the `cells` exporter, `dv.cells.compare`, `get_cells`): figures of merit side by side, a
+  geometric gap index (ported from Vantage `core/rig_gap.py`), dataset pooling against the LeRobot schema, drift.
+- Robot import and export: the USD robot import (spec §13, `core/robot/usd_import.py`, the import wizard,
+  `dv.robot_io`), a UsdPhysics writer, URDF inertials that MuJoCo loads as written, OpenVLA encodings from the rig,
+  the Isaac off-centre principal point; the bundled newton-assets UR5e (BSD-3-Clause) as a third-party USD reference.
+- Prices: 81 of the 191 built-in library entries carry a cited list price (`core/prices.py`, `dv.prices`,
+  `dv.price`, `get_rig_cost`); `rig.cost` and the optimiser's cost objective are figures on the samples.
+- UI: hidden analysis pages hold their signals until shown (`ui/pages/_gate.py`): an edit costs 3.6–5.5 ms instead
+  of 28–39 ms on the two-arm samples; adding the G1 is 10–13 ms (171 ms before); a refused study logs one line;
+  custom devices of every library kind; surfaces in the Outliner. Experiments censor figures stated only as bounds.
+- Validation: models `tracking` 5, `stats` 13, `campaign` 6, `sim2real` 7, `publication` 4, `cluster` 4, `cells` 6,
+  `robot_io` 5, two `library` price checks and `experiments.censored_best` (232 checks in all); self-test lines for
+  each area.
+- Integration: the tracker logs cluster runs (`--jobs`, a complete `--gather`, `dv.cluster`), `--stats`,
+  `--campaign`, `--cells` and the steps of a `--run-plan`, and the Runs page logs while it is hidden (the page gate
+  held its signals, so a result finished on another page was not logged until the Runs page was shown, and then only
+  if no edit came between); the paper kit's statistics, cells and runs tables; the experiment best run's bound and
+  settled flag in the tracker; `--jobs 0` was taken as no `--jobs` (now refused in one sentence); the occlusion
+  cube-map cache keys its origin exactly (a map for an origin within 0.1 mm was reused, so a long-lived process
+  differed from fresh shards in the last digits of a coverage figure); the report's "all studies" leaves out the
+  cell comparison, the statistics and the sim-to-real gap (they run other studies many times or render); the
+  assistant's `check_robot_file` tool (33 tools; the MCP server lists 39); page guides for the six new pages; a
+  spawned cluster worker reported its parent's peak memory (Linux keeps `ru_maxrss` across exec; now `VmHWM`); runs
+  started in the same millisecond keep the store's order; the LeRobot reader retries single-threaded the frames the
+  threaded AV1 decoder silently drops; the paper kit's runs table shows each run's headline figure.
+- Screens and UI: `scripts/screens.py --only research2`, `scripts/measure_ui_rt2.py` (0 UI-thread steps over 100 ms
+  on ALOHA 2 and the G1); the run store's path on one line, the Statistics page's source panel sized to its content
+  and its Preview shown in the calculator, no "-0" figures on the sim-to-real page, the paper kit's sections in
+  columns, the import wizard's file line clear of Browse and a USD robot named after its stage, the campaign's unused
+  demonstration fields disabled; the Tasks page builds the robot's model and pads on a worker when it offers Apply
+  (a cold Apply took about 200 ms on the UI thread on ALOHA 2).
+
+### Added (research tools part 2 reviews)
+- `rig.add_variant(name, {factors}, from_variant=None)`: a second variant from Python (a copy of the active one,
+  sensors keep their uids, the factors set on the copy only).
+- The part 1 research tools from Python (`dexvantage/api_research.py`, no Qt import): `dv.diff`, `dv.merge`,
+  `dv.bibtex`, `dv.figures`, `dv.figure`, `dv.export_runs`.
+- A plugin's validation checks (`PluginAPI.check`; `validation/suite.py` `PLUGIN_MODELS`): each plugin model runs
+  with the built-in checks, cites its references in the report and BibTeX, and goes when the plugin is unloaded or
+  fails.
+- The research workflow example `examples/03_research_workflow.py` (a jupytext percent-format notebook);
+  `docs/models/research-api.md`, `docs/models/product-review.md` and their guides.
+
+### Fixed (research tools part 2 reviews and final gate)
+- Statistics: Fisher's exact test named its one-sided alternatives the other way round from the rest of
+  `core/stats`; a tolerance run's samples dropped draws without a value, so seeded runs were paired off by one, and
+  the tracker's significance test refused a list holding a missing draw; a zero difference read "+0 % [+0, +0]";
+  a p-value read "1 p" in the Runs table and the paper kit; a run compared with itself was compared.
+- Cluster: a short write in a shard's output lost two lines; the shared cache never replaced a corrupt entry;
+  `dv.cluster.*(jobs=0)` and other non-counts ran serially (refused now, as `--jobs 0`); a pool started from a
+  script's unguarded top-level code is refused in one sentence.
+- Tracker: two deletes of one run at once raised a raw OSError; `dv.stats.*` on a rig, `dv.campaign.plan`,
+  `dv.cells.compare` and `dv.cluster.gather` were not logged while their batch forms were; a logged designed
+  experiment had no duration.
+- Cells: pooling compared joint kinds by position after a reorder, took a unit not stated as another kind and
+  ignored a target in degrees; the page added a missing file as a cell, and then the comparison refused to run.
+- Optimiser and prices: the cost objective was kept when a device is priced in another currency; a price without a
+  currency counted as the currency "None".
+- Sim-to-real: a mount σ the frames do not constrain was NaN (the tracker refused the run, the result was not valid
+  JSON); a brightness offset was read as a light gain, and Apply scaled the lights; `rig.gap_dataset` raised a raw
+  ValueError on a bad gap and refused a folder that is not empty only after rendering every frame.
+- Campaign: an unknown spec key was ignored silently (a mistyped power analysis gave the default 50
+  demonstrations); "1 sessions" and the HTML schedule's plurals; a compression ratio above 1 (20 for 0.05) is
+  named: the ratio is the encoded size over the raw size.
+- USD import: pxr's C++ names and full temporary paths in the error; the reader's own words now.
+- Statistics page: the Variants, Experiment runs and Tracker runs panels spread their controls over the height, and
+  the figures field had no label.
+- The headline of a study without a headline metric shows its unit and quantile.
+- `scripts/screens.py` removes its temporary XDG, capture and export folders when it ends.
+
 ### Phases 9 and 10, samples, catalogue, library, research tools part 1
 - Shared contracts (additive): named metrics (`core/metrics.py`, `@metric`, `evaluate`, `better_of`) with 53
   definitions over every study (`core/metric_defs.py`, including `canonical_view.parallax_p95` and

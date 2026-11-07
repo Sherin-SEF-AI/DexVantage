@@ -13,6 +13,16 @@
     }
   ],
   "note": "A GMSL2 deserializer board \"(Compatible with NVIDIA Jetson AGX Orin)\" that mounts on the Jetson's Samtec camera connector (J5, \"Samtec QTH-060-04-H-D-A-K-TR\", \"Can be used with Orin AGX and Xavier AGX Developer Kits\"). Inputs: \"2x 4 GMSL2 I/O\" on J1 and J2 (FAKRA Z 4x1; ports 2, gmsl_links 8); \"Supports up to 8 ZED X GS / ZED X Mini GS / ZED X One GS and up to 4 ZED One 4k\". \"Deserializer: 2 x Maxim MAX96712\". \"Requires external 9V to 19V power supply (Typical power consumption ~0.29W)\" (power_w 0.29, the typical figure). \"Weight: ~ 55 g\". Operating temperature -20 to +75 °C. Not stated: the GMSL2 link rate and the CSI-2 lanes to the Jetson (stated_mbps and lanes null), the size (only in a drawing).",
+  "price": {
+    "amount": 489,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.stereolabs.com/en-us/store/products/zed-link-capture-card-quad",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer (SKU ACC-212000) 489.0 USD"
+  },
   "interface": "GMSL2 in (2x 4-way FAKRA Z); Samtec QTH-060 to the Jetson AGX camera connector",
   "power_w": 0.29,
   "mass_g": 55.0,

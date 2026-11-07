@@ -156,8 +156,10 @@ def test_cache_and_convenience(ur5e):
     cache = OC.CubeCache()
     o = ur5e['origins']['Overhead D435']
     c1 = cache.get(ur5e['occ'], o, 64, 'numpy')
-    c2 = cache.get(ur5e['occ'], o + 1e-6, 64, 'numpy')            # the same to 0.1 mm
+    c2 = cache.get(ur5e['occ'], o.copy(), 64, 'numpy')            # the same origin: a hit
     assert c1 is c2 and cache.hits == 1 and len(cache) == 1
+    c3 = cache.get(ur5e['occ'], o + 1e-6, 64, 'numpy')            # 1 µm away: its own map (the key is exact; it
+    assert c3 is not c1 and cache.misses == 2 and len(cache) == 2  # was rounded to 0.1 mm before)
     v = OC.visible(ur5e['pts'][:50], o, ur5e['occ'], n=64, backend='numpy')
     assert v.dtype == bool and v.shape == (50,)
 

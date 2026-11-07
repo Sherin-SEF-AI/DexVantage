@@ -25,6 +25,16 @@
     }
   ],
   "note": "The wide-FOV OAK-1 with the global-shutter OV9782 (docs variant \"OV9782\"): 150 (D) / 127 (H) / 79.5 (V) degrees, fixed focus; a wide wrist-camera candidate. The IMX378 variant is 120 / 95 / 72 degrees, rolling shutter. The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. (A 127 degree pinhole stretches the image edges strongly; Luxonis's own calibration of wide units is not a pinhole.) Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor page); the format on the USB link depends on the on-device pipeline (raw, NV12 or encoded), so format and bits_per_pixel are null. size_mm: the store page's 36 x 54.5 x 27.8 mm read as W x H x D (an ASSUMPTION; the page names no axes), entered as [27.8, 36, 54.5]; mass 53 g. Power: no OAK-1 W datasheet was found; the docs give only subsystem figures (base 2.5-3 W plus up to 1 W AI, 0.5 W stereo, 0.5 W encoder), so power_w is null. Not stated: f-number, distortion.",
+  "price": {
+    "amount": 369,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-1-w",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "variant 'RGB Camera: OV9782' (SKU OAK-1-W-97), 369.0 USD"
+  },
   "interface": "USB 2/3 (USB Type-C)",
   "power_w": null,
   "mass_g": 53.0,

@@ -6,6 +6,8 @@
     dexvantage PROJECT.dexv --STUDY-FLAG OUT.json       any study (its flag is listed by --help), e.g. --coverage,
                                                         --tolerance-mc, --optimise [--optimise-settings JSON]
     dexvantage PROJECT.dexv --experiment DESIGN.json    a designed experiment (core/experiments.py)
+    dexvantage PROJECT.dexv --campaign SPEC.json        a data-collection campaign plan (batch_campaign.py)
+    dexvantage [PROJECT.dexv] --stats SPEC.json         statistics and power analysis (batch_stats.py)
     dexvantage PROJECT.dexv --check REQUIREMENTS.yaml   the readiness scorecard CI gate; --run-plan PLAN.json
                                                         (batch_gate.py)
     dexvantage PROJECT.dexv --export OUT_DIR --formats A,B   the exporters (core/exporters), with a manifest
@@ -30,7 +32,7 @@ import os
 import sys
 
 EXIT_OK, EXIT_FAIL, EXIT_ERROR = 0, 1, 2
-DATASET_STUDIES = ('audit', 'plan_vs_recording', 'silhouette_calib')     # studies that read --dataset
+DATASET_STUDIES = ('audit', 'plan_vs_recording', 'silhouette_calib', 'sim2real')  # studies that read --dataset
 # the flag names of the specification (§11) where a study's own flag differs: both work
 OPTIMISE_STUDIES = ('optimise', 'design_agent')     # studies that take --optimise-settings
 BATCH_ALIASES = {'teleop': ('teleop-overlap',), 'time_sync': ('sync',), 'grasp_visibility': ('grasp-study',),
@@ -51,9 +53,9 @@ def add_arguments(ap):
                    'and their ground truth into a new or empty folder (core/sim/episodes.py)')
     g.add_argument('--synth-settings', metavar='JSON', help='with --synth-episodes: settings as JSON text or a .json '
                    'file, e.g. {"episodes": 2, "version": "v2.1"}')
-    g.add_argument('--dataset', metavar='PATH', help='with --audit, --plan-vs-recording or --silhouette-calib (or '
-                   '--export with the format fiftyone): the recorded dataset (a LeRobot folder, an RLDS folder or a '
-                   'ROS 2 bag)')
+    g.add_argument('--dataset', metavar='PATH', help='with --audit, --plan-vs-recording, --silhouette-calib or '
+                   '--sim2real (or --export with the format fiftyone): the recorded dataset (a LeRobot folder, an '
+                   'RLDS folder or a ROS 2 bag)')
     g.add_argument('--captures', metavar='DIR', help='with --handeye-solve: a folder of board images to capture at '
                    'run time; the joint states are its joint_states.csv or .json unless --joints names the file '
                    '(core/calib/capture.py)')
@@ -84,6 +86,16 @@ def add_arguments(ap):
     batch_gate.add_arguments(g)                         # --check, --reproduce-out, --run-plan (batch_gate.py)
     from . import batch_research
     batch_research.add_arguments(g)                     # --diff, --merge, --unpack, --pack, --textconv, --cite …
+    from . import batch_campaign
+    batch_campaign.add_arguments(g)                     # --campaign SPEC.json [--campaign-out OUT.json]
+    from . import batch_track
+    batch_track.add_arguments(g)                        # --track, --runs-export (core/tracking)
+    from . import batch_cells
+    batch_cells.add_arguments(g)                        # --cells A.dexv B.dexv … (batch_cells.py)
+    from . import batch_cluster
+    batch_cluster.add_arguments(g)                      # --jobs, --slurm, --run-shard, --gather (core/cluster)
+    from . import batch_stats
+    batch_stats.add_arguments(g)                        # --stats SPEC.json [--stats-out OUT.json] (batch_stats.py)
     from .core import jobs
     jobs.load_studies()
     s = ap.add_argument_group('studies (each writes its result as JSON with provenance; "-" for stdout; a folder '
@@ -109,7 +121,12 @@ def wanted(args) -> bool:
                 or getattr(args, 'captures', None) or getattr(args, 'joints', None)
                 or getattr(args, 'rerun', None) or getattr(args, 'rerun_audit', None)
                 or __import__('dexvantage.batch_gate', fromlist=['wanted']).wanted(args)
-                or __import__('dexvantage.batch_research', fromlist=['wanted']).wanted(args))
+                or __import__('dexvantage.batch_research', fromlist=['wanted']).wanted(args)
+                or __import__('dexvantage.batch_campaign', fromlist=['wanted']).wanted(args)
+                or __import__('dexvantage.batch_track', fromlist=['wanted']).wanted(args)
+                or __import__('dexvantage.batch_cells', fromlist=['wanted']).wanted(args)
+                or __import__('dexvantage.batch_cluster', fromlist=['wanted']).wanted(args)
+                or __import__('dexvantage.batch_stats', fromlist=['wanted']).wanted(args))
 
 
 def _load(args):
@@ -194,6 +211,9 @@ def run(args) -> int:
         return int(e.code)
     if args.reproduce:
         return _reproduce(args, project)
+    from . import batch_cluster
+    if batch_cluster.wanted(args):                      # --jobs, --slurm, --run-shard, --gather (batch_cluster.py)
+        return batch_cluster.run(args, project)
     ctx = PV.begin_batch(args, parser) if parser is not None else None
     try:
         if project is not None:
@@ -204,8 +224,8 @@ def run(args) -> int:
             return _err('--audit-html and --fiftyone go with --audit OUT.json (and --dataset PATH)')
         if getattr(args, 'dataset', None) and not any(sid in DATASET_STUDIES for sid, _ in _study_flags(args)) \
                 and not getattr(args, 'run_plan', None) and 'fiftyone' not in _formats(args):
-            return _err('--dataset goes with --audit, --plan-vs-recording or --silhouette-calib OUT.json (or --export '
-                        'with the format fiftyone)')
+            return _err('--dataset goes with --audit, --plan-vs-recording, --silhouette-calib or --sim2real OUT.json '
+                        '(or --export with the format fiftyone)')
         if (getattr(args, 'captures', None) or getattr(args, 'joints', None)) and \
                 'handeye_solve' not in [sid for sid, _ in _study_flags(args)]:
             return _err('--captures DIR (and --joints FILE) go with --handeye-solve OUT.json')
@@ -249,6 +269,8 @@ def run(args) -> int:
             try:
                 doc = jobs.run_study(sid, snap)
             except jobs.StudyError as e:
+                from . import batch_track
+                batch_track.record(sid, None, project if project is not None else snap, reason=str(e))
                 return _err(str(e))
             except Exception as e:                      # noqa: BLE001 — a sentence here, the traceback in a file
                 return _unexpected(jobs.STUDIES[sid].title, e)
@@ -263,6 +285,8 @@ def run(args) -> int:
             _write(doc, dest)
             if dest != '-':
                 print(f'{jobs.STUDIES[sid].title} → {dest}')
+            from . import batch_track
+            batch_track.record(sid, doc, project if project is not None else snap, dest)
             if sid == 'audit':
                 code = max(code, _audit_exports(args, doc, project if project is not None else snap, snap))
                 args._audit_doc = doc                   # for --rerun
@@ -296,9 +320,10 @@ def run(args) -> int:
             from .validation.suite import qt_app
             st = {'quick': bool(args.quick)}
             if args.models:
-                bad = [m for m in args.models.split(',') if m.strip() not in VA.MODEL_IDS]
+                known = VA.available_models()               # the plugins' models included
+                bad = [m for m in args.models.split(',') if m.strip() not in known]
                 if bad:
-                    return _err(f'unknown model id(s) {", ".join(bad)}; known: {", ".join(VA.MODEL_IDS)}')
+                    return _err(f'unknown model id(s) {", ".join(bad)}; known: {", ".join(known)}')
                 st['models'] = args.models
             qt_app()
             res = VA.run(project, settings=VA.ValidationSettings.from_dict(st))
@@ -315,6 +340,18 @@ def run(args) -> int:
         from . import batch_research
         if batch_research.wanted(args):
             code = max(code, batch_research.run(args, project))     # --diff, --merge, --unpack, --cite, ...
+        from . import batch_campaign
+        if batch_campaign.wanted(args):
+            code = max(code, batch_campaign.run(args, project))     # --campaign SPEC.json
+        from . import batch_cells
+        if batch_cells.wanted(args):
+            code = max(code, batch_cells.run(args, project))        # --cells (batch_cells.py)
+        from . import batch_stats
+        if batch_stats.wanted(args):
+            code = max(code, batch_stats.run(args, project))        # --stats SPEC.json (batch_stats.py)
+        from . import batch_track                                   # last: it reports the runs logged above
+        if batch_track.wanted(args) or batch_track._FAILED:
+            code = max(code, batch_track.run(args, project))        # --runs-export, runs not logged
         return code
     finally:
         if ctx is not None:
@@ -360,6 +397,8 @@ def _experiment(args, project) -> int:
     h = doc.get('headline') or {}
     print(f'Designed experiment ({doc["method_label"]}, {doc["execution"]["runs_done"]} runs): '
           f'{h.get("word", "")} → {jp}, {cp}')
+    from . import batch_track
+    batch_track.record('experiments', doc, project, jp)
     return EXIT_OK
 
 

@@ -225,17 +225,17 @@ def test_brackets(lit):
     _ok(lit.ev('brackets.not_ready'), r['brackets'] - r['ready'] + r['unset'], 'count')
 
 
-def test_rig_inventory_cost_is_not_stated_without_a_price(lit, dexhand):
+def test_rig_inventory_cost_sums_the_cited_prices(lit, dexhand):
     from dexvantage.core import library as LB
     d = lit.doc('rig')
     on = [s for s in lit.p.variant.sensors if s.enabled]
     _ok(lit.ev('rig.camera_count'), sum(s.kind in ('camera', 'depth') for s in on), 'count')
     _ok(lit.ev('rig.sensor_count'), len(on))
-    cost = lit.ev('rig.cost')
-    assert cost['value'] is None and cost['status'] == 'not stated' and 'price is not stated' in cost['reason']
+    cost = lit.ev('rig.cost')           # every sensor of the sample states a cited price (core/prices.py)
+    _ok(cost, sum(LB.get(s.model_id).data['price']['amount'] for s in on), 'USD')
+    assert not cost.get('bound') and d['cost']['missing'] == []
     _ok(lit.ev('rig.mass_g'), sum(LB.get(s.model_id).data['mass_g'] for s in on), 'g')
     _ok(lit.ev('rig.power_w'), sum(LB.get(s.model_id).data['power_w'] for s in on), 'W')
-    assert d['cost']['missing'] == [s.name for s in on]
 
 
 def test_rig_cost_sums_stated_prices_and_refuses_mixed_currencies(lit):

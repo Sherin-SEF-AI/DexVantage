@@ -43,6 +43,16 @@
     }
   ],
   "note": "Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map is referenced to). Positions are Luxonis's design (\"spec\") translations from its own calibration board file (depthai-boards, specTranslation in cm, rotation zero): the right camera one baseline along -y and the centre camera at the baseline midpoint; a unit's own calibration differs from these design values. Interface: the docs page says \"USB 2/3 (up to 10 Gbps)\", the datasheet \"USB3.1, gen2 10gbps\" with output \"via USB 3.1 Gen1\", the store page \"USB-C (USB 3.2 Gen1, 5 Gbps)\"; USB 3.2 Gen 1 is entered. Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV (no distortion is stated). Not stated by the maker: subpixel accuracy, lens distortion, depth FOV (the depth map takes the reference camera's FOV; not stated separately, so depth_fov is null). Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor pages; lower rates are configurable but not listed); the format on the USB link depends on the on-device pipeline (raw, NV12 or H.264/H.265/MJPEG encoded), so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the chosen stereo mode). Conflicts between the maker's pages: MinZ \"~20cm (400P + extended disp), ~40cm (400P OR 800P + extended), ~80cm (800P)\" and ideal range \"~80cm - 12m\" (docs page) vs \"~20cm, ~35cm, ~70cm\" and \"70cm - 12m\" (store page); the larger (docs) figures are entered, the extended-disparity ones under depth.min_z_extended. Stereo camera FOV 81/72/49 deg D/H/V (docs, store) vs 82/72/50 (datasheet); OV9282 max rate 120 fps (datasheet) vs 255 fps (store, at 400P); size 110 x 54.5 x 33 mm with mass 115 g (store, entered; axes not named, read as width x height x depth, an assumption) vs 97 x 29.5 x 22.9 mm (datasheet). power_w is the datasheet's maximum (7.5 W; typical 6 W, idle 2.5 W); the store page says \"up to ~5W\", the docs give base 2.5-3 W plus up to 1 W AI, 0.5 W stereo and 0.5 W encoder. Depth accuracy is a median absolute error, not RMS: below 2% below 4 m, below 4% at 4-7 m, below 6% at 7-10 m. max_range_m is the store page's \"Maximum effective depth range: 30m\". RGB variant entered: the auto-focus IMX378 (AF 8 cm to infinity). Passive stereo: no projector.",
+  "price": {
+    "amount": 329,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-d",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "single variant (SKU A00110-INTL), 329.0 USD"
+  },
   "interface": "USB 3.2 Gen 1 (USB Type-C)",
   "power_w": 7.5,
   "mass_g": 115.0,

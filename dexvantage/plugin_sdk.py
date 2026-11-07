@@ -1,5 +1,5 @@
-"""Plugins: third-party packages that add studies, metrics, exporters, dataset readers, library folders and UI pages to
-DexVantage without editing it.
+"""Plugins: third-party packages that add studies, metrics, exporters, dataset readers, library folders, UI pages and
+the validation checks of their models to DexVantage without editing it.
 
 A plugin is an installed Python distribution that declares an entry point in the group ``dexvantage.plugins``:
 
@@ -14,6 +14,10 @@ A plugin is an installed Python distribution that declares an entry point in the
         api.exporter('my_format', 'My format')(my_export_fn)
         api.dataset_reader('my_format', sniff=my_sniff)(my_open_fn)
         api.library_folder(os.path.join(os.path.dirname(__file__), 'library'))
+        api.check('my.vs_closed_form', 'My study against a closed form', 'mm error', 'the closed form',
+                  0.01, 'mm', references={'me2026': 'A. Author, "Title", URL (read 2026-11-07).'})(my_check_fn)
+                                           # a validation check of the plugin's model (plugin.my_plugin), run by
+                                           # --validate and Help ▸ Validate the models with the built-in checks
         api.page('my_page', 'My study', 'my_plugin.page:MyPage', menu='Analysis')   # the class is imported only
                                                                                      # when the window is built
 
@@ -37,13 +41,15 @@ API
     loaded() -> [PluginRecord]                         what the last load found (for Help ▸ Plugins and dv.plugins())
     discover(paths=None) -> [EntryPoint]               the installed entry points of the group (paths: search there)
     unload(name)                                       remove what a plugin added (tests; a plugin turned off)
-    origin(kind, id) -> plugin name | None             which plugin added a study / metric / exporter / reader / page
+    origin(kind, id) -> plugin name | None             which plugin added a study / metric / exporter / reader / page /
+                                                       check
     summary_text(record) -> str                        "2 studies (a, b), 1 metric (c)": what it added, in words
 
 Known limits: a plugin runs in the same process with the same rights as DexVantage (there is no sandbox: install only
 plugins you trust); unloading removes what a plugin registered, not modules it imported or state it changed in other
 ways; UI pages are added when the window is built, so a plugin loaded later (from the Python API in a running window)
-adds its page only after a restart; a page whose id equals a built-in page's id is replaced by the built-in one.
+adds its page only after a restart; a page whose id equals a built-in page's id is replaced by the built-in one (the
+plugin's record says so: page_replaced).
 """
 from __future__ import annotations
 
@@ -58,10 +64,11 @@ from dataclasses import dataclass, field
 GROUP = 'dexvantage.plugins'
 API_VERSION = 1
 ENV_OFF = 'DEXVANTAGE_NO_PLUGINS'
-KINDS = ('study', 'metric', 'exporter', 'dataset_reader', 'library_folder', 'page')
+KINDS = ('study', 'metric', 'exporter', 'dataset_reader', 'library_folder', 'page', 'check')
 KIND_WORDS = {'study': ('study', 'studies'), 'metric': ('metric', 'metrics'), 'exporter': ('exporter', 'exporters'),
               'dataset_reader': ('dataset reader', 'dataset readers'),
-              'library_folder': ('library folder', 'library folders'), 'page': ('page', 'pages')}
+              'library_folder': ('library folder', 'library folders'), 'page': ('page', 'pages'),
+              'check': ('validation check', 'validation checks')}
 STATUS_TEXT = {'loaded': 'loaded', 'error': 'could not be loaded', 'off': 'off'}
 STATUS_LEVEL = {'loaded': 'good', 'error': 'critical', 'off': 'warning'}
 _STUDY_ID = re.compile(r'^[a-z][a-z0-9_]*$')
@@ -96,6 +103,7 @@ _RECORDS: list = []
 _LOADED = False
 _ENABLED = True
 ORIGIN: dict = {}                   # (kind, id) -> plugin name
+_VALIDATION: dict = {}              # plugin name -> {'model': its validation model id, 'refs': reference keys it added}
 
 
 def _first_line(e: BaseException) -> str:
@@ -225,6 +233,56 @@ class PluginAPI:
         LB.add_folder(path, f'the plugin {self._rec.name}')
         self._note('library_folder', path)
 
+    @property
+    def Outcome(self):
+        """What a validation check returns (validation/suite.py Outcome: error, detail, figure, rows, ...)."""
+        from .validation.suite import Outcome
+        return Outcome
+
+    def check(self, cid: str, title: str, quantity: str, reference: str, tolerance: float, unit: str,
+              references: dict | None = None, refs=None, cost: str = 'cheap', tolerance_quick: float | None = None,
+              model_title: str = ''):
+        """Decorator: register fn(ctx) -> api.Outcome as a validation check (validation/suite.py @check) of this
+        plugin's model, 'plugin.<plugin name>' (model_title: its title in the report, default "<name> (plugin)"), so
+        --validate, the self-test's cheap run and Help ▸ Validate the models run it with DexVantage's own checks.
+        reference: the independent reference in words; tolerance: the error the check accepts (say why in the
+        reference or the plugin's docs, as docs/DEVELOPING.md asks); references: {key: the full citation with its URL
+        and the date read}, added to the report's reference list (refs: the keys this check cites, default all of
+        references; a key DexVantage already has may be cited by name)."""
+        from .validation import references as VR
+        from .validation import suite as VS
+        model = 'plugin.' + re.sub(r'[^a-z0-9_]+', '_', self._rec.name.lower()).strip('_')
+
+        def deco(fn):
+            if any(c.id == cid for c in VS.CHECKS):
+                self._skip('check', cid, 'an id another check already has')
+                return fn
+            new_refs = dict(references or {})
+            clash = [k for k, t in new_refs.items() if k in VR.REFERENCES and VR.REFERENCES[k] != t]
+            if clash:
+                self._skip('check', cid, f'citing the reference key {clash[0]}, which another source already has '
+                                         'with other text')
+                return fn
+            keys = tuple(refs) if refs is not None else tuple(new_refs)
+            unknown = [k for k in keys if k not in VR.REFERENCES and k not in new_refs]
+            if unknown:
+                self._skip('check', cid, f'citing the reference key {unknown[0]}, which neither DexVantage nor the '
+                                         'plugin defines')
+                return fn
+            v = _VALIDATION.setdefault(self._rec.name, {'model': model, 'refs': []})
+            if not any(m[0] == model for m in VS.PLUGIN_MODELS):
+                VS.PLUGIN_MODELS.append((model, model_title or f'{self._rec.name} (plugin)',
+                                         getattr(fn, '__module__', '') or self._rec.value, ''))
+            for k, t in new_refs.items():
+                if k not in VR.REFERENCES:
+                    VR.REFERENCES[k] = str(t)
+                    v['refs'].append(k)
+            VS.check(cid, model, title, quantity, reference, tolerance, unit, refs=keys, cost=cost,
+                     tolerance_quick=tolerance_quick)(fn)
+            self._note('check', cid)
+            return fn
+        return deco
+
     def page(self, pid: str, title: str, cls, menu: str = 'Analysis', icon: str | None = None,
              action_id: str | None = None, shortcut: str | None = None, workspace: str | None = None,
              order: int = 200):
@@ -284,7 +342,8 @@ def _dist_of(ep):
 
 
 def unload(name: str):
-    """Remove everything the named plugin added (studies, metrics, exporters, readers, library folders, pages)."""
+    """Remove everything the named plugin added (studies, metrics, exporters, readers, library folders, pages, checks
+    with their model and references)."""
     for rec in [r for r in _RECORDS if r.name == name]:
         _unload_record(rec)
 
@@ -313,6 +372,14 @@ def _unload_record(rec: PluginRecord):
         from .ui import pages as PG
         for pid in a['page']:
             PG.PAGES.pop(pid, None)
+    if a['check'] or rec.name in _VALIDATION:
+        from .validation import references as VR
+        from .validation import suite as VS
+        VS.CHECKS[:] = [c for c in VS.CHECKS if c.id not in a['check']]
+        v = _VALIDATION.pop(rec.name, {})
+        VS.PLUGIN_MODELS[:] = [m for m in VS.PLUGIN_MODELS if m[0] != v.get('model')]
+        for k in v.get('refs', ()):
+            VR.REFERENCES.pop(k, None)
     for k in KINDS:
         for i in a[k]:
             ORIGIN.pop((k, i), None)
@@ -413,6 +480,19 @@ def enabled() -> bool:
 
 def origin(kind: str, ident: str) -> str | None:
     return ORIGIN.get((kind, ident))
+
+
+def page_replaced(pid: str):
+    """A built-in page registered over a plugin's page of the same id (the window loads the built-in pages after the
+    plugins): the plugin's record says so in a sentence, and the page is no longer counted as the plugin's."""
+    name = ORIGIN.pop(('page', pid), None)
+    if name is None:
+        return
+    for rec in _RECORDS:
+        if rec.name == name and pid in rec.added['page']:
+            rec.added['page'].remove(pid)
+            rec.problems.append(f'{name} tried to add the page "{pid}", an id a DexVantage page has; the built-in page '
+                                'is shown instead.')
 
 
 def summary_text(rec: PluginRecord) -> str:

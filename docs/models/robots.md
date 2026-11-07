@@ -228,7 +228,8 @@ product-of-exponentials chain agree within 10⁻⁹ m at five random poses each)
 
 ## Known limits
 
-xacro must be expanded to plain URDF first; USD is not read yet (the wizard says so).
+xacro must be expanded to plain URDF first; USD (a UsdPhysics articulation, with the optional usd-core) is converted
+to MJCF before the import ([robot_io.md](robot_io.md)), so its loops, drives and mimic couplings are not imported.
 URDF mimic joints and the 2F-85's linkage move independently: MuJoCo's equality constraints are not applied by
 kinematics, so moving one finger joint alone poses the linkage in a way the real gripper cannot. Free and ball
 joints are held at the home keyframe and are not part of q. Planes and height fields are not drawn. MJCF `<model>`

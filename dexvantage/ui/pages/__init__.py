@@ -41,6 +41,9 @@ class PageInfo:
 
 
 def register(pid, title, cls, menu='Analysis', icon=None, action_id=None, shortcut=None, workspace=None, order=100):
+    if pid in PAGES:                    # a built-in page loaded after a plugin's page of the same id: say so
+        from ... import plugin_sdk as PL
+        PL.page_replaced(pid)
     PAGES[pid] = PageInfo(pid, title, cls, menu, icon, action_id, shortcut, workspace, order)
     return cls
 

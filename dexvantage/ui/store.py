@@ -8,6 +8,7 @@ debounced after edits and cached by content digest.
 from __future__ import annotations
 
 import copy
+import logging
 import threading
 import time
 import traceback
@@ -19,6 +20,7 @@ from ..core import jobs
 from ..core.project import Project, Sensor, Variant  # noqa: F401  (re-exported for the UI)
 
 _MERGE_ID = 4242
+log = logging.getLogger(__name__)
 
 
 class EditCommand(QUndoCommand):
@@ -71,7 +73,8 @@ class ProjectStore(QObject):
         self.project = project
         self.undo = QUndoStack(self)
         self.undo.cleanChanged.connect(self._clean_changed)   # a bound slot: dropped with the store
-        self.sel: tuple = ()               # ('robot', uid) ('sensor', uid) ('volume', uid) ('object', uid) ('project',)
+        self.sel: tuple = ()               # ('robot' | 'sensor' | 'volume' | 'object' | 'surface' | 'trajectory', uid)
+        #                                    or ('project',)
         self.gesture = 0                   # bumped when a drag starts
         self.revision = 0                  # bumped by every change to the project (edits, undo, redo, replace)
         self._dragging = False
@@ -113,13 +116,16 @@ class ProjectStore(QObject):
         self.selection_changed.emit()
 
     def selected(self):
-        """The selected object (a Robot, Sensor, Volume or TaskObject, or a trajectory's dict), or None."""
+        """The selected object (a Robot, Sensor, Volume or TaskObject, or a trajectory's or surface's dict), or None."""
         if len(self.sel) < 2:
             return None
         kind, uid = self.sel[0], self.sel[1]
         p = self.project
         if kind == 'trajectory':
             return next((t for t in p.tasks.trajectories if isinstance(t, dict) and t.get('uid') == uid), None)
+        if kind == 'surface':              # a support surface (a dict; its uid, or its index for an old file's)
+            return next((x for k, x in enumerate(p.workspace.surfaces)
+                         if isinstance(x, dict) and str(x.get('uid') or k) == uid), None)
         pool = {'robot': p.robots, 'sensor': p.variant.sensors, 'volume': p.workspace.volumes,
                 'object': p.workspace.objects}.get(kind, [])
         return next((o for o in pool if o.uid == uid), None)
@@ -221,6 +227,21 @@ def failure_text(message: str, title: str = 'The study') -> tuple[str, bool]:
     if kind in EXPLAINED_ERRORS and text.strip():
         return text.strip(), True
     return f'{title} stopped with an unexpected error ({kind or "unknown"}). The details are in the log.', False
+
+
+def log_failure(sid: str, message: str, title: str = 'The study') -> tuple[str, bool]:
+    """Log a study's failure (AnalysisController.failed's message) and return failure_text's (sentence, explained).
+    A refused study (an explained error such as StudyError: its inputs cannot be worked with) is one INFO line with
+    its sentence, the traceback only at DEBUG; an unexpected error is logged at ERROR with its traceback."""
+    text, explained = failure_text(message, title)
+    lines = (message or '').splitlines()
+    if explained:
+        log.info('%s refused: %s', sid, text)
+        if len(lines) > 1:
+            log.debug('%s refused; traceback:\n%s', sid, '\n'.join(lines[1:]))
+    else:
+        log.error('%s failed:\n%s', sid, message)
+    return text, explained
 
 
 class AnalysisController(QObject):

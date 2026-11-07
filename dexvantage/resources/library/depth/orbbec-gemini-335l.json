@@ -13,6 +13,16 @@
     }
   ],
   "note": "The long-baseline (95 mm) Gemini 330, in an IP65 housing, with a global-shutter RGB camera. Poses: the depth origin is the left IR module's optical centre (section 4.8); the right IR one stated baseline along -y; the colour origin is \"X 23.75, Y 0, Z 0\" mm from the depth origin (Table 4-8-1; Table 4-8-4 puts depth and colour at X 0 and 23.75 mm, the same Z), entered as body (0, -23.75, 0) mm with pose_stated true, axes taken parallel (no rotation stated). The projector (LDM, 850 nm VCSEL, 101 x 72.5 deg) is drawn between the IR modules but its offset is not dimensioned in the text: placed at the baseline midpoint as an ASSUMPTION (pose_stated false). FOVs: the IR stream FOVs of Table 4-5-3 (91 x 65 deg for 16:10, 91 x 60 for 16:9, 81 x 65 for 4:3, 91 x 14 for 848 x 100; the IR modules are 94/68/104 deg, Table 3-4-4); depth FOV before D2C 90 x 65 deg at 2 m; RGB 94 x 68 deg (16:10), 94 x 62 (16:9), 82 x 68 (4:3). Typical depth intrinsics fx = fy = 620.0 px at 1280 x 800 (Table 4-5-2, shared by the series). min_z is Table 4-6-1 at a disparity search range of 128 (0.5 m at the 16:10 modes and 1280 x 720; with 64, 1 m); the specification table instead gives \"0.25m @ 1280 x 800 / 1280 x 720 / 640 x 400 / 424 x 266\", which matches no 335L/336L column of Table 4-6-1, and the power tables' typical configuration uses a search range of 256, whose min-Z is not tabulated; the 4:3 and 848 x 100 rows are not given for the L models. Streams: Table 4-4-3 (USB 3.0); depth Y16, IR Y8, colour MJPEG or YUYV (YUYV entered, 16 bits per pixel by the 4:2:2 definition). Power: average < 3.0 W (entered), peak < 6.0 W. The lens model pinhole is a labelled ASSUMPTION (distortion < 1.5%, no coefficients). Not stated: pixel size, f-numbers, subpixel accuracy. Mounting: bottom 1x 1/4-20 UNC, back 2x M4. Gemini 335L: \"Visible + NIR-pass\" filter on the IR modules; size 124 x 29 x 27 mm (W x H x D), 133 g; depth and RGB start points 4.080 mm behind the front cover glass (Table 4-9-1).",
+  "price": {
+    "amount": 359,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://store.orbbec.com/products/gemini-335l",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "store product data (handle gemini-335l, SKU 100100478) 359.00 USD; read from the store's product data (https://store.orbbec.com/products.json) on the date read"
+  },
   "interface": "USB 3.0 (USB Type-C)",
   "power_w": 3.0,
   "mass_g": 133.0,

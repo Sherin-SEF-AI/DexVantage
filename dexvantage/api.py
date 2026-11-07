@@ -14,6 +14,8 @@
     rig.save('cell.dexv')
     dv.studies(), dv.metrics(), dv.exporters(), dv.plugins()
     ds = dv.datasets.open('path/to/lerobot_dataset')  # LeRobot v2.1 / v3.0, RLDS, ROS 2 bags, plugin formats
+    dv.diff(rig, taller), dv.merge(base, ours, theirs)   # project diff and three-way merge (api_research.py)
+    dv.bibtex(rig), dv.figure(res, 'fig.svg')        # BibTeX of every source; a vector figure of a result
 
 What edits in place and what returns a new object:
 
@@ -23,6 +25,7 @@ What edits in place and what returns a new object:
 - ``rig.run(study, **settings)`` runs on a copy with the settings laid over the stored ones; the rig's stored
   settings are unchanged (store them with ``rig.factors['setting:<study>.<key>'] = value``).
 - ``rig.robots``, ``rig.sensors`` and ``rig.variants`` are the project's own objects: changing one changes the rig.
+- ``rig.add_variant(name, {sensor factors})`` adds a copy of the active variant to ``rig`` (the active one stays).
 
 Every number comes from the studies themselves (the same code the window and batch mode run, through core.jobs and its
 result cache, keyed by the project's content): the API computes nothing of its own. A study that cannot run raises
@@ -75,7 +78,10 @@ from .core.jobs import StudyError
 
 DexVantageError = StudyError
 __all__ = ['Rig', 'Result', 'Records', 'Table', 'MetricTable', 'Recording', 'DexVantageError', 'open', 'sample',
-           'new', 'samples', 'studies', 'metrics', 'exporters', 'plugins', 'load_plugins', 'datasets']
+           'new', 'samples', 'studies', 'metrics', 'exporters', 'plugins', 'load_plugins', 'datasets', 'runs', 'track',
+           'run_store', 'publication', 'campaign', 'cells',
+           'cluster', 'stats', 'robot_io', 'prices', 'price',
+           'diff', 'merge', 'bibtex', 'figures', 'figure', 'export_runs', 'Diff', 'Merge', 'MergeConflict']
 
 _CACHE = jobs.ResultCache(32)
 _HTML_ROWS = 200
@@ -209,6 +215,8 @@ def _fmt(v, unit: str) -> str:
         t = f'{v:.1f}'
     if unit == '°':
         return f'{t}°'
+    if unit == 'p':                                    # a p-value: "p = 0.0915", not "0.0915 p"
+        return f'p = {t}'
     return f'{t} {unit}' if unit and unit != 'count' else t
 
 
@@ -257,10 +265,16 @@ class Result(dict):
                 return None
             own = self.get('headline') if isinstance(self.get('headline'), dict) else {}
             shown = own.get('value')
-            text = f'{self.title}: ' + (f'{shown} ({word})' if shown not in (None, '') else word)
+            unit = str(own.get('unit') or '')
+            fig = shown
+            if isinstance(shown, (int, float)) and not isinstance(shown, bool) and math.isfinite(shown):
+                fig = _fmt(shown, unit)                # a number with its unit, as a headline metric shows it
+                if isinstance(own.get('quantile'), str) and own['quantile']:
+                    fig = f'{own["quantile"]} {fig}'
+            text = f'{self.title}: ' + (f'{fig} ({word})' if shown not in (None, '') else word)
             if own.get('text'):
                 text += f'. {own["text"]}'
-            return {'metric': None, 'title': self.title, 'value': shown, 'unit': '', 'better': None,
+            return {'metric': None, 'title': self.title, 'value': shown, 'unit': unit, 'better': None,
                     'status': 'ok' if shown not in (None, '') else 'not stated', 'bound': None, 'level': level,
                     'word': word, 'text': text}
         r = M.read(m, dict(self))
@@ -487,6 +501,42 @@ class Rig:
         p.active_uid = v.uid
         return Rig(p)
 
+    def add_variant(self, name: str, factors: dict | None = None, from_variant: str | None = None,
+                    allow_locked: bool = False):
+        """Add a variant to this rig (edits it, as the window's "New variant from this one"): a copy of from_variant
+        (a name or uid; default the active one) called name, with the sensor factors given set on the copy, e.g.
+        rig.add_variant('Raised overhead', {'sensor:cam_high (overhead).dz': 0.05}). Its sensors keep their uids, so
+        host links, cables and policy cameras apply to it too; the active variant does not change. Returns the
+        Variant (dv.stats.compare_variants(rig, b=name) compares the two)."""
+        from .core import factors as F
+        from .core.project import Variant, new_uid
+        name = str(name or '').strip()
+        if not name:
+            raise DexVantageError('Give the new variant a name, e.g. rig.add_variant("Raised overhead").')
+        if any(x.name == name for x in self._p.variants):
+            raise DexVantageError(f'The rig already has a variant called "{name}": choose another name.')
+        src = self._p.variant if from_variant is None else (
+            self._p.variant_by_uid(from_variant) or next((x for x in self._p.variants if x.name == from_variant),
+                                                         None))
+        if src is None:
+            raise DexVantageError(f'The rig has no variant "{from_variant}" (it has: '
+                                  f'{", ".join(x.name for x in self._p.variants)}).')
+        values = dict(factors or {})
+        other = [k for k in values if not str(k).startswith('sensor:')]
+        if other:
+            raise DexVantageError(f'{other[0]} is not a sensor factor: a variant holds sensors and their mounts, so '
+                                  'only sensor:<name>.<field> factors set a variant (settings belong to the whole '
+                                  'project: rig.factors[...]).')
+        v = Variant.from_dict(src.to_dict())
+        v.uid, v.name, v.note = new_uid(), name, f'A copy of {src.name}'
+        p = self._p.snapshot()
+        p.variants.append(v)
+        if values:
+            p = F.apply(p, values, variant=v.uid, allow_locked=allow_locked)    # FactorError: a sentence
+            v = p.variant_by_uid(v.uid)
+        self._p.variants.append(v)
+        return v
+
     @property
     def factors(self) -> Factors:
         return Factors(self)
@@ -522,6 +572,7 @@ class Rig:
             st.update(settings)
             p.analysis.studies[sid] = st
         doc = jobs.run_study(sid, p, ctx=jobs.Ctx(progress=progress), cache=_CACHE)
+        _autolog(sid, doc, p)                                # core/tracking, when the project's tracking is on
         return Result(doc, sid, project=p)
 
     def metrics(self, ids) -> MetricTable:
@@ -555,6 +606,7 @@ class Rig:
         else:
             reqs = None if requirements is None else list(requirements)
         card = RQ.check(self._p.snapshot(), reqs, cache=_CACHE, variant=variant)
+        _autolog('requirements', {'schema': RQ.SCHEMA, 'study': 'requirements', **card}, self._p, kind='check')
         return Result({'schema': RQ.SCHEMA, 'study': 'requirements', **card}, 'requirements',
                       'Readiness scorecard', project=self._p)
 
@@ -563,6 +615,26 @@ class Rig:
         needs MuJoCo's offscreen renderer); returns its summary."""
         from .core.sim import episodes as E
         return E.generate(self._p.snapshot(), os.fspath(folder), settings or None, progress=progress)
+
+    def sim2real(self, dataset, *, progress=None, **settings) -> Result:
+        """The sim-to-real gap of a recorded episode (core/sim2real/gap.py: the episode rendered again through the rig
+        and compared per camera, the causes ranked with their changes); dataset is a path (LeRobot, RLDS, ROS 2 bag).
+        The same as run('sim2real', dataset=path, ...)."""
+        return self.run('sim2real', progress=progress, dataset=os.fspath(dataset), **settings)
+
+    def apply_sim2real(self, change: dict) -> 'Rig':
+        """A NEW Rig with one sim-to-real suggestion made (a result's 'apply', or a cause's 'apply'); rig is
+        unchanged. A locked sensor is refused (DexVantageError)."""
+        from .core.sim2real import gap as G
+        p = self._p.snapshot()
+        G.apply_change(p, change)
+        return Rig(p)
+
+    def gap_dataset(self, folder: str, gaps: dict, progress=None, **settings) -> dict:
+        """Render a synthetic LeRobot dataset with KNOWN sim-to-real gaps (brightness_dn, gain, blur_px, noise_dn,
+        mount, latency_s, camera: core/sim2real/inject.py) into a new or empty folder; returns its summary."""
+        from .core.sim2real import inject as IJ
+        return IJ.make_gap_dataset(self._p.snapshot(), os.fspath(folder), gaps, settings or None, progress=progress)
 
     def save(self, path: str | None = None) -> str:
         """Write the .dexv file (to path, or where it was opened from; a folder or a path ending in .dexv.d: the
@@ -677,6 +749,65 @@ class _Datasets:
 
 
 datasets = _Datasets()
+from .api_cluster import cluster  # noqa: E402 — dv.cluster (api_cluster.py, core/cluster)
+from .api_research import (Diff, Merge, MergeConflict, bibtex, diff, export_runs, figure,  # noqa: E402, F401
+                           figures, merge)                 # api_research.py
+
+
+class _Publication:
+    """dv.publication: the publication kit (core/publication.py) of a rig, headless.
+
+        dv.publication.methods(rig, results)          the methods paragraph (TeX), every number traced
+        dv.publication.tables(rig, results)           {name: TeX table} (sensors, results, scorecard, ...)
+        dv.publication.kit(rig, results)              the whole kit as data, with its checks and status
+        dv.publication.export(rig, 'out/', results)   main.tex, methods.tex, tables/, figures/, refs.bib, ...
+
+    results: {study id: result} or a list of results (rig.run(...) gives them); without results every study but the
+    long meta-studies runs first, as the report does (pass studies=[...] to choose). Other keyword options are the
+    kit's settings: sections, siunitx, widths, pdf_figures, bibliography, title, validation, figure_specs. The PDF
+    figures (export only) use Qt's PDF writer; nothing else imports Qt."""
+
+    @staticmethod
+    def _opts(rig, results, options):
+        from .core.project import Project
+        p = rig.project if isinstance(rig, Rig) else rig
+        if not isinstance(p, Project):
+            raise DexVantageError('dv.publication takes a Rig (dv.open, dv.sample) or a Project.')
+        o = dict(options)
+        if results is not None:
+            o['results'] = {k: dict(v) for k, v in results.items()} if isinstance(results, dict) else \
+                [dict(r) for r in results]
+            o.setdefault('studies', [])
+        return p, o
+
+    def kit(self, rig, results=None, **options) -> dict:
+        from .core import publication as PB
+        _plugins()
+        p, o = self._opts(rig, results, options)
+        k = PB.build(p, o)
+        out = PB.public(k)
+        out.update(parts=dict(k['parts']), bib=k['bib'])
+        return out
+
+    def methods(self, rig, results=None, **options) -> str:
+        options['sections'] = ['methods']
+        return self.kit(rig, results, **options)['parts'].get('methods', '')
+
+    def tables(self, rig, results=None, **options) -> dict:
+        parts = self.kit(rig, results, **options)['parts']
+        return {k: v for k, v in parts.items() if k not in ('methods', 'appendix')}
+
+    def export(self, rig, out_dir: str, results=None, **options) -> dict:
+        from .core import exporters as EX
+        _plugins()
+        p, o = self._opts(rig, results, options)
+        return EX.export(p, os.fspath(out_dir), ['paper_kit'], {'paper_kit': o})
+
+    def __repr__(self) -> str:
+        return '<dv.publication: methods(rig), tables(rig), kit(rig), export(rig, out_dir)>'
+
+
+publication = _Publication()
 
 
 # ====================================================================== module functions
@@ -743,3 +874,396 @@ def load_plugins(enabled: bool = True, reload: bool = True) -> Table:
     from . import plugin_sdk as PL
     PL.load(enabled=enabled, reload=reload)
     return plugins()
+
+
+# ====================================================================== cited prices (core/prices.py)
+def prices(kind: str | None = None, stated_only: bool = True) -> Table:
+    """The library's cited prices: id, kind, device, amount, currency, price kind (maker_store, maker_price_list,
+    reseller), min_quantity, region, source URL and date read; stated_only=False lists the entries without one too
+    (amount None). Nothing is estimated or converted (docs/models/library.md#prices)."""
+    from .core import library as LB
+    from .core import prices as PR
+    rows = []
+    for e in LB.entries(kind):
+        p = PR.block(e) or {}
+        a, cur = PR.stated(e)
+        if stated_only and a is None and not p.get('options'):
+            continue
+        rows.append({'id': e.id, 'kind': e.kind, 'device': e.title, 'amount': a, 'currency': cur or p.get('currency'),
+                     'price_kind': p.get('kind'), 'min_quantity': p.get('min_quantity'), 'region': p.get('region'),
+                     'source': p.get('source'), 'read': p.get('read'), 'options': len(p.get('options') or []),
+                     'custom': e.is_custom})
+    return Table(rows)
+
+
+def price(model_id: str) -> dict | None:
+    """The cited price block of one library entry (a copy), or None when the entry states no price."""
+    import copy
+    from .core import library as LB
+    from .core import prices as PR
+    e = LB.get(model_id)
+    if e is None:
+        raise StudyError(f'There is no library entry called {model_id!r}.')
+    p = PR.block(e)
+    return copy.deepcopy(p) if p is not None else None
+
+
+# ====================================================================== the experiment tracker (core/tracking)
+def _autolog(study: str, doc: dict, project, kind: str | None = None):
+    """Log a run when the project's tracking is on (a warning, never an exception, when the store cannot be
+    written: the result itself is fine)."""
+    from .core import tracking as TR
+    if not TR.should_log(study, project):
+        return
+    try:
+        TR.log(study, doc, project, kind=kind, interface='api')
+    except TR.TrackingError as e:
+        import warnings
+        warnings.warn(f'The run was not logged: {e}', stacklevel=3)
+
+
+def run_store(where):
+    """The run store (core/tracking/store.py RunStore) of where: a Rig (its project's store), a .dexv project file
+    (the store its tracking settings name, default <name>.runs beside it) or a run store folder."""
+    from .core import tracking as TR
+    if isinstance(where, Rig):
+        return TR.store_for(where.project)
+    if isinstance(where, TR.RunStore):
+        return where
+    if where is None:
+        raise DexVantageError('Name the run store: dv.runs(rig), dv.runs("cell.dexv") or dv.runs("cell.runs").')
+    path = os.fspath(where)
+    if os.path.isfile(path) or path.lower().endswith('.dexv'):
+        return TR.store_for(Rig.open(path).project)
+    return TR.RunStore(path)
+
+
+def runs(where=None, *, study=None, tag=None, kind=None, since=None, until=None, status=None, project=None):
+    """The runs of a run store (run_store(where)) as a table: one row per run (run id, start and end in UTC,
+    seconds, kind, study, status, project, its content hash, variant, headline, tags, note, re-run of, DexVantage
+    version, git commit, result hash) and one column per metric (a metric id, or id@stat for a distribution's or a
+    search's figure); None where a run does not state it. A pandas DataFrame (units in .attrs['units']) when pandas
+    is installed, else Records (a list of row dicts, with .units). Filters: study, tag, kind, status, project (a
+    value or a list), since / until (a date, a datetime or ISO text)."""
+    from .core.tracking import tables as TB
+    st = run_store(where)
+    if not st.exists():
+        raise DexVantageError(f'There is no run store at {st.name} yet: turn the project\'s tracking on '
+                              '(rig.factors["setting:tracking.enabled"] = True, or the Runs page) and run a study, or '
+                              'log a result with dv.track(result, rig).')
+    rows = st.runs(study=study, tag=tag, kind=kind, since=since, until=until, status=status, project=project)
+    cols, data, units = TB.wide(rows)
+    try:
+        import pandas as pd
+    except ImportError:
+        out = Records(data)
+        out.units = units
+        return out
+    df = pd.DataFrame(data, columns=cols)
+    df.attrs['units'] = units
+    df.attrs['store'] = st.name
+    return df
+
+
+def track(result, rig=None, *, store=None, tags=(), note: str = '') -> dict:
+    """Log a Result (from rig.run or rig.check) as a run, whether or not the project's tracking is on: into store
+    (a folder or a RunStore; default the rig's project's store). Returns the run record."""
+    from .core import tracking as TR
+    if not isinstance(result, dict) or not result.get('study'):
+        raise DexVantageError('dv.track takes a result of rig.run(...) or rig.check(...).')
+    project = rig.project if isinstance(rig, Rig) else getattr(result, '_project', None)
+    if project is None:
+        raise DexVantageError('dv.track needs the rig the result was made from: dv.track(result, rig).')
+    st = run_store(store) if store is not None else TR.store_for(project)
+    sid = result['study']
+    return TR.log(sid, dict(result), project, store=st, kind='check' if sid == 'requirements' else None,
+                  interface='api', tags=tags, note=note)
+
+
+# ====================================================================== the campaign planner (core/campaign.py)
+class _Campaign:
+    """dv.campaign: plan(rig, spec=None, **settings) -> Result (the 'campaign' study: the counterbalanced schedule,
+    totals, storage, checklists); export(result, base) -> the paths of <base>.csv, .ics, .html; power_n(p1, p2,
+    alpha=0.05, power=0.8, continuity=True) -> the demonstrations per condition for a difference in success rate;
+    balance(result) -> the balance counts; apply(rig, result) writes the plan into the rig's project."""
+
+    def plan(self, rig, spec: dict | str | None = None, **settings) -> Result:
+        """The campaign of rig (a Rig or a core Project) with spec (a dict, JSON text or a spec file) and settings
+        laid over the project's stored spec; the stored spec is not changed."""
+        from .core import campaign as CP
+        p = rig.project if isinstance(rig, Rig) else rig
+        snap = p.snapshot()
+        stored = {k: v for k, v in (snap.analysis.studies.get(CP.STUDY_ID) or {}).items() if k != 'plan'}
+        extra = CP.read_spec(spec) if spec is not None else {}
+        snap.analysis.studies[CP.STUDY_ID] = {**stored, **extra, **(CP.read_spec(settings) if settings else {})}
+        doc = jobs.run_study(CP.STUDY_ID, snap, cache=_CACHE)
+        _autolog(CP.STUDY_ID, doc, snap)
+        res = Result(doc, CP.STUDY_ID, project=snap)
+        res.spec = dict(snap.analysis.studies[CP.STUDY_ID])          # what apply() stores with the plan
+        return res
+
+    def export(self, result, base: str, start_date: str | None = None) -> list:
+        from .core import campaign as CP
+        return CP.write_files(dict(result), os.fspath(base), start_date)
+
+    def power_n(self, p1: float, p2: float, alpha: float = 0.05, power: float = 0.8, continuity: bool = True) -> dict:
+        from .core import campaign as CP
+        return CP.power_n(p1, p2, alpha, power, continuity)
+
+    def balance(self, result) -> dict:
+        from .core import campaign as CP
+        return CP.balance(dict(result))
+
+    def apply(self, rig, result) -> None:
+        from .core import campaign as CP
+        p = rig.project if isinstance(rig, Rig) else rig
+        CP.apply_plan(p, dict(result), getattr(result, 'spec', None))
+
+    def __repr__(self) -> str:
+        return '<dv.campaign: plan(rig, spec), export(result, base), power_n(p1, p2), balance(result), apply(rig, ' \
+               'result)>'
+
+
+campaign = _Campaign()
+
+
+# ====================================================================== multi-cell comparison (core/cells.py)
+class CellComparison(Result):
+    """The comparison of several cells (dv.cells.compare): the 'cells' study's document plus
+
+        .pooling_mapping()    the pooling-mapping document (dexvantage.cells_pooling/1)
+        .metric_rows()        one row per metric, a column per cell (to_frame-ready)
+        .gap_rows()           one row per matched camera pair against the reference
+        .save_files(out_dir)  cells.json, cells_pooling.json, cells_comparison.html (with provenance)
+        .html()               the comparison as a standalone HTML page
+    """
+
+    def pooling_mapping(self) -> dict:
+        from .core import cells as CE
+        return CE.pooling_mapping(dict(self))
+
+    def metric_rows(self) -> list:
+        names = [c['name'] for c in self['cells']]
+        return [{'metric': r['id'], 'title': r['title'], 'unit': r['unit'], 'better': r['better'],
+                 **{n: v for n, v in zip(names, r['values'])},
+                 'best': names[r['best']] if r['best'] is not None else None,
+                 'worst': names[r['worst']] if r['worst'] is not None else None}
+                for r in self['metrics']['rows']]
+
+    def gap_rows(self) -> list:
+        return [{'cell': g['b'], 'gap': g['total'], 'band': g['band'], **{k: m[k] for k in (
+            'a', 'b', 'role', 'viewpoint_deg', 'rotation_deg', 'distance_m', 'hfov_diff_deg', 'resolution_ratio',
+            'image_pct_a', 'image_pct_b')}} for g in self['gap']['pairs'] for m in g['matches']]
+
+    def save_files(self, out_dir: str) -> list:
+        from .core import cells as CE
+        return [os.path.join(os.fspath(out_dir), n) for n in CE.write_files(dict(self), self._project,
+                                                                            os.fspath(out_dir))]
+
+    def html(self) -> str:
+        from .core import cells as CE
+        return CE.to_html(dict(self))
+
+
+class _Cells:
+    """dv.cells: compare(*cells, reference=0, metrics=None, tolerance_draws=0, seed=1, pooling='auto',
+    variants=False, progress=None) -> CellComparison.
+
+    A cell is a Rig (dv.open, dv.sample), a core Project, a path to a .dexv file or folder, or 'sample:<name>'; the
+    first is the reference unless reference= names another (by number). metrics: metric ids, 'all', or None (the
+    quick figures, core/cells.DEFAULT_METRICS); tolerance_draws ≥ 2 runs the tolerance Monte Carlo on every cell to say
+    which differences exceed the build spread; pooling: 'auto' (a recorded dataset where a cell has one, else its
+    plan), 'plan' or 'recorded'; variants=True adds the first cell's other variants as cells.
+
+    >>> import dexvantage as dv
+    >>> res = dv.cells.compare(dv.sample('so100'), 'sample:so100', metrics=['rig.camera_count'])
+    >>> res.headline['value'], res['pooling']['text']
+    (0.0, 'Every cell pools as is.')
+    """
+
+    def compare(self, *cells, reference: int = 0, metrics=None, tolerance_draws: int = 0, seed: int = 1,
+                pooling: str = 'auto', variants: bool = False, progress=None) -> CellComparison:
+        from .core import cells as CE
+        items = []
+        for c in cells:
+            items += list(c) if isinstance(c, (list, tuple)) else [c]
+        if not items:
+            raise DexVantageError('dv.cells.compare takes two or more cells: Rigs, projects, .dexv paths or '
+                                  '"sample:<name>".')
+        first = CE.make_cells(items[:1])[0]
+        cs = CE.make_cells(items[1:], open_project=first.project, variants=variants)
+        cs[0].source, cs[0].label = first.source, first.label
+        ctx = jobs.Ctx(progress=progress)
+        doc = CE.jsonable(CE.compare(cs, reference, metrics, tolerance_draws, seed, pooling, ctx))
+        _autolog(CE.SID, {'study': CE.SID, **doc}, cs[0].project)     # the first cell's tracking, when on
+        return CellComparison({'study': CE.SID, **doc}, CE.SID, project=cs[0].project)
+
+    def __repr__(self) -> str:
+        return '<dv.cells: compare(*cells, reference=0, metrics=None, tolerance_draws=0, pooling="auto")>'
+
+
+cells = _Cells()
+
+
+# ====================================================================== statistics and power (core/stats.py)
+class _Stats:
+    """dv.stats: tests, effect sizes, corrections and power analysis (core/stats.py, every function of it is here:
+    dv.stats.wilson, .clopper_pearson, .bootstrap_ci, .permutation_test, .welch_t, .mann_whitney,
+    .wilcoxon_signed_rank, .cohens_d, .cliffs_delta, .risk_difference, .odds_ratio, .fisher_exact, .adjust,
+    .power_two_proportions, .power_t, .n_two_proportions, .n_t, .episodes_needed, .demonstrations_needed, ...) and the
+    app's comparisons:
+
+        compare_rates(rows, compare='reference', test='fisher', ...)     -> Result (the 'stats' study)
+        compare_samples(a, b, paired=False, title='', unit='', better='higher', ...) -> Result
+        compare_variants(rig, a=None, b=None, metrics=None, n=32, seed=0, ...)       -> Result (tolerance draws,
+                                                                                         paired by seed)
+        compare_experiment(rig, factor, levels=None, result=None, ...)              -> Result
+        compare_runs(rig, a, b, folder=None, metrics=None, ...)                     -> Result (tracker runs)
+        run(spec, rig=None)                                                         -> Result (a spec dict or file)
+
+    >>> import dexvantage as dv
+    >>> dv.stats.episodes_needed(0.5, 0.8)['n_per_group']
+    44
+    >>> r = dv.stats.compare_rates([('ACT', 14, 20), ('Diffusion', 19, 20)])
+    >>> r.headline['word'], round(r['comparisons'][0]['p'], 4)
+    ('no clear difference', 0.0915)
+    """
+
+    def __getattr__(self, name):
+        if name.startswith('_'):
+            raise AttributeError(name)
+        from .core import stats as ST
+        try:
+            return getattr(ST, name)
+        except AttributeError:
+            raise AttributeError(f'dv.stats has no {name}') from None
+
+    def __dir__(self):
+        from .core import stats as ST
+        return sorted(set(dir(type(self))) | {k for k in dir(ST) if not k.startswith('_')})
+
+    @staticmethod
+    def _run(spec: dict, rig=None, progress=None) -> Result:
+        from .core.studies import stats as SS
+        p = rig.project if isinstance(rig, Rig) else rig
+        doc, snap = SS.run_spec(spec, p, jobs.Ctx(progress=progress))
+        if snap is not None and p is not None:
+            _autolog(SS.SID, doc, snap)                      # the rig's tracking, when on (rates alone have no rig)
+        return Result(doc, SS.SID, project=snap)
+
+    def run(self, spec, rig=None, progress=None) -> Result:
+        """A statistics spec (a dict, JSON text or a spec file: schema dexvantage.stats/1) on rig (None: success
+        counts, samples and the power calculator need no project)."""
+        from .core.studies import stats as SS
+        return self._run(SS.read_spec(spec), rig, progress)
+
+    def compare_rates(self, rows, compare: str = 'reference', test: str = 'fisher', power: dict | None = None,
+                      **settings) -> Result:
+        """rows: [(condition, successes, trials)] or [{'condition', 'successes', 'trials'}]."""
+        rr = [r if isinstance(r, dict) else {'condition': r[0], 'successes': r[1], 'trials': r[2]} for r in rows]
+        spec = {'source': 'rates', 'rates': rr, 'compare': compare, 'rate_test': test, **settings}
+        if power:
+            spec['power'] = power
+        return self._run(spec)
+
+    def compare_samples(self, a, b, paired: bool = False, title: str = 'Value', unit: str = '',
+                        better: str = 'higher', names=('A', 'B'), **settings) -> Result:
+        return self._run({'source': 'samples', 'samples': {'a': list(a), 'b': list(b), 'paired': paired,
+                                                           'title': title, 'unit': unit, 'better': better,
+                                                           'names': list(names)}, **settings})
+
+    def compare_variants(self, rig, a=None, b=None, metrics=None, n: int = 32, seed: int = 0, scale: float = 1.0,
+                         distribution: str = 'uniform', progress=None, **settings) -> Result:
+        """Two variants of rig over the tolerance Monte Carlo with one seed (the draws paired by seed)."""
+        v = {'a': a, 'b': b, 'metrics': list(metrics or []), 'n': n, 'seed': seed, 'scale': scale,
+             'distribution': distribution}
+        return self._run({'source': 'variants', 'variants': {k: x for k, x in v.items() if x not in (None, '')},
+                          **settings}, rig, progress)
+
+    def compare_experiment(self, rig, factor: str, levels=None, result=None, responses=None, progress=None,
+                           **settings) -> Result:
+        """An experiment's runs split by factor's two levels (result: an experiment Result, its dict or a file;
+        default the experiment saved in rig, run)."""
+        ex = {'mode': 'factor', 'factor': factor}
+        if levels is not None:
+            ex['levels'] = list(levels)
+        if result is not None:
+            ex['result'] = dict(result) if isinstance(result, dict) else os.fspath(result)
+        if responses:
+            ex['responses'] = list(responses)
+        return self._run({'source': 'experiments', 'experiment': ex, **settings}, rig, progress)
+
+    def compare_runs(self, rig, a, b, folder: str | None = None, metrics=None, **settings) -> Result:
+        """Tracker runs: a and b each a run id, a list of ids or {'tag': t}."""
+        tr = {'a': a, 'b': b, 'folder': os.fspath(folder) if folder else '', 'metrics': list(metrics or [])}
+        return self._run({'source': 'tracker', 'tracker': tr, **settings}, rig)
+
+    def __repr__(self) -> str:
+        return ('<dv.stats: compare_rates, compare_samples, compare_variants, compare_experiment, compare_runs, run; '
+                'and core/stats (wilson, bootstrap_ci, permutation_test, adjust, episodes_needed, ...)>')
+
+
+stats = _Stats()
+
+
+class _RobotIO:
+    """dv.robot_io: robot files in and out, headless.
+
+        dv.robot_io.convert_usd('arm.usda')          # {'name', 'mjcf', 'meshes', 'notes', 'record'}: a UsdPhysics
+                                                     # articulation as MJCF (core/robot/usd_import.py; needs usd-core)
+        robot = dv.robot_io.add_robot(rig, 'arm.usda')   # import a URDF, MJCF or USD robot into rig (edits rig)
+        dv.robot_io.write_usd(rig, "arm.usda")       # a robot as a UsdPhysics articulation (core/robot/usd_writer)
+        dv.robot_io.openvla_encoding(rig)            # the OXE state / action encodings the OpenVLA export writes
+    """
+
+    def convert_usd(self, path) -> dict:
+        from .core.robot import usd_import as U
+        try:
+            c = U.convert(os.fspath(path))
+        except U.UsdImportError as e:
+            raise DexVantageError(str(e)) from None
+        return {'name': c.name, 'mjcf': c.mjcf, 'meshes': sorted(c.meshes), 'notes': list(c.notes),
+                'record': dict(c.record)}
+
+    def add_robot(self, rig, path, name: str | None = None):
+        """Import the robot file at path (URDF, MJCF or USD) into rig's project (the first robot is primary); the
+        Robot added. Edits rig."""
+        from .core.project import ProjectFormatError
+        from .core.robot import import_robot
+        try:
+            robot, sources = import_robot(os.fspath(path), name)
+        except ProjectFormatError as e:
+            raise DexVantageError(str(e)) from None
+        p = rig.project
+        robot.primary = not p.robots
+        p.robots.append(robot)
+        p.sources.update(sources)
+        return robot
+
+    def write_usd(self, rig, path, robot: str | None = None) -> dict:
+        """Write rig's robot (a name or uid; default the primary) as a UsdPhysics articulation at path."""
+        from .core.robot.model import RobotModelError
+        from .core.robot.usd_import import have_pxr, missing_pxr_message
+        from .core.robot.usd_writer import write_robot_usd
+        if not have_pxr():
+            raise DexVantageError(missing_pxr_message(os.path.basename(os.fspath(path))).replace(
+                'is a USD file, which needs', 'is a USD file: writing it needs'))
+        rs = rig.project.robots
+        r = next((x for x in rs if robot in (x.name, x.uid)), None) if robot else (rig.project.primary_robot or
+                                                                                  (rs[0] if rs else None))
+        if r is None:
+            raise DexVantageError('The rig has no such robot.' if robot else 'The rig has no robot.')
+        try:
+            return write_robot_usd(rig.project, r.uid, os.fspath(path))
+        except RobotModelError as e:
+            raise DexVantageError(str(e)) from None
+
+    def openvla_encoding(self, rig, action_space: str | None = None) -> dict:
+        from .core.exporters.lerobot import openvla_encoding
+        return openvla_encoding(rig.project, action_space)
+
+    def __repr__(self) -> str:
+        return '<dv.robot_io: convert_usd, add_robot, write_usd, openvla_encoding>'
+
+
+robot_io = _RobotIO()

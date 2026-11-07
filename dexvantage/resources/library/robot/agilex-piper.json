@@ -19,6 +19,16 @@
     }
   ],
   "note": "piper.xml includes the parallel gripper (joint7, joint8); they are not counted in the arm's DoF.",
+  "price": {
+    "amount": 1999,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://global.agilex.ai/products/piper-6-dof-robotic-arm",
+    "read": "2026-11-07",
+    "region": "global store (USD)",
+    "what": "AgileX global store, product 'PiPER' (handle piper-6-dof-robotic-arm) 1999.00 USD; read from the store's product data (https://global.agilex.ai/products.json) on the date read"
+  },
   "imagers": [],
   "streams": [],
   "robot": {

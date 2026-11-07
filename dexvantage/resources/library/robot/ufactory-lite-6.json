@@ -19,6 +19,30 @@
     }
   ],
   "note": "No joint ranges, control rate or interfaces are stated as figures on the product page.",
+  "price": {
+    "amount": 2999,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.shop.ufactory.cc/products/lite-6",
+    "read": "2026-11-07",
+    "region": "global store (USD)",
+    "what": "UFACTORY Global Store, variant 'Robot arm only' (SKU L60001) 2999.00 USD; the product page says 'Price from US$ 2,999'; read from the store's product data (https://www.shop.ufactory.cc/products.json) on the date read",
+    "options": [
+      {
+        "label": "With Gripper Lite (L60003)",
+        "amount": 3279
+      },
+      {
+        "label": "With Vacuum Gripper Lite (L60002)",
+        "amount": 3359
+      },
+      {
+        "label": "With Vacuum Gripper Lite + Gripper Lite (L60004)",
+        "amount": 3639
+      }
+    ]
+  },
   "imagers": [],
   "streams": [],
   "robot": {

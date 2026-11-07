@@ -17,7 +17,7 @@ It is the sibling of Vantage, the sensor-rig planner for autonomous-driving data
 language and engineering standards: every number comes from a model that a validation check compares with an
 independent reference, and every export carries a provenance block.
 
-> **Status: Phases 0–10 of 12, with research tools part 1.** Robots import from URDF, MJCF and MuJoCo Menagerie, with
+> **Status: Phases 0–10 of 12, with research tools parts 1 and 2.** Robots import from URDF, MJCF and MuJoCo Menagerie, with
 > forward and inverse kinematics, six bundled samples (SO-100, UR5e + Robotiq 2F-85, UR5e + Shadow Hand, ALOHA 2, two
 > Franka Pandas, the Unitree G1 upper body) and a catalogue of 53 robots; a datasheet library of 138 cameras, depth
 > cameras, tactile sensors, hosts and capture cards, cables, lights, teleop devices and robot-learning policies;
@@ -29,8 +29,10 @@ independent reference, and every export carries a provenance block.
 > requirements and the readiness scorecard (a CI gate), Monte Carlo tolerances, designed experiments, an NSGA-II
 > optimiser and design agent; exporters to MuJoCo, ROS 2, OpenCV and Kalibr, Isaac Lab, LeRobot and an HTML/PDF
 > report, the canonical view warp and the Rerun bridge; the Assistant dock and an MCP server; a Python API, plugins,
-> project diff and merge, a Git folder form, citations and publication figures. Packaging and the website (Phase 11)
-> are next. See [docs/BUILD_STATE.md](docs/BUILD_STATE.md).
+> project diff and merge, a Git folder form, citations and publication figures; an experiment tracker (MLflow and W&B
+> exports), statistics and power analysis, a data-collection campaign planner, the sim-to-real gap, a publication kit,
+> cluster sweeps (process pool and Slurm), a multi-cell comparison, the USD robot import and cited prices. Packaging
+> and the website (Phase 11) are next. See [docs/BUILD_STATE.md](docs/BUILD_STATE.md).
 
 ## Install (from source)
 
@@ -64,6 +66,12 @@ dexvantage --sample ur5e --export out/ --formats mjcf,urdf,opencv_yaml,isaac,ler
 dexvantage --sample aloha --coverage cov.json      # the new samples: aloha, panda-bimanual, g1
 dexvantage a.dexv --diff b.dexv                    # what changed between two projects
 python -m dexvantage.mcp cell.dexv                 # the MCP server for an MCP client
+dexvantage cell.dexv --coverage cov.json --track runs/   # log the run in the experiment tracker
+dexvantage --stats spec.json                       # statistics and power analysis from a spec
+dexvantage --sample aloha --campaign spec.json     # a data-collection campaign plan (CSV, .ics, HTML)
+dexvantage --sample so100 --experiment design.json --jobs 4    # a designed experiment on 4 processes
+dexvantage --cells sample:so100 sample:ur5e sample:aloha       # several robot cells side by side
+dexvantage --sample ur5e --export out/ --formats paper_kit     # methods, tables, figures, BibTeX
 python -c "import dexvantage as dv; print(dv.sample('ur5e').run('coverage').headline)"
 dexvantage --self-test              # check this installation without a window
 dexvantage cell.dexv --analyse -    # the project summary as JSON, with provenance
@@ -121,16 +129,28 @@ python -m pytest tests              # the tests (offscreen)
 | Optimiser and design agent (`--optimise`, `--design-agent`): NSGA-II over metric objectives | done | ZDT1, ZDT2 IGD 0.005 (0.01); CONSTR 0.021 (0.05) |
 | Exporters (`--export`): MJCF, URDF and tf, OpenCV and Kalibr, masks, Plücker, brackets, Isaac Lab and USD, LeRobot and policy configs, report, perturbations, canonical warp | done | URDF through MuJoCo 1.1 × 10⁻¹⁵ m; USD through pxr 2.6 × 10⁻⁵ px; masks against ray casting 0 pixels |
 | Canonical view warp (`--canonical-view`), Rerun bridge (`--rerun`) | done | plane points 2.3 × 10⁻¹³ px; `.rrd` read back 4.8 × 10⁻⁵ px |
-| Assistant dock (Claude or Groq, keys in the keyring, number check, proposals, approved plans) and MCP server (30 tools) | done | MCP conformance 0 nonconformities; number check 0 of 25 wrong |
+| Assistant dock (Claude or Groq, keys in the keyring, number check, proposals, approved plans) and MCP server (39 tools) | done | MCP conformance 0 nonconformities; number check 0 of 25 wrong |
 | Python API (`import dexvantage as dv`), plugin SDK, project diff and merge, Git folder form, BibTeX, publication figures | done | folder round trip byte-identical; 8 of 8 merge cases |
-| Validation suite | 177 checks | 177 of 177 pass |
+| Experiment tracker (`--track`, Analysis ▸ Runs): runs with settings, figures and provenance; compare, re-run; CSV, Parquet, MLflow, W&B | done | 8 writers × 100 runs: 0 lost; read back by MLflow's client: 0 of 80 fields differ |
+| Statistics and power analysis (`--stats`, Analysis ▸ Statistics) | done | against SciPy 8.9 × 10⁻¹⁶; G*Power manual 4.6 × 10⁻⁷; Cohen (1992) Table 2 within 1 per group |
+| Data-collection campaign planner (`--campaign`, Data ▸ Campaign): Williams-square schedules, storage, calendar | done | 40 seeded campaigns: 0 balance violations; 34 calendar events through RFC 5545: 0 |
+| Sim-to-real gap (`--sim2real`, Data ▸ Sim-to-real gap) | done | four injected gaps recovered and ranked first (worst 0.68 of tolerance) |
+| Publication kit (`--formats paper_kit`, Export ▸ Paper kit…) | done | every number traced: 0 of 60 table cells off |
+| Cluster sweeps (`--jobs N`, `--slurm`, `--run-shard`, `--gather`) | done | gathered shards against the serial run: 0 values differ |
+| Multi-cell comparison (`--cells`, File ▸ Compare cells…) | done | known rotation and shift 3.6 × 10⁻¹⁴ °, 2.8 × 10⁻¹⁴ mm |
+| USD robot import, URDF inertials, OpenVLA encodings, Isaac principal point | done | third-party USD UR5e against the sample 2.6 × 10⁻⁸ m |
+| Cited prices: 81 of 191 library entries, `rig.cost` | done | rig cost against the entries added up again: 0 USD |
+| Validation suite | 232 checks | 232 of 232 pass |
 | Packaging, website, Gaussian splatting | Phases 11–12 | — |
 
 ## Known limits
 
 Exporters: Isaac Lab, Isaac Sim, LeRobot, Kalibr and FiftyOne were not run on DexVantage's files (their formats
 follow the cited sources). Assistant: no request was sent to a live API while building it (the tests use a fake
-provider). No library entry states a price, so rig cost reads "not stated". Lighting: saturation is relative to an auto-exposure until you
+provider). Prices: 81 library entries state a cited list price; the rest read "not stated", and the rig cost
+counts the sensors only. Research tools: the tracker keeps a run's project hash, not the project; statistics are
+fixed-sample tests (no sequential testing); the sim-to-real render is MuJoCo's shading of the project's model;
+cluster sweeps run on Slurm only. Lighting: saturation is relative to an auto-exposure until you
 enter a sensor's sensitivity (no maker in the library states one). Timing: no maker states a readout time or a
 device's processing latency, so smear, skew and sync figures are bounds until you enter measured ones. Data: LeRobot's
 own loader and FiftyOne's importer have not been run on DexVantage's files. Grasps: the fingers stay at their home opening and obstacles are not checked along
@@ -139,7 +159,7 @@ the approach; the dexterous-hand postures are sample sweeps, not measured synerg
 models fitted to the stated FOV until you calibrate a unit; defocus is computed only where a lens's focus distance
 and f-number are stated or entered; sensor housings do not occlude.
 Robots: xacro must be expanded to URDF
-first and USD is not read; mimic joints and the 2F-85's linkage move independently; free and ball joints are held at
+first and a USD file holds one articulation (drives, loops and couplings are not imported); mimic joints and the 2F-85's linkage move independently; free and ball joints are held at
 the home pose; the gripper frame must be a link. The G1 sample's legs are held at its stand pose.
 
 ## Licence and citation

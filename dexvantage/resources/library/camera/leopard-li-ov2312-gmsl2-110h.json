@@ -12,7 +12,17 @@
       "covers": "sensor, optical format, resolution, pixel size, shutter, output, power supply range, lens (EFL, F/#, FOV H and V, filter), connector, size, mass, USB 3.0 kit frame rate"
     }
   ],
-  "note": "An RGB-IR global-shutter GMSL2 camera (OmniVision OV2312, 650 nm + 940 nm dual-band filter), for in-cabin monitoring in the maker's words; listed for wide RGB plus NIR views. The 110H lens: EFL 2.666 mm, F/2.4, FOV 110 degrees (H) x 87 degrees (V), M12. The FOV is taken to refer to the full 1600 x 1300 array (not said). The lens model is pinhole, a labelled assumption: with 3.0 um pixels the stated EFL gives 889 px, for which a pinhole would show about 84 degrees across 1600 px, not the stated 110, so the lens has strong barrel distortion the maker does not state; calibrate a unit. The only frame rate stated is through Leopard's USB 3.0 kit (LI-USB30-OV2312-GMSL2-xxxH): 1600 x 1300 @ 30 fps, 10-bit RAW; the GMSL2 frame rate is not stated. power_w is null: only the supply range (9 to 19 V) is stated, and the USB kit's consumption is \"TBD\". size_mm is the stated 30 (L) x 30 (W) x 29.2 (D) mm, entered as [29.2, 30, 30] with D along the optical axis. The role is rgb (the sensor is RGB-IR). IPX9K.",
+  "note": "An RGB-IR global-shutter GMSL2 camera (OmniVision OV2312, 650 nm + 940 nm dual-band filter), for in-cabin monitoring in the maker's words; listed for wide RGB plus NIR views. The 110H lens: EFL 2.666 mm, F/2.4, FOV 110 degrees (H) x 87 degrees (V), M12. The FOV is taken to refer to the full 1600 x 1300 array (not said). The lens model is pinhole, a labelled assumption: with 3.0 um pixels the stated EFL gives 889 px, for which a pinhole would show about 84 degrees across 1600 px, not the stated 110, so the lens has strong barrel distortion the maker does not state; calibrate a unit. The only frame rate stated is through Leopard's USB 3.0 kit (LI-USB30-OV2312-GMSL2-xxxH): 1600 x 1300 @ 30 fps, 10-bit RAW; the GMSL2 frame rate is not stated. power_w is null: only the supply range (9 to 19 V) is stated, and the USB kit's consumption is \"TBD\". size_mm is the stated 30 (L) x 30 (W) x 29.2 (D) mm, entered as [29.2, 30, 30] with D along the optical axis. The role is rgb (the sensor is RGB-IR). IPX9K. FOV consistency: the maker's angles disagree with the lens geometry by up to 2.92°: on the 1600 × 1300 image a centred lens without pincushion distortion keeps the horizontal angle (110°) at most the vertical angle × W / H (107.1°). That is within the makers' stated FOV tolerance of about ±3° and their rounding (validation check library.fov_shape), so the angles are kept as stated.",
+  "price": {
+    "amount": 489,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://leopardimaging.com/product/automotive-cameras/cameras-by-interface/adi-gmsl2-cameras/li-ov2312-gmsl2/li-ov2312-gmsl2-110h/",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer 489.00 USD, on back order on the date read"
+  },
   "interface": "GMSL2 (FAKRA Z); 10-bit RAW",
   "power_w": null,
   "mass_g": 45.0,

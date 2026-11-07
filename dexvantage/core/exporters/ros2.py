@@ -32,10 +32,28 @@ is 'continuous' (a slide without limits cannot be written in URDF and is refused
 effort and velocity; when the robot's records do not state them they are written as 0 and the notes say so (set them
 before giving the file to a controller or a planner).
 
-Known limits: no inertials (kinematics only: DexVantage does not use mass, and the figures are not stated by every
-file) and no collision geometry; MuJoCo's equality constraints and URDF mimic joints are not written (each joint is
-independent, as in DexVantage); materials are one colour per link; a URDF link that MuJoCo merged into its parent is
-written on a fixed joint at its recorded offset.
+Inertials. Each link that is a MuJoCo body gets an <inertial> from the robot's compiled MuJoCo model: mass
+body_mass, origin xyz body_ipos (the centre of mass in the body frame, which is the link frame) with rpy 0, and the
+full inertia tensor about the centre of mass in the link's axes, I = R diag(body_inertia) Rᵀ with R the rotation of
+body_iquat (MuJoCo's principal axes; MuJoCo's URDF compiler diagonalises the tensor again when it reads it). A
+comment in each <inertial> says where the figures come from (inertial_sources): the robot's file (an <inertial>
+element), or MuJoCo's computation from the file's geoms (an MJCF body without an <inertial>: the geoms' mass or
+density as the file states, else MuJoCo's default density of 1000 kg/m³). A link with no mass in the robot's files
+(a URDF link without <inertial>, the extra joint-anchor links, the sensor and optical frames) gets MIN_MASS and
+MIN_INERTIA, a stated minimal placeholder labelled as such in the file, not a figure of the robot: MuJoCo refuses a
+moving body without mass ("mass and inertia of moving bodies must be larger than mjMINVAL"), and 10⁻⁶ kg changes no
+total mass by more than rounding. The file carries a MuJoCo <mujoco><compiler angle="radian" meshdir="meshes/"
+strippath="true" discardvisual="false" fusestatic="false"/></mujoco> element (MuJoCo's URDF extension, modeling.rst
+"URDF extensions", read 2026-11-07: with the element present the compiler's angle and strippath are stated, not left
+to the URDF defaults; urdfdom ignores unknown elements), so mujoco.MjModel.from_xml_path loads rig.urdf as written,
+finds its meshes and keeps every sensor frame as a body; formats.urdf_mujoco checks that it loads unchanged and that
+the sensor frames and inertials match.
+
+Known limits: no collision geometry (MuJoCo shows the visual meshes, which do not collide); MuJoCo's equality
+constraints and URDF mimic joints are not written (each joint is independent, as in DexVantage); materials are one
+colour per link; a URDF link that MuJoCo merged into its parent is written on a fixed joint at its recorded offset,
+with the minimal inertial (its mass is in the body it was merged into); a sensor link carries the minimal inertial,
+not the device's mass.
 """
 from __future__ import annotations
 
@@ -53,6 +71,15 @@ URDF = 'ros2/rig.urdf'
 LAUNCH = 'ros2/static_transforms.launch.py'
 TREE = 'ros2/tf_tree.yaml'
 MESHES = 'ros2/meshes'
+MIN_MASS = 1e-6                     # kg: the stated minimal placeholder of a link without mass (module docstring)
+MIN_INERTIA = 1e-9                  # kg·m², on the diagonal
+MUJOCO_BLOCK = ('  <mujoco>\n    <compiler angle="radian" meshdir="meshes/" strippath="true" discardvisual="false" '
+                'fusestatic="false"/>\n  </mujoco>')
+SOURCE_TEXT = {'file': 'from the robot\'s file (its inertial element)',
+               'geoms': 'computed by MuJoCo from the robot file\'s geoms (their mass or density as the file states, '
+                        'else MuJoCo\'s default density of 1000 kg/m3)',
+               'none': f'a minimal placeholder ({MIN_MASS:g} kg, {MIN_INERTIA:g} kg m2 on the diagonal), not a figure '
+                       'of the robot: its files state no mass for this link'}
 
 
 def _T(R=None, t=None) -> np.ndarray:
@@ -98,11 +125,14 @@ class _Urdf:
     def __init__(self):
         self.links, self.joints, self.names = [], [], set()
 
-    def link(self, name: str, visual: str = ''):
+    def link(self, name: str, visual: str = '', inertial: str | None = None):
+        """A link; inertial: its <inertial> text, None for the minimal placeholder, '' for none (the root)."""
         if name in self.names:
             raise StudyError(f'Two frames of the rig would be named {name} in the URDF: rename a sensor.')
         self.names.add(name)
-        self.links.append(f'  <link name={quoteattr(name)}>{visual}</link>' if visual else
+        body = (inertial_xml(MIN_MASS, np.zeros(3), np.eye(3) * MIN_INERTIA, 'none') if inertial is None
+                else inertial) + (visual or '')
+        self.links.append(f'  <link name={quoteattr(name)}>{body}</link>' if body else
                           f'  <link name={quoteattr(name)}/>')
 
     def joint(self, name, kind, parent, child, T, axis=None, limit=None):
@@ -114,8 +144,64 @@ class _Urdf:
         self.joints.append(f'  <joint name={quoteattr(name)} type="{kind}">\n' + '\n'.join(body) + '\n  </joint>')
 
     def text(self, name: str, header: str) -> str:
-        return (f'<?xml version="1.0"?>\n{header}\n<robot name={quoteattr(name)}>\n' + '\n'.join(self.links) + '\n'
-                + '\n'.join(self.joints) + '\n</robot>\n')
+        return (f'<?xml version="1.0"?>\n{header}\n<robot name={quoteattr(name)}>\n{MUJOCO_BLOCK}\n'
+                + '\n'.join(self.links) + '\n' + '\n'.join(self.joints) + '\n</robot>\n')
+
+
+def inertial_xml(mass: float, com, I, source: str) -> str:
+    """An <inertial> element: origin at the centre of mass com (link frame, rpy 0), the full tensor I (3 × 3, about
+    the centre of mass, link axes), and a comment saying where the figures come from (SOURCE_TEXT)."""
+    I = np.asarray(I, float)
+    I = (I + I.T) / 2
+    v = {'ixx': I[0, 0], 'ixy': I[0, 1], 'ixz': I[0, 2], 'iyy': I[1, 1], 'iyz': I[1, 2], 'izz': I[2, 2]}
+    return (f'\n    <inertial>\n      <!-- inertial: {SOURCE_TEXT[source]} -->\n'
+            f'      <origin xyz="{" ".join(C.fmt(x) for x in np.asarray(com, float))}" rpy="0 0 0"/>\n'
+            f'      <mass value="{C.fmt(mass)}"/>\n'
+            '      <inertia ' + ' '.join(f'{k}="{C.fmt(x)}"' for k, x in v.items()) + '/>\n    </inertial>\n  ')
+
+
+def inertial_sources(project, robot, rm) -> list:
+    """Per MuJoCo body of the robot's compiled model: 'file' (the file states an inertial for it), 'geoms' (an MJCF
+    body whose mass MuJoCo computes from its geoms: no inertial and inertiafromgeom auto, or inertiafromgeom true) or
+    'none' (no mass in the files; a URDF link without <inertial> is massless, whatever its geoms). Read from the
+    robot's stored file through mujoco.MjSpec (parsing only); body 0, the world, is 'none'."""
+    import mujoco
+    from ..robot.model import _Resolver
+    m = rm.m
+    out = ['none'] * m.nbody
+    try:
+        if robot.source.kind == 'mjcf':
+            res = _Resolver(robot, project.sources)
+            incs = {k[len('include:'):]: project.sources[res.prefix + rel] for k, rel in res.refs.items()
+                    if k.startswith('include:') and res.prefix + rel in project.sources}
+            spec = mujoco.MjSpec.from_string(project.sources[robot.source.file].decode('utf-8'), include=incs)
+        else:
+            spec = mujoco.MjSpec.from_string(project.sources[robot.source.file].decode('utf-8'))
+    except Exception:                                  # noqa: BLE001 — then nothing is taken as stated
+        return out
+    IG = mujoco.mjtInertiaFromGeom
+    always = spec.compiler.inertiafromgeom == IG.mjINERTIAFROMGEOM_TRUE
+    never = spec.compiler.inertiafromgeom == IG.mjINERTIAFROMGEOM_FALSE or robot.source.kind != 'mjcf'
+    by_name = {b.name: b for b in spec.bodies if b.name}
+    for b in range(1, m.nbody):
+        sb = by_name.get(m.body(b).name)
+        if sb is None or m.body_mass[b] <= 0:
+            continue
+        if sb.explicitinertial and not always:
+            out[b] = 'file'
+        elif not never and len(sb.geoms) > 0:
+            out[b] = 'geoms'
+    return out
+
+
+def body_inertial(rm, b: int, source: str) -> str:
+    """The <inertial> of MuJoCo body b (module docstring); the minimal placeholder when source is 'none'."""
+    m = rm.m
+    if source == 'none':
+        return inertial_xml(MIN_MASS, np.zeros(3), np.eye(3) * MIN_INERTIA, 'none')
+    R = quat_to_matrix(quat_from_mujoco(m.body_iquat[b]))
+    return inertial_xml(float(m.body_mass[b]), np.asarray(m.body_ipos[b], float),
+                        R @ np.diag(np.asarray(m.body_inertia[b], float)) @ R.T, source)
 
 
 def _records(robot) -> dict:
@@ -152,6 +238,7 @@ def robot_urdf(U: _Urdf, project, robot, prefix: str, out_dir: str, options: dic
             meshes.setdefault(ln, []).append((V, F, rgba))
     pkg = str(options.get('package') or '').strip()
     no_lim, no_eff = [], []
+    src = inertial_sources(project, robot, rm)
     for b in range(1, m.nbody):
         own = rm.body_link[b]
         vis = ''
@@ -170,7 +257,7 @@ def robot_urdf(U: _Urdf, project, robot, prefix: str, out_dir: str, options: dic
             vis = (f'\n    <visual>\n      <origin xyz="0 0 0" rpy="0 0 0"/>\n      <geometry><mesh filename='
                    f'{quoteattr(uri)}/></geometry>\n      <material name={quoteattr(lname[b] + "_colour")}><color '
                    f'rgba="{" ".join(C.fmt(round(float(v), 4)) for v in c)}"/></material>\n    </visual>\n  ')
-        U.link(lname[b], vis)
+        U.link(lname[b], vis, body_inertial(rm, b, src[b]))
         pb = int(m.body_parentid[b])
         base = robot.base.matrix() if pb == 0 else np.eye(4)
         jids = [int(m.body_jntadr[b]) + k for k in range(int(m.body_jntnum[b]))] if m.body_jntnum[b] > 0 else []
@@ -236,6 +323,14 @@ def robot_urdf(U: _Urdf, project, robot, prefix: str, out_dir: str, options: dic
                      'controller or a planner.')
     if no_lim:
         notes.append(f'{robot.name}: {", ".join(no_lim)} have no finite limits and are written as continuous joints.')
+    geo = [rm.body_link[b] for b in range(1, m.nbody) if src[b] == 'geoms']
+    none = [rm.body_link[b] for b in range(1, m.nbody) if src[b] == 'none']
+    if geo:
+        notes.append(f'{robot.name}: the mass and inertia of {", ".join(geo)} are MuJoCo\'s computation from the '
+                     'file\'s geoms (the file gives those bodies no inertial).')
+    if none:
+        notes.append(f'{robot.name}: {", ".join(none)} have no mass in the robot\'s files, so their inertial is the '
+                     f'minimal placeholder ({MIN_MASS:g} kg), labelled as such in the file.')
     return {ln: prefix + ln for ln in rm.link_names}
 
 
@@ -292,7 +387,7 @@ def export_urdf(project, out_dir, options, ctx):
     cams = C.rig_cameras(project, q)
     files, notes = [], []
     U = _Urdf()
-    U.link(C.WORLD)
+    U.link(C.WORLD, inertial='')
     many = len(project.robots) > 1
     link_map = {}
     from ..robot.model import RobotModelError
@@ -314,8 +409,8 @@ def export_urdf(project, out_dir, options, ctx):
             U.link(child)
         U.joint(f'{parent}_to_{child}', 'fixed', parent, child, T)
     header = (f'<!-- DexVantage rig of the project "{project.name}", rig variant "{project.variant.name}": the robots '
-              'and every sensor\'s link and optical frames (REP-103). Kinematics only: no inertials, no collision '
-              'geometry. -->')
+              'and every sensor\'s link and optical frames (REP-103), with each link\'s mass and inertia from the '
+              'robot\'s MuJoCo model (a comment in each inertial says where it comes from); no collision geometry. -->')
     files.insert(0, C.write_text(out_dir, URDF, U.text(C.frame_name(project.name) or 'dexvantage_rig', header)))
     if frames:
         h = (f'Static transforms of the DexVantage rig "{project.name}" ({project.variant.name}): every sensor body '
@@ -335,4 +430,6 @@ def export_urdf(project, out_dir, options, ctx):
     elif not str(options.get('package') or '').strip():
         notes.append('Meshes are referenced as meshes/… relative to rig.urdf; set the package option to write '
                      'package://<package>/meshes/… for RViz.')
+    notes.append('Sensor and optical frames carry the minimal inertial placeholder; rig.urdf holds a <mujoco> compiler '
+                 'element so MuJoCo loads it as written (mujoco.MjModel.from_xml_path) with every frame kept.')
     return {'files': files, 'notes': list(dict.fromkeys(notes))}

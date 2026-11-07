@@ -5,6 +5,7 @@ code, and OpenVLA's observation keys.
 
     @exporter('lerobot', 'LeRobot, ACT, Diffusion Policy and OpenVLA configs', ...)
     options: policy (a policy uid; default every policy of the project), repo_id (default 'local/<project>'),
+             action_space ('joint' or 'eef': the dataset's action for the OpenVLA encodings; default below),
              dataset_root (default None: LeRobot's own cache), fps (the dataset's frame rate; default the policy's
              control rate, else the fastest camera, else 30 fps, a default), device (default None: LeRobot picks)
 
@@ -48,7 +49,18 @@ Sources, each read on 2026-11-07:
   action").
 - OpenVLA, https://github.com/openvla/openvla at commit c8f03f48af692657d3060c19588038c7220e9af9:
   prismatic/vla/datasets/rlds/oxe/configs.py (OXE_DATASET_CONFIGS: image_obs_keys primary / secondary / wrist,
-  depth_obs_keys, state_obs_keys, StateEncoding, ActionEncoding).
+  depth_obs_keys, state_obs_keys, StateEncoding L33-40, ActionEncoding L44-50) and materialize.py L32-33 (the loader
+  takes EEF_POS and EEF_R6 actions only).
+- OpenVLA-OFT, https://github.com/moojink/openvla-oft at commit e4287e94541f459edc4feabc4e181f537cd569a8: the same
+  configs.py L681-687 (the ALOHA entries: JOINT_BIMANUAL, JOINT_POS_BIMANUAL, image keys primary, secondary,
+  left_wrist, right_wrist) and materialize.py L32-33, L43-45 (JOINT_POS_BIMANUAL accepted, all 14 values absolute).
+
+**OpenVLA encodings** (openvla_encoding): the target is OpenVLA-OFT when a project policy is an OpenVLA-OFT entry,
+else OpenVLA. Action space: the option action_space ('joint' or 'eef'), else the OpenVLA policy's stored
+overrides['action_space'], else 'joint' (a default: the dataset records joint positions). 'eef' on one arm is
+POS_EULER / EEF_POS; 'joint' on two arms is JOINT_BIMANUAL / JOINT_POS_BIMANUAL, which fits when each arm has 6 arm
+joints and a gripper (one open/close value) and the target is OpenVLA-OFT; 'joint' on one arm is JOINT / JOINT_POS,
+which neither loader accepts. When nothing fits, the nearest encoding is written and the file and the notes say so.
 
 **Recommendations (§7.13).** A policy's stored recommendations (Policy.recommendations, the action-chunk study's
 Apply) go where each framework has a place for them: temporal_ensemble_m -> ACTConfig.temporal_ensemble_coeff (the
@@ -69,8 +81,10 @@ against the cited sources by parsing (formats.lerobot_info: info.json read back 
 after a write with the same features; the train config's keys against the dataclass fields read from the pinned
 source), not by running those trainers; state and action are the robots' actuated joints (an end-effector action
 space is not written); the OpenVLA entry assumes an RLDS dataset whose observation keys are the camera names and
-'joint_state'; the released OpenVLA model reads the primary image only; ACT supports one image shape for every
-camera, and a rig whose cameras differ is said to need a resize.
+'joint_state', its encodings are chosen by openvla_encoding (the rig's arms and gripper joints, the action space; the
+notes and the file say when no encoding of the pinned source fits) but the dataset's own arrays are not converted
+(one gripper value per arm, end-effector deltas); the released OpenVLA model reads the primary image only; ACT
+supports one image shape for every camera, and a rig whose cameras differ is said to need a resize.
 """
 from __future__ import annotations
 
@@ -89,6 +103,27 @@ LEROBOT_URL = 'https://github.com/huggingface/lerobot'
 ACT_URL, ACT_COMMIT = 'https://github.com/tonyzhaozh/act', '742c753c0d4a5d87076c8f69e5628c79a8cc5488'
 DP_URL, DP_COMMIT = 'https://github.com/real-stanford/diffusion_policy', '5ba07ac6661db573af695b419a7947ecb704690f'
 OPENVLA_URL, OPENVLA_COMMIT = 'https://github.com/openvla/openvla', 'c8f03f48af692657d3060c19588038c7220e9af9'
+OFT_URL, OFT_COMMIT = 'https://github.com/moojink/openvla-oft', 'e4287e94541f459edc4feabc4e181f537cd569a8'
+# the lines the OpenVLA encoding choice rests on, at the pinned commits (read 2026-11-07)
+OPENVLA_LINES = {
+    'state_enum': 'OpenVLA c8f03f4 prismatic/vla/datasets/rlds/oxe/configs.py L33-40 (StateEncoding: NONE, '
+                  'POS_EULER, POS_QUAT, JOINT "Joint Angles (7, <PAD> if fewer) + Gripper Open/Close (1)", '
+                  'JOINT_BIMANUAL "2 x [ Joint Angles (6) + Gripper Open/Close (1) ]")',
+    'action_enum': 'OpenVLA c8f03f4 prismatic/vla/datasets/rlds/oxe/configs.py L44-50 (ActionEncoding: EEF_POS '
+                   '"EEF Delta XYZ (3) + Roll-Pitch-Yaw (3) + Gripper Open/Close (1)", JOINT_POS "Joint Delta '
+                   'Position (7) + Gripper", JOINT_POS_BIMANUAL, EEF_R6)',
+    'loader': 'OpenVLA c8f03f4 prismatic/vla/datasets/rlds/oxe/materialize.py L32-33 (make_oxe_dataset_kwargs: '
+              '"only EEF_POS & EEF_R6 actions supported!")',
+}
+OFT_LINES = {
+    'loader': 'OpenVLA-OFT e4287e9 prismatic/vla/datasets/rlds/oxe/materialize.py L32-33 ("only EEF_POS & EEF_R6 '
+              '& JOINT_POS_BIMANUAL actions supported!") and L43-45 (JOINT_POS_BIMANUAL: absolute_action_mask '
+              '[True] * 14: absolute joint positions)',
+    'aloha': 'OpenVLA-OFT e4287e9 prismatic/vla/datasets/rlds/oxe/configs.py L39, L48 (the same enums) and '
+             'L681-687 (aloha1_fold_shorts_20_demos: image_obs_keys primary, secondary, left_wrist, right_wrist; '
+             'StateEncoding.JOINT_BIMANUAL; ActionEncoding.JOINT_POS_BIMANUAL)',
+}
+ACTION_SPACES = ('joint', 'eef')        # the dataset's action: joint positions (what this export writes) or EEF deltas
 SOURCE_READ = '2026-11-07'
 DEFAULT_FPS = 30                    # a default of DexVantage when nothing states a rate
 ACT_K_DEFAULT = 0.01                # ACT imitate_episodes.py, k = 0.01 (the official code's constant)
@@ -359,6 +394,122 @@ def _roles(streams: list) -> dict:
             'wrist': base(wrist[0]) if wrist else None}
 
 
+def _arm_split(project) -> list:
+    """[(robot, arm joints, gripper joints)] per robot whose model compiles; gripper joints are the records marked
+    'gripper' (the import wizard's Joints step)."""
+    from ..robot.model import RobotModelError, get_model
+    out = []
+    for r in project.robots:
+        try:
+            m = get_model(project, r.uid)
+        except RobotModelError:
+            continue
+        g = {j.get('name') for j in r.joints if isinstance(j, dict) and j.get('gripper')}
+        out.append((r, [n for n in m.joint_names if n not in g], [n for n in m.joint_names if n in g]))
+    return out
+
+
+def openvla_encoding(project, action_space: str | None = None) -> dict:
+    """The OXE state and action encodings for a dataset recorded with this rig, chosen from the project (docs/models/
+    exporters_openvla.md): {'target' 'openvla' | 'openvla-oft', 'state_encoding', 'action_encoding' (enum member
+    names), 'bimanual', 'fits' (the target's loader accepts the action encoding and the rig fits its layout), 'why'
+    [sentences], 'action_space', 'action_space_source', 'source' {url, commit, lines}}.
+
+    The action space is the export option action_space ('joint' or 'eef'), else the OpenVLA policy's stored
+    overrides['action_space'] value, else 'joint' (a default: the LeRobot export records joint positions). The target
+    is OpenVLA-OFT when a project policy is an OpenVLA-OFT entry, else OpenVLA. The rules are those of the pinned
+    sources (OPENVLA_LINES, OFT_LINES): one arm with at most 7 arm joints and one gripper value is the JOINT layout;
+    two arms with 6 arm joints and one gripper value each the JOINT_BIMANUAL / JOINT_POS_BIMANUAL layout; OpenVLA's
+    loader takes EEF_POS and EEF_R6 actions only, OpenVLA-OFT's also JOINT_POS_BIMANUAL (absolute positions)."""
+    pols = list(getattr(project, 'policies', []) or [])
+    ov = next((p for p in pols if str(p.library_id).startswith('openvla')), None)
+    oft = any(str(p.library_id).startswith('openvla-oft') for p in pols)
+    src = 'the export option action_space'
+    if action_space is None:
+        stored = (ov.overrides.get('action_space') or {}).get('value') if ov is not None else None
+        if stored is not None:
+            action_space, src = str(stored), f'the policy {ov.name}\'s stored action_space'
+        else:
+            action_space, src = 'joint', 'a default: the LeRobot export records joint positions as the action'
+    action_space = str(action_space).strip().lower()
+    if action_space not in ACTION_SPACES:
+        raise StudyError(f'The OpenVLA action space must be "joint" or "eef", not "{action_space}".')
+    arms = _arm_split(project)
+    target = 'openvla-oft' if oft else 'openvla'
+    lines = dict(OPENVLA_LINES, **({'oft_' + k: v for k, v in OFT_LINES.items()} if oft else {}))
+    why, fits = [], True
+    bimanual = len(arms) == 2
+    layout = ', '.join(f'{r.name}: {len(a)} arm joint{"s" if len(a) != 1 else ""} + '
+                       f'{"one gripper value" if g else "no gripper"}' for r, a, g in arms)
+    if any(len(g) > 1 for _r, _a, g in arms):
+        why.append('The encodings take one gripper open/close value per arm: record the gripper joints ('
+                   + '; '.join(f'{r.name}: {len(g)}' for r, _a, g in arms if len(g) > 1) + ') as one value.')
+    if action_space == 'eef':
+        state, action = 'POS_EULER', 'EEF_POS'
+        if bimanual or len(arms) != 1:
+            fits = False
+            why.append(f'The rig has {len(arms)} arms; neither source has a bimanual end-effector encoding '
+                       '(EEF_POS is one arm\'s delta XYZ + roll-pitch-yaw + gripper): no encoding fits, so EEF_POS '
+                       'is written as the nearest.')
+        else:
+            why.append('EEF_POS (end-effector delta XYZ + roll-pitch-yaw + gripper) is accepted by the loader; the '
+                       'dataset must record those deltas (DexVantage\'s LeRobot files record joint positions).')
+    elif bimanual:
+        state, action = 'JOINT_BIMANUAL', 'JOINT_POS_BIMANUAL'
+        if not all(len(a) == 6 and len(g) >= 1 for _r, a, g in arms):
+            fits = False
+            why.append(f'The bimanual layout is 2 × (6 arm joints + 1 gripper value); this rig has {layout}: no '
+                       'encoding fits, so JOINT_BIMANUAL / JOINT_POS_BIMANUAL are written as the nearest.')
+        if target == 'openvla':
+            fits = False
+            why.append('OpenVLA\'s loader at the pinned commit refuses JOINT_POS_BIMANUAL ("only EEF_POS & EEF_R6 '
+                       f'actions supported!"); OpenVLA-OFT ({OFT_URL} at {OFT_COMMIT[:7]}) accepts it as absolute '
+                       'joint positions (its ALOHA entries).')
+        elif fits:
+            why.append('OpenVLA-OFT reads JOINT_POS_BIMANUAL as absolute joint positions (14 values), as its ALOHA '
+                       'entries do: the dataset\'s actions can stay absolute.')
+    else:
+        state, action = 'JOINT', 'JOINT_POS'
+        fits = False
+        if len(arms) > 2:
+            why.append(f'The rig has {len(arms)} arms; the sources have one-arm and two-arm encodings only.')
+        why.append('No encoding fits a joint-position action on this rig: '
+                   f'{"OpenVLA" if target == "openvla" else "OpenVLA-OFT"}\'s loader refuses JOINT_POS (it takes '
+                   + ('EEF_POS and EEF_R6' if target == 'openvla' else 'EEF_POS, EEF_R6 and JOINT_POS_BIMANUAL')
+                   + '), and JOINT_POS is joint deltas, not positions. Record end-effector delta actions and export '
+                   'with action_space "eef", or train a policy that takes joint actions.')
+    if state == 'JOINT' and len(arms) == 1 and len(arms[0][1]) > 7:
+        fits = False
+        why.append(f'{arms[0][0].name} has {len(arms[0][1])} arm joints; StateEncoding.JOINT holds 7.')
+    return {'target': target, 'state_encoding': state, 'action_encoding': action, 'bimanual': bimanual,
+            'fits': bool(fits), 'why': why, 'action_space': action_space, 'action_space_source': src,
+            'layout': layout,
+            'source': {'url': OFT_URL if oft else OPENVLA_URL, 'commit': OFT_COMMIT if oft else OPENVLA_COMMIT,
+                       'lines': lines, 'read': SOURCE_READ}}
+
+
+def _bimanual_roles(project, streams: list) -> dict:
+    """OpenVLA-OFT's ALOHA image roles: primary and secondary the static cameras, left_wrist and right_wrist the
+    first camera on each arm: the left arm is the one named left (and not right), else the one whose base is further
+    along +y (REP-103: y left)."""
+    static = [s for s in streams if not s['on_link']]
+    base = lambda s: s['key'].replace('observation.images.', '') if s else None    # noqa: E731
+
+    def side(r):
+        n = str(r.name).lower()
+        return 0 if 'left' in n and 'right' not in n else (2 if 'right' in n and 'left' not in n else 1)
+    order = sorted(project.robots, key=lambda r: (side(r), -float(r.base.position[1])))
+    by_robot = {}
+    for s in streams:
+        if s['on_link']:
+            sen = next((x for x in project.variant.sensors if x.uid == s['sensor_uid']), None)
+            if sen is not None:
+                by_robot.setdefault(sen.mount.robot_uid, s)
+    return {'primary': base(static[0]) if static else None, 'secondary': base(static[1]) if len(static) > 1 else None,
+            'left_wrist': base(by_robot.get(order[0].uid)) if order else None,
+            'right_wrist': base(by_robot.get(order[1].uid)) if len(order) > 1 else None}
+
+
 # ====================================================================== the exporter
 @exporter('lerobot', 'LeRobot, ACT, Diffusion Policy and OpenVLA configs', needs_robot=True,
           description='LeRobot v2.1 and v3.0 info.json features and camera keys, a train config per policy with the '
@@ -504,42 +655,52 @@ def export_lerobot(project, out_dir: str, options: dict, ctx) -> dict:
                                if dp_plan and _rec(dp_plan['policy'], 'delay_offset_s') else
                                f'{DP_N_LATENCY_DEFAULT}, the workspace default (no recommendation stored).'),
         'robot_joint_pos names the low-dim key of your recorded state; rename it to match your dataset.'])))
-    roles = _roles(streams)
+    enc = openvla_encoding(project, o.get('action_space'))
+    oft_bi = enc['target'] == 'openvla-oft' and enc['bimanual']
+    roles = _bimanual_roles(project, streams) if oft_bi else _roles(streams)
     ov = {'image_obs_keys': roles, 'depth_obs_keys': {'primary': None, 'secondary': None, 'wrist': None},
-          'state_obs_keys': ['joint_state'], 'state_encoding': 'StateEncoding.JOINT',
-          'action_encoding': 'ActionEncoding.JOINT_POS'}
+          'state_obs_keys': ['joint_state'],
+          'state_encoding': f'StateEncoding.{enc["state_encoding"]}',
+          'action_encoding': f'ActionEncoding.{enc["action_encoding"]}'}
     ds_name = f'dexvantage_{_slug(project.name)}'
-    py = ('"""OpenVLA observation keys for a dataset recorded with the DexVantage rig "' + project.name + '".\n\n'
+    src_name = 'OpenVLA-OFT' if enc['target'] == 'openvla-oft' else 'OpenVLA'
+    src_url, src_commit = enc['source']['url'], enc['source']['commit']
+    import textwrap
+    why = ''.join('\n' + textwrap.fill(w, 110, initial_indent='  ', subsequent_indent='    ') for w in enc['why'])
+    head = textwrap.fill(f'Encodings chosen from the project: {enc["state_encoding"]} / {enc["action_encoding"]} '
+                         f'(action space "{enc["action_space"]}", from {enc["action_space_source"]}; rig: '
+                         f'{enc["layout"]}).', 110)
+    py = ('"""' + src_name + ' observation keys for a dataset recorded with the DexVantage rig "' + project.name
+          + '".\n\n'
           'An OXE_DATASET_CONFIGS entry as prismatic/vla/datasets/rlds/oxe/configs.py defines them\n'
-          f'({OPENVLA_URL} at commit {OPENVLA_COMMIT[:7]}, read {SOURCE_READ}): image_obs_keys primary (external\n'
-          'RGB), secondary, wrist; depth_obs_keys; state_obs_keys; the state and action encodings. The keys are the\n'
-          'RLDS observation keys of\n'
-          'the cameras (DexVantage names them after the sensors); OpenVLA as released reads the primary image only.\n'
-          'That file defines StateEncoding.JOINT as "Joint Angles (7, <PAD> if fewer) + Gripper Open/Close (1)" and\n'
-          'ActionEncoding.JOINT_POS as "Joint Delta Position (7) + Gripper Open/Close (1)": a dataset whose action is\n'
-          'absolute joint positions needs its actions turned into deltas, and a two-arm rig is JOINT_BIMANUAL /\n'
-          'JOINT_POS_BIMANUAL (6 joints + gripper per arm).\n'
-          'Paste the entry into OXE_DATASET_CONFIGS (this file imports the two enums from that module).\n"""\n'
+          f'({src_url} at commit {src_commit[:7]}, read {SOURCE_READ}): image_obs_keys, depth_obs_keys,\n'
+          'state_obs_keys and the state and action encodings. The keys are the RLDS observation keys of the cameras\n'
+          '(DexVantage names them after the sensors); OpenVLA as released reads the primary image only.\n\n'
+          + head + '\n'
+          + ('The target\'s loader accepts this encoding.' if enc['fits'] else
+             'NO ENCODING FITS this rig in the pinned source: the nearest is written; see below.')
+          + why + '\n\nThe source lines this rests on:\n'
+          + ''.join(textwrap.fill(v, 110, initial_indent='  ', subsequent_indent='    ') + '\n'
+                    for v in enc['source']['lines'].values())
+          + 'Paste the entry into OXE_DATASET_CONFIGS (this file imports the two enums from that module).\n"""\n'
           'from prismatic.vla.datasets.rlds.oxe.configs import ActionEncoding, StateEncoding\n\n'
           f'{ds_name.upper()} = {{\n'
           f'    "{ds_name}": {{\n'
           f'        "image_obs_keys": {json.dumps(roles).replace("null", "None")},\n'
           '        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},\n'
           '        "state_obs_keys": ["joint_state"],\n'
-          '        "state_encoding": StateEncoding.JOINT,\n'
-          '        "action_encoding": ActionEncoding.JOINT_POS,\n'
+          f'        "state_encoding": StateEncoding.{enc["state_encoding"]},\n'
+          f'        "action_encoding": ActionEncoding.{enc["action_encoding"]},\n'
           '    },\n}\n')
     files.append(C.write_text(out_dir, 'openvla/oxe_dataset_config.py', py))
     files.append(C.write_json(out_dir, 'openvla/oxe_dataset_config.json', {
-        'schema': 'dexvantage.openvla_keys/1', 'dataset': ds_name, 'entry': ov,
-        'source': {'url': OPENVLA_URL, 'commit': OPENVLA_COMMIT, 'file': 'prismatic/vla/datasets/rlds/oxe/configs.py',
+        'schema': 'dexvantage.openvla_keys/1', 'dataset': ds_name, 'entry': ov, 'encoding': enc,
+        'source': {'url': src_url, 'commit': src_commit, 'file': 'prismatic/vla/datasets/rlds/oxe/configs.py',
                    'read': SOURCE_READ}}))
-    notes.append('OpenVLA: the entry uses StateEncoding.JOINT and ActionEncoding.JOINT_POS, which OpenVLA\'s '
-                 'configs.py defines as joint angles and joint DELTA positions (7 joints, padded, + gripper); '
-                 'convert absolute joint actions to deltas before training'
-                 + ('; this project has more than one robot, for which that file has JOINT_BIMANUAL and '
-                    'JOINT_POS_BIMANUAL (6 joints + gripper per arm): edit the entry if the dataset is bimanual.'
-                    if len(project.robots) > 1 else '.'))
+    notes.append(f'{src_name}: {enc["state_encoding"]} / {enc["action_encoding"]} (action space '
+                 f'"{enc["action_space"]}", {enc["action_space_source"]}). '
+                 + ('The pinned loader accepts it. ' if enc['fits'] else 'No encoding of the pinned source fits '
+                    'this rig; the nearest is written. ') + ' '.join(enc['why']))
     if roles['primary'] is None:
         notes.append('OpenVLA: no static camera is in use, so its primary image (an external RGB view) has no camera; '
                      'add a third-person camera.')
@@ -552,4 +713,4 @@ def _lr():
 
 
 __all__ = ['export_lerobot', 'info_json', 'rig_streams', 'state_names', 'train_config', 'policy_plan',
-           'delta_timestamps', 'camera_key']
+           'delta_timestamps', 'camera_key', 'openvla_encoding']

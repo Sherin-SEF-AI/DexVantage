@@ -16,9 +16,10 @@ Known limits: a metric is only what its study means by the figure (contact visib
 fingertip at least 50 % visible in at least one camera"; coverage is the share of task-volume voxels seen, not of an
 object's surface; the bandwidth margin is the specification's capacity bound minus the computed load, and so on: each
 study's own Known limits apply). Counts of problems (cables flagged, controllers over budget) are the study's flags,
-which are only as complete as the figures the library states. rig.cost reads an optional "price" object of a library
-entry ({"value", "currency", "source", "read"}); no built-in entry states a price today, so it reads "not stated"
-until the user adds one to a custom entry.
+which are only as complete as the figures the library states. rig.cost adds up the cited "price" blocks of the
+library entries (core/prices.py): a lower bound ('at_least', the parts without a price counted in the reason) when
+some parts state none, not stated when none does, and refused when the prices are not all in US dollars (no exchange
+rate is assumed).
 """
 from __future__ import annotations
 
@@ -467,9 +468,18 @@ def _rig_total(doc, key):
 
 
 @metric('rig.cost', 'Rig cost (where the library states a price)', 'USD', 'lower', study='rig',
-        note='sum of the stated prices; not stated when any device has no stated price')
+        note='sum of the cited list prices; a lower bound when some parts state no price (they are counted)')
 def _rig_cost(doc):
-    return _rig_total(doc, 'cost')
+    t = doc.get('cost') or {}
+    if t.get('value') is None:
+        return {'value': None, 'reason': t.get('reason') or 'A price is not stated.'}
+    if t.get('unit') and t['unit'] != 'USD':          # the metric is in USD; no exchange rate is assumed
+        return {'value': None, 'reason': f'The prices are in {t["unit"]}, and rig.cost is in US dollars: no exchange '
+                                         'rate is assumed, so it is not stated. The rig inventory gives the total in '
+                                         f'{t["unit"]}.'}
+    if t.get('bound'):
+        return {'value': t['value'], 'bound': t['bound'], 'reason': t.get('reason') or ''}
+    return t['value']
 
 
 @metric('rig.mass_g', 'Sensor mass', 'g', 'lower', study='rig')
@@ -480,3 +490,156 @@ def _rig_mass(doc):
 @metric('rig.power_w', 'Sensor power', 'W', 'lower', study='rig')
 def _rig_power(doc):
     return _rig_total(doc, 'power_w')
+
+
+# ====================================================================== multi-cell comparison (core/cells.py)
+@metric('cells.gap_max', 'Largest geometric gap to the reference cell', 'index', 'lower', study='cells',
+        tags=('headline',), note='the gap index (0 identical … 1 unrelated, a heuristic) of the least alike cell')
+def _cells_gap(doc):
+    return _get(doc, 'headline', 'value')
+
+
+@metric('cells.not_poolable', 'Cells whose recordings cannot be pooled', 'count', 'lower', study='cells',
+        note='cells with a feature no mapping step reaches (another joint count, a missing camera view)')
+def _cells_nopool(doc):
+    return _get(doc, 'pooling', 'counts', 'not poolable')
+
+
+@metric('cells.pool_steps', 'Mapping steps to pool the recordings', 'count', 'lower', study='cells',
+        note='rename, resize, resample, reorder, re-encode and rescale steps over every cell')
+def _cells_steps(doc):
+    return _get(doc, 'pooling', 'operations')
+
+
+@metric('cells.drift_worst', 'Worst measured drift of a built copy', 'ratio', 'lower', study='cells',
+        note='the largest share of the mount tolerance a calibrated camera of a copy sits off the plan')
+def _cells_drift(doc):
+    return _why(_get(doc, 'drift', 'worst', 'ratio'), 'No cell has a hand-eye calibration of a camera the plan has.')
+
+
+@metric('cells.meaningful_differences', 'Figures that differ beyond the tolerance spread', 'count', 'lower',
+        study='cells', note='differences from the reference larger than 2 σ of the tolerance Monte Carlo')
+def _cells_meaningful(doc):
+    m = doc.get('metrics') or {}
+    if not _get(m, 'tolerance', 'draws'):
+        return {'value': None, 'reason': 'No tolerance draws were made, so no difference was judged.'}
+    return m.get('meaningful')
+
+
+# ====================================================================== the experiment tracker (core/tracking)
+@metric('tracking.runs', 'Runs logged', 'count', 'higher', study='tracking', tags=('headline',),
+        note='runs in the project\'s run store (every study run, experiment, optimiser run, tolerance Monte Carlo '
+             'and scorecard logged while tracking is on)')
+def _tracking_runs(doc):
+    return _get(doc, 'counts', 'runs')
+
+
+# ====================================================================== data-collection campaign (core/campaign.py)
+def _campaign_storage(doc):
+    t = doc.get('totals') or {}
+    v = t.get('storage_gb')
+    if v is None:
+        return None
+    if t.get('storage_bound') == 'at_least':
+        return {'value': v, 'bound': 'at_least', 'note': 'a sensor\'s data rate is not stated: '
+                + ', '.join(t.get('storage_incomplete') or [])}
+    return v
+
+
+@metric('campaign.episodes', 'Campaign episodes recorded', 'count', 'higher', study='campaign', tags=('headline',),
+        note='every episode the plan schedules (all conditions and operators)')
+def _campaign_episodes(doc):
+    return _get(doc, 'totals', 'episodes')
+
+
+@metric('campaign.days', 'Campaign days', 'days', 'lower', study='campaign',
+        note='recording days the schedule takes within the stated session and day limits')
+def _campaign_days(doc):
+    return _get(doc, 'totals', 'days')
+
+
+@metric('campaign.storage_gb', 'Campaign storage', 'GB', 'lower', study='campaign',
+        note='the bandwidth study\'s data rates × the recording format\'s ratio × the container overhead × the '
+             'recorded time; at least, when a sensor\'s rate is not stated')
+def _campaign_gb(doc):
+    return _campaign_storage(doc)
+
+
+@metric('campaign.rig_hours', 'Campaign hours on the rig', 'h', 'lower', study='campaign',
+        note='the sessions\' length: episodes, resets, changeovers and per-session calibration checks')
+def _campaign_hours(doc):
+    return _get(doc, 'totals', 'rig_hours')
+
+
+@metric('campaign.kept_per_condition', 'Expected kept episodes per condition (fewest)', 'count', 'higher',
+        study='campaign', note='episodes recorded per condition × the keep rate (a default of 1 until set)')
+def _campaign_kept(doc):
+    cs = doc.get('conditions') or []
+    return min((c.get('expected_kept') for c in cs if c.get('expected_kept') is not None), default=None)
+
+
+# ====================================================================== the sim-to-real gap (core/sim2real/gap.py)
+@metric('sim2real.image_gap_dn', 'Sim-to-real image gap (worst camera)', 'DN', 'lower', study='sim2real',
+        tags=('headline',), note='mean absolute difference between the recorded and the rendered frames, grey levels, '
+                                 'before any correction')
+def _s2r_gap(doc):
+    return _get(doc, 'summary', 'gap_dn')
+
+
+@metric('sim2real.remaining_dn', 'Sim-to-real gap left after the corrections (worst camera)', 'DN', 'lower',
+        study='sim2real', note='the image difference with every correction found applied')
+def _s2r_left(doc):
+    return _get(doc, 'summary', 'remaining_dn')
+
+
+@metric('sim2real.explained', 'Sim-to-real gap explained by the corrections (worst camera)', '%', 'higher',
+        study='sim2real')
+def _s2r_explained(doc):
+    return _get(doc, 'summary', 'explained_pct')
+
+
+def _s2r_worst(doc, fn, reason):
+    vals = [v for v in (fn(c) for c in doc.get('cameras') or []) if v is not None]
+    return max(vals) if vals else {'value': None, 'reason': reason}
+
+
+@metric('sim2real.latency_ms', 'Camera latency against the joint states (largest)', 'ms', 'lower', study='sim2real',
+        note='|τ|: the time the frames show the robot later (or earlier) than their stamps, from render-and-compare')
+def _s2r_latency(doc):
+    return _s2r_worst(doc, lambda c: abs(c['latency']['latency_s']) * 1000 if (c.get('latency') or {}).get(
+        'observable') else None, 'no camera\'s latency is observable')
+
+
+@metric('sim2real.mount_offset_mm', 'Mount offset found by the silhouettes (largest)', 'mm', 'lower',
+        study='sim2real')
+def _s2r_mount(doc):
+    return _s2r_worst(doc, lambda c: (c.get('mount') or {}).get('delta', {}).get('norm_mm') if (
+        c.get('mount') or {}).get('observable') else None, 'no static camera\'s mount is observable')
+
+
+@metric('sim2real.silhouette_iou', 'Robot silhouette IoU after the corrections (worst static camera)', '%', 'higher',
+        study='sim2real')
+def _s2r_iou(doc):
+    vals = [c['silhouette']['iou_after'] for c in doc.get('cameras') or []
+            if (c.get('silhouette') or {}).get('iou_after') is not None]
+    return 100.0 * min(vals) if vals else {'value': None, 'reason': 'no static camera to segment the robot in'}
+
+
+# ====================================================================== statistics and power (core/studies/stats.py)
+@metric('stats.p_adjusted', 'Smallest corrected p-value of the comparisons', 'p', 'lower', study='stats',
+        tags=('headline',), note='the headline comparison\'s p-value after the correction across the comparisons')
+def _stats_p(doc):
+    h = doc.get('headline') or {}
+    return _why(h.get('p_adjusted'), 'the statistics result has no comparison (only the power calculator)')
+
+
+@metric('stats.n_needed', 'Episodes or units needed per condition (power calculator)', 'count', 'lower',
+        study='stats', note='the power calculator\'s n per condition for the target power')
+def _stats_n(doc):
+    return _why(_get(doc, 'power', 'n_per_group'), 'the power calculator is not filled in')
+
+
+@metric('stats.planned_power', 'Power of the planned episodes per condition', '%', 'higher', study='stats',
+        note='the power calculator\'s power at the planned n')
+def _stats_planned(doc):
+    return _why(_pct(_get(doc, 'power', 'planned', 'power')), 'no planned number of episodes is set')

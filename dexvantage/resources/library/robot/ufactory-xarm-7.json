@@ -19,6 +19,30 @@
     }
   ],
   "note": "The product page states no joint ranges, control rate or interfaces as figures (it names \"wrist I/O, developer SDKs, and support for standard industrial protocols\"). xarm7.xml includes the xArm gripper; its six linkage joints are not counted in the arm's DoF.",
+  "price": {
+    "amount": 9999,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.shop.ufactory.cc/products/xarm-7",
+    "read": "2026-11-07",
+    "region": "global store (USD)",
+    "what": "UFACTORY Global Store, variant 'AC Control Box + 1.5 m Power & Signal Cables' (SKU 1004) 9999.00 USD; read from the store's product data (https://www.shop.ufactory.cc/products.json) on the date read",
+    "options": [
+      {
+        "label": "AC Control Box + 3 m cables (1005)",
+        "amount": 10089
+      },
+      {
+        "label": "AC Control Box + 15 m cables (1003)",
+        "amount": 10194
+      },
+      {
+        "label": "DC Control Box + 1 m cables (1006)",
+        "amount": 9999
+      }
+    ]
+  },
   "imagers": [],
   "streams": [],
   "robot": {

@@ -19,6 +19,16 @@
     }
   ],
   "note": "Poses: the body origin is the left camera's optical centre; the datasheet says depth is \"calculated from the back of the left eye of the camera\", so the left camera is the reference imager and also the RGB view (both cameras are colour). The right camera sits one stated baseline along -y; both optical axes are taken parallel to body x (the rectified geometry). Roles: both cameras are colour, so both carry role \"rgb\"; depth.stereo_pair names them. Lens model pinhole is a labelled ASSUMPTION fitted to the stated maximum FOV (the maker gives only TV distortion, \"optically corrected\"); calibrate a unit for its K and D. The FOV is stated as \"max.\" without naming the mode; it is attached to the largest output mode. The datasheet calls the 1080p mode a cropping mode, so its true FOV is narrower than the stated maximum; the maker gives no per-mode FOV. Focus type is not stated (the lens is called \"fixed focal\", which is the focal length). Not stated by the maker: depth FOV, IR projector (there is none: passive stereo), subpixel accuracy, a per-resolution minimum Z (min_z is empty; depth.min_range_m is the stated device-wide minimum of the depth range), lens distortion coefficients. Depth is computed on the host by the ZED SDK (\"Native video resolution (in Ultra mode)\"), so no depth stream crosses the cable and none is listed. Conflicts between the maker's pages: focal length 3.06 mm (datasheet) vs 2.8 mm (store page); mass 62.9 g (datasheet, entered) vs 60 g (store page); the datasheet's ideal range \"0.1m to 9m (0.3ft to 13.1ft)\" has a feet figure that does not match 9 m (the store page says 29.5 ft). The datasheet lists one frame rate per mode (2K 15, 1080p 30, 720p 60, WVGA 100); the store page's lists (1080p 30/15, 720p 60/30/15, WVGA 100) are entered. Pixel size 2 um is from the store page (\"large 2-micron pixels\"); the datasheet gives the sensor as 1/3\" 4MP, 2688 x 1520. Output format YUV 4:2:2 YUYV 8-bit (bits_per_pixel 16 derived from it); left and right arrive side by side. Depth accuracy is the datasheet's \"< 1.0% at 2m, < 1.8% at 4m\" (metric not defined). Dimensions 124.5 x 30.5 x 26.5 mm read as width x height x depth (an assumption). power_w is the datasheet's typical 1.9 W.",
+  "price": {
+    "amount": 399,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.stereolabs.com/en-us/store/products/zed-mini",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer (SKU ZED-121210) 399.0 USD"
+  },
   "interface": "USB 3.0 (USB Type-C)",
   "power_w": 1.9,
   "mass_g": 62.9,

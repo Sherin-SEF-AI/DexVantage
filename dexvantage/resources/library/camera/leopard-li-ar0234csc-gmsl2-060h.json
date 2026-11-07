@@ -13,6 +13,16 @@
     }
   ],
   "note": "A colour global-shutter GMSL2 camera (serializer Maxim MAX9295A, FAKRA Z, IP67, 9-19 VDC). Maximum frame rate \"120 fps @ full resolution\", RAW output (bit depth not stated: format \"RAW\", bits null); through Leopard's USB 3.0 kit (LI-USB30-DESER-GMSL2) 1920 x 1200 at 30 fps. Only a horizontal FOV is stated; the library takes square pixels for the vertical angle. The lens model is pinhole, a labelled ASSUMPTION: the datasheet states an optical distortion figure but no coefficients; calibrate a unit. Power consumption \"TBD\" (null). mass_g is the stated \"~ 44 g\" (approximate). size_mm is null: the dimensions are only in a drawing. Lens 060H: EFL 6.0 mm, F/1.9, 60 degrees horizontal, optical distortion \"< -20%\", M12.",
+  "price": {
+    "amount": 429,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://leopardimaging.com/product/automotive-cameras/cameras-by-interface/adi-gmsl2-cameras/li-ar0234csc-gmsl2/li-ar0234csc-gmsl2-060h/",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer 429.00 USD, out of stock on the date read"
+  },
   "interface": "GMSL2 (FAKRA Z, power over coax)",
   "power_w": null,
   "mass_g": 44.0,

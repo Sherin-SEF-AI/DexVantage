@@ -74,13 +74,19 @@ def minimised(mid: str, value):
     return -float(value) if M.get(mid).better == 'higher' else float(value)
 
 
+COST_CURRENCY = 'USD'           # rig.cost's unit (core/metric_defs.py)
+
+
 def price_stated(model_id: str) -> bool:
-    """True when the device's library entry states a price (the rig inventory's rule, core/studies/rig_inventory)."""
+    """True when the device's library entry states a price (the rig inventory's rule, core/studies/rig_inventory) in
+    rig.cost's currency, US dollars: no exchange rate is assumed, so a device priced in another currency makes rig.cost
+    "not stated" for every rig that holds it, and the cost objective is dropped (said) rather than kept blind."""
     from .. import library as LB
     from ..studies import rig_inventory as RI
     if not model_id:
         return False
-    return RI.stated_price(LB.get(model_id))[0] is not None
+    amount, currency = RI.stated_price(LB.get(model_id))
+    return amount is not None and currency == COST_CURRENCY
 
 
 # ====================================================================== constraints

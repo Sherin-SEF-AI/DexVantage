@@ -25,6 +25,16 @@
     }
   ],
   "note": "Poses: the datasheet (4.8) puts the depth origin at the left IR module's optical centre and gives the colour origin at X 14.00, Y 0, Z 2.02 mm in that frame (x right, y down, z forward; Table 4-8-1), entered with pose_stated true; the right IR sits one stated baseline (50 mm) to the right (body -y). Optical axes are taken parallel (no rotation is stated). The projector (LDM) is placed 25 mm from the left IR toward the right IR by the front-view drawing (Table 3-2-1: IR to LDM 25.00 mm, LDM to RGB 11.00 mm, consistent with the 14 mm colour offset); its vertical and axial offsets are not dimensioned and are taken as zero, so pose_stated is false (an ASSUMPTION beyond the lateral offset). FOVs: the IR imagers carry the IR stream FOV 91 x 65 deg for the 16:10 streams (Table 4-5-3), with 91 x 60 (16:9), 81 x 65 (4:3) and 91 x 14 (848 x 100) as fov_modes; the IR modules themselves are 94/68/104 deg H/V/D (Table 3-4-4, the full sensor). The depth FOV before D2C is 90 x 65 deg at 2 m (16:10, entered as depth_fov), 90 x 60 (16:9), 81 x 65 (4:3). Typical depth intrinsics: fx = fy = 620.0 px at 1280 x 800. Technology: \"Stereo Vision\", combining active (850 nm VCSEL speckle projector) and passive stereo: entered as active_ir_stereo. min_z is Table 4-6-1 at the default disparity search range 128; with range 256 the 16:10 modes and 1280 x 720 reach 0.25 m (min_z_disparity_256). Depth performance (Table 5-1-1, 1280 x 800 at 2 m, 90% x 90% ROI): spatial precision (RMS to fitted plane) <= 1.5%, depth accuracy <= +/-2%, temporal precision <= 0.9%, fill rate >= 99.5%. Working range 0.1-20 m+ (reflectivity > 10%; \"theoretical maximum up to 65 meters\"), ideal range 0.26-3 m. Streams: USB 3.0 tables (Table 4-4-1; USB 2.0 has fewer); depth Y16, IR Y8, colour MJPEG or YUYV (YUYV entered, 16 bits per pixel from 8-bit 4:2:2). Power: average < 3.0 W (entered), peak < 6.5 W. Size 90 x 25 x 30 mm (width x height x depth, Table 3-2-3). Start point (depth zero) 4.23 mm behind the front cover glass (Table 4-9-1), entered as depth_start_mm. The PDF's revision history runs to V1.8 while its page headers read V1.7. Lens model pinhole is a labelled ASSUMPTION (distortion < 1.5% stated, no coefficients). Not stated: pixel size, f-numbers, subpixel accuracy. Gemini 335: all-pass IR filter (sees visible and NIR); RGB start point 2.21 mm behind the cover glass. The product page gives RGB FOV H86 V55 and depth FOV H90 V65, matching the datasheet.",
+  "price": {
+    "amount": 264,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://store.orbbec.com/products/gemini-335",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "store product data (handle gemini-335, SKU 100100476) 264.00 USD; read from the store's product data (https://store.orbbec.com/products.json) on the date read"
+  },
   "interface": "USB 3.0 (USB Type-C)",
   "power_w": 3.0,
   "mass_g": 97.0,

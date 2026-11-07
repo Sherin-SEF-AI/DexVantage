@@ -19,6 +19,38 @@
     }
   ],
   "note": "A 50 ohm RTK031 coaxial GMSL2 cable with a FAKRA Z jack at each end (female to female, for a ZED Link card or ZED Box). Stated: outer jacket \"3.3 ± 0.15 mm PVC\" (diameter_mm 3.3); \"Bending radius (static) 33 mm\"; \"Bending radius (loaded) 66 mm\" (entered as the moving, dynamic radius: the datasheet does not define \"loaded\", an interpretation); \"Flex life 10000\" (the test radius and stroke are not stated); \"data transfers of up to 6 Gbps\" (stated_mbps 6000); \"extended cable reach of up to 15 meters\" (the M-F extension comes in 15 m); temperature -40 to +105 °C; DC to 6 GHz; return loss ≥ 20 dB up to 3 GHz. F-F lengths 0.3, 1.5, 5 and 10 m (CBL-320100 to CBL-320400). Not stated: mass, drag-chain or robotics rating.",
+  "price": {
+    "amount": null,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.stereolabs.com/en-us/store/products/gmsl2-fakra-cables",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "the price depends on the length: 0.3 m (CBL-320100) 15.0, 1.5 m (CBL-320200) 25.0, 5 m (CBL-320300) 45.0, 10 m (CBL-320400) 60.0 USD",
+    "options": [
+      {
+        "label": "0.3 m (CBL-320100)",
+        "length_m": 0.3,
+        "amount": 15
+      },
+      {
+        "label": "1.5 m (CBL-320200)",
+        "length_m": 1.5,
+        "amount": 25
+      },
+      {
+        "label": "5 m (CBL-320300)",
+        "length_m": 5,
+        "amount": 45
+      },
+      {
+        "label": "10 m (CBL-320400)",
+        "length_m": 10,
+        "amount": 60
+      }
+    ]
+  },
   "interface": "GMSL2 coax (FAKRA Z)",
   "power_w": null,
   "mass_g": null,

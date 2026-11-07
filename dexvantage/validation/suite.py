@@ -74,8 +74,32 @@ MODELS = (
      'dexvantage.core.robot.bimanual_samples', 'samples'),
     ('workspace', 'Workspace check (task objects inside task volumes)', 'dexvantage.core.workspace_check',
      'workspace'),
+    ('robot_io', 'Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point',
+     'dexvantage.core.exporters.ros2, dexvantage.core.robot.usd_import, dexvantage.core.robot.usd_writer, '
+     'dexvantage.core.exporters.lerobot, dexvantage.core.exporters.isaac', 'robot_io'),
+    ('campaign', 'Data-collection campaign planner', 'dexvantage.core.campaign', 'campaign'),
+    ('publication', 'Publication kit (methods paragraph, LaTeX tables, figures, BibTeX)',
+     'dexvantage.core.publication, dexvantage.core.exporters.paper_kit', 'paper_kit'),
+    ('tracking', 'Experiment tracker (run store, tables, MLflow layout)', 'dexvantage.core.tracking', 'tracking'),
+    ('cells', 'Multi-cell comparison (geometric gap, dataset pooling, drift)',
+     'dexvantage.core.cells, dexvantage.core.cells_pool', 'cells'),
+    ('stats', 'Statistics and power analysis', 'dexvantage.core.stats, dexvantage.core.statcompare', 'stats'),
+    ('cluster', 'Cluster sweeps (process pool, Slurm shards, shared result cache)', 'dexvantage.core.cluster',
+     'cluster'),
+    ('sim2real', 'Sim-to-real gap (render against recording)', 'dexvantage.core.sim2real', 'sim2real'),
 )
 MODEL_IDS = tuple(m[0] for m in MODELS)
+PLUGIN_MODELS: list = []          # (id, title, modules, anchor) of the models plugins validate (PluginAPI.check)
+
+
+def all_models() -> tuple:
+    """MODELS, then the models the loaded plugins added, in report order."""
+    return MODELS + tuple(PLUGIN_MODELS)
+
+
+def model_ids() -> tuple:
+    """Every model id: the built-in ones (MODEL_IDS), then the plugins' ('plugin.<name>')."""
+    return tuple(m[0] for m in all_models())
 LIMITS = {'seed': (0, 2 ** 31 - 1)}
 
 
@@ -98,7 +122,7 @@ class ValidationSettings:
         if isinstance(ms, str):
             ms = [m.strip() for m in ms.split(',')]
         if isinstance(ms, (list, tuple)):
-            s.models = tuple(m for m in MODEL_IDS if m in {str(x) for x in ms})
+            s.models = tuple(m for m in model_ids() if m in {str(x) for x in ms})
         if isinstance(d.get('quick'), bool):
             s.quick = d['quick']
         if isinstance(d.get('cheap_only'), bool):
@@ -125,6 +149,7 @@ class Spec:
     refs: tuple               # keys into references.REFERENCES
     fn: object
     cost: str = 'cheap'       # 'cheap' (< 1 s) | 'study' (seconds)
+    tolerance_quick: float | None = None   # the quick run's tolerance when it differs (a band set by the sample size)
 
 
 @dataclass
@@ -186,7 +211,7 @@ class ValidationResult:
     def by_model(self) -> list:
         """[(model id, title, modules, anchor, [Check])] in MODELS order, models without checks left out."""
         out = []
-        for mid, title, mods, anchor in MODELS:
+        for mid, title, mods, anchor in all_models():
             cs = [c for c in self.checks if c.model == mid]
             if cs:
                 out.append((mid, title, mods, anchor, cs))
@@ -196,15 +221,22 @@ class ValidationResult:
 CHECKS: list = []
 
 
-def check(cid, model, title, quantity, reference, tolerance, unit, refs=(), cost='cheap'):
-    """Register a check function fn(ctx) -> Outcome."""
-    assert model in MODEL_IDS, model
+def check(cid, model, title, quantity, reference, tolerance, unit, refs=(), cost='cheap', tolerance_quick=None):
+    """Register a check function fn(ctx) -> Outcome. tolerance_quick: the tolerance of a quick run, when the check's
+    band depends on its sample size (declared here, so the tolerance listed is the one applied)."""
+    assert model in model_ids(), model
 
     def deco(fn):
         assert not any(s.id == cid for s in CHECKS), cid
-        CHECKS.append(Spec(cid, model, title, quantity, reference, float(tolerance), unit, tuple(refs), fn, cost))
+        CHECKS.append(Spec(cid, model, title, quantity, reference, float(tolerance), unit, tuple(refs), fn, cost,
+                           None if tolerance_quick is None else float(tolerance_quick)))
         return fn
     return deco
+
+
+def declared_tolerance(spec: Spec, quick: bool = False) -> float:
+    """The tolerance a check declares for a full or a quick run."""
+    return spec.tolerance_quick if quick and spec.tolerance_quick is not None else spec.tolerance
 
 
 class Ctx:
@@ -276,8 +308,8 @@ def environment() -> dict:
 
 
 def available_models() -> tuple:
-    """The model ids this installation can check."""
-    return MODEL_IDS
+    """The model ids this installation can check (the plugins' models included)."""
+    return model_ids()
 
 
 def load_checks():
@@ -293,8 +325,8 @@ def specs(settings: ValidationSettings | None = None) -> list:
     """The registered checks the settings select, in MODELS order (models whose module is not installed left out)."""
     load_checks()
     st = settings or ValidationSettings()
-    use = (set(st.models) if st.models else set(MODEL_IDS)) & set(available_models())
-    order = {m: i for i, m in enumerate(MODEL_IDS)}
+    use = (set(st.models) if st.models else set(model_ids())) & set(available_models())
+    order = {m: i for i, m in enumerate(model_ids())}
     return sorted((s for s in CHECKS if s.model in use and (s.cost == 'cheap' or not st.cheap_only)),
                   key=lambda s: order[s.model])
 
@@ -310,7 +342,7 @@ def run_one(spec: Spec, ctx: Ctx) -> Check:
     t0 = time.perf_counter()
     try:
         out = spec.fn(ctx)
-        tol = spec.tolerance if out.tolerance is None else float(out.tolerance)
+        tol = declared_tolerance(spec, ctx.quick) if out.tolerance is None else float(out.tolerance)
         err = float(out.error)
         passed = _finite(err) and err <= tol and bool(out.ok)
         return Check(spec.id, spec.model, spec.title, spec.quantity, spec.reference, spec.refs, spec.unit, tol, err,
@@ -319,7 +351,7 @@ def run_one(spec: Spec, ctx: Ctx) -> Check:
         tb = traceback.format_exception(type(e), e, e.__traceback__)
         where = next((ln.strip() for ln in reversed(tb) if 'File "' in ln and 'dexvantage' in ln), '')
         return Check(spec.id, spec.model, spec.title, spec.quantity, spec.reference, spec.refs, spec.unit,
-                     spec.tolerance, float('nan'), False, {}, None, '', time.perf_counter() - t0,
+                     declared_tolerance(spec, ctx.quick), float('nan'), False, {}, None, '', time.perf_counter() - t0,
                      exception=f'{type(e).__name__}: {e}'[:400] + (f' ({where[:200]})' if where else ''))
 
 

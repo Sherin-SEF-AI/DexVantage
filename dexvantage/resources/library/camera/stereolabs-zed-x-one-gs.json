@@ -19,6 +19,16 @@
     }
   ],
   "note": "A monocular global-shutter GMSL2 camera with a BMI088 IMU (not modelled), for custom stereo pairs or surround vision. The FOV is the datasheet's \"Max.\" figure; the native resolution is taken as the stated array size 1928 x 1208 (the FOV's image size is not said). Streams: 1920 x 1200 at 60 fps, 1920 x 1080 at 60 fps (cropping mode), 960 x 600 at 120 fps (binning mode), RAW10 over V4L2 (NV21 through Argus). The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. power_w 0.89 W (12 V, via GMSL2). size_mm read with the long side along the optical axis (the lens), an ASSUMPTION. Wide lens: 110 (H) x 80 (V) x 120 (D) degrees, focal length 2.2 mm, f/2.2, TV distortion \"< 4.39 %\"; 31 x 31 x 52.5 mm, 55 g. The store page gives the wide lens as 120 (D) x 110 (H) x 80 (V), agreeing.",
+  "price": {
+    "amount": 399,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.stereolabs.com/en-us/store/products/zed-x-one-gs",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "schema.org offer for 'Wide' (SKU ZED-412010) 399.0 USD"
+  },
   "interface": "GMSL2 (FAKRA Z)",
   "power_w": 0.89,
   "mass_g": 55.0,

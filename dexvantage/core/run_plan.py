@@ -116,6 +116,17 @@ def _snapshot(project, settings):
     return snap
 
 
+def _track(sid: str, doc: dict, project, out: str, kind: str | None = None) -> None:
+    """Log a plan step's result in the experiment tracker when the batch command has --track or the project's
+    tracking is on (dexvantage/batch_track.record: never raises; a store that cannot be written is said at the end of
+    the command)."""
+    try:
+        from .. import batch_track
+    except ImportError:                                  # pragma: no cover - a build without the batch module
+        return
+    batch_track.record(sid, doc, project, out, kind=kind)
+
+
 def run(project, plan: dict, out_dir: str, plan_dir: str | None = None, dataset: str | None = None,
         progress=None) -> tuple:
     """(summary doc, exit code). project: the plan's project (never changed). plan: normalise()d."""
@@ -149,6 +160,7 @@ def run(project, plan: dict, out_dir: str, plan_dir: str | None = None, dataset:
                 doc = PV.stamp(doc, snap, output={'option': '--run-plan', 'name': os.path.basename(out),
                                                   'in_folder': True}, plan=dict(pid, step=i))
                 _write_json(doc, out)
+                _track(sid, doc, snap, out)
                 row.update(out=os.path.relpath(out, out_dir), study=sid,
                            result_sha256=doc[PV.KEY]['result_sha256'], metrics=_headline_metrics(sid, doc))
             elif kind == 'check':
@@ -163,6 +175,7 @@ def run(project, plan: dict, out_dir: str, plan_dir: str | None = None, dataset:
                 doc = PV.stamp(doc, snap, output={'option': '--run-plan', 'name': os.path.basename(out),
                                                   'in_folder': True}, plan=dict(pid, step=i))
                 _write_json(doc, out)
+                _track('requirements', doc, snap, out, kind='check')
                 ec = RQ.exit_code(card)
                 row.update(out=os.path.relpath(out, out_dir), verdict=card['verdict'],
                            verdict_text=card['verdict_text'], counts=card['counts'],

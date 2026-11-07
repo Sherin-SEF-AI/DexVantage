@@ -19,6 +19,16 @@
     }
   ],
   "note": "Menagerie's README calls the model the OMY-3M, \"a 6-DOF fixed-base robotic manipulator\"; the e-Manual names the follower OMY-F3M. omy_3m.xml models the arm without the RH-P12-RN hand.",
+  "price": {
+    "amount": 14373.85,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.robotis.us/products/omy-f3m",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "ROBOTIS AMERICA store, 'OMY-F3M' (SKU 905-0043-000) 14373.85 USD; read from the store's product data (https://www.robotis.us/products.json) on the date read"
+  },
   "imagers": [],
   "streams": [],
   "robot": {

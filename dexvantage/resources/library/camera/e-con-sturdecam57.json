@@ -13,6 +13,22 @@
     }
   ],
   "note": "An RGB-IR global-shutter GMSL2 camera in an IP67 enclosure, 940 nm IR LED (working range 50 cm to 2 m), fixed focus at 50-200 cm. The page names the sensor only as \"5MP Sensor\" (the URL names OX05B1S). FOV 114.76 (H) x 85.92 (V) x 148.32 (D) degrees. The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rate \"RGB + IR : 2592 x 1946 @ 50 FPS (25 FPS RGB + 25 FPS IR)\", UYVY; the stated stream height 1946 exceeds the stated active area 2592 x 1944, so no stream is entered until the datasheet (behind a form, not read) settles it. power_w is the stated typical 3.42 W (12 V). mass_g is the stated \"Board weight\" 100 g. size_mm: \"70 x 35 x 30 mm (with enclosure)\", entered as [70, 35, 30] on the reading that the 70 mm length is along the optical axis (an ASSUMPTION). Not stated: f-number, focal length, distortion.",
+  "price": {
+    "amount": 499,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.e-consystems.com/gmsl-cameras/5mp-ox05b1s-rgb-ir-global-shutter-gmsl2-camera.asp",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "main price from the site's product price service: product 1792, STURDeCAM57_NIRXLC_AT_H03R1, 499.00 USD; the STURDeCAM57_CUOAGX kit (product 1882) 749.00 USD; read from https://www.e-consystems.com/getproductdetails.asp?IDS=1792,1882",
+    "options": [
+      {
+        "label": "STURDeCAM57_CUOAGX kit (STURDeCAM57_CUOAGX_NIRXLC_AT_1H03R2)",
+        "amount": 749
+      }
+    ]
+  },
   "interface": "GMSL2 (FAKRA connector, cable up to 15 m)",
   "power_w": 3.42,
   "mass_g": 100.0,

@@ -278,9 +278,10 @@ def design(project, st: dict | None = None, ctx: jobs.Ctx | None = None) -> dict
         if gaps:
             objs.remove(OB.COST)
             dropped.append({'id': OB.COST, 'title': OB.M.METRICS[OB.COST].title,
-                            'reason': f'no price is stated for {len(gaps)} of the devices it can choose (for example '
-                                      f'{", ".join(gaps[:3])}): the library entries give none; add prices to custom '
-                                      'entries, or name only priced devices. Nothing is guessed'})
+                            'reason': f'no price in US dollars is stated for {len(gaps)} of the devices it can choose '
+                                      f'(for example {", ".join(gaps[:3])}): the library entries give none, or give '
+                                      'it in another currency; add USD prices to custom entries, or name only priced '
+                                      'devices. Nothing is guessed or converted'})
     if not objs:
         raise jobs.StudyError('The design agent has no objective to rank rigs by: name metrics in its settings.')
     constraints, skipped = OB.constraint_rows(base, st['constraints'])

@@ -31,6 +31,16 @@
     }
   ],
   "note": "A single-camera RVC2 AI camera (no depth). Variant entered: auto-focus IMX378, rolling shutter, 78 (D) / 66 (H) / 54 (V) degrees (docs page); the datasheet gives 81 / 69 / 55 degrees for its colour camera without naming the variant, and the docs give 82 / 69 / 55 for the fixed-focus IMX378 variant. Focus range: auto-focus 8 cm to infinity (datasheet). The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor page); the format on the USB link depends on the on-device pipeline (raw, NV12 or encoded), so format and bits_per_pixel are null. power_w is the datasheet maximum, 7.5 W (typical 5 W, idle 2.5 W). size_mm: datasheet 35 x 54.5 x 27.88 mm (W x H x D), entered as [27.88, 35, 54.5]; the store page says 36 x 54.5 x 27.8 mm and 53 g (mass entered). Interface: the docs say \"USB 2/3 (up to 10 Gbps)\", the datasheet \"USB3.1, gen2 10gbps\" with output \"via USB 3.1 Gen1\" (entered). Not stated: f-number, distortion.",
+  "price": {
+    "amount": 269,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-1",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "variant 'RBG Camera Focus: Auto-Focus' (SKU A00109), 269.0 USD"
+  },
   "interface": "USB 3.1 Gen 1 (USB Type-C)",
   "power_w": 7.5,
   "mass_g": 53.0,

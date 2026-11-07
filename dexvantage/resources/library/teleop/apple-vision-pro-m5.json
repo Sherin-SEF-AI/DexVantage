@@ -13,6 +13,26 @@
     }
   ],
   "note": "The specifications page (the M5 model): \"Apple R1 chip | 12‑millisecond photon‑to‑photon latency\" (latency_ms 12: the passthrough display path, not a hand-tracking-to-robot latency); \"Six world‑facing tracking cameras\", \"Four eye‑tracking cameras\", \"TrueDepth camera\", \"LiDAR Scanner\", \"Four inertial measurement units (IMUs)\"; input \"Hands | Eyes | Voice\"; \"Supported refresh rates: 90Hz, 96Hz, 100Hz, 120Hz\" (display rates; tracking_hz null). \"Device Weight 26.4–28.2 ounces (750–800 grams)\" with Light Seal and Dual Knit Band, \"Separate battery weighs 353 grams\" (mass_g 800, the upper end of the headset's range). Not stated: a hand-tracking rate or accuracy, a tracking volume.",
+  "price": {
+    "amount": 3699,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://www.apple.com/shop/buy-vision/apple-vision-pro",
+    "read": "2026-11-07",
+    "region": "US",
+    "what": "US Apple Store: 256GB 'From $3699' (3699.00); 512GB 3899.00; 1TB 4199.00",
+    "options": [
+      {
+        "label": "512GB",
+        "amount": 3899
+      },
+      {
+        "label": "1TB",
+        "amount": 4199
+      }
+    ]
+  },
   "interface": "Wi-Fi 6 (802.11ax), Bluetooth 5.3",
   "power_w": null,
   "mass_g": 800.0,

@@ -73,6 +73,7 @@ sample (the coverage and depth-validity models' own Known limits apply: `docs/mo
 | `rig.with_factors({...})`, `rig.factors.apply({...})`, `rig.use_variant(name)`, `rig.copy()` | a new Rig; `rig` is unchanged |
 | `rig.run(study, **settings)` | runs on a copy with the settings for this run; stored settings unchanged (store one with `rig.factors['setting:coverage.cube_n'] = 256`) |
 | `rig.robots`, `rig.sensors`, `rig.variants`, `rig.project` | the project's own objects: changing one changes the rig |
+| `rig.add_variant(name, {sensor factors})` | edits `rig`: adds a copy of the active variant (sensor uids kept) with those factors set on the copy; the active variant stays (`dv.stats.compare_variants(rig, b=name)` then compares them) |
 
 A locked sensor is the user's: setting one of its factors raises `FactorError` unless `allow_locked=True` is given.
 
@@ -125,7 +126,11 @@ export, saving the moved rig; 4.9 s, 0.8 GB) and `examples/02_datasets_audit.py`
 rendered in MuJoCo, read back, audited; 2.7 s on the RTX 5080) are jupytext percent-format scripts: run them with
 `python examples/01_rig_studies_factors.py`, or open them as notebooks with `jupytext --to notebook <file>` (jupytext
 is not a DexVantage dependency). `DEXVANTAGE_EXAMPLE_OUT` chooses where they write (default: a new temporary folder).
-`tests/test_examples.py` runs both.
+`tests/test_examples.py` runs both. `examples/03_research_workflow.py` (the SO-100: tracked runs and their MLflow,
+W&B, CSV and Parquet export, statistics and power, the campaign, a tolerance sweep on a process pool, two cells, the
+project diff, the paper kit, BibTeX and a vector figure; about 4 s) is walked through in `docs/guide/research-workflow.md`;
+`tests/test_completeness_api.py` runs it. The research tools of part 1 are in the API too: `dv.diff`, `dv.merge`,
+`dv.bibtex`, `dv.figures`, `dv.figure` and `dv.export_runs` (`docs/models/research-api.md`).
 
 ## Plugins
 

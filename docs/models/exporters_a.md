@@ -78,9 +78,11 @@ an ill-conditioned yaw near the lock is absorbed by the roll; `test_rpy_writer_k
 Joint limits are DexVantage's (the robot's records or the file's ranges); without finite limits a hinge is
 `continuous`; a slide without limits is refused (URDF cannot write it). urdfdom refuses a `<limit>` without `effort`
 and `velocity` (`urdf_parser/src/joint.cpp`); when the robot's records do not state them they are written as 0 and
-the notes say so: set them before giving the file to a controller or a planner. No figure is invented: no inertials
-(DexVantage does not use mass, and not every file states it) and no collision geometry; each link's visual meshes
-are one binary STL in metres in its frame.
+the notes say so: set them before giving the file to a controller or a planner. Each link's inertial comes from the
+robot's MuJoCo model, labelled with its source (the file's inertial, or MuJoCo's computation from an MJCF file's
+geoms); links without mass get a stated minimal placeholder (10⁻⁶ kg), and a `<mujoco>` compiler element lets MuJoCo
+load the file as written ([robot_io.md](robot_io.md)). No collision geometry; each link's visual meshes are one
+binary STL in metres in its frame.
 
 `static_transforms.launch.py`: one `tf2_ros` `static_transform_publisher` Node per sensor frame (parent →
 `<sensor>_link`, `<sensor>_link` → each optical frame), with the program's flags `--x --y --z --qx --qy --qz --qw
@@ -181,8 +183,8 @@ compares every optical frame at a random joint state (about 0.5 s).
 ## Known limits
 
 - One joint state per export: a camera on a link has its world pose, Kalibr chain and masks at that pose only.
-- URDF: no inertials, no collision geometry, equality constraints and mimic joints not written; effort and velocity
-  0 when not stated; one colour per link.
+- URDF: no collision geometry, equality constraints and mimic joints not written; massless links (anchors, sensor
+  frames) carry a labelled minimal inertial; effort and velocity 0 when not stated; one colour per link.
 - MJCF snippets: a URDF link MuJoCo merged into its parent is reached through the parent body; MuJoCo cameras are
   pinhole (a distorted lens's distortion is not in the file).
 - Calibration: no camera-IMU transforms (DexVantage models no IMUs); Kalibr's omni, ds and eucm models are not

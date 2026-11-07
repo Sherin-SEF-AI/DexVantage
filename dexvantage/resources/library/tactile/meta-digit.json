@@ -19,6 +19,16 @@
     }
   ],
   "note": "An open-source optical tactile sensor (design by Meta AI / Facebook AI Research; commercial units are sold by GelSight, whose product page was not read for this entry): a contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. From the paper: 20 mm wide x 27 mm high x 18 mm deep (size_mm [18, 20, 27], depth along the camera axis), \"approximately 20 g\", sensing field 19 x 16 mm, OmniVision OVM7692 colour camera (\"a 60 fps color CMOS\", focal length 1.15 mm), three RGB LEDs, and a custom PCB with a SuperSpeed USB 3.0 hub. Sources disagree: the paper's Table I gives 640 x 480 at 60 FPS, while the maker's interface library offers VGA (640 x 480) at 30 or 15 fps and QVGA (320 x 240) at 60 or 30 fps; the entry uses the interface's modes (what a user can stream), so tactile.fps is 30 at the 640 x 480 camera_resolution. Stream format and power are not stated. The arXiv v1 PDF was read; the RA-L published version may differ in detail.",
+  "price": {
+    "amount": 355,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "reseller",
+    "source": "https://www.gelsight.com/product/digit-tactile-sensor/",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "'DIGIT Tactile Sensor' (SKU DG-01) $355.00 on the GelSight store ('commercially available from GelSight'); Meta does not sell DIGIT itself"
+  },
   "interface": "USB",
   "power_w": null,
   "mass_g": 20.0,

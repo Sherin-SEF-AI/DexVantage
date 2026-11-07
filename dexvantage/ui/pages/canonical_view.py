@@ -55,6 +55,16 @@ def warp_from_doc(doc: dict):
     return CW.make_warp(view(doc['source']), view(doc['canonical']), float(doc['plane']['offset_m']))
 
 
+def headline_figure(h: dict) -> tuple[str, str]:
+    """(figure, unit) of the headline: the P95 in px, or 'larger than the image' with the bound when the residual
+    parallax exceeds the canonical image's width (a 11 878 px figure in a 1280 px image is right but unreadable)."""
+    v = h.get('value')
+    width = h.get('image_width_px')
+    if v is not None and (h.get('beyond_image') or (width and v > float(width))):
+        return 'larger than the image', f'(bound {v:,.0f} px)'.replace(',', ' ')
+    return _f(v, 1 if v is not None and v >= 10 else 2), 'px'
+
+
 def _range_of(v):
     """(lo, hi) metres of a depth_range_m setting, or None when it is not two finite numbers."""
     try:
@@ -299,9 +309,8 @@ class CanonicalViewPage(StudyPage):
         try:
             h = doc.get('headline') or {}
             th = h.get('thresholds_px') or CW.DEFAULTS['thresholds_px']
-            v = h.get('value')
-            self.head.set(_f(v, 1 if v is not None and v >= 10 else 2), 'px', h.get('status', 'warning'),
-                          h.get('word', ''), h.get('advice', ''),
+            fig, unit = headline_figure(h)
+            self.head.set(fig, unit, h.get('status', 'warning'), h.get('word', ''), h.get('advice', ''),
                           f'P95 of the residual parallax at the worse depth extreme, in {doc["canonical"]["name"]}\'s '
                           f'pixels (max {_f(h.get("max_px"))} px). Status: aligned ≤ {th["good"]:g} px, mild '
                           f'parallax ≤ {th["warning"]:g} px, parallax ≤ {th["serious"]:g} px'

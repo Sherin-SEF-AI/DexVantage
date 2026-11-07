@@ -241,14 +241,33 @@ class MenagerieDialog(VDialog):
             return False
         dl, main = self.dl, self.file.currentText() or None
         self.status.set('', f'Importing {dl.model}…')
-        self._run('import', lambda _p: (dl, *MG.import_download(dl, main)))
+        self._run('import', lambda _p: self._prepare(dl, main))
         return self.robot is not None
+
+    def _prepare(self, dl, main):
+        """On the worker: the robot read and compiled, named as it will be, and its kinematic model and home bounds
+        built into core/robot/model's shared cache, so adding it on the UI thread finds them ready (the G1 took
+        170 ms there: 77 ms of compile, 78 ms of mesh bounds for the frame button)."""
+        robot, sources = MG.import_download(dl, main)
+        if getattr(self, 'robot_name', ''):                 # the catalogue's name, not the file's
+            robot.name = self.robot_name
+        robot.primary = not self.win.store.project.robots  # as _finish_import will set it (the cache key)
+        try:
+            from ...core.project import Project
+            from ...core.robot.model import get_model
+            p = Project('warm')
+            p.robots = [robot]
+            p.sources = dict(sources)
+            get_model(p, robot.uid).bounds()
+        except Exception:                                   # noqa: BLE001 — not warmed: the UI thread builds it
+            traceback.print_exc()
+        return dl, robot, sources
 
     def _finish_import(self, dl, robot, sources):
         if dl is not self.dl:                              # the user moved on while it compiled
             return
-        if getattr(self, 'robot_name', ''):                 # the catalogue's name, not the file's
-            robot.name = self.robot_name
+        if getattr(self, 'robot_name', ''):                 # the catalogue's name, not the file's (set on the worker
+            robot.name = self.robot_name                    # too; kept here for a caller that skips _prepare)
 
         def fn(p):
             robot.primary = not p.robots

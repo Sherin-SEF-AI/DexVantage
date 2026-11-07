@@ -13,6 +13,17 @@
     }
   ],
   "note": "Camera (the T5000 and T4000 share the cell): \"Up to 20 cameras via HSB | Up to 6 cameras through 16x lanes MIPI CSI-2 | Up to 32 cameras using Virtual Channels | C-PHY 2.1 (10.25 Gbps) | D-PHY 2.1 (40 Gbps)\" (lanes 16; the 40 Gbps D-PHY figure is entered as the CSI aggregate, the C-PHY figure kept as written). USB: \"xHCI host controller with integrated PHY (up to) | 3x USB 3.2 | 4x USB 2.0\" (ports 3; the USB 3.2 generation is not stated, so stated_mbps is null). PCIe: \"Up to Gen5 (x8 lanes) | Root port only—C1 (x1) and C3 (x2) | Root Point or Endpoint—C2 (x1), C4 (x8), and C5 (x4)\". Networking \"4x 25GbE\". Power \"40 W–130 W\" (power_w 130, the upper end). CPU 14-core Arm Neoverse-V3AE. Mechanical \"100 mm x 87 mm | 699-pin B2B connector | Integrated Thermal Transfer Plate (TTP) with heatpipe\"; height not stated (size_mm null); mass not stated. The page's footnotes: \"* Refer to the Software Features section of the latest NVIDIA Jetson Linux Developer Guide for a list of supported features. ** Low-speed I/O specification is subject to change.\" The module data sheet was not read; the figures are the specifications table on the page. practical_mbps is null (not stated).",
+  "price": {
+    "amount": 4999,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_price_list",
+    "source": "https://developer.nvidia.com/embedded/faq",
+    "read": "2026-11-07",
+    "region": "US (MSRP in USD)",
+    "min_quantity": 1000,
+    "what": "FAQ price table, MSRP (USD): 'Jetson T5000 Module $4999 (1KU+)' (volume suggested pricing at 1000 units and more)"
+  },
   "interface": "MIPI CSI-2 (D-PHY 2.1 / C-PHY 2.1), Holoscan Sensor Bridge over 25GbE, USB 3.2, PCIe Gen5",
   "power_w": 130.0,
   "mass_g": null,

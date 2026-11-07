@@ -34,8 +34,11 @@ assistant = ["anthropic==2.6.0", "keyring==25.7.0"]   # the Assistant dock: Clau
 rerun = ["rerun-sdk==0.42.0"]     # the Rerun bridge (core/bridges/rerun.py, written against 0.42.0)
 step = ["gmsh==4.15.2"]           # bracket STEP export as a faceted solid (core/exporters/bridges.py)
 research = ["pandas==2.3.3"]     # the Python API's Result.to_frame() as a DataFrame (dexvantage/api.py)
+tracking = ["mlflow-skinny==3.17.2", "wandb==0.30.0"]   # the experiment tracker: its mlruns/ export read back by
+                                  # MLflow's client (a test), the W&B replay script (core/tracking)
 bundle = ["fast-simplification==0.2.0"]  # scripts/bundle_samples.py only: the G1 sample's mesh simplification
 test = ["pytest", "jsonschema", "ruff", "mcap", "protobuf"]  # mcap, protobuf: test references (bags, RLDS)
+dev = ["setuptools==84.2.1"]      # the plugin template's real pip install test (tests/test_plugins.py); MIT
 
 [project.urls]
 Source = "https://github.com/Sherin-SEF-AI/DexVantage"
@@ -55,7 +58,7 @@ include = ["dexvantage", "dexvantage.*"]
 
 [tool.setuptools.package-data]
 dexvantage = ["resources/fonts/*.ttf", "resources/fonts/OFL.txt", "resources/icons/*.png", "resources/*.json",
-              "resources/robots/**"]
+              "resources/robots/**", "resources/usd_robots/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

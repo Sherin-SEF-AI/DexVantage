@@ -45,6 +45,15 @@ Analysis
   default, at most one per two runs) and the effect is the last bin's mean minus the first's.
 * The best run: the run with the best value of the objective response (the first response unless set) in that
   metric's better direction, against the rig as it is.
+* Bounds (censored values): a study may state a figure only as a bound ('at_least' / 'at_most', core/metrics.read),
+  never as if it were exact. Such a value is censored: it is left out of the means, main effects and Sobol indices (as
+  a missing value is) and counted per response ('censored'). The best run is picked on the figure each run is known
+  to reach: an exact value, or a bound on the side of "better" (at least, for a higher-is-better figure: the truth can
+  only be better); a run bounded on the other side (at most, for higher-is-better) is not eligible, since it states
+  only how good it could be. The pick is 'settled' only when no other run could beat it within what it states (an
+  at-least run below it could; its number is given as contenders), and it improves on the rig as it is only when the
+  bounds decide that (otherwise 'improves' is None and Apply is not offered) — the rule core/requirements.decide, the
+  tolerance Monte Carlo and the optimiser use for a bound that does not settle a test.
 
 Runs are evaluated by core.metrics.evaluate on the project with the run's factors set (core.factors.apply, a new
 project each run), through core.jobs.run_study and its ResultCache, so a repeated point (a cancelled run started
@@ -705,15 +714,41 @@ def main_effects(X, y, fs, confidence=0.95, bins=6, sampled=False) -> list:
 
 
 # =========================================================================== analysis
-def analyse(plan: Plan, fs, rows: list, Y: np.ndarray, names: list, design: Design) -> dict:
-    """Per response: count, missing, mean, sd, min, max; main effects (factorial and sampled designs); Sobol indices
-    (Saltelli)."""
+CENSORED_RULE = ('A figure a study states only as a bound (at least / at most) is censored: it is left out of the '
+                 'means, main effects and Sobol indices, as a missing value is, and counted; the best run is picked '
+                 'on what each run is known to reach.')
+
+
+def censor(Y: np.ndarray, B) -> np.ndarray:
+    """Y with every bounded entry (B[i][c] 'at_least' / 'at_most') set to NaN: the values the analysis may treat as
+    exact. B None: Y as it is."""
+    Y = np.array(Y, float, copy=True)
+    if B is None:
+        return Y
+    for i, row in enumerate(B):
+        for c, b in enumerate(row):
+            if b in ('at_least', 'at_most'):
+                Y[i, c] = np.nan
+    return Y
+
+
+def analyse(plan: Plan, fs, rows: list, Y: np.ndarray, names: list, design: Design, bounds=None) -> dict:
+    """Per response: count, missing, censored, mean, sd, min, max; main effects (factorial and sampled designs); Sobol
+    indices (Saltelli). bounds: per run and response 'at_least' / 'at_most' / None (module docstring: a bounded value
+    is censored, never used as if it were exact)."""
     X = np.array([[f.code(r[f.path]) for f in fs] for r in rows], float).reshape(len(rows), len(fs))
+    Yc = censor(Y, bounds)
     out = {}
     for c, name in enumerate(names):
-        y = Y[:, c] if Y.size else np.zeros(0)
+        y = Yc[:, c] if Yc.size else np.zeros(0)
         fin = y[np.isfinite(y)]
-        a = {'n': int(len(fin)), 'missing': int(len(y) - len(fin))}
+        cen = {'at_least': 0, 'at_most': 0}
+        for row in bounds or []:
+            if row[c] in cen:
+                cen[row[c]] += 1
+        a = {'n': int(len(fin)), 'missing': int(len(y) - len(fin) - sum(cen.values())), 'censored': cen}
+        if any(cen.values()):
+            a['censored_rule'] = CENSORED_RULE
         if len(fin):
             a.update(mean=float(fin.mean()), sd=float(fin.std(ddof=1)) if len(fin) > 1 else 0.0,
                      min=float(fin.min()), max=float(fin.max()))
@@ -731,13 +766,54 @@ def analyse(plan: Plan, fs, rows: list, Y: np.ndarray, names: list, design: Desi
     return out
 
 
-def _best(Y, col, better):
+def _ends(v, bound, better):
+    """(known, could) of one figure in the "higher is better" sense (lower-is-better figures negated): known is what
+    the run is known to reach (None: nothing, a bound on the wrong side), could the best it could be."""
+    if v is None or not np.isfinite(v):
+        return None, None
+    s = 1.0 if better == 'higher' else -1.0
+    x = s * float(v)
+    side = None if bound not in ('at_least', 'at_most') else (1.0 if bound == 'at_least' else -1.0) * s
+    if side is None:
+        return x, x
+    return (x, math.inf) if side > 0 else (None, x)
+
+
+def _best(Y, col, better, bounds=None) -> int | None:
+    """The best run's index: the best known figure (_ends; module docstring), ties to the first; None when no run
+    has a known figure."""
     y = Y[:, col]
-    ok = np.flatnonzero(np.isfinite(y))
-    if not len(ok):
+    known = [_ends(y[i], bounds[i][col] if bounds is not None else None, better)[0] for i in range(len(y))]
+    ok = [i for i, k in enumerate(known) if k is not None]
+    if not ok:
         return None
-    i = ok[np.argmax(y[ok])] if better == 'higher' else ok[np.argmin(y[ok])]
-    return int(i)
+    return int(max(ok, key=lambda i: (known[i], -i)))
+
+
+def _contenders(Y, col, better, bounds, bi) -> list:
+    """Runs (1-based) other than the best whose stated figure could still beat the best's known figure."""
+    if bounds is None or bi is None:
+        return []
+    k = _ends(Y[bi, col], bounds[bi][col], better)[0]
+    out = []
+    for i in range(len(Y)):
+        could = _ends(Y[i, col], bounds[i][col], better)[1]
+        if i != bi and could is not None and could > k:
+            out.append(i + 1)
+    return out
+
+
+def _improves(best_v, best_b, base_v, base_b, better):
+    """True / False when the bounds decide whether the best run beats the rig as it is, None when they do not."""
+    if base_v is None:
+        return True
+    bk, bc = _ends(best_v, best_b, better)
+    nk, nc = _ends(base_v, base_b, better)
+    if bk is not None and nc is not None and bk > nc:
+        return True
+    if bc is not None and nk is not None and bc <= nk:
+        return False
+    return None
 
 
 # =========================================================================== evaluating runs
@@ -862,6 +938,9 @@ def _run_rows(base, rows, ids, variant, ctx, cache, workers, on_row, row_cache=N
         return done
     import multiprocessing as mp
     from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
+
+    from .cluster.local import check_main_guard
+    check_main_guard(f'The experiment\'s pool of {min(workers, n)} processes')     # plain sentence, no spawn traceback
     ex = ProcessPoolExecutor(max_workers=min(workers, n), mp_context=mp.get_context('spawn'),
                              initializer=_worker_init, initargs=(base, ids, variant, _modules_for(ids)))
     try:
@@ -992,16 +1071,25 @@ def _result(project, design, plan, rows, Y, results, base_res, ids, execution, c
                      'responses': {mid: (None if r is None else _jsonable(r[mid]['value'])) for mid in ids},
                      'status': {mid: ('not run' if r is None else r[mid]['status']) for mid in ids},
                      'reason': {mid: r[mid]['reason'] for mid in ids if r is not None and r[mid].get('reason')}})
-    analysis = analyse(plan, fs, rows, Y, ids, design)
-    bi = _best(Y, oc, better)
+        bd = {mid: r[mid]['bound'] for mid in ids if r is not None and r[mid].get('value') is not None
+              and r[mid].get('bound') in ('at_least', 'at_most')}
+        if bd:
+            runs[-1]['bound'] = bd
+    B = [[(r.get('bound') or {}).get(mid) for mid in ids] for r in runs]
+    analysis = analyse(plan, fs, rows, Y, ids, design, B)
+    bi = _best(Y, oc, better, B)
     base_v = base_res[obj]['value']
+    base_b = base_res[obj].get('bound') if base_v is not None else None
     best = None
     if bi is not None:
         bv = float(Y[bi, oc])
-        improves = base_v is None or (bv > base_v if better == 'higher' else bv < base_v)
+        improves = _improves(bv, B[bi][oc], base_v, base_b, better)
+        cont = _contenders(Y, oc, better, B, bi)
         best = {'run': bi + 1, 'response': obj, 'value': bv, 'unit': resp[oc]['unit'], 'better': better,
-                'values': runs[bi]['values'], 'baseline': base_v, 'improves': bool(improves),
-                'change': None if base_v is None else bv - base_v}
+                'values': runs[bi]['values'], 'baseline': base_v, 'improves': improves,
+                'change': None if base_v is None else bv - base_v,
+                'bound': B[bi][oc], 'baseline_bound': base_b, 'settled': not cont, 'contenders': cont[:20],
+                'contender_count': len(cont)}
     finfo = []
     for f in fs:
         d = {'path': f.path, 'title': factor_title(f, project), 'unit': factor_unit(f), 'kind': f.kind}
@@ -1036,6 +1124,12 @@ def _result(project, design, plan, rows, Y, results, base_res, ids, execution, c
                          f'{min(est):.2f} to {max(est):.2f}, the widest {so.get("confidence", 0.95) * 100:.0f} % '
                          'interval {:.2f} wide); a true index lies between 0 and 1, so a value outside is sampling '
                          'error. More base samples narrow the intervals.'.format(widest))
+    for mid in ids:
+        cen = (analysis.get(mid) or {}).get('censored') or {}
+        if any(cen.values()):
+            notes.append(f'{mid}: ' + ' and '.join(f'{k} {w}' for w, k in (('at least', cen.get('at_least', 0)),
+                                                                          ('at most', cen.get('at_most', 0))) if k)
+                         + ' runs state only a bound (censored): ' + CENSORED_RULE)
     refused = {mid: sum(1 for r in runs if r['done'] and r['status'][mid] != 'ok') for mid in ids}
     for mid, k in refused.items():
         if k:
@@ -1051,12 +1145,15 @@ def _result(project, design, plan, rows, Y, results, base_res, ids, execution, c
         'responses': resp,
         'objective': obj,
         'baseline': {mid: {'value': _jsonable(base_res[mid]['value']), 'status': base_res[mid]['status'],
-                           **({'reason': base_res[mid]['reason']} if base_res[mid].get('reason') else {})}
+                           **({'reason': base_res[mid]['reason']} if base_res[mid].get('reason') else {}),
+                           **({'bound': base_res[mid]['bound']} if base_res[mid].get('bound')
+                              and base_res[mid].get('value') is not None else {})}
                      for mid in ids},
         'runs': runs,
         'analysis': analysis,
         'best': best,
-        'headline': _headline(best, resp[oc], len(runs), execution['runs_done'], base_res[obj]),
+        'headline': _headline(best, resp[oc], len(runs), execution['runs_done'], base_res[obj],
+                              only_bounds=bi is None and bool(np.isfinite(Y[:, oc]).any())),
         'execution': execution,
         'cancelled_at': execution['runs_done'] if cancelled else None,
         'notes': notes,
@@ -1065,25 +1162,39 @@ def _result(project, design, plan, rows, Y, results, base_res, ids, execution, c
     }
 
 
-def _fmt(v, unit=''):
+def _fmt(v, unit='', bound=None):
     if v is None:
         return '—'
-    return f'{v:.4g}' + (f' {unit}' if unit else '')
+    word = {'at_least': 'at least ', 'at_most': 'at most '}.get(bound or '', '')
+    return word + f'{v:.4g}' + (f' {unit}' if unit else '')
 
 
-def _headline(best, meta, n, done, base) -> dict:
+def _headline(best, meta, n, done, base, only_bounds=False) -> dict:
     title = meta['title']
     if best is None:
         why = base.get('reason') or 'no run gave a value'
+        if only_bounds:
+            why = (f'every run states only how {"high" if meta["better"] == "higher" else "low"} it could be (a bound '
+                   'on the wrong side), so none is known to be best: give the figures the study lacks')
         return {'value': None, 'unit': meta['unit'], 'status': 'critical', 'word': 'not evaluated',
                 'text': f'No run gave {title.lower()}: {why}'}
     word, sev = ('better than now', 'good') if best['improves'] and best['baseline'] is not None else \
         ('no value now', 'good') if best['baseline'] is None else ('no run beats the rig', 'warning')
-    if best['baseline'] is not None and best['change'] == 0:
+    if best['baseline'] is not None and best['change'] == 0 and not best.get('bound') \
+            and not best.get('baseline_bound'):
         word, sev = ('same as now', 'warning')
+    if best['improves'] is None:
+        word, sev = ('not settled', 'warning')
     text = (f'Best of {done} run{"s" if done != 1 else ""}' + (f' (of {n} planned)' if done < n else '') +
-            f': {title.lower()} {_fmt(best["value"], meta["unit"])} at run {best["run"]}, against '
-            f'{_fmt(best["baseline"], meta["unit"])} for the rig as it is.')
+            f': {title.lower()} {_fmt(best["value"], meta["unit"], best.get("bound"))} at run {best["run"]}, against '
+            f'{_fmt(best["baseline"], meta["unit"], best.get("baseline_bound"))} for the rig as it is.')
+    if best['improves'] is None:
+        text += (' The study states only bounds here, which do not decide whether it beats the rig as it is: give '
+                 'the figures it lacks.')
+    if best.get('contender_count'):
+        k = best['contender_count']
+        text += (f' {k} other run{"s" if k != 1 else ""} state{"s" if k == 1 else ""} only a bound that could beat '
+                 'it, so the pick is not settled.')
     if best['improves'] and best['baseline'] is not None and best['change']:
         text += ' Apply sets that run\'s factors (one undo step).'
     return {'value': best['value'], 'unit': meta['unit'], 'status': sev, 'word': word, 'text': text}

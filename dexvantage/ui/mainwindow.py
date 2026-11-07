@@ -354,10 +354,11 @@ class MainWindow(QMainWindow):
     def _build_pages(self):
         """Every registered analysis page (ui/pages): a tab in the Analysis dock and a command that opens it."""
         from .pages import load_pages
-        self.pages = {}
+        from .pages._gate import PageDict, build_page   # a hidden page waits until it is shown (pages/_gate.py)
+        self.pages = PageDict()
         for info in load_pages():
             try:
-                w = info.cls(self.ctx)
+                w = build_page(info.cls, self.ctx)
             except Exception:                           # noqa: BLE001 — one broken page must not stop the window
                 traceback.print_exc()
                 continue
@@ -372,10 +373,15 @@ class MainWindow(QMainWindow):
                 a.setToolTip(info.title)
                 a.triggered.connect(lambda _=False, pid=info.id: self.open_page(pid))
             else:
-                a = self.act(f'page_{info.id}', info.title, lambda pid=info.id: self.open_page(pid), info.shortcut,
-                             info.icon, category=info.menu)
+                a = self.act(f'page_{info.id}', getattr(info.cls, 'MENU_TITLE', None) or info.title,
+                             lambda pid=info.id: self.open_page(pid), info.shortcut, info.icon, category=info.menu)
                 m = self.menus.get(info.menu) or self.menus['Analysis']
-                m.addAction(a)
+                # a page may name the command its own goes after (MENU_AFTER, e.g. File ▸ Compare with…)
+                acts, anchor = m.actions(), self.actions_by_id.get(getattr(info.cls, 'MENU_AFTER', None) or '')
+                if anchor in acts and acts.index(anchor) + 1 < len(acts):
+                    m.insertAction(acts[acts.index(anchor) + 1], a)
+                else:
+                    m.addAction(a)
 
     def open_page(self, pid):
         bd = self.docks['bottom']
@@ -513,12 +519,12 @@ class MainWindow(QMainWindow):
             self.state_label.setText(f'up to date · {doc["seconds"] * 1000:.1f} ms' if doc else '')
 
     def _study_failed(self, sid, m):
-        print(m)                                         # the traceback goes to the log, never to the user
         from ..core import jobs
-        from .store import failure_text
+        from .store import log_failure
         info = jobs.STUDIES.get(sid)
         title = info.title if info is not None else sid
-        text, explained = failure_text(m, f'The {title.lower()} study')
+        # logged (ui/store.py): a refused study as one INFO line, its traceback at DEBUG; never shown to the user
+        text, explained = log_failure(sid, m, f'The {title.lower()} study')
         self.msg(f'{title} could not run: {text}' if explained else text, 8000)
         self._failed_msg = (sid, self.msg_label.text())
 
@@ -705,6 +711,11 @@ class MainWindow(QMainWindow):
             st.edit('tasks', lambda p: setattr(p.tasks, 'trajectories', [t for t in p.tasks.trajectories
                                                                           if t.get('uid') != uid]),
                     f'Deleted trajectory {o.get("name")}')
+        elif kind == 'surface':
+            st.edit('workspace', lambda p: setattr(p.workspace, 'surfaces', [
+                x for k, x in enumerate(p.workspace.surfaces)
+                if not (isinstance(x, dict) and str(x.get('uid') or k) == uid)]),
+                f'Deleted {o.get("name") or "a surface"}')
         else:
             return
         st.select(())

@@ -19,6 +19,16 @@
     }
   ],
   "note": "Poses: the body frame's origin is the left imager's optical centre, which the datasheet names as the depth origin (section 4.8.1, \"the X-Y center of the left imager\"); the right imager sits one baseline along -y (the left imager is on the left looking out, section 3.6.1). Both optical axes are taken as parallel to body x (the rectified stereo geometry the depth output uses); the units' own extrinsics come from calibration. The RGB sensor (OV9782, global shutter) is on the D450 module (Table 2-1) but its offset from the left imager is not stated: placed at the depth origin as an ASSUMPTION (pose_stated false). The projector's position between the imagers is drawn in the datasheet (Figures 3-4 to 3-6) but no offset is given: it is placed at the baseline midpoint as an ASSUMPTION (pose_stated false); its FOV is the datasheet's. Not stated by the maker: pixel size (no table gives it), lens distortion coefficients (the datasheet gives only \"Distortion <= 1.5%\"), the stereo matcher's subpixel accuracy. The lens model is therefore pinhole (a labelled assumption); calibrate a unit for its own K and D. The FOVs vary unit to unit by about +/-3 degrees (mechanical tolerance +/-5%, datasheet Table 3-49 note 3). max_range_m is the upper figure of the datasheet's \"Range\" feature line, which reads \"over\" that figure and \"varies with lighting conditions\" (depth.range_text). Stream modes are the USB 3.1 Gen 1 tables; the USB 2.0 tables (fewer modes) are not entered. power_w is the datasheet's \"All Components\" power at its Max Operating Mode (section 7.4), not a measured average. The store page gives \"Ideal Range .6 m to 6 m\", min-Z \"~52 cm\" at max resolution (the table's 520 mm) and depth accuracy \"<2% at 4 m\". 6-DoF IMU (not modelled here). The left imager also gives a UYVY colour stream (Table 4-3).",
+  "price": {
+    "amount": 499,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://store.realsenseai.com/buy-realsense-depth-camera-d455.html",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "store page price (schema.org offer 499 USD)"
+  },
   "interface": "USB 3.1 Gen 1 (USB Type-C)",
   "power_w": 3.46147,
   "mass_g": 116.0,

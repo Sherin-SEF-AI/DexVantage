@@ -31,6 +31,16 @@
     }
   ],
   "note": "Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map is referenced to). Positions are Luxonis's design (\"spec\") translations from its own calibration board file (depthai-boards, specTranslation in cm, rotation zero): the right camera one baseline along -y (the device has no centre camera); a unit's own calibration differs from these design values. Interface: the docs page says \"USB 2/3 (up to 10 Gbps)\", the store page \"USB-C (USB 3.2 Gen1, 5 Gbps)\"; USB 3.2 Gen 1 is entered (no datasheet is published for this device, see below). Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV (no distortion is stated). Not stated by the maker: subpixel accuracy, lens distortion, depth FOV (the depth map takes the reference camera's FOV; not stated separately, so depth_fov is null). Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor pages; lower rates are configurable but not listed); the format on the USB link depends on the on-device pipeline (raw, NV12 or H.264/H.265/MJPEG encoded), so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the chosen stereo mode). Both stereo cameras are OV9782 colour global-shutter sensors (IR-cut 650 nm), so both carry role \"rgb\"; the left one is the colour view of the depth map. No datasheet PDF is published for this device (none is linked from the docs or store page). MinZ is stated as \"10cm (800P), 5cm (480P)\"; only 800P (1280 x 800) is in min_z: \"480P\" is not one of the OV9782 sensor modes the sensor page lists (800P, 720P), so its pixel size is not entered. MaxZ \"~3 meters with a variance of 10%\" (store page); ideal range 10 cm - 1 m. Power: the store page says up to ~5 W (entered); the docs give base 2.5-3 W plus subsystems. The IMU is a BMI270 on the docs page and a BNO086 on the store page. Size 56 x 36 x 25.5 mm: axes not named, read as width x height x depth (an assumption). Depth accuracy is not stated as a figure (the store page links to the general depth accuracy docs). Passive stereo: no projector.",
+  "price": {
+    "amount": 329,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-d-sr",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "single variant (SKU OAK-D-SR), 329.0 USD"
+  },
   "interface": "USB 3.2 Gen 1 (USB Type-C)",
   "power_w": 5.0,
   "mass_g": 72.0,

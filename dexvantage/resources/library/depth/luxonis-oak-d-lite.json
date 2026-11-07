@@ -43,6 +43,16 @@
     }
   ],
   "note": "Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map is referenced to). Positions are Luxonis's design (\"spec\") translations from its own calibration board file (depthai-boards, specTranslation in cm, rotation zero): the right camera one baseline along -y and the centre camera at the baseline midpoint; a unit's own calibration differs from these design values. Interface: the docs page says \"USB 2/3 (up to 10 Gbps)\", the datasheet \"USB3.1, gen2 10gbps\" with output \"via USB 3.1 Gen1\", the store page \"USB-C (USB 3.2 Gen1, 5 Gbps)\"; USB 3.2 Gen 1 is entered. Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV (no distortion is stated). Not stated by the maker: subpixel accuracy, lens distortion, depth FOV (the depth map takes the reference camera's FOV; not stated separately, so depth_fov is null). Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor pages; lower rates are configurable but not listed); the format on the USB link depends on the on-device pipeline (raw, NV12 or H.264/H.265/MJPEG encoded), so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the chosen stereo mode). Conflicts between the maker's pages: the docs page gives MinZ \"~20cm (400P + extended disp), ~40cm (400P OR 800P + extended), ~80cm (800P)\", ideal range ~80 cm - 12 m and the 4/7/10 m accuracy bands, which are the OAK-D figures and name an 800P mode the OV7251 (640 x 480) does not have; the store page gives MinZ \"~20cm (480P, extended), ~35cm (480P)\", ideal range 40 cm - 8 m, max effective 20 m and accuracy below 2% at 40 cm - 3 m, below 4% at 3-6 m, below 6% at 6-8 m (480P). The store figures, which match the sensor, are entered. RGB shutter: \"Rolling\" (docs, store) vs \"Electronic shutter\" (datasheet). Max rates: OV7251 120 fps (datasheet) vs 117 fps at 400P and 99 fps at 480P (sensor page, entered); IMX214 60 fps (datasheet) vs 35 fps (store) and 30 fps at 13 MP (sensor page, entered). power_w is the datasheet's maximum 6 W (typical 5 W); the store page says up to ~5 W. Depth accuracy is a median absolute error, not RMS. Variant entered: auto-focus IMX214 (the fixed-focus variant has the same FOV). Kickstarter units have no IMU. Passive stereo: no projector.",
+  "price": {
+    "amount": 269,
+    "currency": "USD",
+    "unit": "each",
+    "kind": "maker_store",
+    "source": "https://shop.luxonis.com/products/oak-d-lite-1",
+    "read": "2026-11-07",
+    "region": "the store's default price list (USD)",
+    "what": "variant 'RGB Camera Focus: Auto-focus' (SKU A00483), 269.0 USD"
+  },
   "interface": "USB 3.2 Gen 1 (USB Type-C)",
   "power_w": 6.0,
   "mass_g": 61.0,

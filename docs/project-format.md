@@ -117,6 +117,29 @@ for `git diff`) convert and show it ([models/versioning.md](models/versioning.md
   `analysis.studies['experiments' | 'optimise' | 'design_agent']` (schema in
   [models/experiments.md](models/experiments.md) and [models/optimise.md](models/optimise.md)).
 
+## Research tools part 2: settings kept in `analysis.studies`
+
+Each of these is a study's settings dictionary, every key optional (the defaults are labelled in each model
+document); none changes the file's `version`:
+
+- `tracking`: `{enabled, folder, quick, tags}`, the experiment tracker (off by default). The run store is a folder
+  beside the project (`<name>.runs`, or `folder`), never inside the `.dexv` file. This setting is left out of the
+  project's content hash, so turning tracking on does not make the project differ from the runs logged before
+  ([models/tracking.md](models/tracking.md)).
+- `stats`: the statistics source (`rates`, `variants`, `experiments`, `tracker`, `samples`), the success counts and
+  the power calculator ([models/stats.md](models/stats.md)).
+- `campaign`: the campaign spec (`dexvantage.campaign_spec/1` without its schema key) and, after Apply, the applied
+  plan under `plan` ([models/campaign.md](models/campaign.md)).
+- `sim2real`: the dataset path, the episode, the cameras, the frames compared and the latency search; Apply of an
+  exposure or blur gap writes the render's camera response under `appearance[sensor uid]`
+  ([models/sim2real.md](models/sim2real.md)).
+- `cells`: the cells to compare (`{path}`, `{sample}`, `{variant}`), the reference, the metrics, tolerance draws and
+  pooling ([models/cells.md](models/cells.md)).
+- `publication`: the paper kit's sections, siunitx, widths, figure formats, bibliography style and title
+  ([models/paper_kit.md](models/paper_kit.md)).
+
+Library entries may carry a cited `price` block (`library.schema.json`; [models/library.md](models/library.md#prices)).
+
 ## Versions and migrations
 
 `version` is 1. A file of an older version is migrated one version at a time (`core/project.py`, `MIGRATIONS`); a

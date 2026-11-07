@@ -214,8 +214,11 @@ def _price_gaps(project, factors) -> list:
     return sorted(i or '(no device)' for i in ids if not OB.price_stated(i))
 
 
-def optimise(project, st: dict | None = None, ctx: jobs.Ctx | None = None) -> dict:  # noqa: C901 — the steps in order
-    """Run the optimiser on a snapshot of project (see the module docstring); the JSON-able result."""
+def optimise(project, st: dict | None = None, ctx: jobs.Ctx | None = None,  # noqa: C901 — the steps in order
+             prefetch=None, cache=None) -> dict:
+    """Run the optimiser on a snapshot of project (see the module docstring); the JSON-able result. prefetch(base,
+    factors, rows, evaluator) and cache (a core.jobs.ResultCache for the evaluator) are core/cluster's hooks: a
+    generation's designs scored in parallel into the evaluator's memo before NSGA-II asks for them one by one."""
     OB.ensure_metrics()
     ctx = ctx or jobs.Ctx()
     st = st or settings_of(project)
@@ -238,16 +241,17 @@ def optimise(project, st: dict | None = None, ctx: jobs.Ctx | None = None) -> di
         if gaps:
             objs.remove(OB.COST)
             dropped.append({'id': OB.COST, 'title': OB.M.METRICS[OB.COST].title,
-                            'reason': f'no price is stated for {", ".join(gaps[:6])}{" …" if len(gaps) > 6 else ""}'
-                                      ' (the library entry gives none: add a price to a custom entry; nothing is '
-                                      'guessed)'})
+                            'reason': f'no price in US dollars is stated for {", ".join(gaps[:6])}'
+                                      f'{" …" if len(gaps) > 6 else ""} (the library entry gives none, or gives it '
+                                      'in another currency: add a USD price to a custom entry; nothing is guessed '
+                                      'or converted)'})
     if OB.CAMERAS in objs and not any(f.path.endswith(('.enabled',)) for f in factors):
         objs.remove(OB.CAMERAS)
         dropped.append({'id': OB.CAMERAS, 'title': OB.M.METRICS[OB.CAMERAS].title,
                         'reason': 'no camera can be removed, so the count is the same for every design'})
     constraints, skipped = OB.constraint_rows(base, st['constraints'])
     locked = locked_state(base)
-    ev = S.Evaluator(objs, constraints, st['screen'], cancel=ctx.cancel)
+    ev = S.Evaluator(objs, constraints, st['screen'], cancel=ctx.cancel, cache=cache)
     nominal = [f.nominal for f in factors]
     ctx.report(0.0, 'scoring the current rig')
     try:
@@ -296,7 +300,8 @@ def optimise(project, st: dict | None = None, ctx: jobs.Ctx | None = None) -> di
     def prog(frac, text):
         ctx.report(0.02 + 0.93 * frac, text)
     res = N.run(problem, pop=st['population'], budget=st['budget'], seed=st['seed'], eta_c=st['eta_c'],
-                eta_m=st['eta_m'], pc=st['pc'], progress=prog, cancel=ctx.cancel, initial=[nominal])
+                eta_m=st['eta_m'], pc=st['pc'], progress=prog, cancel=ctx.cancel, initial=[nominal],
+                prefetch=None if prefetch is None else (lambda rows: prefetch(base, factors, rows, ev)))
     infos = [S.metric_info(m) for m in objs]
     entries = []
     seen = set()

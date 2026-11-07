@@ -103,8 +103,11 @@ def check(args, project) -> int:
     bad = _write(doc, dest)
     if bad is not None:
         return bad
-    if dest != '-':
-        print(f'Scorecard → {dest}')
+    if dest != '-':                      # say where: without an output file it is the current folder's scorecard.json
+        dflt = '' if len(vals) > 1 else ' (no output file given: scorecard.json in the current folder)'
+        print(f'Scorecard → {os.path.abspath(dest)}{dflt}')
+    from . import batch_track
+    batch_track.record('requirements', doc, project, dest, kind='check')     # --track (core/tracking)
     for e in card['errors']:
         print(f'dexvantage: {e["message"]}', file=sys.stderr)
     return RQ.exit_code(card)

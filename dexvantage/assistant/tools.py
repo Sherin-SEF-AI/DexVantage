@@ -53,7 +53,9 @@ from .session import NeedsWindow, SessionError
 # 81 s and optimise 105 s on the UR5e, design_agent 237 s, an experiment one run per row, 20-30 s for 40 runs on
 # ALOHA 2): a plan the user approves runs them in the app.
 LONG = ('grasp_visibility', 'groundtruth', 'audit', 'plan_vs_recording', 'silhouette_calib', 'teleop', 'handeye_plan',
-        'handeye_solve', 'dex_occlusion', 'tolerance', 'experiments', 'optimise', 'design_agent')
+        'handeye_solve', 'dex_occlusion', 'tolerance', 'experiments', 'optimise', 'design_agent',
+        'cells',                       # the cell comparison: figures on every cell (core/cells.py)
+        'sim2real')                    # the sim-to-real gap: renders and a silhouette calibration (5-6 s on the UR5e)
 PLAN_KINDS = ('study', 'export', 'edit')
 
 
@@ -561,6 +563,11 @@ _STUDY_TOOLS = [
                                          'uncertainty of the camera mount. Long work.'),
     ('get_audit', 'audit', 'Dataset audit: whether the recorded dataset meets the plan (drops, desync, mount slip), '
                            'per episode. Long work.'),
+    ('get_sim2real', 'sim2real', 'Sim-to-real gap: a recorded episode rendered again through the rig and compared per '
+                                 'camera (image gap, exposure, blur, noise, silhouette IoU, mount offset, latency, '
+                                 'MMD), with the causes ranked and the change that closes each. Long work.'),
+    ('get_campaign', 'campaign', 'Data-collection campaign plan: episodes, days, storage and the status against the '
+                                 'budget, the counterbalanced schedule over operators and days, and the checklists.'),
 ]
 
 TOOLS: dict = {}
@@ -638,6 +645,285 @@ _add(Tool('undo_last_change', 'Undo the last change',
           'Undo the last change when it was the assistant\'s own (edit_project). A step the user made after it is '
           'never undone from here.', _NONE, undo_last_change, changes=True))
 
+
+def get_methods_paragraph(session, studies=None, **_):
+    """The publication kit's methods paragraph (core/publication.py) from the results the window holds for the
+    design as it is now, plus the quick studies named (long ones need a plan)."""
+    from ..core import publication as PB
+    p = session.project()
+    jobs.load_studies()
+    results = {}
+    for sid in jobs.STUDIES:
+        doc = session.last_result(sid)
+        if isinstance(doc, dict):
+            results[sid] = {k: v for k, v in doc.items() if k not in ('cached', 'revision')}
+    for sid in studies or []:
+        if sid not in results:
+            results[sid] = _doc(session, p, str(sid))
+    try:
+        kit = PB.build(p, {'results': results, 'studies': [], 'sections': ['methods']})
+    except jobs.StudyError as e:
+        raise ToolError(str(e)) from None
+    st = kit['status']
+    return {'methods_tex': kit['parts'].get('methods', ''), 'studies': sorted(results),
+            'citations': kit['checks']['keys']['used'], 'numbers': st['numbers'], 'numbers_traced': st['traced'],
+            'status': st['word'], 'note': 'Every number in the paragraph is read from the project, a library entry, '
+            'a result or the software versions (provenance.json of an exported kit lists where each came from). '
+            'Export the whole kit with export_files format paper_kit.'}
+
+
+_add(Tool('get_methods_paragraph', 'Read the methods paragraph',
+          'A methods paragraph in LaTeX for a paper (robot and model sources, every sensor with maker, model, '
+          'stream, frame rate, field of view and mount pose, the studies with their settings and validation status, '
+          'the software versions), with \\cite keys, from the results the window holds for the design as it is '
+          'now and the quick studies named.',
+          _obj({'studies': {'type': 'array', 'items': {'type': 'string'},
+                            'description': 'study ids to run first when the window holds no result for them'}}),
+          get_methods_paragraph))
+
+
+def get_cells(session, full=False, **_):
+    """The multi-cell comparison (core/cells.py): the window's result for the design as it is now, else the study run
+    on the project's stored cell set (long work: it evaluates figures on every cell)."""
+    p = session.project()
+    doc = session.last_result('cells')
+    if doc is None:
+        if not session.allow_long:
+            raise ToolError('The cell comparison is long work (it evaluates figures on every cell): propose_plan a '
+                            'study step "cells" for the user to approve, or ask the user to run it on the Cells page '
+                            '(File ▸ Compare cells…).')
+        doc = _doc(session, p, 'cells')
+    h = doc.get('headline') or {}
+    pool = doc.get('pooling') or {}
+    dr = doc.get('drift') or {}
+    out = {'study': 'cells', 'headline': {k: h.get(k) for k in ('value', 'status', 'word', 'text', 'advice')},
+           'cells': [{k: c.get(k) for k in ('index', 'name', 'source', 'robots', 'cameras', 'reference')}
+                     for c in doc.get('cells') or []],
+           'gap': [{'cell': g['b'], 'index': _r(g['total']), 'band': g['band'],
+                    'components': {k: _r(v, 3) for k, v in g['components'].items()},
+                    'matches': [{k: _r(m[k], 3) if isinstance(m[k], float) else m[k]
+                                 for k in ('a', 'b', 'role', 'viewpoint_deg', 'distance_m', 'hfov_diff_deg',
+                                           'resolution_ratio', 'image_pct_a', 'image_pct_b')}
+                                for m in g['matches']]} for g in (doc.get('gap') or {}).get('pairs') or []],
+           'pooling': {'text': pool.get('text'),
+                       'cells': [{'name': c['name'], 'verdict': c['verdict'],
+                                  'steps': [f'{o["op"]} {o.get("feature", "")}' for o in c['operations']],
+                                  'cannot_map': [u['why'] for u in c['unmappable']]}
+                                 for c in pool.get('cells') or [] if not c.get('target')]},
+           'drift': {k: dr.get(k) for k in ('worst', 'systematic', 'measured_cells')},
+           'metrics': [{'id': r['id'], 'unit': r['unit'], 'values': [_r(v) for v in r['values']],
+                        'best': r['best'], 'worst': r['worst']} for r in (doc.get('metrics') or {}).get('rows') or []],
+           'note': 'The gap index is 0 for identical cells and 1 for unrelated ones; its bands are a heuristic, not a '
+                   'predicted success rate.'}
+    if full:
+        out['result'] = F.compact({k: v for k, v in doc.items() if k not in ('cached', 'revision')}, items=12,
+                                  max_depth=5)
+    return out
+
+
+_add(Tool('get_cells', 'Read the cell comparison',
+          'The multi-cell comparison (File ▸ Compare cells…): the cells, the geometric gap of each to the reference '
+          'per camera role (viewpoint angle, distance, FOV, resolution ratio, task volume in the image), whether '
+          'their recordings pool for training with the mapping steps and what cannot be mapped, the drift of built '
+          'copies from the plan, and the figures of merit side by side. Long work when the window holds no result.',
+          _obj(dict(_FULL)), get_cells))
+
+
+def get_cluster_job(session, folder='', **_):
+    """A cluster job folder's state (core/cluster): which shards are complete, incomplete, failed or missing, and,
+    when the folder holds its gathered result, that result's headline (the study's own figures)."""
+    from ..core import cluster as C
+    if not folder:
+        raise ToolError('Name the job folder (the folder --slurm or the Run on… dialog wrote).')
+    try:
+        st = C.status(os.path.expanduser(str(folder)))
+    except jobs.StudyError as e:
+        raise ToolError(str(e)) from None
+    out = {'title': st['title'], 'shards': st['shards'], 'items': st['items'], 'items_done': st['items_done'],
+           'missing': st['missing'], 'incomplete': st['incomplete'], 'failed': st['failed'],
+           'failures': [r['error'] for r in st['rows'] if r.get('error')][:5], 'peak_rss_mb': st['peak_rss_mb'],
+           'complete': not st['redo'] and st['items_done'] == st['items']}
+    rp = os.path.join(os.path.expanduser(str(folder)), 'result.json')
+    if os.path.isfile(rp):
+        try:
+            with open(rp, encoding='utf-8') as fh:
+                h = (json.load(fh).get('headline') or {})
+            out['headline'] = {k: h.get(k) for k in ('value', 'unit', 'status', 'word', 'text')}
+        except (OSError, ValueError):
+            out['headline'] = None
+    return out
+
+
+_add(Tool('get_cluster_job', 'Read a cluster job folder',
+          'A Slurm job folder written by --slurm or the Run on… dialog: its shards (complete, incomplete, failed, '
+          'missing), the items done, the first failures, the peak memory of a shard, and the gathered result\'s '
+          'headline when --gather has written it.',
+          _obj({'folder': {'type': 'string', 'description': 'the job folder'}}, ('folder',)), get_cluster_job))
+
+
+def get_statistics(session, rates=None, power=None, compare='reference', full=False, **_):
+    """The Statistics page's figures (core/studies/stats.py): with rates and/or power given, the study run on them
+    (success counts and the power calculator are quick); else the window's result for the design as it is now, else
+    the study on the project's saved statistics settings when they need no long work."""
+    p = session.project()
+    if rates or power:
+        st = {'source': 'rates', 'compare': compare}
+        if rates:
+            st['rates'] = rates
+        if power:
+            st['power'] = power
+        p.analysis.studies['stats'] = st
+        try:
+            doc = jobs.run_study('stats', p, cache=session.cache)
+        except jobs.StudyError as e:
+            raise ToolError(str(e)) from None
+    else:
+        doc = session.last_result('stats')
+        if doc is None:
+            src = (p.analysis.studies.get('stats') or {}).get('source') or 'rates'
+            if src in ('variants', 'experiments') and not session.allow_long:
+                raise ToolError('This comparison runs the tolerance Monte Carlo or an experiment (long work): '
+                                'propose_plan a study step "stats" for the user to approve, or ask the user to run it '
+                                'on the Statistics page (Analysis ▸ Statistics). Success counts given here (rates) '
+                                'are quick.')
+            try:
+                doc = jobs.run_study('stats', p, cache=session.cache)
+            except jobs.StudyError as e:
+                raise ToolError(str(e)) from None
+    h = doc.get('headline') or {}
+    out = {'study': 'stats', 'source': doc.get('source_label'),
+           'headline': {k: h.get(k) for k in ('value', 'unit', 'status', 'word', 'text')},
+           'pairing': doc.get('pairing'), 'correction': (doc.get('correction') or {}).get('label'),
+           'comparisons': [{'title': c.get('title'), 'test': c.get('test_label') or c.get('test'),
+                            'why': c.get('why'), 'p': _r(c.get('p')), 'p_adjusted': _r(c.get('p_adjusted')),
+                            'difference': _r((c.get('difference') or {}).get('value')),
+                            'difference_ci': [_r(v) for v in (c.get('difference') or {}).get('ci') or []],
+                            'unit': 'share (0-1)' if c.get('kind') == 'rates' else c.get('unit'),
+                            'verdict': (c.get('verdict') or {}).get('text'), 'error': c.get('error')}
+                           for c in doc.get('comparisons') or []],
+           'assumptions': doc.get('assumptions'), 'out_of_scope': doc.get('out_of_scope')}
+    pw = doc.get('power')
+    if pw:
+        out['power'] = {k: pw.get(k) for k in ('kind', 'n_per_group', 'total', 'power_at_n', 'method', 'test',
+                                               'answer', 'planned', 'assumptions', 'note')}
+    if doc.get('advice'):
+        out['advice'] = doc['advice']
+    if full:
+        out['result'] = F.compact({k: v for k, v in doc.items() if k not in ('cached', 'revision')}, items=12,
+                                  max_depth=5)
+    return out
+
+
+_RATE_ROW = _obj({'condition': {'type': 'string'}, 'successes': {'type': 'integer', 'minimum': 0},
+                  'trials': {'type': 'integer', 'minimum': 1}}, ('condition', 'successes', 'trials'))
+_POWER = {'type': 'object', 'additionalProperties': True,
+          'description': 'the power calculator: kind rates (p1, p2 as shares 0-1), t2 or paired_t (d), or '
+                         'demonstrations (demo_kind continuous with d, or binary with p1, p2; icc, per_operator, '
+                         'attrition); method exact (default for rates), normal, arcsine or simulation; n: the '
+                         'episodes planned per condition (its power is given); alpha (default 0.05), power (0.8)'}
+_add(Tool('get_statistics', 'Read the statistics',
+          'Statistics and power analysis (Analysis ▸ Statistics): compares success counts of conditions (policies, '
+          'rigs) with Fisher\'s exact test, the risk difference and odds ratio with intervals, corrected across the '
+          'comparisons, and says how many evaluation episodes or demonstrations per condition tell two rates or '
+          'effects apart. With rates or power given it computes them (quick); else it reads the page\'s result '
+          '(variants over the tolerance Monte Carlo, experiment or tracker runs). Each result says which test and '
+          'why, and the assumptions.',
+          _obj({'rates': {'type': 'array', 'items': _RATE_ROW, 'minItems': 2,
+                          'description': 'conditions with their successes and trials'},
+                'compare': {'type': 'string', 'enum': ['reference', 'pairs'],
+                            'description': 'each against the first (default) or every pair'},
+                'power': _POWER, **_FULL}), get_statistics))
+
+
+def get_runs(session, study=None, tag=None, since=None, until=None, limit=20, **_):
+    """The experiment tracker's runs (core/tracking) of the session's project: newest first, each with its study,
+    status, headline, tags, note and stated figures with units."""
+    from ..core import tracking as TR
+    p = session.project()
+    st = TR.settings_of(p)
+    try:
+        store = TR.store_for(p)
+    except TR.TrackingError as e:
+        return {'tracking_on': st['enabled'], 'runs': [], 'note': str(e)}
+    if not store.exists():
+        return {'tracking_on': st['enabled'], 'store': store.name, 'runs': [],
+                'note': 'No run is logged yet' + ('' if st['enabled'] else ': tracking is off (turn it on on the '
+                                                                          'Runs page)') + '.'}
+    rows = store.runs(study=study, tag=tag, since=since, until=until)
+    rows.reverse()
+    n = max(1, min(int(limit or 20), 200))
+    out = [{'run_id': r['run_id'], 'started_utc': r.get('started_utc'), 'study': r.get('study'),
+            'kind': r.get('kind'), 'status': r.get('status'), 'reason': r.get('reason') or None,
+            'headline': (r.get('headline') or {}).get('text'), 'tags': r.get('tags') or [], 'note': r.get('note'),
+            'variant': (r.get('variant') or {}).get('name'), 'project_sha256': (r.get('project') or {}).get('sha256'),
+            'rerun_of': r.get('rerun_of'), 'reproduce': (r.get('reproduce') or {}).get('verdict'),
+            'figures': {k: {'value': m.get('value'), 'unit': m.get('unit'), 'status': m.get('status')}
+                        for k, m in (r.get('metrics') or {}).items()}} for r in rows[:n]]
+    return {'tracking_on': st['enabled'], 'store': store.name, 'total': len(rows), 'runs': out,
+            **({'note': f'{len(rows) - n} older runs not listed (limit {n}).'} if len(rows) > n else {})}
+
+
+_add(Tool('get_runs', 'Read the logged runs',
+          'The experiment tracker (Analysis ▸ Runs): the runs logged for this project, newest first: each run\'s '
+          'study, status, headline, tags, note, the variant and project content hash it ran on, and its figures '
+          'with units (None where not stated). Filter by study, tag and date (since/until, ISO dates).',
+          _obj({'study': {'type': 'string'}, 'tag': {'type': 'string'},
+                'since': {'type': 'string', 'description': 'ISO date or time, e.g. 2026-11-01'},
+                'until': {'type': 'string', 'description': 'ISO date or time (a date: the whole day)'},
+                'limit': {'type': 'integer', 'description': 'at most this many runs (default 20, at most 200)'}}),
+          get_runs))
+
+
+def get_rig_cost(session, **_):
+    """The rig cost from the cited library prices (core/prices.py, core/studies/rig_inventory.py)."""
+    from ..core import prices as PR
+    from ..core.studies import rig_inventory as RI
+    inv = RI.inventory(session.project())
+    s = PR.summary()
+    return {'cost': inv['cost'],
+            'parts': [{k: d.get(k) for k in ('name', 'model_id', 'device', 'price', 'currency', 'price_kind',
+                                             'price_source', 'price_read')} for d in inv['devices']],
+            'library': {'entries': s['entries'], 'priced': s['priced'], 'currencies': s['currencies']},
+            'note': 'List prices on the date read, each from the page its library entry cites (no tax, shipping or '
+                    'discount, no exchange rate). A cost with bound at_least is a lower bound: the parts in '
+                    "'missing' state no price. Only the enabled sensors are counted."}
+
+
+_add(Tool('get_rig_cost', 'Read the rig cost',
+          'The rig cost added up from the cited list prices of the active variant\'s sensors (amount, currency, the '
+          'store page and the date read for each), a lower bound with the parts that state no price when some do '
+          'not, and how many library entries state a price. Nothing is estimated or converted.', _NONE,
+          get_rig_cost))
+
+
+def check_robot_file(session, path='', **_):
+    """What a robot file (URDF, MJCF or USD) names and whether each referenced file is found
+    (core/robot/filecheck.py: the import wizard's check, run before an import). Reads the file only."""
+    from ..core.robot import filecheck as FC
+    from ..core.robot import importer as I
+    if not path:
+        raise ToolError('Name the robot file (a .urdf, .xml MJCF or .usd/.usda/.usdc/.usdz file).')
+    p = os.path.expanduser(str(path))
+    try:
+        rep = FC.check_references(p)
+    except I.RobotImportError as e:
+        raise ToolError(str(e)) from None
+    items = rep.get('items') or []
+    miss = [i for i in items if not i.get('found')]
+    return {'file': os.path.basename(p), 'kind': rep.get('kind'), 'references': len(items),
+            'found': len(items) - len(miss),
+            'missing_required': [{'what': i['what'], 'ref': i['ref'], 'message': i['message']}
+                                 for i in miss if i.get('required')][:40],
+            'missing_optional': [{'what': i['what'], 'ref': i['ref']} for i in miss if not i.get('required')][:40],
+            'note': 'A missing required file stops the import (Robot ▸ Import robot…, or dv.robot_io.add_robot); a '
+                    'missing optional one (a texture, an unresolved USD layer) is left out and said in the notes.'}
+
+
+_add(Tool('check_robot_file', 'Check a robot file',
+          'Before importing a robot: the kind of a URDF, MJCF or USD file and every file it references (meshes, '
+          'includes, textures, USD layers), each found or missing, with the importer\'s sentence for a missing one. '
+          'Reads the file only; nothing is imported.',
+          _obj({'path': {'type': 'string', 'description': 'the robot file'}}, ('path',)), check_robot_file))
 
 def input_schemas() -> dict:
     return {n: t.input_schema for n, t in TOOLS.items()}
