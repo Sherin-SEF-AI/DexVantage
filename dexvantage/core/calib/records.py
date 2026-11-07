@@ -154,12 +154,24 @@ def sensor_imager(sensor):
 
 def camera_mount(project, sensor, imager) -> tuple[str, str, np.ndarray]:
     """(robot uid or '', link or '', X 4 × 4): the imager's optical frame in its mount frame (the link for a sensor
-    on a link, else the world)."""
+    on a link, else the world). A link no joint moves (a robot's base, or the G1 sample's torso with its waist held)
+    is fixed in the world, so a camera there is calibrated as a static one (eye-to-hand)."""
     from ..scenegeom import sensor_world_pose
     Tbo = imager.pose_in_body.matrix()
-    if sensor.mount.on_link:
+    if sensor.mount.on_link and not _static_link(project, sensor.mount.robot_uid, sensor.mount.parent_frame):
         return sensor.mount.robot_uid, sensor.mount.parent_frame, sensor.mount.pose.matrix() @ Tbo
     return '', '', sensor_world_pose(project, sensor).matrix() @ Tbo
+
+
+def _static_link(project, robot_uid: str, link: str) -> bool:
+    """Whether no joint of the robot moves the link (its pose in the world does not depend on q)."""
+    from ..robot.manipulability import chain_mask
+    from ..robot.model import RobotModelError, get_model
+    try:
+        m = get_model(project, robot_uid)
+        return m.nq == 0 or not bool(chain_mask(m, link).any())
+    except (RobotModelError, KeyError, ValueError):
+        return False
 
 
 def mount_pose_from_X(sensor, imager, X) -> Pose:

@@ -1,0 +1,58 @@
+{
+  "id": "e-con-nilecam56",
+  "kind": "camera",
+  "maker": "e-con Systems",
+  "name": "NileCAM56",
+  "family": "NileCAM GMSL2 cameras",
+  "sources": [
+    {
+      "url": "https://www.e-consystems.com/camera-modules/5mp-sony-imx568-global-shutter-gmsl2-camera-module.asp",
+      "title": "NileCAM56 - 5MP IMX568 Global shutter GMSL2 Camera (e-con Systems product page)",
+      "read": "2026-11-07",
+      "covers": "sensor (Sony Pregius S IMX568), shutter, chroma, optical format, pixel size, active and array size, FOV with e-con's lens, holder, frame rate, output, interface, operating voltage, size (l x b)"
+    }
+  ],
+  "note": "A colour global-shutter GMSL2 camera module (M12 holder); FOV 113 (D) x 85.64 (H) x 72.25 (V) degrees \"with the lens provided by e-con\". The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rate \"5MP @ 90 fps\", uncompressed NV12; the stream size of the \"5MP\" mode is not stated, so no stream is entered (active area 2472 x 2064, array 2472 x 2128). The page notes the module \"Doesn't come with default firmware\". Power \"TBD\" (null); mass not stated (null); size_mm null (only \"l x b\" 30 x 30 mm). Not stated: f-number, focal length, distortion.",
+  "interface": "GMSL2 (FAKRA connector, cable 15 m)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 85.64,
+      "vfov_deg": 72.25,
+      "dfov_deg": 113.0,
+      "pixel_um": 2.74,
+      "resolution": [
+        2472,
+        2064
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "optical_format": "1/1.8\""
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null
+}

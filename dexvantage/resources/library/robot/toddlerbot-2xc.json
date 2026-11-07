@@ -1,0 +1,123 @@
+{
+  "id": "toddlerbot-2xc",
+  "kind": "robot",
+  "maker": "Stanford University",
+  "name": "ToddlerBot 2.0 (2xc)",
+  "family": "open-source small humanoid",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/toddlerbot_2xc",
+      "title": "MuJoCo Menagerie toddlerbot_2xc/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The ToddlerBot paper and site were not read for this build; no figure is entered.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "toddlerbot_2xc",
+      "file": "toddlerbot_2xc.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "MIT",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/toddlerbot_2xc"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "toddlerbot_2xc.xml",
+      "imported": true,
+      "joints_in_q": 44,
+      "joint_names": [
+        "neck_yaw_drive",
+        "neck_yaw_driven",
+        "neck_pitch",
+        "neck_pitch_act",
+        "neck_pitch_front",
+        "neck_pitch_back",
+        "waist_yaw",
+        "waist_roll",
+        "waist_act_1",
+        "waist_act_2",
+        "left_hip_pitch",
+        "left_hip_roll",
+        "left_hip_yaw_driven",
+        "left_hip_yaw_drive",
+        "left_knee",
+        "left_ankle_pitch",
+        "left_ankle_roll",
+        "right_hip_pitch",
+        "right_hip_roll",
+        "right_hip_yaw_driven",
+        "right_hip_yaw_drive",
+        "right_knee",
+        "right_ankle_pitch",
+        "right_ankle_roll",
+        "left_shoulder_pitch",
+        "left_shoulder_roll",
+        "left_shoulder_yaw_drive",
+        "left_shoulder_yaw_driven",
+        "left_elbow_roll",
+        "left_elbow_yaw_drive",
+        "left_elbow_yaw_driven",
+        "left_wrist_pitch_driven",
+        "left_wrist_pitch_drive",
+        "left_wrist_roll",
+        "right_shoulder_pitch",
+        "right_shoulder_roll",
+        "right_shoulder_yaw_drive",
+        "right_shoulder_yaw_driven",
+        "right_elbow_roll",
+        "right_elbow_yaw_drive",
+        "right_elbow_yaw_driven",
+        "right_wrist_pitch_driven",
+        "right_wrist_pitch_drive",
+        "right_wrist_roll"
+      ],
+      "actuators": 30,
+      "links": 45,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 44,
+      "seconds": 1.16,
+      "note": ""
+    }
+  }
+}

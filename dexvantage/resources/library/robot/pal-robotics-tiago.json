@@ -1,0 +1,108 @@
+{
+  "id": "pal-robotics-tiago",
+  "kind": "robot",
+  "maker": "PAL Robotics",
+  "name": "TIAGo",
+  "family": "mobile manipulator",
+  "sources": [
+    {
+      "url": "https://pal-robotics.com/robot/tiago/",
+      "title": "PAL Robotics, TIAGo product page (specifications)",
+      "read": "2026-11-07",
+      "covers": "height, arm payload, 7-DoF arm"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/pal_tiago",
+      "title": "MuJoCo Menagerie pal_tiago/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The page says \"The 7 DoF arms\" and a height of 110-145 cm; it states no total DoF.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "mobile_manipulator",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": 3,
+      "source": 0,
+      "quote": "Arm Payload 3 Kg (without end-effector)"
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "pal_tiago",
+      "file": "tiago.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/pal_tiago"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "tiago.xml",
+      "imported": true,
+      "joints_in_q": 22,
+      "joint_names": [
+        "wheel_right_joint",
+        "wheel_left_joint",
+        "caster_front_right_1_joint",
+        "caster_front_right_2_joint",
+        "caster_front_left_1_joint",
+        "caster_front_left_2_joint",
+        "caster_back_right_1_joint",
+        "caster_back_right_2_joint",
+        "caster_back_left_1_joint",
+        "caster_back_left_2_joint",
+        "torso_lift_joint",
+        "head_1_joint",
+        "head_2_joint",
+        "arm_1_joint",
+        "arm_2_joint",
+        "arm_3_joint",
+        "arm_4_joint",
+        "arm_5_joint",
+        "arm_6_joint",
+        "arm_7_joint",
+        "gripper_right_finger_joint",
+        "gripper_left_finger_joint"
+      ],
+      "actuators": 0,
+      "links": 23,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 22,
+      "seconds": 0.17,
+      "note": ""
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "id": "robotiq-2f-85",
+  "kind": "robot",
+  "maker": "Robotiq",
+  "name": "2F-85",
+  "family": "adaptive parallel gripper",
+  "sources": [
+    {
+      "url": "https://blog.robotiq.com/hubfs/Product-sheets/Adaptive%20Grippers/Product-sheet-Adaptive-Grippers-EN.pdf",
+      "title": "Robotiq, Adaptive Grippers product sheet (updated May 2025)",
+      "read": "2026-11-07",
+      "covers": "stroke, grip force, payload, mass, communication, IP rating"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/robotiq_2f85",
+      "title": "MuJoCo Menagerie robotiq_2f85/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Stroke (adjustable) 85 mm, grip force 20 to 235 N, closing speed 20 to 150 mm/s (product sheet; \"All specifications provided for reference only\"). Robotiq states no DoF; the model's linkage has eight hinge joints driven by one actuator, so the verified DoF counts actuators.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "gripper",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": 5,
+      "source": 0,
+      "quote": "Form-fit grip payload 5 kg; Friction grip payload 5 kg"
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 0.9,
+      "source": 0,
+      "quote": "Gripper mass 0.9 kg"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "Modbus RTU (RS-485)"
+      ],
+      "source": 0,
+      "quote": "Communication protocol Modbus RTU (RS-485)"
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "robotiq_2f85",
+      "file": "2f85.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-2-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/robotiq_2f85"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "2f85.xml",
+      "imported": true,
+      "joints_in_q": 8,
+      "joint_names": [
+        "right_driver_joint",
+        "right_coupler_joint",
+        "right_spring_link_joint",
+        "right_follower_joint",
+        "left_driver_joint",
+        "left_coupler_joint",
+        "left_spring_link_joint",
+        "left_follower_joint"
+      ],
+      "actuators": 1,
+      "links": 14,
+      "free_joints": 0,
+      "dof_rule": "actuators",
+      "excluded_joints": [],
+      "dof": 1,
+      "seconds": 0.12,
+      "note": ""
+    }
+  }
+}

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dexvantage-plugin-template"
+version = "0.1.0"
+description = "A DexVantage plugin template: one study (aim at the task volume), two metrics and a page"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+requires-python = ">=3.10"
+dependencies = ["dexvantage"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+# DexVantage finds the plugin through this entry point and calls register(api)
+[project.entry-points."dexvantage.plugins"]
+aim_template = "dexvantage_plugin_template:register"
+
+[tool.setuptools]
+packages = ["dexvantage_plugin_template"]

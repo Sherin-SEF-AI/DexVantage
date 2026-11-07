@@ -1,0 +1,94 @@
+{
+  "id": "the-robot-studio-so-arm100",
+  "kind": "robot",
+  "maker": "The Robot Studio",
+  "name": "SO-ARM100",
+  "family": "open-source 3D-printed arm",
+  "sources": [
+    {
+      "url": "https://github.com/TheRobotStudio/SO-ARM100",
+      "title": "The Robot Studio, SO-ARM100 repository README",
+      "read": "2026-11-07",
+      "covers": "servos (Feetech STS3215), USB-C connection"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/trs_so_arm100",
+      "title": "MuJoCo Menagerie trs_so_arm100/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The maker's README lists parts (six STS3215 servos for the follower arm) but states no DoF, reach, payload, repeatability or mass as figures, so they are null. The bundled SO-100 sample is this Menagerie model; its joint limits are Menagerie's \"approximate joint limits\".",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "USB-C (serial bus servo driver board)"
+      ],
+      "source": 0,
+      "quote": "\"plug each arm into your computer using a USB-C cable\"; Motor Control Board"
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "trs_so_arm100",
+      "file": "so_arm100.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/trs_so_arm100"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "so_arm100.xml",
+      "imported": true,
+      "joints_in_q": 6,
+      "joint_names": [
+        "Rotation",
+        "Pitch",
+        "Elbow",
+        "Wrist_Pitch",
+        "Wrist_Roll",
+        "Jaw"
+      ],
+      "actuators": 6,
+      "links": 7,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 6,
+      "seconds": 0.14,
+      "note": ""
+    }
+  }
+}

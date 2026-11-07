@@ -1,0 +1,71 @@
+{
+  "id": "ultraleap-leap-motion-controller-2",
+  "kind": "teleop",
+  "maker": "Ultraleap",
+  "name": "Leap Motion Controller 2",
+  "family": "Leap Motion",
+  "sources": [
+    {
+      "url": "https://www.ultraleap.com/products",
+      "title": "Ultraleap products page, Leap Motion Controller 2 technical specifications",
+      "read": "2026-11-07",
+      "covers": "power, data connection, tracking range and field of view, camera frame rate, wavelength, dimensions, weight"
+    }
+  ],
+  "note": "An optical hand tracker. Stated: \"Tracking range and field of view: Depth between 10 cm (4”) to 110 cm (43”); 160° x 160° field of view\" (a cone in front of the device, not a box or cylinder, so the study's volume stays \"not stated\" until a measured box is entered); \"Camera framerate: 115 fps maximum\" (tracking_hz 115, the camera's maximum frame rate); \"Operating wavelength: 850 nm\" (its IR illumination can reach 850 nm depth cameras nearby); \"Power supply requirement: 5VDC via USB, 500 mA\"; \"Data connection: USB 3.0 via USB type C connector\"; \"Dimensions: 84 mm x 20 mm x 12 mm\" (size_mm as stated), \"Weight: 29 g\". Not stated: latency, accuracy.",
+  "interface": "USB 3.0 (USB Type-C)",
+  "power_w": null,
+  "mass_g": 29.0,
+  "size_mm": [
+    84.0,
+    20.0,
+    12.0
+  ],
+  "teleop": {
+    "device_kind": "hand_tracker",
+    "mapping": "cartesian",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "tracking_hz": {
+      "value": 115,
+      "source": 0,
+      "quote": "\"Camera framerate: 115 fps maximum\""
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated as a box or cylinder (a 160° × 160° cone from 10 to 110 cm)."
+    },
+    "range_text": {
+      "value": "Depth 10 cm to 110 cm; 160° x 160° field of view",
+      "source": 0,
+      "quote": "\"Tracking range and field of view: Depth between 10 cm (4”) to 110 cm (43”); 160° x 160° field of view\""
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "id": "apple-vision-pro-m5",
+  "kind": "teleop",
+  "maker": "Apple",
+  "name": "Apple Vision Pro (M5)",
+  "family": "Apple Vision Pro",
+  "sources": [
+    {
+      "url": "https://www.apple.com/apple-vision-pro/specs/",
+      "title": "Apple Vision Pro - Technical Specifications (apple.com)",
+      "read": "2026-11-07",
+      "covers": "chips (M5, R1 and its latency), sensors, input, refresh rates, weight, connectivity"
+    }
+  ],
+  "note": "The specifications page (the M5 model): \"Apple R1 chip | 12‑millisecond photon‑to‑photon latency\" (latency_ms 12: the passthrough display path, not a hand-tracking-to-robot latency); \"Six world‑facing tracking cameras\", \"Four eye‑tracking cameras\", \"TrueDepth camera\", \"LiDAR Scanner\", \"Four inertial measurement units (IMUs)\"; input \"Hands | Eyes | Voice\"; \"Supported refresh rates: 90Hz, 96Hz, 100Hz, 120Hz\" (display rates; tracking_hz null). \"Device Weight 26.4–28.2 ounces (750–800 grams)\" with Light Seal and Dual Knit Band, \"Separate battery weighs 353 grams\" (mass_g 800, the upper end of the headset's range). Not stated: a hand-tracking rate or accuracy, a tracking volume.",
+  "interface": "Wi-Fi 6 (802.11ax), Bluetooth 5.3",
+  "power_w": null,
+  "mass_g": 800.0,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "vr",
+    "mapping": "cartesian",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "tracking_hz": {
+      "value": null,
+      "source": null
+    },
+    "latency_ms": {
+      "value": 12,
+      "source": 0,
+      "quote": "\"Apple R1 chip | 12‑millisecond photon‑to‑photon latency\""
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "range_text": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "id": "haptx-gloves-g1",
+  "kind": "teleop",
+  "maker": "HaptX",
+  "name": "HaptX Gloves G1",
+  "family": "HaptX Gloves",
+  "sources": [
+    {
+      "url": "https://haptx.com/gloves-g1/",
+      "title": "HaptX Gloves G1 product page (Technical Specifications)",
+      "read": "2026-11-07",
+      "covers": "glove weight, tactile and force feedback, motion capture DoF and resolution, Airpack, battery, Wi-Fi range"
+    }
+  ],
+  "note": "Haptic gloves with microfluidic tactile and force feedback. Technical Specifications: \"Weight ~ 1 lb / glove\" (mass_g 454 is 1 lb in grams, a unit conversion of an approximate figure); tactile feedback \"135 per hand\", \"1.5 mm max displacement\", \"9 psi (62 kPa) peak pressure\"; force feedback \"Up to 8 lbf per finger\", \"23ms engagement time\"; motion capture \"36 tracked DoF per Glove\", \"0.3mm rms positional resolution\"; Airpack \"52.5 x 26.5 x 12.3 cm\", \"19.5 lbs. (8.8 kg)\", \"3 hours typical usage\"; \"Wifi Range 100 ft. (30.5m)\". The page says the magnetic motion capture tracks \"with no perceivable latency\" (no figure: latency_ms null; the 23 ms is the force feedback's engagement time). Not stated: the tracking rate, the tracked volume.",
+  "interface": "Wi-Fi (Airpack)",
+  "power_w": null,
+  "mass_g": 454.0,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "glove",
+    "mapping": "cartesian",
+    "dof": {
+      "value": 36,
+      "source": 0,
+      "quote": "\"Motion capture | 36 tracked DoF per Glove\""
+    },
+    "tracking_hz": {
+      "value": null,
+      "source": null
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "range_text": {
+      "value": "Wi-Fi range 100 ft (30.5 m)",
+      "source": 0,
+      "quote": "\"Wifi Range | 100 ft. (30.5m)\""
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": 0.3,
+      "source": 0,
+      "quote": "\"0.3mm rms positional resolution\""
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": "135 tactile actuators per hand; up to 8 lbf per finger; 23 ms engagement time",
+      "source": 0,
+      "quote": "\"More actuators than other gloves: 135 per hand\"; \"Force feedback | Up to 8 lbf per finger | 23ms engagement time\""
+    }
+  }
+}

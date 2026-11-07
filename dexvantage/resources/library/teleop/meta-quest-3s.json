@@ -1,0 +1,66 @@
+{
+  "id": "meta-quest-3s",
+  "kind": "teleop",
+  "maker": "Meta",
+  "name": "Meta Quest 3S",
+  "family": "Meta Quest",
+  "sources": [
+    {
+      "url": "https://www.meta.com/quest/quest-3s/buy-now/",
+      "title": "Meta Quest 3S (Meta Store buy page, tech specs; read through a text fetch of the page)",
+      "read": "2026-11-07",
+      "covers": "weight, refresh rates, hand-tracking cameras, resolution, field of view"
+    }
+  ],
+  "note": "Stated: \"514 grams\" (\"*Excluding the facial interface\"; the page's FAQ says 513 grams); refresh rate \"72 Hz, 90 Hz, 120 Hz\" (display rates, not a tracking rate); hand tracking \"with four IR cameras and two RGB cameras\"; \"1832 x 1920 pixels per eye\"; field of view \"96 degrees horizontal and 90 degrees vertical\". Not stated: the tracking volume, a latency, a tracking rate. Read through a text fetch of the page (it is rendered by script).",
+  "interface": "Wi-Fi; USB-C",
+  "power_w": null,
+  "mass_g": 514.0,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "vr",
+    "mapping": "cartesian",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "tracking_hz": {
+      "value": null,
+      "source": null
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "range_text": {
+      "value": "96 degrees horizontal and 90 degrees vertical (display field of view)",
+      "source": 0,
+      "quote": "\"96 degrees horizontal and 90 degrees vertical.\""
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

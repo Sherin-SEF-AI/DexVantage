@@ -1,0 +1,96 @@
+{
+  "id": "fanuc-crx-5ia",
+  "kind": "robot",
+  "maker": "FANUC",
+  "name": "CRX-5iA",
+  "family": "6-axis collaborative arm",
+  "sources": [
+    {
+      "url": "https://www.fanucamerica.com/products/robots/series/collaborative-robot/crx-5ia",
+      "title": "FANUC America, CRX-5iA product page",
+      "read": "2026-11-07",
+      "covers": "axes, payload, reach, repeatability, mechanical weight"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/fanuc_crx5ia",
+      "title": "MuJoCo Menagerie fanuc_crx5ia/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "Axes 6"
+    },
+    "reach_mm": {
+      "value": 994,
+      "source": 0,
+      "quote": "Reach 994 mm"
+    },
+    "payload_kg": {
+      "value": 5,
+      "source": 0,
+      "quote": "Max Payload 5 kg"
+    },
+    "repeatability_mm": {
+      "value": 0.03,
+      "source": 0,
+      "quote": "Repeatability ±0.03 mm"
+    },
+    "mass_kg": {
+      "value": 25,
+      "source": 0,
+      "quote": "Mechanical Weight 25 kg"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "fanuc_crx5ia",
+      "file": "crx5ia.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/fanuc_crx5ia"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "crx5ia.xml",
+      "imported": true,
+      "joints_in_q": 6,
+      "joint_names": [
+        "J1",
+        "J2",
+        "J3",
+        "J4",
+        "J5",
+        "J6"
+      ],
+      "actuators": 6,
+      "links": 7,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 6,
+      "seconds": 0.15,
+      "note": ""
+    }
+  }
+}

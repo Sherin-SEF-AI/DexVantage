@@ -150,6 +150,15 @@ class ChartBase(QWidget):
         self.tip = None
         self.update()
 
+    def figure_data(self) -> dict | None:
+        """The chart's data as a publication figure spec (core/figures.py), or None: the context menu's Export figure
+        then saves the chart as drawn."""
+        return None
+
+    def contextMenuEvent(self, e):
+        from .figure_export import chart_menu         # Export figure… (ui/figure_export.py)
+        chart_menu(self, e.globalPos())
+
 
 class BarList(ChartBase):
     """Rows: chip + tag | bar in identity colour | value. Hovering a row lights up its camera in the plan views (and a
@@ -251,6 +260,13 @@ class BarList(ChartBase):
         i = int((e.position().y() - top) // rh)
         if 0 <= i < len(self.rows):
             self.picked.emit(self.rows[i][0])
+
+    def figure_data(self):
+        from ..core import figures
+        if not self.rows:
+            return None
+        return figures.bars([(tag, val, THEME.cam(slot).name()) for _uid, slot, tag, val in self.rows], unit=self.unit,
+                            title=self.title, xlabel=f'{self.what} ({self.unit})' if self.unit else self.what)
 
 
 class DensityHistogram(ChartBase):

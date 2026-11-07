@@ -3,6 +3,285 @@
 The resume point for the next session: what is done, what is next, open issues, and the decisions taken. Updated at
 the end of every phase.
 
+## Phases 9 and 10, samples, robot catalogue, larger library, research tools part 1 (done, 2026-11-07)
+
+Built in parallel by separate agents (tolerances; experiments; the optimiser and design agent; requirements and
+metrics; exporters A and B; the canonical warp and Rerun; the tool layer and MCP; the Assistant dock; the samples;
+the robot catalogue; the camera, depth and tactile library; the systems library and teleop devices; the Python API
+and plugins; diff, merge, folder form, citations and figures), then integrated, then reviewed four times
+(truthfulness, correctness, a research team's workflows, spec completeness).
+
+**Final gate (after the four reviews, 2026-11-07)**
+- Tests: **3 477 passed**, 0 failed, 1 skipped (the plugin template's real `pip install`: setuptools is not in
+  `.venv`) (`python -m pytest tests`, offscreen, memory-capped at 7 GB, run alone on the machine, 1 600 s). Peak:
+  the largest process 5.11 GB (`time -v` maximum resident set), the cgroup's `memory.peak` 6.19 GB with page cache.
+  The reviews added test_review_phase910_correctness 17, test_review_p910_product 19, test_spec_completeness 14 and
+  asserts in existing files (3 478 collected; the integration gate ended at 3 427). The reviewers' failures
+  (`test_metric_defs::test_groundtruth_agreement` "Disk quota exceeded", a 136 ms Apply under three parallel suites,
+  `test_robot_catalogue` edited during a run) did not recur. After the gate's own fixes (below) the suite was run
+  again: **3 482 passed**, 0 failed, 1 skipped (the five new tests of `tests/test_final_gate_p910.py`), 1 585 s,
+  largest process 5.08 GB, cgroup 6.36 GB; its temporary folder held only the icon cache and pytest's own folder
+  afterwards.
+- Validation: **179 of 179 checks pass** (`--validate out/validation`, full run 500 s with two batch streams running
+  alongside, peak 5.35 GB). New since the integration gate: `workspace.object_extent` (0.861 of the tessellation
+  bound, tolerance 1) and `workspace.inside_classification` (0 of 30 objects misplaced).
+- `dexvantage --self-test`: **37 of 37 ok** (38 s, peak 3.6 GB; two lines more than at the integration gate, one of
+  them `workspace`; the validation line runs 124 cheap checks in 27 s; occlusion and grasp on the RTX 5080, the
+  OpenGL line on the default display).
+- `ruff check dexvantage tests scripts examples`: clean.
+- `python -m dexvantage.mcp` over stdio: initialize answers protocol 2025-11-25 (server "dexvantage" 0.1.0.dev0),
+  tools/list 30 tools, `open_project` with `sample: g1` opens it (0.7 s in all).
+- Batch, every Phase 9/10 flag on the five arm samples (so100, ur5e, aloha, panda-bimanual, g1), 147 runs, each under
+  a 4 GB cap (largest 2.3 GB), two sample streams in parallel (times include start-up and that contention); results
+  exit 0, refusals one sentence and exit 2, a failing scorecard or plan exit 1, no traceback in any run:
+  - `--canonical-view`: SO-100 323 px, UR5e 675 px ("large parallax"), ALOHA 0 px ("aligned": its two wrist cameras
+    sit alike on their grippers), Panda 11 878 px, G1 refused (one camera). `--reproduce` of each: "reproduces"
+    (ALOHA 2 409 numbers the same).
+  - `--rig-inventory`, `--scorecard` ("no requirements"), `--variants-compare`: under 1.5 s each.
+  - `--check defaults`: SO-100 1/5 (2 not evaluated), UR5e 1/5, ALOHA 2/5, Panda 2/5, G1 1/5 (contact visibility 0 %),
+    all "not ready", exit 1, 10–78 s; `--reproduce` of the scorecards with `--reproduce-out`: "reproduces".
+  - `--experiment DESIGN.json` (6-run Latin hypercube over a camera's pitch and height): UR5e 97.1 % against 91.9 %
+    ("better than now"), SO-100 96.7 % against 94.5 %, G1 98.9 % against 96.6 %, ALOHA and Panda 100 % ("same as
+    now"), 1.6–12.7 s; `--experiment-saved` refused on each ("The experiment has no factor yet …").
+  - `--optimise` (budget 12) 6–38 s and `--design-agent` (budget 8) 13–38 s on all five: 0 to 5 designs each; a
+    design at least as good on every objective (status good) from the optimiser on the SO-100 and UR5e and the agent
+    on the SO-100 and G1, trade-offs only on ALOHA and Panda, and on the G1 the optimiser kept the current rig.
+  - `--tolerance-mc` (64 draws): SO-100 24 s (coverage P5 94.3 %), UR5e 107 s (worst smear P95 38.6 px), ALOHA 191 s
+    (66.6 px), Panda 210 s (102.5 px), G1 58 s (coverage P5 95.9 %).
+  - Spec aliases: `--cable-flex` 0.7–2.6 s, `--sync` 0.6–1.4 s, `--mujoco-validate DIR/` (writes `groundtruth.json`
+    in the folder) 6–17 s (UR5e 92.8 % "agrees", ALOHA 87.1 % "mostly agrees"), `--grasp-study` UR5e 32 s and ALOHA
+    50 s (100 %), `--teleop-overlap` SO-100 7.4 s (96.7 %) and Panda 138 s (100 %, "clear"); `--handeye-solve
+    --captures DIR --joints FILE` on a simulated UR5e capture 3.1 s (10 of 10 views, the mount found 2.680 mm off
+    against a true 2.693 mm).
+  - `--export` with eleven formats: 10 of 11 written on each sample (brackets refused: no bracket type set; on the G1
+    also the canonical warp), SO-100 28 s to Panda 211 s; `--formats usd` 0.6–1.5 s; `--export … fiftyone,
+    lerobot_dataset --dataset` on an SO-100 campaign 18 s; `--rerun` 0.7–1.8 s; `--rerun --rerun-audit` 0.9 s.
+  - `--unpack`, `--pack`, `--diff` of the round trip ("No differences.", exit 0), `--diff` against the UR5e with
+    `--diff-html` and `--diff-metrics` (exit 1 where they differ), `--merge`, `--textconv`, `--cite
+    --cite-references all` (203 entries on the UR5e), `--run-plan` (exit 1: its check fails): each under 1 s except
+    the plan (10–67 s).
+  - `--figure … --figure-width double --figure-palette chart`, `--list-plugins`, `--no-plugins`: 0.2–0.4 s.
+  - Refused in one sentence (exit 2): `--captures` or `--joints` without `--handeye-solve`, `--rerun-audit` without
+    `--rerun`, `--optimise-settings '[1]'`, `--export-options` naming a format `--formats` does not ask for.
+- Screenshots: `python scripts/screens.py --only phase910` (28 images, 316 s, none unfinished; three new:
+  `p910-ur5e-workspace-page.png`, `p910-library-panel-teleop-policies.png`, `p910-sample-g1-coverage-page.png`).
+  Looked at: the Workspace page (1 volume, "ready", the volumes, objects, surfaces and lights listed: fine); the
+  Library's Teleop devices group (13; long GELLO name elided, full name in the tooltip); the G1's coverage page (0.0 %
+  seen by two or more, "mostly single or blind", advice to add a second camera: honest); the canonical view page with
+  its new depth-range field (675.1 px: fine); the Panda sample's main window (2 robots, 18 joints, 3 sensors: fine);
+  the requirements scorecard (1 / 5, "not ready"): the read-only "DexVantage default" box drew no tick for a default
+  requirement (fixed, below).
+- Hygiene: every tracked and untracked file (941) grepped for personal paths, user and host names, e-mail addresses,
+  keys (`sk-ant-`, Groq, Hugging Face, AWS, GitHub, private-key blocks) and AI attribution lines (Co-Authored-By,
+  Claude-Session, "Generated with"): none (the hits are the rules, and the MCP docs naming Claude Code and Claude
+  Desktop as clients). No file over 5 MB was added (the largest new file is ALOHA's
+  `vx300s_7_gripper_wrist_mount.stl`, 2.3 MB). `resources/robots` gained **26.1 MB** in 140 files (aloha 17 files,
+  franka_emika_panda 69, unitree_g1 51 and three scene files); the folder is 41.9 MB in all, and each of its seven
+  model folders carries its LICENSE.
+
+**Final gate fixes**
+- Temporary folders: `make_app(settings_scope=…)` (the self-test, the tests) and `tests/conftest.py` (the session's
+  XDG folders, one settings folder per test) never removed their folders, and the audit check's fallback folder and
+  the plugin template's test folders neither: two days of runs left 12 195 folders (4.1 GB) in the 15 GB `/tmp`,
+  which ran out during a review's full suite ("Disk quota exceeded" in a MuJoCo render). Each now goes when its
+  process or test ends (`app.py`, `tests/conftest.py`, `validation/checks_audit.py`,
+  `examples/plugin-template/tests/conftest.py`; `tests/test_final_gate_p910.py`).
+- The assistant's and MCP's `export_files` and plan steps refused the `usd` alias that `export()` and `--formats`
+  take (`assistant/tools.py` resolves aliases).
+- A ticked checkbox that is disabled drew an empty box in both themes (the `:disabled` rule cleared the fill the
+  inverted tick needs): the Requirements page's read-only "DexVantage default" read as unticked for a default
+  (`ui/theme.py`).
+- `scripts/screens.py --only phase910` also shoots the Workspace page, the Library's teleop and policy groups and a
+  G1 study page.
+
+**Review fixes (Phases 9 and 10)**
+- Truthfulness (every source re-read on 2026-11-07 as PDFs, raw GitHub files at the pinned commits and product
+  pages, about 50 library entries and all seven bundled robots' LICENSE files; 8 fixes): among them the Allied Vision
+  Alvium 1800 C-158c and U-240c maximum frame rates cannot be RGB8 rates over their links, so the stream's format and
+  bits per pixel are null; Diffusion Policy (CNN)'s 0.1 s is Section 3.4's figure for 10 DDIM iterations where Table 7
+  lists 16 (the note says it may understate); the Franka Research 3 and Flexiv model folders' LICENSE files hold the
+  Apache-2.0 text followed by a BSD text (the entries and the catalogue test say so); the Isaac export's and the
+  OpenVLA export's notes state their limits (USD aperture offsets, joint encodings).
+- Correctness (8 bugs, each with a regression test in `tests/test_review_phase910_correctness.py`): a `json:`
+  factor pointer could move, re-model, delete or unlock a locked sensor (`core/factors.apply` refuses unless
+  `allow_locked`); the experiments and the optimiser took such a pointer as a factor, and the optimiser's
+  refused-design path returned a constraint vector of the wrong length; the tolerance Monte Carlo counted a draw
+  stated only as a bound ("at least 1 ms") as meeting "< 2 ms" and compared without the scorecard's 10⁻⁹ tolerance
+  (`core/tolerance.meets` uses `core/requirements.decide`); the optimiser counted such a bound as a met constraint;
+  NSGA-II's crowding distance gave +inf to a design whose figure is not stated; `--reproduce` of a scorecard made for
+  a non-active variant re-ran the active one; the Plücker "base" frame defaulted to the first robot instead of the
+  primary one. Conventions pinned: the tolerance draw (body turn, parent shift), the calibration covariance's
+  parameterisation, URDF rpy (fixed-axis xyz), the canonical homography's direction, the Kalibr chain and USD camera
+  axes, merge conflicts on remove against change, the unpacked folder's exact round trip.
+- A research team's workflows (18 fixes, `tests/test_review_p910_product.py`): `factors.apply` refuses a value that
+  is not a finite number, an unknown library device and a stream that is not [width, height] in a sentence (a raw
+  ValueError, NaN or a model id that does not exist before); `dv.open` and `dv.sample` raise `DexVantageError`;
+  `rig.save` to a folder writes the unpacked form; `--reproduce` of a file naming no study and `--optimise-settings
+  '[1]'` say so; a bound that does not settle a requirement shows no margin; a small Saltelli design says its indices
+  are rough; the MCP server and the assistant open the three new samples, and the tolerance Monte Carlo, experiments,
+  the optimiser and the design agent are long work for the assistant (an approved plan runs them); the Panda
+  sample's Diffusion Policy takes the two wrist views ("3 of 2 cameras assigned" before); the Menagerie import
+  compiles on the dialog's worker and keeps the catalogue's robot name; opening an analysis page makes the Analysis
+  dock tall enough to read; empty selectors say why; "No warnings." (not "None."); a user-set mount tolerance is not
+  labelled "(default)"; "1 sensor" (not "1 sensors"); the assistant's overview counts moving joints as the Outliner
+  does (28 on the G1, not 44); the brackets export's refusal names the menu.
+- Spec completeness (§7.11, §7.16, §8.5, §9.2, §9.4, §11, §12, §13; `tests/test_spec_completeness.py` 14):
+  §11's names as aliases (`--grasp-study`, `--cable-flex`, `--mujoco-validate out/`; a study given a folder writes
+  `<folder>/<flag>.json`), `--formats usd` (the Isaac export), `--export … fiftyone --dataset`, `--handeye-solve OUT
+  --captures DIR [--joints FILE]` (§8.4's batch capture); a Workspace page with a workspace check and its suggestion
+  (`core/workspace_check.py`, validation model `workspace`, 2 checks); design-log notes and a filter; the Canonical
+  view page's depth-range field; the Library panel's Teleop devices, Policies, Lights, Cables and Mounts groups; the
+  Requirements page shows another variant beside the active one; variant ghosts in the 3D view.
+
+**Integration gate (2026-11-07)**
+- Tests: **3 426 passed**, 0 failed, 1 skipped (the real `pip install` of the plugin template: setuptools is not in
+  `.venv`) (`python -m pytest tests`, offscreen, memory-capped at 7 GB, 1 505 s). The suite's process peaked at
+  **4.85 GB** (VmHWM; the largest process of the run 4.99 GB), its RSS 3.0 GB at the end; before the memory fixes
+  the same suite passed 7.5 GB a third of the way through. New test files: test_tolerance 17, test_experiments,
+  test_optimise,
+  test_optimise_page, test_metric_defs, test_requirements, test_requirements_batch, test_requirements_page,
+  test_metrics_contract, test_factors_contract, test_exporters_contract, test_exporters_a 25,
+  test_export_isaac_lerobot_report, test_canonical_warp, test_rerun_bridge, test_assistant_tools, test_mcp,
+  test_assistant_loop, test_assistant_dock, test_samples_bimanual, test_robot_catalogue, test_library_added_entries,
+  test_library_depth_entries, test_library_systems 143, test_api, test_plugins, test_examples, test_projdiff,
+  test_projfolder, test_cite, test_figures, test_compare_ui, test_integration_p910 6 (3 427 collected; the Phases 4,
+  5 and 8 gate ended at 1 886).
+- **Test memory (step 0 of this gate):** a diagnostic run (11 GB cap) showed `test_validation`'s in-process quick run
+  of every check peaking at 6.2 GB and leaving 3.3 GB resident, and the suite then creeping by about 50 MB per module
+  (7.5 GB peak by `test_grasp_visibility`, a third of the way). Per-module object counts found nothing alive (no
+  window, robot model or project survived a module); the creep was glibc's per-thread malloc arenas keeping freed
+  worker-thread memory mapped: with two arenas seven modules ended at 0.79 GB instead of 1.64 GB. Fixes:
+  `core/memlimit.py` (`mallopt(M_ARENA_MAX, 2)`, called by `tests/conftest.py` and by `app.main`), and
+  `test_validation` runs each model's quick run in a child process (the heavy `formats` 4.9 GB, `handeye` 3.7 GB and
+  `groundtruth` 2.4 GB alone, the others two at a time; the suite's own process stays at about 0.25 GB while they run).
+  `scripts/run_tests.py` was not needed.
+- Validation: **177 of 177 checks pass** (`--validate out/validation`, full run 400 s, peak 5.4 GB with two malloc
+  arenas; 410 s and 6.7 GB before that fix, with the test suite running alongside). 64 new since Phases 4, 5
+  and 8: robots 1, library 6 (data consistency), tolerance 5,
+  experiments 6, optimise 6, formats 11 more (MJCF snippets, URDF, tf, OpenCV YAML, Kalibr, masks, STEP, Isaac USD and
+  configs, LeRobot export, report, canonical warp files, Rerun read-back), vla 4 more (warp), assistant 3,
+  requirements 5, copilot 3, versioning 7, samples 5 (each model's figures are in its document and in the overview).
+  The quick run of every model in its own process: 177 of 177, 197 s in all.
+- `dexvantage --self-test`: **35 of 35 ok** (36 s). New lines: samples, robot catalogue, library teleop, tolerance,
+  experiments,
+  optimiser, requirements, versioning, mcp server, assistant, exporters, sim exports, warp, python api (each under
+  1 s); the validation line runs 122 cheap checks (26 s).
+- `ruff check dexvantage tests scripts`: clean.
+- `python -m dexvantage.mcp`: answers initialize (protocol 2025-11-25, or the client's version when it is one of
+  those served) and tools/list (30 tools).
+- Batch, every new flag on the samples (4 GB cap, times include start-up; RTX 5080 through EGL): `--sample ur5e
+  --pack` 0.7 s, `--unpack` 0.2 s and `--pack` back 0.4 s (their diff: "No differences.", exit 0), `--textconv`
+  0.2 s, `--diff` UR5e against SO-100 0.4 s (65 changes, exit 1 as they differ, with `--diff-html`), `--cite` 0.4 s,
+  `--figure` 0.2 s; `--tolerance-mc` UR5e 81 s (64 draws: worst motion smear P95 38.6 px, "no requirement"), SO-100
+  24 s (coverage P5 94.3 %); `--reproduce` of the UR5e tolerance result 94 s ("Reproduces exactly: all 1141 numbers");
+  `--experiment` (a 6-run Latin hypercube over the Overhead D435's pitch and height) 9.2 s (92.0 %, "better than
+  now"); `--optimise` (budget 12) 17 s (3 designs, "better rig found"); `--design-agent` (budget 8) 26 s (3 designs,
+  "trade-offs only"); `--check defaults` UR5e 36 s (1 pass, 3 fail, 1 not evaluated, exit 1) and its `--reproduce`
+  35 s (exit 0); `--run-plan` (a study, a check, an export) 35 s (exit 1: the check fails); `--export` with every
+  format but fiftyone and lerobot_dataset on the UR5e 76 s (exit 1: brackets refused, no bracket type set; the other
+  10 written), SO-100 seven formats 1.8 s; `--canonical-view` 0.9 s (675 px, "large parallax"); `--rerun` 1.3 s;
+  `--scorecard`, `--variants-compare`, `--rig-inventory` under 1 s; `--sample aloha --coverage` 2.2 s (100 % seen,
+  99.2 % by two or more cameras), `panda-bimanual` 2.5 s (100 %), `g1` 2.2 s (96.6 %); `--sample aloha --grasp` 45 s
+  (100 %); `--sample panda-bimanual --teleop` 139 s (100 % teleoperable, "clear"); `--sample g1 --depth-validity`
+  1.2 s; `--list-plugins` 0.2 s.
+- UI-thread budget (`scripts/measure_ui_phase910.py`, offscreen, measured while the full suite ran alongside): **0
+  steps over 100 ms**. Largest: the tolerance page's Apply 48.5 ms, the canonical view's Apply 40.6 ms, the
+  experiments and optimise Applies 38.7 and 38.3 ms, File ▸ Export… opening 22.3 ms; every page shows within 17 ms
+  and every result arrives within 1 ms. Workers: tolerance (24 draws) 31.3 s, experiments (128 runs) 18.6 s, optimise
+  (24 designs) 23.0 s. Building the main window: UR5e 745 ms, ALOHA 427 ms, Panda 410 ms, G1 432 ms (File ▸ Open
+  sample now builds the project on a window job; the window's own build is the "startup" row, as before).
+- Screenshots: `python scripts/screens.py --only phase910` → `out/screens/p910-*` (25 images, none unfinished).
+  Looked at and fixed: the requirements scorecard and variants compare shots showed an empty list (the sample has no
+  requirements: the script now adds the labelled defaults; the page then reads 1 / 5, "not ready"); the variants
+  compare said "from before the last edit" right after a compare (one stale flag served the scorecard and the
+  compare: now one each); the Sobol bars at N = 8 had first-order indices above the totals with intervals spanning the
+  axis (the estimator is right, the design too small: the shot uses N = 32, 128 runs); the optimiser's scatter had
+  unround ticks (15.1, 37.9 …) and a percentage axis to 106 (round ticks, a share axis starts at 0 and has no tick
+  above 100); the tolerance chart cut a long figure name without an ellipsis; the Library's Robots group showed no
+  count (53 now); the export dialog shot showed a home folder (a temporary folder now).
+
+**Integration fixes**
+- The brackets study crashed (TypeError in `core/brackets.box_of`) for a sensor with a bracket type whose library
+  device states no size (the NanEyeC, the Leopard GMSL2 Owl): refused in one sentence now
+  (`tests/test_integration_p910.py`).
+- Four tolerance checks declared no unit (`test_validation` caught it): relative, KS statistic D, m or rad, rank
+  correlation.
+- The Export dialog: the report reuses the results the window already computed for this revision of the design and,
+  by default ("Also run the studies not computed yet"), runs the others; the Isaac export is posed at the on-screen
+  joint state like the other posed formats.
+- File ▸ Open sample builds the project on a window job (ALOHA 2 took about 2.5 s on the UI thread the first time).
+- `test_review_phase458_product::test_recording_of_another_robot_is_compared_not_crashed` failed in two full runs in
+  a row (and once in a run of the modules p to r): the frame-threaded AV1 decoder refused a packet ("Invalid data
+  found when processing input") of a file that decodes cleanly on its own (the same bytes, MD5-identical, from passing
+  runs). The LeRobot reader now decodes such a pass again single-threaded from the frame it reached; a file that
+  fails both ways is still refused (`core/datasets/lerobot.py`, test in `tests/test_integration_p910.py`). The
+  threaded failure itself was not reproduced outside the suite (18 audits in a loop: 0).
+- `tests/test_plugins.py`'s registry fixture restored the page registry to a snapshot taken before the pages loaded,
+  so a window built after it (in that file order) had no audit, plan or silhouette page: it loads the pages first.
+- `tests/test_library_added_entries.py` asserted the exact set of library checks (another agent added three).
+- Metrics `canonical_view.parallax_p95` and `canonical_view.coverage` (53 metrics now); `rig_inventory.stated_price`
+  public (the optimiser's cost objective used a private function).
+- `validation/suite.py`: the `experiments` model retitled "Designed experiments (factorial, Latin hypercube, Sobol)"
+  (the optimiser has its own model); overview anchors added for every new model id (requirements, tolerance,
+  experiments, optimise, assistant, copilot, samples, catalogue, versioning).
+- `tests/test_gui.py`: no placeholder command is left (asserted); the validation job test and
+  `test_batch.py::test_validate_exit_code_and_report` validate cheap models (frames, optics, library): the formats
+  model's quick run alone now takes 30–100 s.
+- The self-test's name column widened to 15 characters ("robot catalogue", "library teleop").
+- `pyproject.toml`: the unpinned `claude` and `keyring` extras removed (the pinned `assistant` extra replaces them);
+  the old placeholder `AssistantPanel` removed from `ui/panels.py`.
+- `batch.py`'s docstring lists the new flags; `docs/project-format.md` documents the `.dexv.d` folder and the Phase 9
+  fields; `docs/DEVELOPING.md` the new extension points (metrics, factors, exporters, plugins) and the test-memory
+  rules.
+- `scripts/screens.py --only phase910`, `scripts/measure_ui_phase910.py`.
+- Docs: overview sections for every new model and the model-document table; user-guide chapters 11–14 and the batch
+  lines; THIRD_PARTY (the optional packages with their licences, the Phase 9/10 sources); README; CHANGELOG.
+
+**Shared contracts (additive changes, as reported):** `core/exporters/__init__.py` gained `unstamped` (LeRobot's
+train config and info.json templates, whose readers refuse extra keys); `core/jobs.py` `ResultCache.key` gained the
+active variant's index before the dataset fingerprint (anything that unpacks the key by position must know);
+`core/library` gained the kinds `robot` and `teleop` and `validate_minimal`; `library.schema.json` the `robot` and
+`teleop` blocks, `ingest[]` for hosts and the new camera, depth and tactile fields; `core/project.py` the unpacked
+folder form (load and save of `.dexv.d`).
+
+**Decisions (Phases 9 and 10)**
+1. **A mount tolerance is a ± bound per axis** (shifts along the mount parent frame's axes, turns about the sensor's
+   own x, then y, then z), drawn uniformly (a labelled default) or as a normal truncated at its 2σ bound; a sensor
+   with an applied hand-eye result draws from its 6 × 6 covariance, unless it moved since (then its mount tolerance).
+2. **The tolerance study's default metrics** are those under 1 s per draw (coverage, depth, motion blur, VLA tokens);
+   slow ones (the grasp study, about 30 s per draw) only when a requirement or the settings name them.
+3. **NSGA-II written from the paper** (Vantage's optimiser is single-objective); cost is an objective only when every
+   candidate device states a price (none does); the grasp study is scored on 40 grasps during the search (labelled
+   screening defaults), `confirm` re-scores the shown designs.
+4. **Requirements have no priorities** (Vantage's must/should were stripped): every requirement decides the verdict;
+   a bound (≥, ≤) decides only in its direction, otherwise "not evaluated".
+5. **Experiments run serially by default**; a process pool on request; a run a cancel interrupts is discarded.
+6. **Exports are posed at one joint state** (home, or the pose on screen); URDF effort and velocity are written as 0
+   where the robot's files do not state them, and the notes say so.
+7. **The canonical warp's contact frame** is measured from each gripper's pads (TCP, approach z, closing x with a ±1
+   user sign); the depth range is a bound from the task volume, not a measurement.
+8. **The assistant never computes a figure:** tools return study results, project fields or library entries; the
+   dock flags any number it cannot trace; keys live only in the system keyring; long studies need an approved plan
+   (the MCP bridge allows them, as the MCP client asks the user per call).
+9. **ALOHA 2's arms are two robots** (per-gripper studies take one gripper per robot); the G1 is its upper body with
+   the legs held at `stand` and meshes simplified within 0.5 mm.
+10. **Catalogue and library gaps stay null:** 22 catalogue robots have no maker figure; no desktop GPU is a host
+    entry (their figures are not camera-ingest figures).
+11. **The test suite's memory:** two malloc arenas and the validation quick run in child processes (above), not
+    separate process batches.
+
+**Spec corrections (Phases 9 and 10)**
+1. **§11 `--tolerance`** is `--tolerance-mc OUT.json`: `--tolerance` is `--reproduce`'s comparison tolerance.
+2. **§11 `--experiment`** takes a design file (`dexvantage.experiment/1`); the experiment saved in the project runs
+   with `--experiment-saved OUT.json`.
+3. **§9.2 Isaac Lab:** in v3.0.0 `TiledCameraCfg` is deprecated ("Use CameraCfg directly") and OffsetCfg's rotation
+   is (x, y, z, w); v2.3.2 uses `TiledCameraCfg` and (w, x, y, z): both files are written.
+4. **§9.2 LeRobot train config:** it has no field for the action-chunk study's delay offset; it is written as
+   `delta_timestamps.json` and a `make_dataset.py` instead.
+5. **§9.2 Kalibr and Rerun** state no pixel-centre convention; OpenCV's is used and said.
+6. **§12 MCP tool names:** 30 tools, named per study (`get_teleop_overlap`, `get_sync`, `get_cable_flex` …) plus
+   reads, metrics, edits, plans and exports; MCP specification 2025-11-25.
+
 ## Phases 4, 5 and 8: MuJoCo ground truth; teleop, lighting, blur and sync; data (done, 2026-11-07)
 
 Built in parallel by separate agents (ground truth; synthetic episodes; LeRobot read and write; bags and RLDS; teleop;
@@ -770,18 +1049,19 @@ Final gate, after the three reviews (truthfulness and licences, kinematics corre
   `ui/dialogs/misc.py` (shortcuts, coordinate frames, about), `app.py`, `batch.py`, `selftest.py`.
 
 
-## Next: Phases 9 and 10
+## Next: research tools part 2, then Phase 11
 
-- **Phase 9, optimisation and requirements:** tolerance Monte Carlo, experiments, the optimiser and the design agent;
-  requirements and the `--check` scorecard; the extrinsic perturbation export (§8.5; the synthetic generator's
-  `extrinsic_delta` and the renderer's `render_pose` are ready for it).
-- **Phase 10, export, the assistant and MCP:** every exporter with round-trip checks (LeRobot train configs carrying
-  the action-chunk study's delay offset and ensemble weight; Isaac Lab camera configs; Plücker maps as a batch
-  format), the canonical view warp (§7.16), the Rerun bridge (§9.4), the assistant, Copilot plans, the page-aware
-  context and the MCP server (tool names per study, e.g. `get_teleop_overlap`).
-- Throughput (grasp study, planner, lighting): read back only the cube-map texels the points need, or draw several
-  maps per pass, in `core/occlusion.py`; ground truth with distorted lenses: crop the cube faces to the region the lens
-  uses, or move images through shared memory instead of `.npz` files.
+- **Research tools part 2** (the user's additions of 2026-11-07): an experiment tracker (runs, their settings and
+  results, kept with the project); statistics (tests between variants with their power, power analysis for a
+  recording campaign); a campaign planner (episodes, operators, time and storage for a target dataset); the
+  sim-to-real gap (rendered against recorded frames per camera); a publication report (methods, figures and tables
+  from the results with their provenance); cluster sweeps (an experiment's runs on several machines); a multi-cell
+  comparison (several projects' rigs against one requirement set).
+- **Phase 11:** packaging (PyInstaller bundles, multiprocessing freeze support for the experiments' process pool)
+  and the website.
+- Carried over: throughput (grasp study, planner, lighting): read back only the cube-map texels the points need, or
+  draw several maps per pass, in `core/occlusion.py`; ground truth with distorted lenses: crop the cube faces to the
+  region the lens uses, or move images through shared memory instead of `.npz` files.
 
 ## Spec additions (2026-11-06)
 
@@ -835,6 +1115,92 @@ self-test's OpenGL line and `scripts/measure_ui.py` use the default display (rad
 must say which GPU it measured.
 
 ## Open issues
+
+Phases 9 and 10, samples, catalogue, library, research tools part 1:
+- **Not run against the real programs:** Isaac Lab and Isaac Sim, LeRobot's loader and trainer, ACT, Diffusion
+  Policy, OpenVLA, Kalibr and FiftyOne are not installed; the exports are checked against the pinned sources' fields
+  and by independent readers. No request was sent to the Claude or Groq APIs (fake provider only); the Claude request
+  shape follows the API reference read on 2026-11-07. The MCP server was exercised in process and over stdio here,
+  not from a real MCP client. The Rerun live viewer only through a fake module.
+- **Prices:** no library entry states a price, so `rig.cost` and the optimiser's cost objective are "not stated" on
+  every sample until cited `price` blocks are added (`library.schema.json` does not describe the field yet).
+- **Tolerances:** no correlation between sensors on a shared bracket; intrinsics, joint encoders and link lengths are
+  not drawn; slow metrics (the grasp study, about 30 s per draw on the UR5e) only on request.
+- **Experiments:** `--reproduce` of a result from `--experiment DESIGN.json` is refused unless the project has that
+  design saved (results from the page or `--experiment-saved` reproduce); the process pool does not share the row
+  cache and is untested in a frozen bundle (Phase 11).
+- **Optimiser:** the default budgets (96 and 120 designs) give a coarse front (105 s and 237 s on the UR5e); the
+  design agent's sites are a sphere and a cone, without camera roll or stream choice; on the UR5e only four of the
+  seven objectives are ranked (cost, bandwidth margin with no host, VLA object tokens with no critical object are
+  left out, each with its reason).
+- **Exporters:** one joint state per export; URDF without inertials, collision geometry, mimic joints or equality
+  constraints; STEP is faceted (the UR5e wrist bracket at 0.5 mm is skipped above the 20 000-triangle cap unless
+  `step_res_mm` is given); masks treat the floor as "no surface"; the depth study still uses 512-texel cube maps
+  where the masks use 2048 (about 5 % of the overhead D435's far table mislabelled, as before); the randomisation is
+  drawn once per Isaac config build; LeRobot state and action include the 2F-85's linkage joints (14 on the UR5e).
+- **Canonical warp:** the default depth range is a pessimistic bound (675 px on the UR5e, 323 px on the SO-100;
+  the page now has a depth-range field); `vla.warp_lut_vs_warpperspective` passes at its 1-grey-level bound with no
+  margin. On the Panda sample the headline reads 11 878 px (P95) in a 1280 px image (the two wrist cameras are
+  mirrored about the fingertips, so far points land near the canonical camera's image plane): the bound is right but
+  hard to read; showing it as "larger than the image" is a decision for the warp's owner. The G1 has one camera, so
+  the warp refuses (one sentence).
+- **Assistant and MCP:** one request at a time, no progress notifications; no Preferences control for the window
+  bridge (`mcp/bridge`, on by default); `handeye_solve` and `dex_occlusion` were listed as long studies by analogy;
+  nothing yet runs an approved plan from the dock (`propose_plan` hands it over; `--run-plan` runs plan files).
+- **Samples:** G1 silhouette calibration refuses the head camera (it rides on `torso_link`, which no joint moves;
+  `render_calib` asks for a world mount); synthetic episodes move one robot (an ALOHA or Panda campaign records one
+  arm) and on the G1 still report a "gripper hidden in the wrist camera" fault it cannot show; ALOHA's gripper
+  equality constraint is not applied; the WidowX leader uses the follower's joint ranges (the WidowX's are not
+  stated); no sample places a VLA task object.
+- **Catalogue and library:** 22 of 53 catalogue robots have no maker figure; KUKA iiwa 14 has no repeatability or
+  mass, SO-ARM100, Koch v1.1 and H1 no stated DoF, UR5e and UR10e no control rate; the Z1 entry uses the Z1 AIR's
+  figures; GelSight Mini variants, Orbbec Gemini 2 XL and 305 and OAK-1 Max were not added; the bandwidth page does
+  not take a capture card's stated sustained rate (Basler 3 040 Mbit/s per port, Leopard ~51 Gbit/s) into its
+  controller automatically; the new lights state no flux, so the lighting study reports their output as not stated;
+  the custom-device dialog cannot create teleop, policy, light or cable entries (right-click offers it only for the
+  kinds it can make). Not fetched again at the truthfulness review: the Unitree G1/H1/Z1 pages, the Flexiv pages, the
+  Neewer page (HTTP 429) and the camera, depth and tactile entries outside the roughly 50 it checked.
+  `library.fov_shape` lets through maker angles that break the lens geometry by up to 2.92° under its 3° tolerance
+  (Leopard OV2312 110H, e-con See3CAM_37CUG, Femto Bolt/Mega 10:9, ZED X One GS narrow); the check lists them, the
+  entries' notes do not say so.
+- **Research tools:** lists (grasp poses, joint tables) are diffed and merged whole; a plugin page whose id equals a
+  built-in page's is replaced without a warning (documented); a plugin loaded while the window runs adds its page
+  after a restart; only curve and bar charts give publication data specs; the real `pip install` test of the plugin
+  template is skipped (setuptools not in `.venv`).
+- **Tests:** the threaded AV1 decode failure above is worked around, not understood (presumably libdav1d's frame threads after a
+  seek, under the suite's load; SVT-AV1 also prints "live_count should not be EB_ObjectWrapperReleasedValue" when an
+  encoder closes, harmlessly as far as measured). The suite's peak (4.8 GB) comes from the in-process validation checks that some modules run
+  (`test_synth_episodes`, `test_audit`); moving those to child processes as `test_validation` does would lower it.
+- **Window:** 32 pages register (built on first use); the Analysis dock's tab bar scrolls. Each edit costs about
+  55–60 ms on the UI thread on the two-arm samples, mostly hidden pages rebuilding (Sensors 16 ms, Policies 11 ms,
+  Canonical view 9 ms), which took Brackets Apply to 103–108 ms under load (59 ms alone); deferring a hidden page's
+  refresh until it is shown would fix it (several tests read hidden pages straight after an edit). Adding a large
+  robot (the G1) to the scene is still UI-thread work (the Menagerie compile is now on a worker), not timed. A refused
+  study still prints its traceback to the log (stderr) from `ui/store.py`; the page shows one sentence. Surfaces can
+  be selected only on the Workspace page, not in the Outliner. Side-by-side variants share one 3D view (dashed
+  ghosts), not split viewports.
+- **From the four reviews (still open):**
+  - Spec §13: the USD robot import is not built (MuJoCo 3.17 writes USD but cannot read it; a UsdPhysics-to-MJCF
+    converter with a round-trip check against MuJoCo FK is needed). §7.11's cost objective waits for cited prices.
+  - Validation: `tolerance.linear_propagation` and `tolerance.sampler_ks` declare 0.05 but apply a band that depends
+    on the number of draws (0.052 quick, 0.02 full; the applied band is reported).
+  - Exports: the Isaac export writes USD aperture offsets, which Omniverse ignores (an off-centre principal point
+    reaches an Isaac render only through the OpenCV lens attributes, which the v2.3.2 file lacks; documented); the
+    OpenVLA export writes `StateEncoding.JOINT` and `ActionEncoding.JOINT_POS` for every rig (the notes say to edit
+    them for bimanual rigs and absolute-joint datasets); the exported URDF has no inertials, so MuJoCo cannot load it
+    ("mass and inertia of moving bodies must be larger than mjMINVAL").
+  - Experiments: the analysis and the best-run pick ignore a metric's bound (at least / at most) and use the bound as
+    the figure (tolerances and the optimiser now handle bounds). Diff and merge match a sensor name as unique among
+    the not-yet-matched items; when ours and theirs make the same change merge3 counts it in neither (cosmetic).
+  - The assistant's number check does not flag a figure the model derived itself, nor a right value cited for the
+    wrong quantity (documented).
+  - `--check` without an output file writes `scorecard.json` into the current folder (documented in its help).
+  - The G1 sample opens with 0 % seen by two or more cameras (critical) and 0 % grasp contact visibility (one head
+    camera: honest for that rig); `--action-chunk` refuses on it (GR00T N1.5's control rate is not stated).
+- **Temporary folders:** before the final gate's fix, every test session, self-test and validation run left its
+  throw-away settings and XDG folders behind: 12 195 `dexvantage-*` folders (4.1 GB) are still in the system temp
+  folder (the gate was not allowed to delete shared temporary files). Delete `/tmp/dexvantage-*` when no DexVantage
+  process or test run is going; new runs remove their own.
 
 Phases 4, 5 and 8:
 - **Ground truth:** the prediction leaves out the camera's seat on its mount link and the render does not; MuJoCo draws

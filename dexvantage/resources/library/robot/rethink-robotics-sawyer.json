@@ -1,0 +1,97 @@
+{
+  "id": "rethink-robotics-sawyer",
+  "kind": "robot",
+  "maker": "Rethink Robotics",
+  "name": "Sawyer",
+  "family": "7-DoF collaborative arm",
+  "sources": [
+    {
+      "url": "https://www.rg-group.com/Images/Upload/Sawyer_Datasheet_Nov'15.pdf",
+      "title": "Rethink Robotics, Sawyer product datasheet SD02_10.15 (copy hosted by RG Group)",
+      "read": "2026-11-07",
+      "covers": "weight, DoF, reach, payload, task repeatability"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/rethink_robotics_sawyer",
+      "title": "MuJoCo Menagerie rethink_robotics_sawyer/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "rethinkrobotics.com did not answer on 2026-11-07; the 2015 datasheet is Rethink's own document, read from a distributor's copy. Repeatability is stated without ±.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": 7,
+      "source": 0,
+      "quote": "Degrees of Freedom 7"
+    },
+    "reach_mm": {
+      "value": 1260,
+      "source": 0,
+      "quote": "Maximum Reach 1260 mm"
+    },
+    "payload_kg": {
+      "value": 4,
+      "source": 0,
+      "quote": "Payload 4 kg (8.8 lbs.)"
+    },
+    "repeatability_mm": {
+      "value": 0.1,
+      "source": 0,
+      "quote": "Task Repeatability 0.1 mm"
+    },
+    "mass_kg": {
+      "value": 19,
+      "source": 0,
+      "quote": "Weight (without pedestal) 19 kg (42 lbs.)"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "rethink_robotics_sawyer",
+      "file": "sawyer.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/rethink_robotics_sawyer"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "sawyer.xml",
+      "imported": true,
+      "joints_in_q": 7,
+      "joint_names": [
+        "right_j0",
+        "right_j1",
+        "right_j2",
+        "right_j3",
+        "right_j4",
+        "right_j5",
+        "right_j6"
+      ],
+      "actuators": 7,
+      "links": 9,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 7,
+      "seconds": 0.37,
+      "note": ""
+    }
+  }
+}

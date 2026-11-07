@@ -1,0 +1,101 @@
+{
+  "id": "luxonis-oak-1-ov9782",
+  "kind": "camera",
+  "maker": "Luxonis",
+  "name": "OAK-1 (fixed-focus OV9782, global shutter)",
+  "family": "OAK (RVC2)",
+  "sources": [
+    {
+      "url": "https://docs.luxonis.com/hardware/products/OAK-1.md",
+      "title": "OAK-1, Luxonis hardware documentation (Markdown view)",
+      "read": "2026-11-07",
+      "covers": "variants (auto-focus IMX378, fixed-focus IMX378, fixed-focus OV9782) with FOV, sensor size, shutter, focus; connection; power subsystems"
+    },
+    {
+      "url": "https://github.com/luxonis/depthai-hardware/raw/master/BW1093_USB3C/Datasheet/OAK-1_Datasheet.pdf",
+      "title": "OAK-1 (USB boot) datasheet, Jan 2022, Luxonis",
+      "read": "2026-11-07",
+      "covers": "IMX378 colour camera (active pixels, focus range, FOV, shutter), power 4/5/7.5 W, size (W x H x D) 35 x 54.5 x 27.88 mm, mounting"
+    },
+    {
+      "url": "https://shop.luxonis.com/products/oak-1",
+      "title": "OAK-1 store page, Luxonis",
+      "read": "2026-11-07",
+      "covers": "dimensions 36 x 54.5 x 27.8 mm, weight 53 g"
+    },
+    {
+      "url": "https://docs.luxonis.com/hardware/sensors/OV9782.md",
+      "title": "OV9782 sensor page, Luxonis documentation",
+      "read": "2026-11-07",
+      "covers": "shutter, sensor size, pixel size 3 um, RVC2 modes (1280 x 800 at 129 fps, 1280 x 720 at 143 fps)"
+    }
+  ],
+  "note": "The OAK-1 with the 1 MP global-shutter colour OV9782 instead of the IMX378 (docs page variant \"Fixed Focus OV9782\"): 89.5 (D) / 80 (H) / 55 (V) degrees, fixed focus. The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor page); the format on the USB link depends on the on-device pipeline (raw, NV12 or encoded), so format and bits_per_pixel are null. Body figures are the OAK-1's (the datasheet and store page do not single out this variant): power_w the datasheet maximum 7.5 W, size [27.88, 35, 54.5] mm from the datasheet (W x H x D 35 x 54.5 x 27.88), mass 53 g (store page). Not stated: f-number, distortion.",
+  "interface": "USB 3.1 Gen 1 (USB Type-C)",
+  "power_w": 7.5,
+  "mass_g": 53.0,
+  "size_mm": [
+    27.88,
+    35.0,
+    54.5
+  ],
+  "imagers": [
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 80.0,
+      "vfov_deg": 55.0,
+      "dfov_deg": 89.5,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "optical_format": "1/4\""
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        129
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        143
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

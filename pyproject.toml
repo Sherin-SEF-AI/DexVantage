@@ -27,12 +27,14 @@ dependencies = [
 
 [project.optional-dependencies]
 pin = ["pin"]                     # pinocchio: a second kinematics backend and a validation reference (Phase 1)
-usd = ["usd-core"]                # OpenUSD import and export
+usd = ["usd-core==26.8"]          # OpenUSD import and export (Isaac camera prims: core/exporters/isaac.py)
 lerobot = ["pyarrow", "av"]       # LeRobot Parquet and AV1/MP4 (Phase 8)
 bags = ["zstandard", "lz4"]       # compressed ROS 2 bags (MCAP chunks)
-claude = ["anthropic>=2.3,<3"]    # the assistant's Claude provider (Phase 10)
-keyring = ["keyring"]
-rerun = ["rerun-sdk"]             # the Rerun bridge (Phase 10)
+assistant = ["anthropic==2.6.0", "keyring==25.7.0"]   # the Assistant dock: Claude provider, keys in the OS keyring
+rerun = ["rerun-sdk==0.42.0"]     # the Rerun bridge (core/bridges/rerun.py, written against 0.42.0)
+step = ["gmsh==4.15.2"]           # bracket STEP export as a faceted solid (core/exporters/bridges.py)
+research = ["pandas==2.3.3"]     # the Python API's Result.to_frame() as a DataFrame (dexvantage/api.py)
+bundle = ["fast-simplification==0.2.0"]  # scripts/bundle_samples.py only: the G1 sample's mesh simplification
 test = ["pytest", "jsonschema", "ruff", "mcap", "protobuf"]  # mcap, protobuf: test references (bags, RLDS)
 
 [project.urls]

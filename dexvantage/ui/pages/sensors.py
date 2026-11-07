@@ -287,8 +287,10 @@ class SensorsPage(StudyPage):
         self.enabled_box.toggled.connect(lambda on: self.set_enabled(s.uid, on))
         sec.row('', self.enabled_box)
         tol = s.mount.tolerance
-        sec.row('Tolerance', f'± {tol.position_mm:g} mm · ± {tol.rotation_deg:g}° (default)',
-                tip='Mount tolerance; the Monte Carlo studies carry it into every figure')
+        is_def = tol.to_dict() == type(tol)().to_dict()            # labelled "default" only while it is one
+        sec.row('Tolerance', f'± {tol.position_mm:g} mm · ± {tol.rotation_deg:g}°' + (' (default)' if is_def else ''),
+                tip='Mount tolerance (set it on Analysis ▸ Tolerances); the Monte Carlo studies carry it into every '
+                    'figure')
         try:
             ims = library.sensor_imagers(s, tuple(s.stream) if len(s.stream) == 2 else None)
         except Exception as ex:                           # noqa: BLE001 — a bad calibration: said, not raised

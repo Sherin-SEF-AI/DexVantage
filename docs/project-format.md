@@ -98,6 +98,25 @@ modes); `[]` (the default) uses each imager's largest listed stream.
 - Each of these sections, like `policies`, enters the content hash (`core/provenance.py`) only when it holds
   something, so files written before them keep their hashes; a file without a section reads it as empty.
 
+## The unpacked folder (`.dexv.d`, research tools part 1)
+
+A project can also be a folder whose name ends in `.dexv.d`: one pretty-printed JSON file per section (sorted keys,
+two-space indent, a final newline), mesh arrays as `.npy` files and the stored model files under their own names,
+listed in `project.json` (`"layout": "dexvantage.unpacked/1"`). `Project.load` and `Project.save` read and write it
+like a `.dexv` file; its content hash is the same as the zip's. `--unpack`, `--pack` and `--textconv` (a stable text
+for `git diff`) convert and show it ([models/versioning.md](models/versioning.md#the-unpacked-folder)).
+
+## Requirements, tolerances and saved studies (Phase 9)
+
+- `requirements`: each item a metric id of `core/metric_defs.py`, an operator, a threshold, its unit and the study
+  that states it ([models/requirements.md](models/requirements.md)); `--check` reads the same items from YAML.
+- A mount's `tolerance` (`position_mm`, `rotation_deg`, labelled defaults 1 mm and 0.5°) is a ± bound on each axis;
+  how it is drawn (uniform by default, or normal with the bound at 2σ) is a setting of the tolerance study,
+  `analysis.studies['tolerance']` ([models/tolerance.md](models/tolerance.md)).
+- The designed experiment, the optimiser's and the design agent's settings are kept under
+  `analysis.studies['experiments' | 'optimise' | 'design_agent']` (schema in
+  [models/experiments.md](models/experiments.md) and [models/optimise.md](models/optimise.md)).
+
 ## Versions and migrations
 
 `version` is 1. A file of an older version is migrated one version at a time (`core/project.py`, `MIGRATIONS`); a

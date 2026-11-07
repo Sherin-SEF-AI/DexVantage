@@ -1,0 +1,80 @@
+{
+  "id": "nvidia-jetson-t4000",
+  "kind": "host",
+  "maker": "NVIDIA",
+  "name": "Jetson T4000 (module)",
+  "family": "Jetson Thor",
+  "sources": [
+    {
+      "url": "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-thor/",
+      "title": "NVIDIA Jetson Thor page (\"Jetson Thor Series\" technical specifications table: Jetson AGX Thor Developer Kit, Jetson T5000, Jetson T4000)",
+      "read": "2026-11-07",
+      "covers": "camera, PCIe, USB, networking, power and mechanical rows (the T5000 and T4000 share the camera, PCIe and USB cells)"
+    }
+  ],
+  "note": "Camera (the T5000 and T4000 share the cell): \"Up to 20 cameras via HSB | Up to 6 cameras through 16x lanes MIPI CSI-2 | Up to 32 cameras using Virtual Channels | C-PHY 2.1 (10.25 Gbps) | D-PHY 2.1 (40 Gbps)\" (lanes 16; the 40 Gbps D-PHY figure is entered as the CSI aggregate, the C-PHY figure kept as written). USB: \"xHCI host controller with integrated PHY (up to) | 3x USB 3.2 | 4x USB 2.0\" (ports 3; the USB 3.2 generation is not stated, so stated_mbps is null). PCIe: \"Up to Gen5 (x8 lanes) | Root port only—C1 (x1) and C3 (x2) | Root Point or Endpoint—C2 (x1), C4 (x8), and C5 (x4)\". Networking \"3x 25GbE\". Power \"40 W–70 W\" (power_w 70, the upper end). CPU 12-core Arm Neoverse-V3AE. Mechanical \"100 mm x 87 mm | 699-pin B2B connector | Integrated Thermal Transfer Plate (TTP) with heatpipe\"; height not stated (size_mm null); mass not stated. The page's footnotes: \"* Refer to the Software Features section of the latest NVIDIA Jetson Linux Developer Guide for a list of supported features. ** Low-speed I/O specification is subject to change.\" The module data sheet was not read; the figures are the specifications table on the page. practical_mbps is null (not stated).",
+  "interface": "MIPI CSI-2 (D-PHY 2.1 / C-PHY 2.1), Holoscan Sensor Bridge over 25GbE, USB 3.2, PCIe Gen5",
+  "power_w": 70.0,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "compute",
+    "ports": 3,
+    "lanes": 16,
+    "stated_mbps": null,
+    "practical_mbps": null,
+    "gmsl_links": null,
+    "ingest": [
+      {
+        "bus": "csi",
+        "count": 16,
+        "per_port_mbps": null,
+        "aggregate_mbps": 40000.0,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"Up to 6 cameras through 16x lanes MIPI CSI-2\", \"D-PHY 2.1 (40 Gbps)\", \"C-PHY 2.1 (10.25 Gbps)\""
+      },
+      {
+        "bus": "ethernet",
+        "count": 3,
+        "per_port_mbps": 25000.0,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"3x 25GbE\"; \"Up to 20 cameras via HSB\""
+      },
+      {
+        "bus": "usb3",
+        "count": 3,
+        "per_port_mbps": null,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"3x USB 3.2\" (generation not stated)"
+      },
+      {
+        "bus": "usb2",
+        "count": 4,
+        "per_port_mbps": null,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"4x USB 2.0\""
+      },
+      {
+        "bus": "pcie",
+        "count": 8,
+        "per_port_mbps": null,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"Up to Gen5 (x8 lanes)\""
+      }
+    ]
+  }
+}

@@ -165,9 +165,10 @@ def test_sample_result_reproduces_without_a_variant_difference(tmp_path, capsys)
 def test_open_sample_from_the_file_menu(app, win, no_dialogs):
     acts = {a.text(): a for a in win.m_samples.actions()}
     assert acts['UR5e and Robotiq 2F-85 with a wrist D405 and an overhead D435'].isEnabled()
-    assert not acts['ALOHA 2 bimanual'].isEnabled() and 'Phase 11' in acts['ALOHA 2 bimanual'].toolTip()
+    aloha = acts['ALOHA 2 bimanual with its four cameras']
+    assert aloha.isEnabled() and aloha.toolTip() == 'dexvantage --sample aloha'
     assert win.open_sample('so100') and win.store.project.name == 'SO-100 sample'
-    assert not win.open_sample('aloha') and 'arrives in Phase 11' in no_dialogs[-1][2]
+    assert not win.open_sample('baxter') and 'There is no sample named' in no_dialogs[-1][2]
 
 
 def test_robot_inspector_and_delete(app, win, no_dialogs, tmp_path):

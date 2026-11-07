@@ -64,8 +64,8 @@ def test_library_cables_from_datasheets():
     L.reload()
     assert L.problems() == []
     es = {e.id: e for e in L.entries('cable')}
-    assert set(es) == {'basler-cable-gmsl-fakra-z-1x-f-f', 'va-imaging-va-cable-usb3-hf',
-                       'newnex-high-flex-active-usb3'}
+    assert set(es) >= {'basler-cable-gmsl-fakra-z-1x-f-f', 'va-imaging-va-cable-usb3-hf',
+                       'newnex-high-flex-active-usb3'}       # later entries: tests/test_library_systems.py
     for e in es.values():
         assert L.validate(e.data) == []
         assert all(s['url'].startswith('https://') and s['read'] for s in e.data['sources'])

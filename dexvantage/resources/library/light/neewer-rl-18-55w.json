@@ -1,0 +1,40 @@
+{
+  "id": "neewer-rl-18-55w",
+  "kind": "light",
+  "maker": "Neewer",
+  "name": "RL-18 18\" 55W LED Ring Light (new version)",
+  "family": "RL-18 ring lights",
+  "sources": [
+    {
+      "url": "https://neewer.com/products/neewer-rl-18-18-inch-led-ring-light-new-version-66606158",
+      "title": "NEEWER RL-18 New Version 18 Inch 55W LED Ring Light (Neewer product page, specifications)",
+      "read": "2026-11-07",
+      "covers": "LED count, power, maximum illumination, CRI, colour temperatures, ring diameter"
+    }
+  ],
+  "note": "Stated: \"LED Qty: 240 | Power: 55W | Max Illumination: 5500lux at 0.5m | CRI: 95 | Color Temperature: 3200K & 5600K | Brightness Level: 0-100% | Ring Light Diameter: 18\"/45cm\". The two colour temperatures come from the included orange and white filters, so cct_k and cct_k_range are null (two values, not a range). emitting_size_m [0.45, 0.45] takes the stated 45 cm diameter as the ring's outer diameter, an ASSUMPTION (the page does not say outer or mean); the inner diameter is not stated. Not stated: luminous flux, luminance, beam angle, IR output, the light's own mass (the page lists the kit). The illuminance is on the axis at 0.5 m; DexVantage does not turn it into a flux or an intensity.",
+  "interface": "Wired dimmer; Bluetooth remote (RT107, in the kit)",
+  "power_w": 55.0,
+  "mass_g": null,
+  "size_mm": null,
+  "light": {
+    "type": "ring",
+    "luminous_flux_lm": null,
+    "luminance_cd_m2": null,
+    "cct_k": null,
+    "cct_k_range": null,
+    "emitting_size_m": [
+      0.45,
+      0.45
+    ],
+    "ring_inner_m": null,
+    "beam_deg": null,
+    "ir_irradiance_w_m2": null,
+    "ir_at_m": null,
+    "cri": 95,
+    "illuminance_lux": 5500.0,
+    "illuminance_at_m": 0.5,
+    "wavelength_nm": null,
+    "what": "\"Power: 55W | Max Illumination: 5500lux at 0.5m | CRI: 95 | Color Temperature: 3200K & 5600K | Ring Light Diameter: 18\"/45cm\""
+  }
+}

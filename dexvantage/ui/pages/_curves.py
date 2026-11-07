@@ -158,6 +158,17 @@ class CurveChart(ChartBase):
         self.paint_tip(p)
         p.end()
 
+    def figure_data(self):
+        """The data this chart draws as a publication figure spec (core/figures.py; Export figure… in its menu)."""
+        from ...core import figures
+        if not self.series:
+            return None
+        col = (lambda c: QColor(c).name())
+        return figures.curves([(lab, xs, ys, col(c), st) for lab, xs, ys, c, st in self.series], self.xr, self.yr,
+                              bands=[(a, b, col(c), lab) for a, b, c, lab in self.bands], hlines=self.hlines,
+                              vlines=self.vlines, markers=[(x, y, col(c), lab) for x, y, c, lab in self.markers],
+                              xlabel=self.xlabel, ylabel=self.ylabel, title=self.title, reverse_x=self.reverse_x)
+
     def mouseMoveEvent(self, e):
         best = None
         pos = e.position()

@@ -1,0 +1,84 @@
+{
+  "id": "nvidia-jetson-agx-thor-devkit",
+  "kind": "host",
+  "maker": "NVIDIA",
+  "name": "Jetson AGX Thor Developer Kit",
+  "family": "Jetson Thor",
+  "sources": [
+    {
+      "url": "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-thor/",
+      "title": "NVIDIA Jetson Thor page (\"Jetson Thor Series\" technical specifications table: Jetson AGX Thor Developer Kit, Jetson T5000, Jetson T4000)",
+      "read": "2026-11-07",
+      "covers": "camera, PCIe, USB, networking, power and mechanical rows (the T5000 and T4000 share the camera, PCIe and USB cells)"
+    }
+  ],
+  "note": "Camera: \"HSB camera via QSFP slot | USB camera\" (the kit has no MIPI CSI-2 camera connector in the table, so lanes is null; HSB is NVIDIA's Holoscan Sensor Bridge, over the QSFP28 port). USB: \"2x USB-A (3.2 Gen2) | 2x USB-C (3.1)\" (ports 2 and stated_mbps 10000 are the USB-A 3.2 Gen 2 ports, the USB-IF per-port signalling rate; the USB-C ports' generation is not stated). PCIe: \"M.2 Key M slot with x4 PCIe Gen5 | M.2 Key E slot with x1 PCIe Gen5\". Networking: \"1x 5GbE RJ45 connector | 1x QSFP28 (4x 25GbE)\". Power \"40 W–130 W\" (power_w 130, the upper end). Mechanical \"243.19 mm x 112.40 mm x 56.88 mm\" (size_mm as stated, not an optical frame); mass not stated. The module is a Jetson T5000 (the page's kit table). The page's footnotes: \"* Refer to the Software Features section of the latest NVIDIA Jetson Linux Developer Guide for a list of supported features. ** Low-speed I/O specification is subject to change.\" The module data sheet was not read; the figures are the specifications table on the page. practical_mbps is null (not stated).",
+  "interface": "USB 3.2 Gen 2 (USB-A), USB 3.1 (USB-C, generation not stated), QSFP28 (4x 25GbE, Holoscan Sensor Bridge), PCIe Gen5",
+  "power_w": 130.0,
+  "mass_g": null,
+  "size_mm": [
+    243.19,
+    112.4,
+    56.88
+  ],
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "compute",
+    "ports": 2,
+    "lanes": null,
+    "stated_mbps": 10000.0,
+    "practical_mbps": null,
+    "gmsl_links": null,
+    "ingest": [
+      {
+        "bus": "usb3",
+        "count": 2,
+        "per_port_mbps": 10000.0,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"2x USB-A (3.2 Gen2)\""
+      },
+      {
+        "bus": "usb3",
+        "count": 2,
+        "per_port_mbps": null,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"2x USB-C (3.1)\" (generation not stated)"
+      },
+      {
+        "bus": "ethernet",
+        "count": 4,
+        "per_port_mbps": 25000.0,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"1x QSFP28 (4x 25GbE)\"; camera: \"HSB camera via QSFP slot\""
+      },
+      {
+        "bus": "ethernet",
+        "count": 1,
+        "per_port_mbps": 5000.0,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"1x 5GbE RJ45 connector\""
+      },
+      {
+        "bus": "pcie",
+        "count": null,
+        "per_port_mbps": null,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"M.2 Key M slot with x4 PCIe Gen5 | M.2 Key E slot with x1 PCIe Gen5\""
+      }
+    ]
+  }
+}

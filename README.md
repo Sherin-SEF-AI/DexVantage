@@ -17,16 +17,20 @@ It is the sibling of Vantage, the sensor-rig planner for autonomous-driving data
 language and engineering standards: every number comes from a model that a validation check compares with an
 independent reference, and every export carries a provenance block.
 
-> **Status: Phases 0–8 of 12.** Robots import from URDF, MJCF and MuJoCo Menagerie, with forward and inverse
-> kinematics and three bundled samples; a datasheet library of cameras, depth cameras, tactile sensors, hosts, cables,
-> lights and robot-learning policies; sensors on any link with a Camera view through each lens model; coverage, depth
-> validity, grasp self-occlusion with the Contact Visibility Score, VLA token resolution, the multi-finger occlusion
-> matrix and the tactile handoff, bandwidth and power, cable flex, printable brackets and hand-eye calibration;
-> MuJoCo ground truth and synthetic LeRobot episodes; teleop dead zones, lighting and glare, motion blur, time sync
-> and action-chunk latency; LeRobot, ROS 2 bag and RLDS readers, the dataset auditor, plan against recording and
-> targetless silhouette calibration. Phases 9 (optimisation and requirements) and 10 (exporters, the assistant and
-> MCP) are next. See
-> [docs/BUILD_STATE.md](docs/BUILD_STATE.md).
+> **Status: Phases 0–10 of 12, with research tools part 1.** Robots import from URDF, MJCF and MuJoCo Menagerie, with
+> forward and inverse kinematics, six bundled samples (SO-100, UR5e + Robotiq 2F-85, UR5e + Shadow Hand, ALOHA 2, two
+> Franka Pandas, the Unitree G1 upper body) and a catalogue of 53 robots; a datasheet library of 138 cameras, depth
+> cameras, tactile sensors, hosts and capture cards, cables, lights, teleop devices and robot-learning policies;
+> sensors on any link with a Camera view through each lens model; coverage, depth validity, grasp self-occlusion with
+> the Contact Visibility Score, VLA token resolution, the multi-finger occlusion matrix and the tactile handoff,
+> bandwidth and power, cable flex, printable brackets and hand-eye calibration; MuJoCo ground truth and synthetic
+> LeRobot episodes; teleop dead zones, lighting and glare, motion blur, time sync and action-chunk latency; LeRobot,
+> ROS 2 bag and RLDS readers, the dataset auditor, plan against recording and targetless silhouette calibration;
+> requirements and the readiness scorecard (a CI gate), Monte Carlo tolerances, designed experiments, an NSGA-II
+> optimiser and design agent; exporters to MuJoCo, ROS 2, OpenCV and Kalibr, Isaac Lab, LeRobot and an HTML/PDF
+> report, the canonical view warp and the Rerun bridge; the Assistant dock and an MCP server; a Python API, plugins,
+> project diff and merge, a Git folder form, citations and publication figures. Packaging and the website (Phase 11)
+> are next. See [docs/BUILD_STATE.md](docs/BUILD_STATE.md).
 
 ## Install (from source)
 
@@ -53,6 +57,14 @@ dexvantage --sample ur5e --bandwidth bw.json        # data rates, controller mar
 dexvantage --sample ur5e --cables cables.json       # cable slack, bends and snags across the joints
 dexvantage --sample ur5e --brackets br.json         # printable brackets and their clearance
 dexvantage --sample ur5e --handeye-plan plan.json   # a hand-eye calibration pose plan with predicted σ
+dexvantage --sample ur5e --check defaults sc.json  # the readiness scorecard: exit 0 pass, 1 fail, 2 error
+dexvantage --sample ur5e --tolerance-mc tol.json   # Monte Carlo mount tolerances
+dexvantage --sample ur5e --optimise opt.json       # NSGA-II: a Pareto front of better rigs
+dexvantage --sample ur5e --export out/ --formats mjcf,urdf,opencv_yaml,isaac,lerobot,report
+dexvantage --sample aloha --coverage cov.json      # the new samples: aloha, panda-bimanual, g1
+dexvantage a.dexv --diff b.dexv                    # what changed between two projects
+python -m dexvantage.mcp cell.dexv                 # the MCP server for an MCP client
+python -c "import dexvantage as dv; print(dv.sample('ur5e').run('coverage').headline)"
 dexvantage --self-test              # check this installation without a window
 dexvantage cell.dexv --analyse -    # the project summary as JSON, with provenance
 dexvantage --validate report/       # the validation suite and its HTML report
@@ -73,8 +85,9 @@ python -m pytest tests              # the tests (offscreen)
 | Inverse kinematics (damped least squares, limits, seeds, IK drag) | done | 150 of 150 round trips within 0.1 mm; about 4 ms per target |
 | Manipulability, self-collision distances | done | 2R closed form 1.1 × 10⁻¹⁶ m²; sphere and capsule distances 1.1 × 10⁻¹⁶ m |
 | Joint sliders, pose scrubber, trajectories from CSV | done | — |
-| Samples: SO-100, UR5e + Robotiq 2F-85, UR5e + Shadow Hand (MuJoCo Menagerie, licences checked) | done | — |
-| Hardware library from datasheets: 21 depth cameras, 9 cameras, 2 tactile sensors, 8 hosts; every figure with its source and date, gaps "not stated by the maker" | done | 40 of 40 entries validate against the schema |
+| Samples: SO-100, UR5e + Robotiq 2F-85, UR5e + Shadow Hand, ALOHA 2, bimanual Panda, Unitree G1 upper body (MuJoCo Menagerie, licences checked) | done | ALOHA arms against `aloha.xml` 4.6 × 10⁻⁷ m; G1 against `g1_with_hands.xml` 0 m |
+| Robot catalogue: 53 robots with the maker's figures and sources, imported with each model's licence | done | joint counts against the bundled models: 0 disagreements |
+| Hardware library from datasheets: 33 depth cameras, 33 cameras, 10 tactile sensors, 18 hosts and capture cards, 19 policies, 6 lights, 6 cables, 13 teleop devices; every figure with its source and date, gaps "not stated by the maker" | done | 138 of 138 entries validate against the schema |
 | Lens models: pinhole, Brown-Conrady, Kannala-Brandt, equidistant, equisolid, stereographic; pixel density and defocus | done | against OpenCV `projectPoints` 1.8 × 10⁻¹² px, `fisheye.projectPoints` 5.7 × 10⁻¹³ px; MuJoCo-rendered fiducials 0.17 px |
 | Sensors and mounts: any robot link, pose in mm and degrees, stream modes, custom devices | done | — |
 | Articulated cube-map occlusion against the posed robot (GPU through EGL, or numpy) | done | 0.19 % of 480 000 points disagree with exact ray casting, all at silhouettes; MuJoCo segmentation on the UR5e 99.81 %; 13–16 ms per map on an RTX 5080 |
@@ -102,12 +115,22 @@ python -m pytest tests              # the tests (offscreen)
 | Dataset auditor (`--audit`), plan against recording (`--plan-vs-recording`), FiftyOne export | done | synthetic campaign: recall 1.0 with no false positives for 6 of 10 fault kinds; desync 16.9 ms |
 | Targetless link-silhouette calibration (`--silhouette-calib`) | done | slip recovered within 1.66 px; against a board solve 1.65 px |
 | Grasp sets and hand-eye captures from recorded datasets | done | hand-eye from a rendered dataset 0.046 mm from the truth |
-| Validation suite | 113 checks | 113 of 113 pass |
-| Exporters, assistant and MCP, optimisation, packaging | Phases 9–12 | — |
+| Requirements and the readiness scorecard (`--check`), variants compare, `--reproduce`, `--run-plan` | done | bound decisions against a Monte Carlo: 0 of 4 000 disagree |
+| Monte Carlo tolerances (`--tolerance-mc`) and the perturbation export | done | σ against the GUM law of propagation 0.6 %; samplers against `kstest` D 0.024 |
+| Designed experiments (`--experiment`): factorial, fractional, Latin hypercube, Sobol, Saltelli; Sobol indices | done | Ishigami's analytic indices within 0.0008 |
+| Optimiser and design agent (`--optimise`, `--design-agent`): NSGA-II over metric objectives | done | ZDT1, ZDT2 IGD 0.005 (0.01); CONSTR 0.021 (0.05) |
+| Exporters (`--export`): MJCF, URDF and tf, OpenCV and Kalibr, masks, Plücker, brackets, Isaac Lab and USD, LeRobot and policy configs, report, perturbations, canonical warp | done | URDF through MuJoCo 1.1 × 10⁻¹⁵ m; USD through pxr 2.6 × 10⁻⁵ px; masks against ray casting 0 pixels |
+| Canonical view warp (`--canonical-view`), Rerun bridge (`--rerun`) | done | plane points 2.3 × 10⁻¹³ px; `.rrd` read back 4.8 × 10⁻⁵ px |
+| Assistant dock (Claude or Groq, keys in the keyring, number check, proposals, approved plans) and MCP server (30 tools) | done | MCP conformance 0 nonconformities; number check 0 of 25 wrong |
+| Python API (`import dexvantage as dv`), plugin SDK, project diff and merge, Git folder form, BibTeX, publication figures | done | folder round trip byte-identical; 8 of 8 merge cases |
+| Validation suite | 177 checks | 177 of 177 pass |
+| Packaging, website, Gaussian splatting | Phases 11–12 | — |
 
 ## Known limits
 
-The exporters (Phase 10) are in the menus, disabled. Lighting: saturation is relative to an auto-exposure until you
+Exporters: Isaac Lab, Isaac Sim, LeRobot, Kalibr and FiftyOne were not run on DexVantage's files (their formats
+follow the cited sources). Assistant: no request was sent to a live API while building it (the tests use a fake
+provider). No library entry states a price, so rig cost reads "not stated". Lighting: saturation is relative to an auto-exposure until you
 enter a sensor's sensitivity (no maker in the library states one). Timing: no maker states a readout time or a
 device's processing latency, so smear, skew and sync figures are bounds until you enter measured ones. Data: LeRobot's
 own loader and FiftyOne's importer have not been run on DexVantage's files. Grasps: the fingers stay at their home opening and obstacles are not checked along
@@ -117,7 +140,7 @@ models fitted to the stated FOV until you calibrate a unit; defocus is computed 
 and f-number are stated or entered; sensor housings do not occlude.
 Robots: xacro must be expanded to URDF
 first and USD is not read; mimic joints and the 2F-85's linkage move independently; free and ball joints are held at
-the home pose; the gripper frame must be a link. ALOHA 2, the bimanual Panda and the G1 samples arrive in Phase 11.
+the home pose; the gripper frame must be a link. The G1 sample's legs are held at its stand pose.
 
 ## Licence and citation
 

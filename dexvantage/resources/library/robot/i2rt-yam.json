@@ -1,0 +1,90 @@
+{
+  "id": "i2rt-yam",
+  "kind": "robot",
+  "maker": "I2RT Robotics",
+  "name": "YAM",
+  "family": "6-DoF arm",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/i2rt_yam",
+      "title": "MuJoCo Menagerie i2rt_yam/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "i2rt.com's product page answered \"404 Not Found\" on 2026-11-07. The maker's figures were not read for this build; every figure is null (not found in the sources read).",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "i2rt_yam",
+      "file": "yam.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "MIT",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/i2rt_yam"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "yam.xml",
+      "imported": true,
+      "joints_in_q": 8,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6",
+        "left_finger",
+        "right_finger"
+      ],
+      "actuators": 7,
+      "links": 13,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [
+        "left_finger",
+        "right_finger"
+      ],
+      "dof": 6,
+      "seconds": 0.12,
+      "note": "Excluded from the DoF: left_finger, right_finger."
+    }
+  }
+}

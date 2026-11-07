@@ -28,6 +28,17 @@ licence shown and the user's consent (spec §1.2).
 | PyAV `av` (optional extra `lerobot`: LeRobot AV1 and H.264 videos) | BSD-3-Clause (its package metadata); its wheel carries FFmpeg's and SVT-AV1's shared libraries, whose licence terms the wheel's metadata does not state: read them before redistributing an installation |
 | zstandard, lz4 (optional extra `bags`: compressed MCAP chunks) | BSD-3-Clause; BSD (package classifiers) |
 | mcap, protobuf (tests only: reference readers for the bag and RLDS checks; extra `test`) | MIT; BSD-3-Clause |
+| fast-simplification 0.2.0 (`scripts/bundle_samples.py` only: the G1 mesh simplification; extra `bundle`) | MIT (its package metadata) |
+| anthropic 2.6.0, keyring 25.7.0 (optional extra `assistant`: the Assistant dock's Claude provider; API keys in the OS keyring) | Apache-2.0; MIT (package metadata, read 2026-11-07) |
+| usd-core 26.8 (optional extra `usd`: Isaac camera prims written by pxr; otherwise a text writer) | Tomorrow Open Source Technology License 1.0, `LicenseRef-TOST-1.0` (its package metadata, read 2026-11-07): read it before redistributing an installation |
+| rerun-sdk 0.42.0 (optional extra `rerun`: the Rerun bridge) | MIT OR Apache-2.0 (its package metadata, read 2026-11-07) |
+| gmsh 4.15.2 (optional extra `step`: bracket STEP export) | GPL-2.0-or-later (its package metadata, read 2026-11-07); compatible with DexVantage's GPL-3.0-or-later; not bundled |
+| pandas 2.3.3 (optional extra `research`: `Result.to_frame()` of the Python API) | BSD-3-Clause (its package metadata); pip also installs python-dateutil, pytz and tzdata, unpinned |
+
+None of the optional packages is bundled or imported unless its feature is used; each says how to install it in one
+sentence when it is missing. Isaac Lab, Isaac Sim, LeRobot, ACT, Diffusion Policy, OpenVLA, Kalibr and FiftyOne are
+not used at all: the exporters write their formats from the sources cited in `docs/models/exporters_a.md` and
+`docs/models/exporters_b.md` (tags and commits read on 2026-11-07).
 
 ## Robot models
 
@@ -47,6 +58,11 @@ from its parent's). The files were copied by `scripts/bundle_menagerie.py`, whic
 | UR5e + Robotiq 2F-85 (combined) | the two above | BSD-3-Clause and BSD-2-Clause (both LICENSE files) | as above | 2026-11-06 | `ur5e_robotiq_2f85.xml` | written by MuJoCo: `MjSpec.attach(gripper, site="attachment_site", prefix="gripper_")` then `MjSpec.to_xml()`; mesh paths point into the two folders |
 | Shadow Hand E3M5, right (Shadow Robot Company) | `shadow_hand` | Apache-2.0, © 2022 Shadow Robot Company Ltd (`shadow_hand/LICENSE`) | `71f066ad0be9cd271f7ed58c030243ef157af9f4` | 2026-11-06 | `right_hand.xml`, `keyframes.xml` (the folder's named hand postures), the 13 `assets/*.obj` meshes `right_hand.xml` uses, `LICENSE` (3.4 MB) | none: byte for byte (compared with `diff -r`); the folder's `mounting_plate.obj`, used by no model file, `left_hand.xml`, the scenes, README, CHANGELOG and gallery picture are not bundled |
 | UR5e + Shadow Hand (combined) | `universal_robots_ur5e` and `shadow_hand` | BSD-3-Clause and Apache-2.0 (both LICENSE files) | as above | 2026-11-06 | `ur5e_shadow_hand.xml` | written by MuJoCo with `scripts/bundle_dexhand.py`: `MjSpec.attach(hand, site="attachment_site", prefix="hand_")` then `MjSpec.to_xml()`; before attaching, the hand file's forearm rotation `quat="0 1 0 1"` is set to identity so the hand continues the flange axis (the file's top comment says so); the hand's triangles in its forearm frame match the hand file's within 3 × 10⁻¹⁶ m |
+| ALOHA 2 (Trossen Robotics ViperX 300 arms, ALOHA 2 grippers) | `aloha` | BSD-3-Clause, © 2023 Trossen Robotics (`aloha/LICENSE`) | `fb36886b3023db08c198264e1e9956ab202c3e3b` | 2026-11-07 | `aloha.xml`, `joint_position_actuators.xml`, `keyframe_ctrl.xml`, the 12 `assets/*.stl` `aloha.xml` uses, `LICENSE` (8.3 MB); `scene_parts.xml` | none to the copied files (byte for byte); `scene_parts.xml` holds `scene.xml`'s cameras `overhead_cam` and `worms_eye_cam` and its table box `table` with their attributes, written by `scripts/bundle_samples.py` (checked against `scene.xml` compiled by MuJoCo: 0); `scene.xml` and its table and frame meshes are not bundled |
+| ALOHA 2 arms (one per file) | `aloha` | BSD-3-Clause (`aloha/LICENSE`) | as above | 2026-11-07 | `aloha_left.xml`, `aloha_right.xml` | written by MuJoCo with `scripts/bundle_samples.py` (`MjSpec`, `to_xml`): the other arm, the actuators, the gripper equality constraints, the keyframes and the world cameras deleted, the arm's `base_link` moved to the file's origin, keyframe `home` = this arm's part of `neutral_pose`; every body against `aloha.xml` in the arm's base frame within 4.5 × 10⁻⁷ (to_xml rounding) |
+| Franka Emika Panda with the Franka Hand | `franka_emika_panda` | Apache-2.0 (`franka_emika_panda/LICENSE`) | `fb36886b3023db08c198264e1e9956ab202c3e3b` | 2026-11-07 | `panda.xml`, `assets/*.stl`, `LICENSE` (6.9 MB) | the 59 OBJ meshes (34.3 MB of text) rewritten as binary STL with the same triangles, named `<stem>_obj.stl`; their `<mesh file>` names in `panda.xml` changed, and a `<mesh>` without a name given its old file stem (the name MuJoCo gave it), with a comment at the top saying so; MuJoCo-compiled triangles compared: largest difference 0 m. There is no official bimanual Franka model: the sample uses this file twice |
+| Unitree G1 with hands | `unitree_g1` | BSD-3-Clause, © 2016-2023 Unitree Robotics (`unitree_g1/LICENSE`) | `98a70c569c4c1b6da467a20012f766ee1f8dc521` | 2026-11-07 | `g1_with_hands.xml`, the 49 meshes it uses as `assets/*.simplified.stl`, `LICENSE` (10.9 MB) | **the meshes are simplified** (31.5 MB, 629 338 triangles → 216 325) by `scripts/bundle_samples.py` with fast-simplification 0.2.0 (quadric edge collapse), each within 0.5 mm two-sided Hausdorff distance of the original (measured largest 0.497 mm); the `<mesh file>` names in `g1_with_hands.xml` changed to the new files (each `<mesh>` named as before) with a comment at the top saying so; nothing else changed. BSD-3-Clause allows modified redistribution with the licence kept |
+| Unitree G1 upper body | `unitree_g1` | BSD-3-Clause (`unitree_g1/LICENSE`) | as above | 2026-11-07 | `g1_upper_body.xml` | written by MuJoCo with `scripts/bundle_samples.py`: `g1_with_hands.xml` with the free joint, the 12 leg and 3 waist joints (all 0 at `stand`), the actuators, sensors and keyframes deleted, the pelvis at `stand`'s base pose, keyframe `home` = the arms' and hands' part of `stand`; every body against `g1_with_hands.xml` at `stand`: 0 |
 
 Sizes are decimal megabytes (10⁶ bytes). The two folders marked "none" are byte for byte the checkout's files
 (compared with `diff -r` on 2026-11-06). Not bundled: each folder's gallery picture, README, CHANGELOG and `scene.xml`;
@@ -54,7 +70,10 @@ no folder has a NOTICE file. Menagerie's READMEs describe the models as "simplif
 URDFs (ROS-Industrial's for the UR5e and the 2F-85, The Robot Studio's for the SO-ARM100) and say that the SO-ARM100's
 joint limits are approximate ([docs/models/robots.md](docs/models/robots.md#known-limits)). Apache-2.0 and the BSD licences allow
 redistribution with the licence text kept, which the `LICENSE` files beside the models do; they are compatible with
-DexVantage's GPL-3.0-or-later.
+DexVantage's GPL-3.0-or-later. The `aloha` README (read 2026-11-07) calls its model "a simplified robot description
+(MJCF) of the bimanual ALOHA 2 robot", derived from Menagerie's ViperX 300 6DOF model; the `unitree_g1` README "a
+simplified robot description (MJCF)" derived from Unitree's public `g1_29dof_rev_1_0.xml`. The 2026-11-07 folders
+(`aloha`, `franka_emika_panda`, `unitree_g1`) were copied by `scripts/bundle_samples.py`; none has a NOTICE file.
 
 ### Checked, not bundled
 
@@ -71,7 +90,7 @@ Robot ▸ Import from MuJoCo Menagerie.
 | Model | Where | Licence (its own LICENSE) | Folder commit | Checked | Why not bundled |
 |---|---|---|---|---|---|
 | Wonik Robotics Allegro Hand V3 | Menagerie `wonik_allegro` (`right_hand.xml`, `left_hand.xml`; 16 joints) | BSD-2-Clause, © 2016 SimLab (`wonik_allegro/LICENSE`) | `71f066ad0be9cd271f7ed58c030243ef157af9f4` | 2026-11-06 | redistributable (2.6 MB); one sample hand is bundled, the Shadow Hand |
-| Unitree G1 with hands | Menagerie `unitree_g1` (`g1_with_hands.xml`: a three-finger hand per side with 7 joints, thumb 3, index 2, middle 2; the README does not name the hand model, so it is not called Dex3 here) | BSD-3-Clause, © 2016-2023 Unitree Robotics (`unitree_g1/LICENSE`) | `98a70c569c4c1b6da467a20012f766ee1f8dc521` | 2026-11-06 | 39.7 MB; downloads on request |
+| Unitree G1 with hands | Menagerie `unitree_g1` (`g1_with_hands.xml`: a three-finger hand per side with 7 joints, thumb 3, index 2, middle 2; the README does not name the hand model, so it is not called Dex3 here) | BSD-3-Clause, © 2016-2023 Unitree Robotics (`unitree_g1/LICENSE`) | `98a70c569c4c1b6da467a20012f766ee1f8dc521` | 2026-11-06 | 39.7 MB as Menagerie ships it: bundled with simplified meshes for the `g1` sample (above); the full model downloads on request |
 | LEAP Hand | Menagerie `leap_hand` | MIT, © 2023 Ananye Agarwal (`leap_hand/LICENSE`) | `71f066ad0be9cd271f7ed58c030243ef157af9f4` | 2026-11-06 | 15.6 MB; downloads on request |
 | Shadow DEX-EE | Menagerie `shadow_dexee` | Apache-2.0 (`shadow_dexee/LICENSE`) | `fb36886b3023db08c198264e1e9956ab202c3e3b` | 2026-11-06 | 10.9 MB; downloads on request |
 | TetherIA Aero Hand Open | Menagerie `tetheria_aero_hand_open` | Apache-2.0 (`tetheria_aero_hand_open/LICENSE`) | `fb36886b3023db08c198264e1e9956ab202c3e3b` | 2026-11-06 | 9.1 MB; downloads on request |
@@ -87,7 +106,8 @@ the project keeps the LICENSE text with the model files. Nothing downloaded this
 
 ## Hardware library sources (cited, not bundled)
 
-The hardware library (`dexvantage/resources/library/`, 40 entries in Phase 2, 51 after Phases 3, 6 and 7) holds figures copied from the makers'
+The hardware library (`dexvantage/resources/library/`, 40 entries in Phase 2, 51 after Phases 3, 6 and 7, 138 hardware
+entries and 53 robots after Phases 9 and 10) holds figures copied from the makers'
 public datasheets, product pages and papers, each entry with its source URL or document, title and the date read
 (2026-11-06 for every built-in entry). Only the figures are stored, written as DexVantage's own JSON; no datasheet,
 drawing, image or text of a maker is bundled, and nothing is downloaded at run time. The sources by maker:
@@ -105,6 +125,22 @@ drawing, image or text of a maker is bundled, and nothing is downloaded at run t
 The library schema (`dexvantage/resources/library.schema.json`) and every entry are DexVantage's own work under its
 GPL-3.0-or-later licence. Datasheet figures are facts restated with their source; the makers' documents keep their
 own terms and are reached through the cited URLs.
+
+## Phases 9 and 10, samples, catalogue and library: cited sources (figures only, nothing bundled)
+
+- **Library additions (2026-11-07):** 24 cameras, 12 depth cameras and 8 tactile sensors (e-con Systems, Arducam,
+  Basler, Teledyne FLIR, Allied Vision, Leopard Imaging, Luxonis, Stereolabs, Intel RealSense, Orbbec, Meta DIGIT 360,
+  XELA, PaXini, AnySkin, ReSkin, Contactile), 10 hosts and capture cards (NVIDIA Jetson spec tables, Basler, Leopard,
+  Stereolabs), 11 policies (model cards and papers), 3 lights, 3 cables and 13 teleop devices in the new `teleop`
+  kind. Each entry names its URL, title, the date read and what the source gave; figures only, no maker's text,
+  drawing or image is bundled. Details: `docs/models/library.md`, `docs/guide/library_systems.md`.
+- **Robot catalogue (2026-11-07):** 53 entries in `resources/library/robot/`, each figure stored with the index of
+  its source and that source's own words (maker datasheets and product pages); the model files are not bundled by the
+  catalogue (it points to the Menagerie folder and commit and imports with that model's licence shown). Details:
+  `docs/models/robots.md#catalogue`.
+- **Formats written by the exporters:** Isaac Lab (tags v3.0.0 and v2.3.2), LeRobot, ACT, Diffusion Policy and
+  OpenVLA configuration fields, OpenUSD, URDF (urdfdom), ROS 2 tf2, OpenCV FileStorage, Kalibr camchain, MCP
+  2025-11-25: read from their public sources on 2026-11-07 to write compatible files; no code of theirs is bundled.
 
 ## Phases 3, 6 and 7: cited sources (figures only, nothing bundled)
 

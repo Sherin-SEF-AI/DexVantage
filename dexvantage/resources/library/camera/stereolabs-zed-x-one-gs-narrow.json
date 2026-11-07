@@ -1,0 +1,106 @@
+{
+  "id": "stereolabs-zed-x-one-gs-narrow",
+  "kind": "camera",
+  "maker": "Stereolabs",
+  "name": "ZED X One GS, narrow lens (4.6 mm)",
+  "family": "ZED X One",
+  "sources": [
+    {
+      "url": "https://cdn.sanity.io/files/s18ewfw4/staging/7de4ce5b15c597aa446af5e63f475975fa6a85f0.pdf/ZED-X-One-GS-Datasheet.pdf",
+      "title": "ZED X One GS Datasheet, Rev 2.3 (July 2026), Stereolabs",
+      "read": "2026-11-07",
+      "covers": "sensor (1/2.6\" 2.3MP global shutter, array 1928 x 1208, 3 um pixels), output resolutions and frame rates, output formats, FOV, focal length, aperture and TV distortion per lens, dimensions, weight, power, IMU, synchronisation, interface"
+    },
+    {
+      "url": "https://www.stereolabs.com/store/products/zed-x-one-gs",
+      "title": "ZED X One GS store page, Stereolabs",
+      "read": "2026-11-07",
+      "covers": "lens options with FOVs (wide 120 x 110 x 80, narrow 91 x 80 x 52 degrees D x H x V), hardware synchronisation and trigger through GMSL2"
+    }
+  ],
+  "note": "A monocular global-shutter GMSL2 camera with a BMI088 IMU (not modelled), for custom stereo pairs or surround vision. The FOV is the datasheet's \"Max.\" figure; the native resolution is taken as the stated array size 1928 x 1208 (the FOV's image size is not said). Streams: 1920 x 1200 at 60 fps, 1920 x 1080 at 60 fps (cropping mode), 960 x 600 at 120 fps (binning mode), RAW10 over V4L2 (NV21 through Argus). The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. power_w 0.89 W (12 V, via GMSL2). size_mm read with the long side along the optical axis (the lens), an ASSUMPTION. Narrow lens: 73 (H) x 45 (V) x 87 (D) degrees, focal length 4.6 mm, f/2.0, TV distortion \"-6.7% <\"; 31 x 31 x 49.3 mm, 50 g. The sources disagree: the store page gives the narrow lens as 91 (D) x 80 (H) x 52 (V) degrees; the datasheet figures are entered.",
+  "interface": "GMSL2 (FAKRA Z)",
+  "power_w": 0.89,
+  "mass_g": 50.0,
+  "size_mm": [
+    49.3,
+    31.0,
+    31.0
+  ],
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 73.0,
+      "vfov_deg": 45.0,
+      "dfov_deg": 87.0,
+      "pixel_um": 3.0,
+      "resolution": [
+        1928,
+        1208
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed",
+      "optical_format": "1/2.6\"",
+      "focal_length_mm": 4.6
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1200,
+      "fps": [
+        60
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        60
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Colour",
+      "width": 960,
+      "height": 600,
+      "fps": [
+        120
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    }
+  ],
+  "tactile": null,
+  "host": null,
+  "sync": {
+    "hardware_trigger": true,
+    "sync_cable": null,
+    "imagers": [],
+    "what": "Datasheet: \"Hardware synchronization for multiple connected cameras at frame-level within 15 microseconds\"; store page: \"Multi-camera hardware synchronization and trigger through GMSL2\"."
+  }
+}

@@ -3,7 +3,8 @@ with a status word), and the action to improve it, with Apply (undoable), Previe
 
 Subclass StudyPage, set STUDY and TITLE, build the body in build_body(layout) and fill it in show_result(doc). The
 page re-renders whenever the controller finishes its study. Overlays for the 3D view come from overlays(vp) and are
-drawn while the page is the Analysis dock's current tab (return [] to draw nothing).
+drawn while the page is the Analysis dock's current tab (return [] to draw nothing). page_context() is what the
+assistant reads of the page (the headline as shown and what the page is about); a page may add to it.
 """
 from __future__ import annotations
 
@@ -14,6 +15,20 @@ from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QScrollArea, QVBoxLayout, 
 
 from ..panels import Headline
 from ..widgets import button, hline, label
+
+
+class _Headline(Headline):
+    """The page's headline, remembering what it shows (the figure, its unit, the status and its word, the
+    explanation) for page_context(): the assistant reads the page as the user sees it."""
+
+    def __init__(self, title: str, parent=None):
+        super().__init__(title, parent)
+        self.state = {'figure': '—', 'unit': '', 'status': '', 'word': '', 'explain': ''}
+
+    def set(self, figure: str, unit: str, sev: str, word: str, explain: str, tip: str = ''):
+        self.state = {'figure': str(figure), 'unit': str(unit), 'status': str(sev), 'word': str(word),
+                      'explain': str(explain)}
+        super().set(figure, unit, sev, word, explain, tip)
 
 
 class StudyPage(QWidget):
@@ -28,7 +43,7 @@ class StudyPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
-        self.head = Headline(self.HEADLINE or self.TITLE)
+        self.head = _Headline(self.HEADLINE or self.TITLE)
         self.b_run = button('Run', icon_name='play', tip='Run the study now (long studies run in the background)')
         self.b_apply = button('Apply', role='primary', tip='Make the suggested change (one undo step)')
         self.b_preview = button('Preview', role='ghost', tip='Show the suggested change without making it')
@@ -99,6 +114,16 @@ class StudyPage(QWidget):
         size and pose its optical frame in the world (frames.Pose); core/camrender.project_world and
         visible_polylines turn world points into such polylines. Called once per Camera view image."""
         return []
+
+    def page_context(self) -> dict:
+        """What the assistant reads of this page (assistant/page_guide.py, get_page_context): the headline as shown,
+        what the page is about (the first paragraph of the class docstring), the note line, whether a suggestion is
+        ready to Apply. Pages may extend it with figures they show beyond the headline; keep it small and JSON-able,
+        and never put paths, keys or computed-here numbers in it (only what the page shows)."""
+        about = ' '.join(((self.__doc__ or '').strip().split('\n\n') or [''])[0].split())
+        return {'title': self.TITLE, 'study': self.STUDY, 'headline': dict(self.head.state), 'about': about,
+                'note': self.note.text(), 'suggestion_ready': self.b_apply.isEnabled(),
+                'has_result': self.doc is not None}
 
     def suggestion_ready(self, on: bool):
         self.b_apply.setEnabled(on)

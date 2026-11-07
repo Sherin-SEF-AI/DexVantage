@@ -1,0 +1,70 @@
+{
+  "id": "leopard-li-ar0234csc-gmsl2-120h",
+  "kind": "camera",
+  "maker": "Leopard Imaging",
+  "name": "LI-AR0234CSC-GMSL2-120H",
+  "family": "GMSL2 cameras",
+  "sources": [
+    {
+      "url": "https://leopardimaging.com/wp-content/uploads/2024/04/LI-AR0234CSC-GMSL2-xxxH_Datasheet.pdf",
+      "title": "LI-AR0234CSC-GMSL2-xxxH datasheet, revision 1.0, 22 June 2021 (Leopard Imaging)",
+      "read": "2026-11-07",
+      "covers": "sensor (onsemi AR0234CS), optical format, resolution, pixel size, frame rate, shutter, serializer, power supply, IP67, weight, both lens options (EFL, f-number, horizontal FOV, optical distortion), USB 3.0 kit"
+    }
+  ],
+  "note": "A colour global-shutter GMSL2 camera (serializer Maxim MAX9295A, FAKRA Z, IP67, 9-19 VDC). Maximum frame rate \"120 fps @ full resolution\", RAW output (bit depth not stated: format \"RAW\", bits null); through Leopard's USB 3.0 kit (LI-USB30-DESER-GMSL2) 1920 x 1200 at 30 fps. Only a horizontal FOV is stated; the library takes square pixels for the vertical angle. The lens model is pinhole, a labelled ASSUMPTION: the datasheet states an optical distortion figure but no coefficients; calibrate a unit. Power consumption \"TBD\" (null). mass_g is the stated \"~ 44 g\" (approximate). size_mm is null: the dimensions are only in a drawing. Lens 120H: EFL 2.8 mm, F/2.0, 122 degrees horizontal (the part number says 120H), optical distortion \"< -66.5%\", M12; with that much distortion a pinhole fitted to 122 degrees misplaces most of the image, so calibrate before trusting pixel positions.",
+  "interface": "GMSL2 (FAKRA Z, power over coax)",
+  "power_w": null,
+  "mass_g": 44.0,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 122.0,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 3.0,
+      "resolution": [
+        1920,
+        1200
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed",
+      "optical_format": "1/2.6\"",
+      "focal_length_mm": 2.8
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1200,
+      "fps": [
+        120
+      ],
+      "format": "RAW",
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

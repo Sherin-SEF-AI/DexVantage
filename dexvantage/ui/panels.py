@@ -196,7 +196,13 @@ LIBRARY_ENTRIES = {
     'Robots': [('Import a URDF or MJCF file…', 'import_robot'),
                ('Import from MuJoCo Menagerie…', 'import_menagerie')],
     'Grippers': [('Import an arm whose model file includes its gripper…', 'import_robot')],
+    'Mounts': [('ISO 9409-1 flange adapter, T-slot clamps, pan-tilt, palm and dorsal mounts (Brackets page)…',
+                'page_brackets')],
 }
+# library kinds that are not placed in the scene: double-click opens the page that uses them (and adds the entry
+# where that page can: a teleop device, a policy, a light)
+PAGE_OF_KIND = {'teleop': 'teleop', 'policy': 'policies', 'light': 'lighting', 'cable': 'cables'}
+SENSOR_KINDS = ('camera', 'depth', 'tactile')
 # groups filled from the hardware library (core/library) name its kind as the fifth item
 LIBRARY_GROUPS = (
     ('Robots', 'robot-arm', None, 'Robots are read from their official model files (URDF or MJCF). Joint limits '
@@ -211,7 +217,17 @@ LIBRARY_GROUPS = (
                               'power budget. They are not placed in the scene.', 'host'),
     ('Grippers', 'gripper', None, 'From their official model files, as part of the arm\'s file (an MJCF attach or '
                                   'a URDF fixed joint); the UR5e sample has the Robotiq 2F-85 on its flange.'),
-    ('Mounts', 'bracket', 6, 'ISO 9409-1 flange adapters and 2020/4040 T-slot clamps, generated as printable STL.'),
+    ('Teleop devices', 'teleop', None, 'Leader arms, exoskeletons, VR headsets and space mice, each stated figure '
+                                       'with its source. Double-click to add one on the Teleop page.', 'teleop'),
+    ('Policies', 'target', None, 'Robot-learning policies (ACT, Diffusion Policy, VLAs): input cameras, '
+                                 'resolutions and inference times from their model cards or papers. Double-click to '
+                                 'add one on the Policies page.', 'policy'),
+    ('Lights', 'sun', None, 'Studio and IR lights from their makers\' pages. Double-click to add one on the Lighting '
+                            'page.', 'light'),
+    ('Cables', 'cable', None, 'USB, GMSL and Ethernet cables: diameter, connectors and minimum bend radius from the '
+                              'datasheet. Chosen per cable run on the Cables page.', 'cable'),
+    ('Mounts', 'bracket', None, 'ISO 9409-1 flange adapters, 2020/4040 T-slot clamps, a pan-tilt head and palm and '
+                                'dorsal micro-camera mounts, generated as printable STL on the Brackets page.'),
 )
 DEVICE = Qt.ItemDataRole.UserRole + 1
 
@@ -303,11 +319,13 @@ class LibraryPanel(QWidget):
                     c.setFont(1, mono(10))
                     c.setForeground(1, THEME.color('muted'))
                     tip = entry_tooltip(e) + ('\nDouble-click or drag into the 3D view to add it to the rig.'
-                                              if e.kind != 'host' else '')
+                                              if e.kind in SENSOR_KINDS else
+                                              f'\nDouble-click to open it on the {PAGE_OF_KIND[e.kind]} page.'
+                                              if e.kind in PAGE_OF_KIND else '')
                     c.setToolTip(0, tip)
                     c.setToolTip(1, tip)
                     flags = Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
-                    if e.kind != 'host':
+                    if e.kind in SENSOR_KINDS:
                         flags |= Qt.ItemFlag.ItemIsDragEnabled
                     c.setFlags(flags)
                     it.addChild(c)
@@ -321,6 +339,8 @@ class LibraryPanel(QWidget):
                     e.setData(0, ROLE, aid)
                     e.setToolTip(0, f'{text}\nDouble-click to open.')
                     it.addChild(e)
+                if title == 'Robots':                    # the robot catalogue (core/robot/catalogue.py)
+                    self._fill_catalogue(it, q)
             else:
                 note = QTreeWidgetItem([f'Arrives in Phase {phase}', ''])
                 note.setForeground(0, THEME.color('muted'))
@@ -336,6 +356,31 @@ class LibraryPanel(QWidget):
         new.setData(0, ROLE, 'new_device')
         new.setToolTip(0, 'A device of your own: every figure marked as given by the maker or not given.')
         self.tree.addTopLevelItem(new)
+
+    def _fill_catalogue(self, group, q):
+        """The robot catalogue's entries under the Robots group: double-click (or Import…) downloads the robot's
+        Menagerie model and shows its licence first (ui/dialogs/robot_catalogue.py)."""
+        from ..core.robot import catalogue as CAT
+        from .dialogs.robot_catalogue import tooltip
+        try:
+            es = CAT.entries()
+        except Exception:                                # noqa: BLE001 — a broken catalogue must not take the panel
+            traceback.print_exc()
+            return
+        for e in es:
+            if q and q not in f'{e.maker} {e.name} {e.data.get("family") or ""} {e.id}'.lower():
+                continue
+            c = QTreeWidgetItem([e.title, CAT.summary(e)])
+            c.setData(0, DEVICE, e.id)
+            c.setFont(1, mono(10))
+            c.setForeground(1, THEME.color('muted'))
+            tip = tooltip(e)
+            c.setToolTip(0, tip)
+            c.setToolTip(1, tip)
+            c.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+            group.addChild(c)
+        n = sum(1 for k in range(group.childCount()) if group.child(k).data(0, DEVICE))
+        group.setText(1, str(n))                         # the catalogue's robots, as the other groups count theirs
 
     def item_for(self, model_id):
         """The tree item of a device (tests, the palette)."""
@@ -368,10 +413,40 @@ class LibraryPanel(QWidget):
             if win is not None:
                 win.msg(f'{e.name} is a host, not a sensor: it is not placed in the scene.', 5000)
             return None
+        if e.kind == 'robot':                            # a catalogue robot: import it through Menagerie
+            from .dialogs.robot_catalogue import import_entry
+            return import_entry(win, e.id) if win is not None else None
+        if e.kind in PAGE_OF_KIND:
+            return self._use_on_page(e)
+        if e.kind not in SENSOR_KINDS:
+            return None
         s = add_sensor(self.ctx.store, e.id, at)
         if win is not None:
             win.msg(f'Added {s.name} to {self.ctx.store.project.variant.name}', 4000)
         return s
+
+    def _use_on_page(self, e):
+        """A teleop device, policy, light or cable entry: open the page that uses it; a teleop device, policy or
+        light is added there (one undo step), a cable is chosen per run on the Cables page."""
+        win = self.ctx.window
+        pid = PAGE_OF_KIND[e.kind]
+        page = getattr(win, 'pages', {}).get(pid) if win is not None else None
+        if page is None:
+            return None
+        win.open_page(pid)
+        try:
+            if e.kind == 'teleop':
+                return page.add_from_library(e.id)
+            if e.kind == 'policy':
+                return page.add_policy(e.id)
+            if e.kind == 'light':
+                return page.add_light(library_id=e.id) or None
+        except Exception:                                # noqa: BLE001 — the page says what went wrong
+            traceback.print_exc()
+            win.msg(f'{e.name} could not be added; the details are in the log.', 6000)
+            return None
+        win.msg(f'{e.name}: choose it as the library cable of a cable run on this page.', 6000)
+        return None
 
     def _menu(self, pos):
         from PyQt6.QtWidgets import QMenu
@@ -381,9 +456,13 @@ class LibraryPanel(QWidget):
         if mid:
             from ..core import library
             e = library.get(mid)
-            if e is not None and e.kind != 'host':
+            if e is not None and e.kind == 'robot':
+                m.addAction('Import from MuJoCo Menagerie…', lambda: self.add_device(mid))
+            elif e is not None and e.kind in SENSOR_KINDS:
                 m.addAction('Add to the rig', lambda: self.add_device(mid))
-            if e is not None:
+            elif e is not None and e.kind in PAGE_OF_KIND:
+                m.addAction(f'Open on the {PAGE_OF_KIND[e.kind]} page', lambda: self.add_device(mid))
+            if e is not None and e.kind in SENSOR_KINDS + ('host',):     # the kinds the custom dialog makes
                 m.addAction('Start a custom device from this one…', lambda: self._custom(mid))
             if e is not None and e.is_custom:
                 m.addAction('Remove this custom device', lambda: self._remove(mid))
@@ -604,8 +683,11 @@ class Inspector(QWidget):
         r, pch, y = (np.degrees(a) for a in rpy_from_quat(s.mount.pose.quaternion))
         sec.row('Roll, pitch, yaw', f'{r:.1f}°  {pch:.1f}°  {y:.1f}°',
                 tip='URDF convention: about fixed x, then y, then z; stored as a quaternion (x, y, z, w)')
-        sec.row('Tolerance', f'± {s.mount.tolerance.position_mm:g} mm · ± {s.mount.tolerance.rotation_deg:g}° '
-                             '(default)', tip='Mount tolerance; the Monte Carlo studies carry it into every figure')
+        tol = s.mount.tolerance
+        is_def = tol.to_dict() == type(tol)().to_dict()            # labelled "default" only while it is one
+        sec.row('Tolerance', f'± {tol.position_mm:g} mm · ± {tol.rotation_deg:g}°' + (' (default)' if is_def else ''),
+                tip='Mount tolerance (set it on Analysis ▸ Tolerances); the Monte Carlo studies carry it into every '
+                    'figure')
         win = self.ctx.window
         if win is not None and hasattr(win, 'open_page') and 'sensors' in getattr(win, 'pages', {}):
             b = button('Sensors and mounts', icon_name='sensor', tip='Change its device, mount, pose and stream')
@@ -784,11 +866,40 @@ class SummaryPage(QWidget):
 
 
 class LogPage(QWidget):
+    """The design log (spec §13): every edit the project records, newest first, and the notes and decisions the user
+    adds (kept in the project file, project.log). Show filters the list; a note is added with Add (Enter)."""
+    NOTE_KINDS = (('note', 'Note'), ('decision', 'Decision'))
+    FILTERS = (('all', 'Everything'), ('notes', 'Notes and decisions'), ('edit', 'Edits'))
+
     def __init__(self, ctx):
         super().__init__()
         self.ctx = ctx
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
+        from PyQt6.QtWidgets import QComboBox
+        top = QHBoxLayout()
+        top.setContentsMargins(6, 4, 6, 0)
+        self.kind = QComboBox()
+        for k, t in self.NOTE_KINDS:
+            self.kind.addItem(t, k)
+        self.kind.setToolTip('A note, or a decision taken and why')
+        self.entry = QLineEdit()
+        self.entry.setPlaceholderText('Add a note or a decision to the design log')
+        self.entry.returnPressed.connect(lambda: self.add_note())
+        self.b_add = button('Add', role='ghost', icon_name='plus', tip='Add it to the design log (saved with the '
+                                                                      'project)')
+        self.b_add.clicked.connect(lambda: self.add_note())
+        self.show_box = QComboBox()
+        for k, t in self.FILTERS:
+            self.show_box.addItem(t, k)
+        self.show_box.setToolTip('Which entries to show')
+        self.show_box.currentIndexChanged.connect(lambda _i: self.refill())
+        top.addWidget(self.kind)
+        top.addWidget(self.entry, 1)
+        top.addWidget(self.b_add)
+        top.addWidget(QLabel('Show'))
+        top.addWidget(self.show_box)
+        v.addLayout(top)
         self.text = QPlainTextEdit()
         self.text.setReadOnly(True)
         v.addWidget(self.text)
@@ -796,8 +907,26 @@ class LogPage(QWidget):
         ctx.store.project_replaced.connect(self.refill)
         self.refill()
 
+    def add_note(self, text: str | None = None, kind: str | None = None) -> bool:
+        """Add a note or decision to project.log (no undo step: the log is a record; the project is marked as
+        changed so it is saved)."""
+        typed = text is None
+        text = ' '.join((self.entry.text() if typed else text).split())
+        if not text:
+            return False
+        kind = kind or self.kind.currentData() or 'note'
+        self.ctx.store.project.add_log(kind if kind in dict(self.NOTE_KINDS) else 'note', text[:2000])
+        self.ctx.store.undo.resetClean()                # unsaved: the note goes into the file on the next save
+        if typed:
+            self.entry.clear()
+        self.refill()
+        return True
+
     def refill(self):
-        log = self.ctx.store.project.log[-400:]
+        want = self.show_box.currentData() if hasattr(self, 'show_box') else 'all'
+        notes = {k for k, _t in self.NOTE_KINDS}
+        log = [e for e in self.ctx.store.project.log
+               if want == 'all' or (want == 'notes' and e.get('kind') in notes) or e.get('kind') == want][-400:]
         self.text.setPlainText('\n'.join(f'{e["t"]}  {e["kind"]:<10} {e["text"]}' for e in reversed(log)))
 
 
@@ -825,26 +954,5 @@ class AnalysisPanel(QWidget):
         self.tabs.setCurrentWidget(w)
 
 
-# =============================================================================== assistant
-class AssistantPanel(QWidget):
-    def __init__(self, ctx):
-        super().__init__()
-        v = QVBoxLayout(self)
-        v.setContentsMargins(0, 0, 0, 0)
-        v.setSpacing(0)
-        head = QWidget()
-        head.setFixedHeight(22)
-        h = QHBoxLayout(head)
-        h.setContentsMargins(8, 0, 4, 0)
-        h.addWidget(label('Assistant'))
-        h.addStretch(1)
-        v.addWidget(head)
-        v.addWidget(hline())
-        v.addWidget(empty_state('Not connected yet',
-                                'The assistant reads the page you are on and cites the figures shown; it never invents '
-                                'numbers. It arrives with the MCP server in Phase 10 (Groq or Claude, with keys kept '
-                                'in the system keyring).'), 1)
-
-
-__all__ = ['Outliner', 'LibraryPanel', 'Inspector', 'CameraViewPanel', 'AnalysisPanel', 'AssistantPanel',
+__all__ = ['Outliner', 'LibraryPanel', 'Inspector', 'CameraViewPanel', 'AnalysisPanel',
            'PoseScrubber', 'Headline', 'empty_state', 'STATUS', 'sans']

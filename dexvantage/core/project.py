@@ -692,10 +692,16 @@ class Project:
 
     # ---------------------------------------------------------------- the file
     def save(self, path: str, thumb: bytes | None = None):
-        """Write the .dexv archive atomically (a .part file renamed over the old one)."""
+        """Write the .dexv archive atomically (a .part file renamed over the old one); a folder path or one ending in
+        .dexv.d writes the unpacked, Git-friendly form instead (core/projfolder.py)."""
         if thumb is not None:
             self.thumb = thumb
         self.saved_at = _utc_now()
+        if path.rstrip('/\\').endswith('.dexv.d') or os.path.isdir(path):
+            from .projfolder import save_unpacked
+            save_unpacked(self, path)
+            self.path = path
+            return
         doc = self.to_dict()
         tmp = path + '.part'
         with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED) as z:
@@ -713,6 +719,9 @@ class Project:
 
     @staticmethod
     def load(path: str) -> 'Project':
+        if os.path.isdir(path):                         # the unpacked form (core/projfolder.py)
+            from .projfolder import load_unpacked
+            return load_unpacked(path)
         try:
             z = zipfile.ZipFile(path)
         except FileNotFoundError:

@@ -1,0 +1,47 @@
+{
+  "id": "basler-cable-gige-cat6-rj45-drc-p",
+  "kind": "cable",
+  "maker": "Basler",
+  "name": "Cable GigE, Cat 6, RJ45 sl hor/RJ45, DrC, P",
+  "family": "Basler premium GigE cables",
+  "sources": [
+    {
+      "url": "https://docs.baslerweb.com/basler-cable-gige-cat6-rj45-sl-hor-rj45-drc-p",
+      "title": "Basler Cable GigE, Cat 6, RJ45 sl hor/RJ45, DrC, P (Basler product documentation)",
+      "read": "2026-11-07",
+      "covers": "order numbers and lengths, connectors, cable diameter, minimum bending radius fixed and in a drag chain, bending cycles, drag-chain and robotics suitability"
+    }
+  ],
+  "note": "A twisted, shielded Cat 6 GigE cable with an RJ45 plug with horizontal screw lock at the camera and an RJ45 click-lock plug at the host, \"suitable for drag chain applications\". Stated: diameter \"6.4 mm max.\"; \"Minimum Bending Radius 40 mm, fixed installation | 60 mm, drag chain installation\" (min_bend_dynamic_mm 60 is the drag-chain figure); \"Maximum Bending Cycles 1 mio. cycles\" (\"guaranteed for 1 million bending cycles\"; the test conditions are a figure on the page, not read as numbers); \"Suitable for Drag Chain Applications Yes\", \"Suitable for Robotics Applications No\" (drag-chain rolling, not the torsion of a robot joint). Lengths 5, 10, 20 and 25 m (2000027038, 2000028341, 2000027039, 2000029551). Not stated: the data rate (GigE is the camera's), mass.",
+  "interface": "GigE (Cat 6, RJ45)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null,
+  "cable": {
+    "type": "ethernet",
+    "diameter_mm": 6.4,
+    "min_bend_static_mm": 40.0,
+    "min_bend_dynamic_mm": 60.0,
+    "flex_cycles": 1000000,
+    "lengths_m": [
+      5,
+      10,
+      20,
+      25
+    ],
+    "connectors": [
+      "RJ45 with horizontal screw lock (camera)",
+      "RJ45 click-lock (host)"
+    ],
+    "active": null,
+    "stated_mbps": null,
+    "drag_chain_rated": true,
+    "robotics_rated": false
+  }
+}

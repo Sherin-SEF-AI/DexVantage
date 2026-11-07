@@ -27,6 +27,9 @@ EXPECTED = {
     'stereolabs-zed-2i', 'stereolabs-zed-mini', 'stereolabs-zed-x', 'stereolabs-zed-x-mini',
     'luxonis-oak-d', 'luxonis-oak-d-pro', 'luxonis-oak-d-sr', 'luxonis-oak-d-lite',
     'orbbec-femto-bolt', 'orbbec-gemini-2', 'orbbec-gemini-335', 'orbbec-gemini-336',
+    # added 2026-11-07 (docs/models/library.md, "Entries")
+    'orbbec-gemini-335l', 'orbbec-gemini-336l', 'orbbec-gemini-2-l', 'orbbec-femto-mega',
+    'luxonis-oak-d-s2', 'luxonis-oak-d-w', 'luxonis-oak-d-pro-w',
 }
 
 

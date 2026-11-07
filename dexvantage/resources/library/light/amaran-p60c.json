@@ -1,0 +1,46 @@
+{
+  "id": "amaran-p60c",
+  "kind": "light",
+  "maker": "amaran (Aputure)",
+  "name": "P60c",
+  "family": "amaran P60 panels",
+  "sources": [
+    {
+      "url": "https://amarancreators.com/pages/amaran-p60c",
+      "title": "amaran P60c product page, \"Specifications\" section (amarancreators.com)",
+      "read": "2026-11-07",
+      "covers": "CCT range, CRI, TLCI, beam angle without accessory, maximum power output and consumption, maximum light output"
+    },
+    {
+      "url": "https://amarancreators.com/products/amaran-p60c",
+      "title": "amaran P60c shop page (amarancreators.com)",
+      "read": "2026-11-07",
+      "covers": "cross-check: \"5,900 Lux @ 1 meter (5600K)\", \"78W Max Power Draw\", \"CRI: 95+\""
+    }
+  ],
+  "note": "A 60 W RGBWW lensed LED panel. Specifications table: CCT \"2,500K~7,500K\", CRI \"≥95\" (cri 95 is that lower bound), TLCI \"≥96\", \"Beam Angle ( No Accessory) 45°\", \"Max Power Output 60W\", \"Max Power Consumption ≤78W\" (power_w 78, the stated maximum), \"Max Light Output 6,300 lux @ 1m\". The shop page gives \"5,900 Lux @ 1 meter (5600K)\": the entry uses the specifications table's maximum and keeps both here. Modelled as a spot of the stated 45° beam (type spot); its luminous flux is not stated, so the lighting study cannot size it until a flux or luminance is entered. Not stated in what was read: luminous flux, emitting size, mass, IR output.",
+  "interface": "Bluetooth 5.0 (Sidus Mesh), Sidus Link app; on-board controls",
+  "power_w": 78.0,
+  "mass_g": null,
+  "size_mm": null,
+  "light": {
+    "type": "spot",
+    "luminous_flux_lm": null,
+    "luminance_cd_m2": null,
+    "cct_k": null,
+    "cct_k_range": [
+      2500.0,
+      7500.0
+    ],
+    "emitting_size_m": null,
+    "ring_inner_m": null,
+    "beam_deg": 45.0,
+    "ir_irradiance_w_m2": null,
+    "ir_at_m": null,
+    "cri": 95,
+    "illuminance_lux": 6300.0,
+    "illuminance_at_m": 1.0,
+    "wavelength_nm": null,
+    "what": "\"CCT 2,500K~7,500K\"; \"CRI ≥95\"; \"Beam Angle ( No Accessory) 45°\"; \"Max Power Consumption ≤78W\"; \"Max Light Output 6,300 lux @ 1m\""
+  }
+}

@@ -15,9 +15,10 @@ normalises it):
 
 | Field | Meaning |
 |---|---|
-| `kind` | `leader_arm`, `gello`, `vr` or `spacemouse` |
+| `kind` | `leader_arm`, `gello`, `vr`, `spacemouse`, `glove` or `hand_tracker` (the last two cartesian like VR: their volume is the wrist tracker's or the tracker's own) |
 | `follower_uid` | the robot of the project the device drives |
-| `leader` | `{'robot_uid'}`: a robot of the project whose kinematics the leader has (the follower's own uid: a leader of the same model); `{'library_id'}`: not usable yet (the library has no teleop entries); `null` |
+| `leader` | `{'robot_uid'}`: a robot of the project whose kinematics the leader has (the follower's own uid: a leader of the same model); `{'library_id'}`: a library teleop entry that is not stated to lead this follower (it carries figures, no kinematics: the study says so and asks for the leader as a robot); `null` |
+| `library_id` | optional: the library teleop entry the device was made from (below) |
 | `mapping` | `kind` `joint` or `cartesian`, `scale`, `offset` (a pose of the device frame in the follower's base frame), `joint_map` {leader joint: follower joint} |
 | `volume` | VR tracking volume or space-mouse bounds in the device frame: a box (`size` = three edges) or a cylinder (`size` = [radius, height], axis z); `null` = not stated |
 | `source` | where each device figure comes from (a URL and the date read, or "measured") |
@@ -34,6 +35,44 @@ SO-100 kit and GELLO that model is the follower's own:
 - GELLO (Wu et al. 2023, arXiv:2309.13037): "Given a target robot arm, we build a GELLO controller device that has the
   same kinematic structure as the target arm". Its joint ranges and link lengths are not stated in the abstract; the
   follower's model is used.
+
+## Teleop devices from the library {#library}
+
+The library kind `teleop` (`dexvantage/resources/library/teleop/*.json`, `core/teleop_devices.py`, schema block
+`teleop`) holds 13 devices, every figure read on 2026-11-07 from the source it names, each `{value, source, quote}`
+and null when no source states it. The Teleop page's **Add from library** makes a device record from one
+(`teleop_devices.device_from_library(project, library_id, follower_uid)`, one undo step); the plain **Add** works as
+before.
+
+| Entry | Kind | Stated figures (source) | Not stated |
+|---|---|---|---|
+| GELLO | gello, joints of the target arm (`leads` "*") | joint resolution 0.088° (12-bit encoders; paper) | DoF (the target arm's), rate, latency, mass |
+| SO-100 leader arm | leader arm, same joints as an SO-100 | 6 motors (LeRobot docs) | mass, rate, latency |
+| SO-101 leader arm | leader arm, same joints as an SO-101 | 6 axes, gear ratios (LeRobot docs) | mass, rate, latency |
+| Koch v1.1 leader arm | leader arm, angles mapped one to one (own parts) | 6 XL330-M077-T servos, 5 V (README) | its joint ranges, mass, rate |
+| ALOHA leader (WidowX-250 6DOF) | leader arm, angles mapped to a ViperX ("approximately scaled versions") | 6 DoF, reach 650 mm, accuracy 5–8 mm (Trossen); teleoperation at 50 Hz (ALOHA paper) | latency, mass |
+| SpaceMouse Compact | space mouse | 6 DoF, 480 g, 77 × 77 × 54 mm | cap travel, rate |
+| Meta Quest 3, 3S | VR | 515 g, 514 g (excluding the facial interface); hand tracking by 4 IR + 2 RGB cameras | tracking volume, tracking rate, latency |
+| Apple Vision Pro (M5) | VR | 12 ms photon-to-photon (R1 chip), 750–800 g | hand-tracking rate, volume |
+| MANUS Quantum Metagloves | glove | 120 Hz sample rate, ≤ 7.5 ms signal latency, 138 g, 15 m wireless | accuracy figure, wrist volume |
+| Rokoko Smartgloves II | glove | 250 Hz IMU rate, 0.47 mm wrist accuracy at fingertip distance, 7 sensors | latency, mass |
+| HaptX Gloves G1 | glove | 36 tracked DoF, 0.3 mm rms resolution, ~1 lb, 135 tactile actuators per hand | latency ("no perceivable latency"), rate |
+| Leap Motion Controller 2 | hand tracker | 115 fps camera maximum, 10–110 cm, 160° × 160°, 29 g, 850 nm | latency, accuracy |
+
+How a record is made from an entry (nothing is invented):
+
+- **Leader arms and GELLO** map joint to joint. When the entry is stated to lead the follower robot (`leads`: words
+  matched against the robot's name and model file, ignoring case, spaces, "-" and "_"; GELLO's "*" leads any arm), the
+  leader is the follower's own model. With `same_joints` true (SO-100, SO-101, GELLO) the source states the leader has
+  the follower's joints; with false (Koch v1.1, ALOHA's WidowX) only the angles are mapped one to one, and the leader's
+  comfortable box is taken from the follower's ranges, an ASSUMPTION written into the record's `source.leader`. A
+  leader not stated to lead the follower gets `{'library_id'}`, and the study asks for the leader arm as a robot.
+- **VR headsets, space mice, gloves and hand trackers** are cartesian. Their volume is the entry's stated
+  `workspace`; no maker states one as a box or cylinder (the Leap Motion's is a 160° cone from 10 to 110 cm, a headset's
+  play area is not a tracking volume, a glove's wrist is tracked by another system), so the record's volume is null and
+  the study says "not stated" until a measured or cited volume is entered on the page.
+- Every stated figure goes into the record's `source` with its URL, the date read and the quote; the record keeps
+  `library_id`, the page shows which figures the maker does not state, and the study's device rows carry the id.
 
 ## The comfortable workspace in the follower's frame
 
@@ -151,7 +190,13 @@ positions, not the operator's posture or speed; dexterity is first order at one 
 translations only (no rotations, no finer steps) and its prediction holds only to the voxel size; obstacles and other
 robots are not avoided by the reach (self-collision is); arm-to-arm distances are between mesh vertices (an upper
 bound); the SO-100's joint limits are Menagerie's approximate ones, so its comfortable box inherits that; the VR and
-space-mouse figures are whatever the user states, and a device without them is left out.
+space-mouse figures are whatever the user states, and a device without them is left out. Library devices: no maker
+states a tracking volume as a box or cylinder, so a library VR, glove, hand-tracker or space-mouse device reaches the
+study without a comfortable region until one is entered; the stated rates and latencies (a glove's sample rate and
+signal latency, a headset's photon-to-photon passthrough) are carried as figures with their sources and are not used
+by the reach model; a leader whose own joint ranges are not stated (Koch v1.1, ALOHA's WidowX) is given the
+follower's ranges, an assumption its record says; `leads` matches words of the robot's name and model file, so a
+renamed robot is not recognised (choose the leader by hand).
 
 ## References
 
@@ -159,3 +204,5 @@ space-mouse figures are whatever the user states, and a device without them is l
 - K. M. Lynch and F. C. Park, Modern Robotics, 2017 (the PoE chain of the checks, `lynch_park2017`).
 - Hugging Face LeRobot, SO-100 guide, https://huggingface.co/docs/lerobot/so100, read 2026-11-07 (`lerobot_so100`).
 - P. Wu et al., GELLO, arXiv:2309.13037, 2023 (`gello2023`).
+- The library teleop entries' sources, each with the date read (`library_teleop_sources`; listed in each entry and in
+  [library.md](library.md#library-systems)).

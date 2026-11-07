@@ -139,6 +139,8 @@ QCheckBox::indicator:hover { border-color: @muted; }
 QCheckBox::indicator:checked { background: @ink; border-color: @ink; image: url(@icon_checkinv); }
 QCheckBox::indicator:indeterminate { background: @ink; border-color: @ink; image: url(@icon_dashinv); }
 QCheckBox::indicator:disabled { background: transparent; border-color: @hair; }
+QCheckBox::indicator:checked:disabled { background: @muted; border-color: @muted; image: url(@icon_checkinv); }
+QCheckBox::indicator:indeterminate:disabled { background: @muted; border-color: @muted; image: url(@icon_dashinv); }
 QCheckBox:disabled { color: @muted; }
 QRadioButton::indicator { width: 12px; height: 12px; border: 1px solid @strong; border-radius: 6px; background: @raised; }
 QRadioButton::indicator:checked { border-color: @ink; background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 @ink, stop:0.42 @ink, stop:0.5 @raised, stop:1 @raised); }

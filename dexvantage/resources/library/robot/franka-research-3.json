@@ -1,0 +1,143 @@
+{
+  "id": "franka-research-3",
+  "kind": "robot",
+  "maker": "Franka Robotics",
+  "name": "Franka Research 3",
+  "family": "7-DoF research arm",
+  "sources": [
+    {
+      "url": "https://franka.de/hubfs/Datasheet_FrankaResearch3_R02212_2.4.pdf",
+      "title": "Franka Robotics, Datasheet Franka Research 3, document R02212, release 2.4 (October 2025)",
+      "read": "2026-11-07",
+      "covers": "DoF, payload, reach, joint position limits, weight, repeatability, interfaces, 1 kHz FCI"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/franka_fr3",
+      "title": "MuJoCo Menagerie franka_fr3/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Mass is the arm's (the controller is about 7 kg more). Repeatability per ISO 9283 Annex A in a 0.4 m cube, as the datasheet footnote says. The Menagerie model is derived from franka_description (create_urdf.sh fr3); fr3.xml has no hand. The model folder's LICENSE file holds the Apache-2.0 text followed by a BSD licence (Willow Garage) text; the folder's README says \"released under an Apache-2.0 License\" (both read 2026-11-07): the download shows the whole file.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "variant": "FR3 Arm v2.1 with Control v5.1 (datasheet R02212, release 2.4)",
+    "dof": {
+      "value": 7,
+      "source": 0,
+      "quote": "Degrees of freedom 7"
+    },
+    "reach_mm": {
+      "value": 855,
+      "source": 0,
+      "quote": "Maximum reach 855 mm"
+    },
+    "payload_kg": {
+      "value": 3,
+      "source": 0,
+      "quote": "Rated payload 3 kg"
+    },
+    "repeatability_mm": {
+      "value": 0.1,
+      "source": 0,
+      "quote": "Position repeatability <+/- 0.1 mm (ISO 9283)"
+    },
+    "mass_kg": {
+      "value": 18.3,
+      "source": 0,
+      "quote": "Weight ~ 18.3 kg (arm)"
+    },
+    "control_hz": {
+      "value": 1000,
+      "source": 0,
+      "quote": "ethernet (TCP/IP) for ... 1 kHz Franka Control Interface (FCI)"
+    },
+    "interfaces": {
+      "value": [
+        "Ethernet (TCP/IP), Desk",
+        "Franka Control Interface (FCI), 1 kHz",
+        "Modbus/TCP",
+        "OPC UA"
+      ],
+      "source": 0,
+      "quote": "Interfaces; Fieldbuses: Modbus/TCP, OPC UA"
+    },
+    "joint_ranges": {
+      "value": [
+        {
+          "joint": "A1",
+          "min": -166,
+          "max": 166
+        },
+        {
+          "joint": "A2",
+          "min": -105,
+          "max": 105
+        },
+        {
+          "joint": "A3",
+          "min": -166,
+          "max": 166
+        },
+        {
+          "joint": "A4",
+          "min": -176,
+          "max": -7
+        },
+        {
+          "joint": "A5",
+          "min": -165,
+          "max": 165
+        },
+        {
+          "joint": "A6",
+          "min": 25,
+          "max": 265
+        },
+        {
+          "joint": "A7",
+          "min": -175,
+          "max": 175
+        }
+      ],
+      "source": 0,
+      "quote": "Joint position limits",
+      "unit": "deg"
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "franka_fr3",
+      "file": "fr3.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0 AND BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/franka_fr3"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "fr3.xml",
+      "imported": true,
+      "joints_in_q": 7,
+      "joint_names": [
+        "fr3_joint1",
+        "fr3_joint2",
+        "fr3_joint3",
+        "fr3_joint4",
+        "fr3_joint5",
+        "fr3_joint6",
+        "fr3_joint7"
+      ],
+      "actuators": 7,
+      "links": 9,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 7,
+      "seconds": 0.45,
+      "note": ""
+    }
+  }
+}

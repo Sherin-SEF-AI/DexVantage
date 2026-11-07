@@ -1,0 +1,103 @@
+{
+  "id": "arducam-b0429-ar0234",
+  "kind": "camera",
+  "maker": "Arducam",
+  "name": "B0429 2.3MP AR0234 global shutter camera (Jetvariety, M12)",
+  "family": "Arducam MIPI cameras",
+  "sources": [
+    {
+      "url": "https://docs.arducam.com/Nvidia-Jetson-Camera/Jetvariety-Camera/AR0234/",
+      "title": "Jetvariety AR0234 colour global shutter camera for NVIDIA Jetson (Arducam documentation)",
+      "read": "2026-11-07",
+      "covers": "sensor, maximum resolution, pixel size, optical format, lens LN012 (focal length, f-number, FOV), frame rates, output RAW10, 2-lane MIPI, board size; product table row for B0429 (FOV, fixed focus, IR-cut)"
+    },
+    {
+      "url": "https://docs.arducam.com/Raspberry-Pi-Camera/Pivariety-Camera/AR0234/",
+      "title": "Pivariety AR0234 colour global shutter camera for Raspberry Pi (Arducam documentation)",
+      "read": "2026-11-07",
+      "covers": "cross-check of the same LN012 lens line (FOV 120 (D) / 90 (H) / 75 (V)) and the external trigger"
+    }
+  ],
+  "note": "A colour global-shutter MIPI camera for NVIDIA Jetson with the default M12 lens LN012 (\"Focal length: 3.6mm F.NO: 3.0\"). The maker's FOV figures disagree: the Jetvariety page's lens line says 120 (D) / 100 (H) / 75 (V), its product table gives the B0429 as \"90 (H) x 75 (V)\", and the Pivariety page's line for the same lens says 120 (D) / 90 (H) / 75 (V). The entry uses 90 x 75 (the product table, matching the Pivariety lens line) and the 120 degree diagonal both lens lines give. The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Streams are the \"Maximum Frame Rate\" list, RAW10. The camera board is 38 x 38 mm (UC-846) with a 40 x 40 mm adapter board; its depth is not stated, so size_mm is null. The Pivariety page describes an external trigger input for synchronised capture. Not stated: power, mass, distortion.",
+  "interface": "MIPI CSI-2, 2 lanes (Jetvariety adapter for NVIDIA Jetson)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 90.0,
+      "vfov_deg": 75.0,
+      "dfov_deg": 120.0,
+      "pixel_um": 3.0,
+      "resolution": [
+        1920,
+        1200
+      ],
+      "lens_model": "pinhole",
+      "f_number": 3.0,
+      "focus": "fixed",
+      "optical_format": "1/2.6\"",
+      "focal_length_mm": 3.6,
+      "figures_conflict": "The maker states 90 or 100 deg horizontal for the same lens on two pages, and the 120 deg diagonal is wider than a centred, radially symmetric lens without pincushion distortion can show with 90 x 75 deg across 1920 x 1200 px (at most about 106 deg). The library uses the horizontal and vertical angles."
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1200,
+      "fps": [
+        60
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        60
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    },
+    {
+      "imager": "Colour",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        120
+      ],
+      "format": "RAW10",
+      "bits_per_pixel": 10
+    }
+  ],
+  "tactile": null,
+  "host": null,
+  "sync": {
+    "hardware_trigger": true,
+    "sync_cable": null,
+    "imagers": [],
+    "what": "Arducam Pivariety AR0234 page: the camera has \"an external trigger function, which is used to capture the image and helps in synchronized streaming by connecting two or multiple cameras\"; the Jetvariety page says the same."
+  }
+}

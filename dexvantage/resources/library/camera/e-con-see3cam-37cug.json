@@ -1,0 +1,58 @@
+{
+  "id": "e-con-see3cam-37cug",
+  "kind": "camera",
+  "maker": "e-con Systems",
+  "name": "See3CAM_37CUG",
+  "family": "See3CAM USB 3 cameras",
+  "sources": [
+    {
+      "url": "https://www.e-consystems.com/usb-cameras/sony-imx900-global-shutter-camera.asp",
+      "title": "3MP Sony IMX900 USB Global Shutter Camera (Color), See3CAM_37CUG (e-con Systems product page)",
+      "read": "2026-11-07",
+      "covers": "sensor (Sony Pregius S IMX900), shutter, chroma, optical format, pixel size, active area, FOV, focus, holder, output format, frame rate, interface, size (l x b)"
+    }
+  ],
+  "note": "The colour version of the See3CAM_37CUGM (the page title says \"Color\"; the kit and datasheet links name See3CAM_37CUG). FOV 111 (D) x 89 (H) x 65 (V) degrees \"@ 2064 x 1552 Resolution\" (the page does not say with which lens; the M12 holder is fitted with a lens in the kit). The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rate \"3MP @51 fps\", UYVY output; the page does not give the stream size of the \"3MP\" mode, so no stream is entered. Power \"TBD\" and weight \"TBD\": power_w and mass_g are null (not stated); size_mm is null (only \"l x b\" 30 x 30 mm). Not stated: f-number, focal length, distortion.",
+  "interface": "USB 3.2 Gen 1 (USB Type-C); UVC",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 89.0,
+      "vfov_deg": 65.0,
+      "dfov_deg": 111.0,
+      "pixel_um": 2.25,
+      "resolution": [
+        2064,
+        1552
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "optical_format": "1/3.1\""
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null
+}

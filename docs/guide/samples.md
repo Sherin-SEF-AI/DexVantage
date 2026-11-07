@@ -1,10 +1,12 @@
 # Sample projects
 
-Three samples open in this build (SO-100, UR5e + Robotiq 2F-85, and the UR5e with a Shadow Hand for the multi-finger
-occlusion study, [dexhand.md](dexhand.md)); the others of the specification arrive in Phase 11 and say so.
+Six samples open in this build: SO-100, UR5e + Robotiq 2F-85, the UR5e with a Shadow Hand for the multi-finger
+occlusion study ([dexhand.md](dexhand.md)), ALOHA 2, two Franka Pandas in one cell, and the Unitree G1 upper body
+(the last three: [the model page](../models/samples.md)).
 
     dexvantage --sample so100                    # in the window (or File ▸ Open sample in a running window)
     dexvantage --sample ur5e --analyse -         # in batch mode: the project summary as JSON on standard output
+    dexvantage --sample aloha --grasp out.json   # any study flag works on any sample
 
 The robots are MuJoCo Menagerie models bundled with DexVantage after their own licences were read
 (`THIRD_PARTY.md`; each model folder under `dexvantage/resources/robots/` keeps its `LICENSE`). Joint limits, link
@@ -66,6 +68,82 @@ Turn the shoulder: the wrist D405 follows the flange, the overhead D435 does not
 Known limits: the 2F-85's linkage joints are separate entries of the joint vector, so moving one finger joint alone
 poses the linkage in a way the real gripper cannot (the coupling is an equality constraint in the file, which
 kinematics does not apply).
+
+## ALOHA 2 (`--sample aloha`)
+
+- **Robots:** the two ViperX 300 arms of Menagerie `aloha` (BSD-3-Clause), each a robot of its own ("ALOHA 2 left
+  arm" is the primary robot, so the world is its base frame; "ALOHA 2 right arm" stands 0.938 m along x, turned half a
+  turn, where `aloha.xml` puts it). Joint names are `aloha.xml`'s (`left/waist` … `right/right_finger`), so a
+  14-value ALOHA recording is read onto each arm by name.
+- **Gripper frames:** `left/gripper_base` and `right/gripper_base`; fingertips the two finger links of each.
+- **Cameras (published):** `cam_high (overhead)`, `cam_low (worms-eye)`, `cam_left_wrist`, `cam_right_wrist`: four
+  RealSense D405 at 848 × 480 (the ALOHA 2 paper), where Menagerie's model places them; the names are the ALOHA
+  recordings' camera names.
+- **Workspace:** the table of `scene.xml` (1.22 × 0.74 m), a tabletop volume between the arms and a handover zone
+  above its middle (sample choices).
+- **Tasks and policy (sample choices):** 100 tabletop grasps per arm, 60 bimanual handoffs from the left arm to the
+  right one, a handover trajectory per arm, ACT, and two leader arms (the library's ALOHA WidowX-250 leader, joint to
+  joint; the WidowX's own ranges are not stated, so the followers' are used).
+
+Tour (the spec's ten minutes): `dexvantage --sample aloha`; Analysis ▸ Grasp self-occlusion runs the left arm's
+tabletop grasps (choose the set on the page) and shows which grasps lose a fingertip and why; select
+`cam_left_wrist` and drag it, and the score changes; Analysis ▸ Depth validity, VLA tokens and Bandwidth run on the
+four D405s; Analysis ▸ Teleop shows both arms' reach overlap, the handover zone's quality and the arm-to-arm margin;
+File ▸ Export writes the cameras for MuJoCo and LeRobot; Brackets writes a printable clamp.
+
+Measured on this build (2026-11-07, batch flags on the sample as it opens, RTX 5080): `--coverage` 99 % of the task
+volume seen by two or more cameras; `--grasp` (the left arm's 100 grasps) 86 reachable, 14 out of reach, Contact
+Visibility Score 100 %; `--teleop` 100 % teleoperable through both leader arms, the two arms' reach overlapping on
+100 % of it, the handover zone reached by both on 100 % of its points with an arm-to-arm margin of 48.5 mm (the
+fingers, at a 100 mm gap, a default); `--groundtruth` the MuJoCo render agrees with the grasp study on 87.1 % of the
+contact points and the verdict on 43 of 43 grasps; `--handeye-plan` (cam_left_wrist, eye-in-hand) 20 poses meet the
+0.5 mm and 0.05° default. `--vla-tokens` says "no task object": add one on the Workspace page to count its tokens.
+
+## Franka Panda bimanual (`--sample panda-bimanual`)
+
+- **Robots:** two instances of Menagerie `franka_emika_panda` (Apache-2.0, with the Franka Hand): there is no
+  official bimanual Franka model. "Panda left (sample cell)" is the primary robot; "Panda right (sample cell)" stands
+  0.8 m along −y, both facing +x (a sample layout).
+- **Cameras (sample placements):** a wrist D405 on each hand, looking at the pinch point, and a front D435 looking
+  back at the cell.
+- **Tasks and policy (sample choices):** 100 grasps per arm (top-down, side, angled), 60 handoffs, a handover
+  trajectory per arm, GELLO leaders from the library (same kinematics as the arm, Wu et al. 2023), Diffusion Policy.
+
+Tour: open it, turn the right arm's first joint on the Robot page: only that arm's wrist camera moves; run Teleop for
+the bimanual block.
+
+Measured: `--coverage` 79 % seen by two or more cameras (each wrist D405 sees 52 % at home; the front D435 all of
+it); `--grasp` 76 of 100 reachable (24 out of reach), score 100 %; `--teleop` 100 % teleoperable, the arms' reach
+overlapping on 79 %, a singularity dead zone of 3 031 cm³ named with its pose; the handover reads 0 % quality: at the
+default 100 mm gap the two Franka Hands come within 0.6 mm of each other, so set a wider gap on the Teleop page (the
+object you hand over) or move an arm. `--groundtruth` agrees on 91.0 % of contact points and 38 of 38 verdicts.
+
+## Unitree G1 upper body (`--sample g1`)
+
+- **Robot:** Menagerie `unitree_g1` `g1_with_hands.xml` (BSD-3-Clause), legs and waist held at its `stand` keyframe
+  (their joints deleted in `g1_upper_body.xml`; all are 0 at `stand`), pelvis fixed 0.79 m above the floor. q is
+  both arms and both three-finger hands, 28 joints in one state vector. **Its meshes are simplified** to fit the
+  package, each within 0.5 mm of Menagerie's (measured; [samples.md](../models/samples.md#unitree-g1-upper-body-g1)):
+  import the full model with Robot ▸ Import from MuJoCo Menagerie when that matters.
+- **Gripper frame:** the right hand (`right_wrist_yaw_link`, which carries the palm); fingertips its thumb, index and
+  middle distal links.
+- **Camera (published):** "Head D435 (Unitree URDF d435_link)", on `torso_link` where Unitree's own URDF puts its
+  `d435_link`, 47.6° down. Unitree's G1 page states only "Depth Camera+3D LiDAR"; the D435 is the model the frame's
+  name gives.
+- **Tasks and policy (sample choices):** a table under the hands, 100 right-hand grasps, one trajectory that moves
+  both arms and closes the right hand, GR00T N1.5, and Apple Vision Pro hand tracking (as Unitree's xr_teleoperate drives
+  the G1) with no tracking volume, because none is stated.
+
+Tour: open it, run Analysis ▸ Multi-finger occlusion: the head camera's view of the right hand's three fingertips
+over its sample postures.
+
+Measured: `--coverage` 97 % of the task volumes seen, all by the one camera ("add a second camera"); `--grasp` (the
+right hand's 100 angled grasps) 79 reachable (20 at a joint limit), score 0 %: the head camera sees 38 % of the contact
+points, most of the rest on the far side of their own finger, the result a head-only humanoid rig is expected to give;
+`--dex-occlusion` (the hand over the table) 25.9 % of fingertip-cases seen, the index finger hiding its own pad;
+`--handeye-plan` plans eye-to-hand (the board in the right hand: the head camera rides on a link no joint moves), 20
+poses meet the default. `--canonical-view` and `--silhouette-calib` refuse in one sentence: they need a second, or a
+static, camera; `--action-chunk` refuses because GR00T N1.5's control rate is not stated by its source.
 
 ## Other Menagerie robots
 

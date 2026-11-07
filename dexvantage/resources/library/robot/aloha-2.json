@@ -1,0 +1,106 @@
+{
+  "id": "aloha-2",
+  "kind": "robot",
+  "maker": "Google DeepMind",
+  "name": "ALOHA 2",
+  "family": "bimanual ViperX-300 6DOF follower arms",
+  "sources": [
+    {
+      "url": "https://docs.trossenrobotics.com/interbotix_xsarms_docs/specifications/vx300s.html",
+      "title": "Trossen Robotics, ViperX-300 6DOF specifications (each ALOHA follower arm)",
+      "read": "2026-11-07",
+      "covers": "DoF per arm, reach, repeatability, working payload"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/aloha",
+      "title": "MuJoCo Menagerie aloha/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "that the model is ALOHA 2: two ViperX 300 6DOF arms with the ALOHA 2 gripper"
+    }
+  ],
+  "note": "No source read states a DoF for ALOHA 2 as a whole: each follower arm is a ViperX-300 6DOF (6 DoF, 750 mm reach; see that entry). The four finger joints of the two grippers are not counted in the verified DoF (12).",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "bimanual",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "aloha",
+      "file": "aloha.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/aloha"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "aloha.xml",
+      "imported": true,
+      "joints_in_q": 16,
+      "joint_names": [
+        "left/waist",
+        "left/shoulder",
+        "left/elbow",
+        "left/forearm_roll",
+        "left/wrist_angle",
+        "left/wrist_rotate",
+        "left/left_finger",
+        "left/right_finger",
+        "right/waist",
+        "right/shoulder",
+        "right/elbow",
+        "right/forearm_roll",
+        "right/wrist_angle",
+        "right/wrist_rotate",
+        "right/left_finger",
+        "right/right_finger"
+      ],
+      "actuators": 14,
+      "links": 20,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [
+        "left/left_finger",
+        "left/right_finger",
+        "right/left_finger",
+        "right/right_finger"
+      ],
+      "dof": 12,
+      "seconds": 0.32,
+      "note": "Excluded from the DoF: left/left_finger, left/right_finger, right/left_finger, right/right_finger."
+    }
+  }
+}

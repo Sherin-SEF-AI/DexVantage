@@ -1,0 +1,101 @@
+{
+  "id": "agilex-piper",
+  "kind": "robot",
+  "maker": "AgileX Robotics",
+  "name": "PiPER",
+  "family": "6-DoF lightweight arm",
+  "sources": [
+    {
+      "url": "https://global.agilex.ai/products/piper",
+      "title": "AgileX Robotics, PiPER product page (FAQ and specifications)",
+      "read": "2026-11-07",
+      "covers": "payload, reach, repeatability, arm mass, DoF"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/agilex_piper",
+      "title": "MuJoCo Menagerie agilex_piper/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "piper.xml includes the parallel gripper (joint7, joint8); they are not counted in the arm's DoF.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "DoF 6"
+    },
+    "reach_mm": {
+      "value": 626,
+      "source": 0,
+      "quote": "\"a 626mm working reach\""
+    },
+    "payload_kg": {
+      "value": 1.5,
+      "source": 0,
+      "quote": "\"The standard PiPER provides a 1.5kg payload\""
+    },
+    "repeatability_mm": {
+      "value": 0.1,
+      "source": 0,
+      "quote": "\"±0.1mm repeatability\""
+    },
+    "mass_kg": {
+      "value": 4.2,
+      "source": 0,
+      "quote": "\"a 4.2kg arm body\""
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "agilex_piper",
+      "file": "piper.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "MIT",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/agilex_piper"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "piper.xml",
+      "imported": true,
+      "joints_in_q": 8,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6",
+        "joint7",
+        "joint8"
+      ],
+      "actuators": 7,
+      "links": 9,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [
+        "joint7",
+        "joint8"
+      ],
+      "dof": 6,
+      "seconds": 0.45,
+      "note": "Excluded from the DoF: joint7, joint8."
+    }
+  }
+}

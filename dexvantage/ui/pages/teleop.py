@@ -3,12 +3,14 @@ without a dead zone, the dead zones with the poses that cause them, and the tele
 
 What it shows: the headline share of the task volume teleoperable through at least one device (status word "clear"
 at 90 % or more, "gaps" from 50 %, "poor" below; labelled bands), the device editor (add, edit and delete devices,
-each change one undo step; a device figure is entered with its source or left "not stated"), a table per device
-(comfortable for the leader, teleoperable, dead zones), the dead zones by cause with their size and the follower's
-pose at their worst voxel (a click poses the robot there), the follower's reach and dexterity, the bimanual overlap and
-handover figures when two followers have devices, and the dead-zone voxels in the 3D view coloured by cause (the zones'
-boxes in the Camera view). Apply makes the suggested follower base move or mapping-offset move (one undo step);
-Preview draws it; Explain says how every figure is computed; Export writes the result with provenance.
+each change one undo step; a device figure is entered with its source or left "not stated"; Add from library makes a
+device from a library teleop entry, core/teleop_devices.py, with the entry's stated figures and sources), a table per
+device (comfortable for the leader, teleoperable, dead zones), the dead zones by cause with their size and the
+follower's pose at their worst voxel (a click poses the robot there), the follower's reach and dexterity, the bimanual
+overlap and handover figures when two followers have devices, and the dead-zone voxels in the 3D view coloured by
+cause (the zones' boxes in the Camera view). Apply makes the suggested follower base move or mapping-offset move
+(one undo step); Preview draws it; Explain says how every figure is computed; Export writes the result with
+provenance.
 """
 from __future__ import annotations
 
@@ -20,6 +22,7 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QGridLayout, QHeaderView, QLineEdit, QMessageBox, QTreeWidget,
                              QTreeWidgetItem, QWidget)
 
+from ...core import teleop_devices as TD
 from ...core.studies import teleop as TS
 from ..theme import STATUS, THEME, mono
 from ..widgets import ScrubSpinBox, button, label
@@ -77,6 +80,14 @@ class TeleopPage(StudyPage):
         self.b_add = button('Add', role='ghost', tip='Add a device of this kind (one undo step)')
         self.b_del = button('Delete', role='ghost', tip='Delete this device (one undo step)')
         layout.addWidget(row(self.dev_box, self.kind_add, self.b_add, self.b_del))
+        # library teleop devices (core/teleop_devices.py): their stated figures come with their sources
+        self.lib_box = QComboBox()
+        self.lib_box.setMinimumWidth(260)
+        self.lib_box.setToolTip('A teleop device from the library; its stated figures come with their sources')
+        self.b_add_lib = button('Add from library', role='ghost',
+                                tip='Add this library device, driving the chosen follower (one undo step)')
+        layout.addWidget(row(self.lib_box, self.b_add_lib))
+        self._fill_library()
         self.dev_hint = label('', muted=True, wrap=True)
         layout.addWidget(self.dev_hint)
         g = QWidget()
@@ -136,6 +147,8 @@ class TeleopPage(StudyPage):
             grid.addWidget(row(*ws), i, 1)
             self._field_rows[text] = lab
         grid.addWidget(self.source_more, len(rows), 1)
+        self.lib_figures = label('', muted=True, small=True, wrap=True)
+        grid.addWidget(self.lib_figures, len(rows) + 1, 1)
         grid.setColumnStretch(1, 1)
         self.editor = g
         layout.addWidget(g)
@@ -204,6 +217,7 @@ class TeleopPage(StudyPage):
         self.dev_box.currentIndexChanged.connect(lambda _i: self._fill_device())
         self.b_add.clicked.connect(lambda: self.add_device(self.kind_add.currentData()))
         self.b_del.clicked.connect(self.delete_device)
+        self.b_add_lib.clicked.connect(lambda: self.add_from_library(self.lib_box.currentData()))
         self.name_edit.editingFinished.connect(
             lambda: self._set(lambda d: d.update(name=self.name_edit.text().strip() or d['name']), 'renamed'))
         self.kind_box.activated.connect(lambda i: self._set_kind(self.kind_box.itemData(i)))
@@ -270,6 +284,61 @@ class TeleopPage(StudyPage):
         if k >= 0:
             self.dev_box.setCurrentIndex(k)
         return dev
+
+    def _fill_library(self):
+        """The library teleop devices in the picker, each with its headline figures and sources in the tooltip."""
+        self.lib_box.clear()
+        try:
+            es = TD.entries()
+        except Exception:                               # noqa: BLE001 — a broken library must not take the page
+            traceback.print_exc()
+            es = []
+        for e in es:
+            kind = (e.data.get('teleop') or {}).get('device_kind', '')
+            self.lib_box.addItem(f'{e.name} · {TS.KIND_TITLES.get(kind, kind)}', e.id)
+            srcs = '; '.join(f'{s.get("title") or s.get("url")} (read {s.get("read")})' for s in e.sources)
+            self.lib_box.setItemData(self.lib_box.count() - 1, f'{e.title}: {TD.summary(e)}.\nSources: {srcs}',
+                                     Qt.ItemDataRole.ToolTipRole)
+        if not es:
+            self.lib_box.addItem('No teleop devices in the library', '')
+        self.b_add_lib.setEnabled(bool(es))
+
+    def add_from_library(self, library_id: str, follower_uid: str | None = None) -> dict | None:
+        """Add a device made from a library teleop entry (one undo step), driving follower_uid, else the follower of
+        the device being edited, else the primary robot."""
+        if not self.project.robots:
+            self._say('Add a robot first: a teleop device drives a follower robot.')
+            return None
+        if not library_id:
+            return None
+        cur = self.current()
+        fu = follower_uid or (cur['follower_uid'] if cur is not None else None)
+        try:
+            dev = TD.device_from_library(self.project, library_id, fu)
+        except Exception as e:                          # noqa: BLE001 — said in a sentence, logged in full
+            traceback.print_exc()
+            self._say(f'The library device could not be added: {e}')
+            return None
+
+        def f(ds):
+            ds.append(dev)
+        self._edit(f, f'Added the teleop device {dev["name"]} from the library')
+        k = self.dev_box.findData(dev['uid'])
+        if k >= 0:
+            self.dev_box.setCurrentIndex(k)
+        return dev
+
+    def _library_text(self, d) -> str:
+        """For a device made from a library entry: which entry, and the figures its sources do not state."""
+        lid = d.get('library_id')
+        if not lid:
+            return ''
+        e = TD._entry(lid)
+        if e is None:
+            return f'Library device "{lid}": no longer in the library (its figures above are kept as entered).'
+        missing = [r['label'].lower() for r in TD.figure_rows(e) if not r['stated']]
+        return (f'From the library: {e.maker}, {e.name}. Not stated by the maker: {", ".join(missing)}.' if missing
+                else f'From the library: {e.maker}, {e.name}.')
 
     def delete_device(self):
         cur = self.current()
@@ -395,7 +464,8 @@ class TeleopPage(StudyPage):
         self.b_del.setEnabled(d is not None)
         self.editor.setVisible(d is not None)
         if d is None:
-            self.dev_hint.setText('No teleop device yet: Add one. A leader arm or GELLO leads with the follower\'s own '
+            self.dev_hint.setText('No teleop device yet: Add one, or add one from the library (its stated figures come '
+                                  'with their sources). A leader arm or GELLO leads with the follower\'s own '
                                   'model (the SO-100 kit\'s leader is an SO-100); a VR or space-mouse device needs '
                                   'its tracking volume or bounds, measured or published, entered with its source.'
                                   if self.project.robots else 'Add a robot first: a teleop device drives a follower.')
@@ -447,6 +517,8 @@ class TeleopPage(StudyPage):
             if not arm and not vol:
                 more.append('volume: not stated (the study does not guess one)')
             self.source_more.setText('\n'.join(more))
+            self.lib_figures.setText(self._library_text(d))
+            self.lib_figures.setVisible(bool(d.get('library_id')))
         finally:
             self._busy = False
 

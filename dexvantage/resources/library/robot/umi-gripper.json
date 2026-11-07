@@ -1,0 +1,97 @@
+{
+  "id": "umi-gripper",
+  "kind": "robot",
+  "maker": "Stanford, Columbia and TRI",
+  "name": "UMI gripper (Universal Manipulation Interface)",
+  "family": "hand-held data-collection gripper",
+  "sources": [
+    {
+      "url": "https://arxiv.org/html/2402.10329",
+      "title": "C. Chi et al., Universal Manipulation Interface: In-The-Wild Robot Teaching Without In-The-Wild Robots, RSS 2024 (arXiv:2402.10329)",
+      "read": "2026-11-07",
+      "covers": "mass, dimensions, finger stroke, GoPro"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/umi_gripper",
+      "title": "MuJoCo Menagerie umi_gripper/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The paper states L 310 mm × W 175 mm × H 210 mm and a finger stroke of 80 mm; it is a hand-held gripper, not a motorised one, and states no DoF. Menagerie's umi_gripper.xml moves the gripper with six base joints (x, y, z and three rotations) besides its two fingers.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "gripper",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 0.78,
+      "source": 0,
+      "quote": "\"The UMI gripper weighs 780g\""
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "GoPro (the only sensor and recorder)"
+      ],
+      "source": 0,
+      "quote": "\"Hand-held grippers for data collection, with a GoPro as the only sensor and recording device\""
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "umi_gripper",
+      "file": "umi_gripper.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "MIT",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/umi_gripper"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "umi_gripper.xml",
+      "imported": true,
+      "joints_in_q": 8,
+      "joint_names": [
+        "gripper_joint_x",
+        "gripper_joint_y",
+        "gripper_joint_z",
+        "gripper_joint_rx",
+        "gripper_joint_ry",
+        "gripper_joint_rz",
+        "left_finger_joint",
+        "right_finger_joint"
+      ],
+      "actuators": 7,
+      "links": 3,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 8,
+      "seconds": 0.13,
+      "note": ""
+    }
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "id": "gr00t-n1.5-3b",
+  "kind": "policy",
+  "maker": "NVIDIA",
+  "name": "GR00T N1.5 3B",
+  "family": "Vision-language-action flow model (Eagle 2.5 VLM, frozen)",
+  "sources": [
+    {
+      "url": "https://huggingface.co/nvidia/GR00T-N1.5-3B",
+      "title": "nvidia/GR00T-N1.5-3B · Hugging Face (model card)",
+      "read": "2026-11-07",
+      "covers": "\"Variable number of 224x224 uint8 image frames\", a varying number of views, the licence"
+    },
+    {
+      "url": "https://github.com/NVIDIA/Isaac-GR00T/tree/4af2b622892f7dcb5aae5a3fb70bcb02dc217b96",
+      "title": "NVIDIA/Isaac-GR00T (official code), branch n1d5, commit 4af2b62: README.md, gr00t/experiment/data_config.py, gr00t/data/transform/video.py",
+      "read": "2026-11-07",
+      "covers": "VideoCrop(scale=0.95) then VideoResize to 224 × 224, the centre crop in eval mode, action_indices, the inference timing on one H100"
+    }
+  ],
+  "note": "The N1.5 data configurations (the SO-100 ones included) crop each video frame to 95 % of each side (random in training, torchvision CenterCrop in eval mode) and resize it to 224 × 224 without keeping the aspect ratio. The vision encoder is SigLIP-2 inside Eagle 2.5 (frozen); its patch size and the tokens per frame are not stated in these sources. The number of views varies by embodiment (So100DataConfig: one \"video.webcam\"; So100DualCamDataConfig: \"video.front\", \"video.wrist\"). The README times the full model at 47.88 ms on one H100 (VLM backbone 23.18 ms, action head with 4 diffusion steps 4 × 6.18 ms) and says consumer GPUs such as the RTX 4090 are \"slightly slower\"; its Thor TensorRT table is per module and was not entered. Licence: the model card's \"Nvidia License\" (NVIDIA-OneWay-Noncommercial-License-22Mar2022). DexVantage bundles these figures only.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        224,
+        224
+      ],
+      "source": 0,
+      "quote": "model card: \"Vision: Variable number of 224x224 uint8 image frames, coming from robot cameras\""
+    },
+    "crop_rule": {
+      "value": "center_crop_resize",
+      "source": 1,
+      "quote": "data_config.py: VideoCrop(apply_to=self.video_keys, scale=0.95), VideoResize(apply_to=self.video_keys, height=224, width=224, interpolation=\"linear\"); video.py: \"If mode is \"eval\", return a center crop transform.\" (T.CenterCrop)"
+    },
+    "crop_side_fraction": {
+      "value": 0.95,
+      "source": 1,
+      "quote": "size = (int(self.height * self.scale), int(self.width * self.scale)) with scale=0.95"
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated (SigLIP-2 inside Eagle 2.5)."
+    },
+    "tokens_per_image": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated for N1.5."
+    },
+    "n_cameras": {
+      "value": null,
+      "source": null,
+      "quote": "Not fixed: \"handles a varying number of views per embodiment\" (model card); one or two video keys in the SO-100 data configurations."
+    },
+    "action_chunk": {
+      "value": 16,
+      "source": 1,
+      "quote": "data_config.py: action_indices = list(range(16)) in every data configuration"
+    },
+    "execute_steps": {
+      "value": null,
+      "source": null
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null
+    },
+    "inference_ms": {
+      "value": 47.88,
+      "source": 1,
+      "quote": "\"Below are benchmark results based on a single H100 GPU\": VLM Backbone 23.18 ms, Action Head with 4 diffusion steps 4 x 6.18 ms = 24.7 ms, Full Model 47.88 ms",
+      "hardware": "one NVIDIA H100"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated in these sources."
+    }
+  }
+}

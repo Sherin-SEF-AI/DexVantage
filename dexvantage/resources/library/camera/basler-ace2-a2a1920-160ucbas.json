@@ -1,0 +1,80 @@
+{
+  "id": "basler-ace2-a2a1920-160ucbas",
+  "kind": "camera",
+  "maker": "Basler",
+  "name": "ace 2 a2A1920-160ucBAS",
+  "family": "ace 2 R",
+  "sources": [
+    {
+      "url": "https://docs.baslerweb.com/a2a1920-160ucbas",
+      "title": "a2A1920-160ucBAS | Basler Product Documentation",
+      "read": "2026-11-07",
+      "covers": "sensor (Sony IMX392LQR-C), shutter, resolution, sensor format and effective diagonal, pixel size, frame rate, interface, synchronisation, power, C-mount, size, mass"
+    }
+  ],
+  "note": "A compact colour USB 3.0 machine-vision camera (ace 2 R) with a C-mount. Sold without a lens, so no FOV, f-number or focus is stated: the imager has no FOV and the library uses its labelled default until the user enters the chosen lens (or a calibration). Resolution 1936 x 1216 full, 1920 x 1200 default; 164 fps at default settings. Pixel formats are on a separate page (not read): format null. Power \"~3.1 W (typical) @ 5 VDC\". Mass \"<85 g\" (a bound, so mass_g is null). size_mm is the stated 48.1 x 29 x 29 mm \"with lens mount and connectors\" (36.3 x 29 x 29 mm without), L along the optical axis. Effective sensor diagonal 7.9 mm. One opto-coupled input and two GPIO lines; IP30.",
+  "interface": "USB 3.0 (SuperSpeed, nominal max. 5 Gbit/s); USB3 Vision",
+  "power_w": 3.1,
+  "mass_g": null,
+  "size_mm": [
+    48.1,
+    29.0,
+    29.0
+  ],
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 3.45,
+      "resolution": [
+        1936,
+        1216
+      ],
+      "lens_model": null,
+      "f_number": null,
+      "focus": null,
+      "optical_format": "1/2.3\"",
+      "sensor_diagonal_mm": 7.9
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1920,
+      "height": 1200,
+      "fps": [
+        164
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null,
+  "sync": {
+    "hardware_trigger": true,
+    "sync_cable": null,
+    "imagers": [],
+    "what": "General specifications, Synchronization: \"Via hardware trigger, Via software trigger, Via free run\"; 1 opto-coupled input line."
+  }
+}

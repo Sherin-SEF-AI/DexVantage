@@ -1,0 +1,53 @@
+{
+  "id": "stereolabs-gmsl2-fakra-f-f",
+  "kind": "cable",
+  "maker": "Stereolabs",
+  "name": "GMSL2 Fakra Cable F-F",
+  "family": "Stereolabs GMSL2 Fakra cables",
+  "sources": [
+    {
+      "url": "https://cdn.sanity.io/files/s18ewfw4/staging/5e6000357620db56f0ec57cb522b6377880c4790.pdf/GMSL2%20Cables%20-%20Datasheet.pdf",
+      "title": "GMSL2 Fakra Cables - Overview & Datasheets, Rev1.1 (Stereolabs, October 2026)",
+      "read": "2026-11-07",
+      "covers": "cable construction (outer jacket), bending radius static and loaded, flex life, mating cycles, impedance, frequency range, the 6 Gbps figure, F-F lengths and part numbers"
+    },
+    {
+      "url": "https://www.stereolabs.com/store/products/gmsl2-fakra-cables",
+      "title": "GMSL2 Fakra Cable F-F (Stereolabs store page)",
+      "read": "2026-11-07",
+      "covers": "cross-check: RTK031 coax, Z-code connectors, 0.3 to 10 m"
+    }
+  ],
+  "note": "A 50 ohm RTK031 coaxial GMSL2 cable with a FAKRA Z jack at each end (female to female, for a ZED Link card or ZED Box). Stated: outer jacket \"3.3 ± 0.15 mm PVC\" (diameter_mm 3.3); \"Bending radius (static) 33 mm\"; \"Bending radius (loaded) 66 mm\" (entered as the moving, dynamic radius: the datasheet does not define \"loaded\", an interpretation); \"Flex life 10000\" (the test radius and stroke are not stated); \"data transfers of up to 6 Gbps\" (stated_mbps 6000); \"extended cable reach of up to 15 meters\" (the M-F extension comes in 15 m); temperature -40 to +105 °C; DC to 6 GHz; return loss ≥ 20 dB up to 3 GHz. F-F lengths 0.3, 1.5, 5 and 10 m (CBL-320100 to CBL-320400). Not stated: mass, drag-chain or robotics rating.",
+  "interface": "GMSL2 coax (FAKRA Z)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null,
+  "cable": {
+    "type": "gmsl2",
+    "diameter_mm": 3.3,
+    "min_bend_static_mm": 33.0,
+    "min_bend_dynamic_mm": 66.0,
+    "flex_cycles": 10000,
+    "lengths_m": [
+      0.3,
+      1.5,
+      5,
+      10
+    ],
+    "connectors": [
+      "FAKRA Z jack",
+      "FAKRA Z jack"
+    ],
+    "active": null,
+    "stated_mbps": 6000.0,
+    "drag_chain_rated": null,
+    "robotics_rated": null
+  }
+}

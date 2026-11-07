@@ -1,0 +1,67 @@
+{
+  "id": "rokoko-smartgloves-ii",
+  "kind": "teleop",
+  "maker": "Rokoko",
+  "name": "Smartgloves II",
+  "family": "Rokoko Smartgloves",
+  "sources": [
+    {
+      "url": "https://www.rokoko.com/products/smartgloves",
+      "title": "Rokoko Smartgloves product page (Smartgloves I vs Smartgloves II, FAQ)",
+      "read": "2026-11-07",
+      "covers": "sensor fusion and sensors per glove, IMU capture rate, wrist tracking accuracy, connectivity"
+    }
+  ],
+  "note": "Finger and wrist motion-capture gloves: \"a proprietary combination of IMU (inertial measurement unit) and EMF (electro-magnetic field) sensor fusion technology - 7 sensors per glove\". Smartgloves II: \"IMU capture rate 250 Hz\" (Smartgloves I: 166.67 Hz); \"Wrist tracking accuracy has improved 3×, from 1.5mm to 0.47mm at fingertip distance\" (accuracy_mm 0.47, as stated); \"TCP-based WiFi streaming\". Not stated: latency (the page says \"low-latency\" without a figure), DoF, mass, range (only \"Twice the effective range with Coil Pro\").",
+  "interface": "Wi-Fi (TCP streaming)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "glove",
+    "mapping": "cartesian",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "tracking_hz": {
+      "value": 250,
+      "source": 0,
+      "quote": "\"IMU capture rate | 166.67 Hz | 250 Hz\" (Smartgloves I | Smartgloves II)"
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "range_text": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": 0.47,
+      "source": 0,
+      "quote": "\"Wrist tracking accuracy has improved 3×, from 1.5mm to 0.47mm at fingertip distance.\""
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

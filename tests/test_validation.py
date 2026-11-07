@@ -1,17 +1,52 @@
 import json
+import os
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
 
 from dexvantage import validation as VA
 
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+
+# One model's quick run in a process of its own: what the checks build (compiled robot models, EGL contexts, render
+# workers, the audit campaign, cube maps) goes back to the system when the process ends. In this process the quick run
+# of every check grew the suite by 3 GB that the allocator kept (6.2 GB peak at the start of the suite, 3.3 GB left
+# over), measured 2026-11-07. Alone, formats peaks at 4.9 GB, handeye at 3.7 GB and groundtruth at 2.4 GB (quick run,
+# 2026-11-07): those run one at a time first, then the others (each under 1.8 GB) two at a time.
+_CHILD = r"""
+import json, sys
+from dexvantage import validation as VA
+res = VA.run(settings=VA.ValidationSettings(quick=True, models=(sys.argv[1],)))
+print('@@' + json.dumps([{'id': c.id, 'model': c.model, 'passed': bool(c.passed), 'error': c.error,
+                          'exception': (c.exception or '')[-800:], 'reference': c.reference, 'quantity': c.quantity,
+                          'unit': c.unit, 'refs': list(c.refs)} for c in res.checks], default=str))
+"""
+WORKERS = 2
+HEAVY = ('formats', 'handeye', 'groundtruth')
+
+
+def _quick_run(model: str) -> list:
+    env = dict(os.environ, QT_QPA_PLATFORM='offscreen')
+    r = subprocess.run([sys.executable, '-c', _CHILD, model], capture_output=True, text=True, env=env, cwd=ROOT,
+                       timeout=900)
+    line = next((x for x in r.stdout.splitlines() if x.startswith('@@')), None)
+    assert r.returncode == 0 and line is not None, (model, r.returncode, r.stderr[-2000:])
+    return json.loads(line[2:])
+
 
 def test_every_check_passes_and_names_its_reference():
-    # every check, in the quick run (fewer samples, the same tolerances): the full run (dexvantage --validate) takes
-    # over four minutes and, in-process after the rest of the suite, more memory than the suite's 7 GB cap allows
-    res = VA.run(settings=VA.ValidationSettings(quick=True))
-    assert res.ok, [(c.id, c.error, c.exception) for c in res.failed]
-    assert len(res.checks) >= 8
-    for c in res.checks:
-        assert c.reference and c.quantity and c.unit
-        assert all(r in VA.REFERENCES for r in c.refs), c.id
+    # every check, in the quick run (fewer samples, the same tolerances), one model per process: the full run
+    # (dexvantage --validate) takes over four minutes
+    from dexvantage.validation import suite
+    checks = [c for m in HEAVY for c in _quick_run(m)]
+    with ThreadPoolExecutor(WORKERS) as ex:
+        checks += [c for cs in ex.map(_quick_run, [m for m in suite.MODEL_IDS if m not in HEAVY]) for c in cs]
+    failed = [(c['id'], c['error'], c['exception']) for c in checks if not c['passed']]
+    assert not failed, failed
+    assert len(checks) >= len(suite.specs(VA.ValidationSettings(quick=True)))
+    for c in checks:
+        assert c['reference'] and c['quantity'] and c['unit'], c['id']
+        assert all(r in VA.REFERENCES for r in c['refs']), c['id']
 
 
 def test_report_files(tmp_path):

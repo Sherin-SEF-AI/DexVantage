@@ -1,0 +1,656 @@
+{
+  "id": "intel-realsense-d435f",
+  "kind": "depth",
+  "maker": "Intel RealSense",
+  "name": "RealSense Depth Camera D435f",
+  "family": "D400 series",
+  "sources": [
+    {
+      "url": "https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf",
+      "title": "RealSense Product Family D400 Series Datasheet, Revision 023, March 2026, document 337029-017",
+      "read": "2026-11-07",
+      "covers": "SKU descriptions and IR-pass filter (Table 2-2 and notes), SKU properties: baseline, depth FOV, projector FOV, colour sensor and FOV, depth filter (Table 3-49), mechanical dimensions and mass (Tables 3-52, 3-53), image formats (Tables 4-2, 4-3, 4-5), min-Z (Table 4-12), depth quality (Table 4-15), depth start point (Table 4-17), external sync (section 3.7.4), power (Tables 7-8, 7-9), IP65 (section 8.2.7)"
+    },
+    {
+      "url": "https://store.realsenseai.com/buy-realsense-depth-camera-d435f.html",
+      "title": "RealSense Depth Camera D435F (RealSense store page)",
+      "read": "2026-11-07",
+      "covers": "specification table: ideal range, min-Z at max resolution, depth accuracy, depth FOV, depth filter, RGB resolution, frame rate, shutter and FOV, camera dimension, connector, mounting"
+    }
+  ],
+  "note": "The D435 with an IR-pass filter on the cover glass. The IR-pass filter: \"CLAREX NIR-75N near-infrared filter applied to cover glass, with holes over projector and RGB sensor openings. Filter transmits near-infrared light and absorbs visible light. Filter's thickness = 0.5 mm\" (Table 2-2 notes); Table 3-50 compares the f line: false depth from repetitive patterns and saturation from specular reflections mitigated, indoor range \"limited by IR projector power\", left/right images limited by ambient IR. Poses: the body origin is the left imager's optical centre, the datasheet's depth origin (section 4.8.1); the right imager one baseline along -y, optical axes parallel to body x (the rectified geometry). The projector is placed at the baseline midpoint as an ASSUMPTION (pose_stated false; drawn but not dimensioned). Not stated: pixel size, distortion coefficients (\"Distortion <= 1.5%\"), subpixel accuracy: the lens model is pinhole, a labelled assumption. FOVs vary by about +/-3 degrees unit to unit (Table 3-49 note 3). max_range_m is the upper figure of the \"Range\" feature line (\"over\", \"varies with lighting conditions\"). Streams are the USB 3.1 Gen 1 tables; power_w is the \"All Components\" power at the Max Operating Mode (section 7.4). The RGB camera (OV2740, rolling shutter per the store page, 69 x 42 degrees) is \"not integrated in the module\" and its offset is not stated: placed at the depth origin as an ASSUMPTION (pose_stated false). Depth start point 4.7 mm behind the front glass (Table 4-17; the D435's is 4.2 mm, the filter adds the difference). size_mm: Table 3-52 gives the D43x as 90 x 25 x 25 mm with \"D435f and D435if depth is around 25.8mm (due to the addition of the filter)\"; the store page says 90 x 25.8 x 25 mm (entered). Mass 75 g (Table 3-52, D43x, +/-10%). Only the depth sensor takes the external trigger (section 3.7.4). Mounting holes: the D435 drawing's two M3 and one 1/4-20 (the store page lists the same set for the D435f). Store page: ideal range 0.3-3 m, min-Z ~28 cm at max resolution, depth accuracy <2% at 2 m, depth FOV 87 x 58 (+/-3) degrees.",
+  "interface": "USB 3.1 Gen 1 (USB Type-C)",
+  "power_w": 3.40297,
+  "mass_g": 75.0,
+  "size_mm": [
+    25.8,
+    90.0,
+    25.0
+  ],
+  "mounting": {
+    "holes": [
+      {
+        "thread": "M3",
+        "count": 2,
+        "face": "back",
+        "spacing_mm": 45.0,
+        "max_insert_mm": 3.0,
+        "x_mm": null,
+        "y_mm": null,
+        "z_mm": null,
+        "what": "Figure 10-9 (D435/D435i drawing): \"2X M3 MOUNTING POINTS, MAX INSERTION DEPTH 3MM\" on the back face, 45 apart; the pair's centre is not dimensioned (null). Note under the figure: \"Recommended torque for both M3 mounting points is 0.4 Nm\"."
+      },
+      {
+        "thread": "1/4-20",
+        "count": 1,
+        "face": "bottom",
+        "spacing_mm": null,
+        "max_insert_mm": null,
+        "x_mm": null,
+        "y_mm": -17.5,
+        "z_mm": null,
+        "what": "Table 4-20: \"From Centerline of 1/4-20 To Left Imager\" 17.5 mm for the D43x (the body origin is the left imager, so y = -17.5 mm, towards the right imager); its position front to back and its depth are not stated (null)."
+      }
+    ]
+  },
+  "imagers": [
+    {
+      "name": "IR left",
+      "role": "ir_left",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 90.0,
+      "vfov_deg": 64.0,
+      "dfov_deg": 98.0,
+      "pixel_um": null,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed",
+      "fov_modes": [
+        {
+          "aspect": [
+            16,
+            9
+          ],
+          "hfov_deg": 87.0,
+          "vfov_deg": 58.0,
+          "dfov_deg": 95.0,
+          "what": "Depth FOV HD (16:9), Table 3-49, at 2 m"
+        },
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 75.0,
+          "vfov_deg": 62.0,
+          "dfov_deg": 89.0,
+          "what": "Depth FOV VGA (4:3), Table 3-49, at 2 m"
+        }
+      ],
+      "exposure_s": {
+        "min": 0.001,
+        "max": 0.166,
+        "what": "Table 4-23 Depth Camera Controls: \"Manual Exposure (ms) Control sensor exposure period (430)\", min 1, max 166"
+      },
+      "readout_s": null
+    },
+    {
+      "name": "IR right",
+      "role": "ir_right",
+      "pose": {
+        "position": [
+          0.0,
+          -0.05,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 90.0,
+      "vfov_deg": 64.0,
+      "dfov_deg": 98.0,
+      "pixel_um": null,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": 2.0,
+      "focus": "fixed",
+      "fov_modes": [
+        {
+          "aspect": [
+            16,
+            9
+          ],
+          "hfov_deg": 87.0,
+          "vfov_deg": 58.0,
+          "dfov_deg": 95.0,
+          "what": "Depth FOV HD (16:9), Table 3-49, at 2 m"
+        },
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 75.0,
+          "vfov_deg": 62.0,
+          "dfov_deg": 89.0,
+          "what": "Depth FOV VGA (4:3), Table 3-49, at 2 m"
+        }
+      ],
+      "exposure_s": {
+        "min": 0.001,
+        "max": 0.166,
+        "what": "Table 4-23 Depth Camera Controls: \"Manual Exposure (ms) Control sensor exposure period (430)\", min 1, max 166"
+      },
+      "readout_s": null
+    },
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": false,
+      "shutter": "rolling",
+      "hfov_deg": 69.0,
+      "vfov_deg": 42.0,
+      "dfov_deg": 77.0,
+      "pixel_um": null,
+      "resolution": [
+        1920,
+        1080
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": null,
+      "exposure_s": null,
+      "readout_s": null
+    }
+  ],
+  "projector": {
+    "hfov_deg": 90.0,
+    "vfov_deg": 63.0,
+    "dfov_deg": 99.0,
+    "pose": {
+      "position": [
+        0.0,
+        -0.025,
+        0.0
+      ],
+      "quaternion": [
+        -0.5,
+        0.5,
+        -0.5,
+        0.5
+      ]
+    },
+    "pose_stated": false,
+    "optical_power_w": 0.36,
+    "wavelength_nm": 850,
+    "optical_power_what": "D400 Series Datasheet (the first source), Table 3-17, Wide (D43x, D45x) Infrared Projector Parameters: \"Optical Power 360 mW average\", \"Laser Wavelength 850 nm ± 10 nm nominal @ 20°C\"; read 2026-11-07. An average over the PWM drive; the datasheet says laser power is halved when the depth module is above 60 °C (Laser Thermal Control). The laser power is also a control, Table 4-23 \"Manual Laser Power (mW) Laser Power setting (30 mW steps)\" from 0 to 360: the 360 mW used here is its maximum, so the wash-out is predicted at full laser power; a lower setting gives a weaker pattern (not modelled)."
+  },
+  "depth": {
+    "technology": "active_ir_stereo",
+    "reference_imager": "IR left",
+    "stereo_pair": [
+      "IR left",
+      "IR right"
+    ],
+    "baseline_m": 0.05,
+    "min_z": [
+      {
+        "width": 1280,
+        "height": 720,
+        "m": 0.28
+      },
+      {
+        "width": 848,
+        "height": 480,
+        "m": 0.195
+      },
+      {
+        "width": 640,
+        "height": 480,
+        "m": 0.175
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "m": 0.15
+      },
+      {
+        "width": 480,
+        "height": 270,
+        "m": 0.12
+      },
+      {
+        "width": 424,
+        "height": 240,
+        "m": 0.105
+      }
+    ],
+    "max_range_m": 3.0,
+    "range_text": "Range 0.2 m to over 3 m (varies with lighting conditions)",
+    "rms_error": {
+      "text": "RMS error (or spatial noise) <= 2%, at <= 2 m, 80% ROI, HD resolution (Table 4-15); measured on a texture-less white target, laser 150 mW, auto exposure",
+      "metric": "rms",
+      "pct": 2.0,
+      "at_m": 2.0
+    },
+    "subpixel_px": null,
+    "depth_fov": {
+      "h": 87.0,
+      "v": 58.0,
+      "d": 95.0
+    },
+    "depth_start_mm": -4.7
+  },
+  "streams": [
+    {
+      "imager": "depth",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        6,
+        15,
+        30
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Z16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "IR left",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        6,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        6,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        6,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "RGB",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        6,
+        15,
+        30
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        6,
+        15,
+        30
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 960,
+      "height": 540,
+      "fps": [
+        6,
+        15,
+        30,
+        60
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        6,
+        15,
+        30,
+        60
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        6,
+        15,
+        30,
+        60
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        6,
+        15,
+        30,
+        60
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        6,
+        15,
+        30,
+        60
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 320,
+      "height": 240,
+      "fps": [
+        6,
+        30,
+        60
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 320,
+      "height": 180,
+      "fps": [
+        6,
+        30,
+        60
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    }
+  ],
+  "tactile": null,
+  "host": null,
+  "sync": {
+    "hardware_trigger": true,
+    "sync_cable": true,
+    "imagers": [
+      "IR left",
+      "IR right"
+    ],
+    "what": "Datasheet section 3.7.4 External Sensor Sync Connector: \"For D435, D435i, D435f and D435if, only the depth sensor can be synced by an external trigger.\" Section 7.13 Multi-Camera Hardware Sync: \"For multiple cameras to be hardware synchronized so as to capture data at identical times and frame rates, pins 5 (SYNC) and pins 9 (Ground) on the external sensor sync connector will need to be connected.\""
+  }
+}

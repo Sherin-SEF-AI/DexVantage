@@ -6,7 +6,7 @@
   "required": ["id", "kind", "maker", "name", "sources", "note"],
   "properties": {
     "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$", "description": "Unique, lower case, e.g. intel-realsense-d435."},
-    "kind": {"enum": ["depth", "camera", "tactile", "host", "policy", "cable", "light"]},
+    "kind": {"enum": ["depth", "camera", "tactile", "host", "policy", "cable", "light", "robot", "teleop"]},
     "maker": {"type": "string", "minLength": 1},
     "name": {"type": "string", "minLength": 1},
     "family": {"type": ["string", "null"]},
@@ -102,7 +102,9 @@
       "oneOf": [
         {"type": "null"},
         {"type": "object",
-         "properties": {"pad_mm": {"$ref": "#/$defs/pair_or_null"}, "camera_resolution": {"$ref": "#/$defs/int_pair_or_null"},
+         "properties": {"pad_mm": {"$ref": "#/$defs/pair_or_null"},
+                        "area_mm2": {"$ref": "#/$defs/num", "description": "Optional: the sensing area in mm^2 when the source states an area but no width and height (a curved fingertip)."},
+                        "camera_resolution": {"$ref": "#/$defs/int_pair_or_null"},
                         "fps": {"$ref": "#/$defs/num"}, "sensing": {"type": ["string", "null"]},
                         "taxels": {"type": ["integer", "null"], "minimum": 0}}}
       ]
@@ -119,7 +121,10 @@
                         "flex_cycles": {"type": ["integer", "null"], "minimum": 0},
                         "lengths_m": {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}},
                         "connectors": {"type": "array", "items": {"type": "string"}},
-                        "active": {"type": ["boolean", "null"]}}}
+                        "active": {"type": ["boolean", "null"]},
+                        "stated_mbps": {"$ref": "#/$defs/num", "description": "Optional: the data rate the maker states for the cable (Mbit/s); null when not stated."},
+                        "drag_chain_rated": {"type": ["boolean", "null"], "description": "Optional: the maker says the cable is (true) or is not (false) suitable for drag chains; null when not stated."},
+                        "robotics_rated": {"type": ["boolean", "null"], "description": "Optional: the maker says the cable is (true) or is not (false) suitable for robotics (torsion and multi-axis flexing); null when not stated."}}}
       ]
     },
     "host": {
@@ -131,7 +136,17 @@
                         "lanes": {"type": ["integer", "null"], "minimum": 0},
                         "stated_mbps": {"$ref": "#/$defs/num"},
                         "practical_mbps": {"$ref": "#/$defs/num", "description": "Only when a source states it."},
-                        "gmsl_links": {"type": ["integer", "null"], "minimum": 0}}}
+                        "gmsl_links": {"type": ["integer", "null"], "minimum": 0},
+                        "ingest": {"description": "Optional: each way cameras reach the host, as its sources state it (USB ports, PCIe, MIPI CSI-2, GMSL, Ethernet); a figure not stated is null. count is the number of ports, links or lanes; per_port_mbps one port's (or link's or lane's) stated rate, aggregate_mbps the stated total, practical_mbps a stated sustained figure per port and practical_aggregate_mbps a stated sustained total. Nothing here is derived from another figure.",
+                          "type": "array",
+                          "items": {"type": "object", "required": ["bus"],
+                                    "properties": {"bus": {"enum": ["usb3", "usb2", "pcie", "csi", "gmsl", "ethernet", "other"]},
+                                                   "count": {"type": ["integer", "null"], "minimum": 0},
+                                                   "per_port_mbps": {"$ref": "#/$defs/num"},
+                                                   "aggregate_mbps": {"$ref": "#/$defs/num"},
+                                                   "practical_mbps": {"$ref": "#/$defs/num"},
+                                                   "practical_aggregate_mbps": {"$ref": "#/$defs/num"},
+                                                   "what": {"type": "string", "description": "The source's words."}}}}}}
       ]
     },
     "light": {
@@ -149,7 +164,80 @@
                         "beam_deg": {"$ref": "#/$defs/angle"},
                         "ir_irradiance_w_m2": {"$ref": "#/$defs/num"},
                         "ir_at_m": {"$ref": "#/$defs/num"},
+                        "cri": {"type": ["number", "null"], "minimum": 0, "maximum": 100, "description": "Optional: the colour rendering index as stated (a lower bound when the maker writes ≥ or +)."},
+                        "illuminance_lux": {"$ref": "#/$defs/num", "description": "Optional: the on-axis illuminance the maker states at illuminance_at_m (lux)."},
+                        "illuminance_at_m": {"$ref": "#/$defs/num"},
+                        "wavelength_nm": {"$ref": "#/$defs/num", "description": "Optional: an IR illuminator's stated wavelength (nm)."},
                         "what": {"type": "string"}}}
+      ]
+    },
+    "robot": {
+      "description": "Kind 'robot' only (dexvantage/core/robot/catalogue.py, docs/models/robots.md#catalogue): a robot's figures as its maker states them, each {value, source: an index into sources or null, quote}, value null when no source read states it; the official model it imports from (model) and what DexVantage measured when it imported that model once (verified).",
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "required": ["type", "model", "verified"],
+         "properties": {
+           "type": {"enum": ["arm", "bimanual", "hand", "gripper", "humanoid", "mobile_manipulator"]},
+           "variant": {"type": "string", "description": "Which version of the product the figures describe."},
+           "dof": {"$ref": "#/$defs/pfield", "description": "Degrees of freedom as the maker counts them: an integer, or [low, high] for configurable versions."},
+           "reach_mm": {"$ref": "#/$defs/pfield"},
+           "payload_kg": {"$ref": "#/$defs/pfield"},
+           "repeatability_mm": {"$ref": "#/$defs/pfield", "description": "The ± half-width as stated."},
+           "mass_kg": {"$ref": "#/$defs/pfield"},
+           "control_hz": {"$ref": "#/$defs/pfield"},
+           "interfaces": {"$ref": "#/$defs/pfield", "description": "A list of the interfaces the maker names."},
+           "joint_ranges": {"$ref": "#/$defs/pfield", "description": "[{joint, min, max}] in 'unit' (deg or rad) as stated."},
+           "model": {"type": "object", "required": ["source"],
+             "properties": {
+               "source": {"enum": ["menagerie", "urdf", "none"]},
+               "folder": {"type": "string", "description": "The MuJoCo Menagerie folder (core/robot/menagerie.py OFFLINE_MODELS)."},
+               "file": {"type": "string", "description": "The model file the catalogue imports, relative to the folder."},
+               "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+               "license": {"type": "string", "description": "As core/robot/menagerie.license_name() recognises the folder's LICENSE."},
+               "license_read": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+               "url": {"type": "string"},
+               "note": {"type": "string"}}},
+           "verified": {"type": "object", "required": ["date", "imported"],
+             "properties": {
+               "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+               "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+               "file": {"type": "string"},
+               "imported": {"type": "boolean"},
+               "joints_in_q": {"type": "integer", "minimum": 0},
+               "joint_names": {"type": "array", "items": {"type": "string"}},
+               "actuators": {"type": "integer", "minimum": 0},
+               "links": {"type": "integer", "minimum": 0},
+               "free_joints": {"type": "integer", "minimum": 0},
+               "dof_rule": {"enum": ["joints", "actuators"]},
+               "excluded_joints": {"type": "array", "items": {"type": "string"}},
+               "dof": {"type": ["integer", "null"], "minimum": 0},
+               "dof_differs": {"type": "string", "description": "Why the model's DoF differs from the maker's, in their words."},
+               "seconds": {"type": "number", "minimum": 0},
+               "note": {"type": "string"}}}
+         }}
+      ]
+    },
+    "teleop": {
+      "description": "Kind 'teleop' only (dexvantage/core/teleop_devices.py, docs/models/teleop.md#library): a teleoperation device's figures as its maker or paper states them, each {value, source: an index into sources or null, quote}, value null when no source read states it. Units: Hz, ms, mm, degrees; workspace in metres in the device frame.",
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "required": ["device_kind"], "additionalProperties": false,
+         "properties": {
+           "device_kind": {"enum": ["leader_arm", "gello", "vr", "spacemouse", "glove", "hand_tracker"], "description": "The teleop study's device kind (core/studies/teleop.py KINDS)."},
+           "mapping": {"enum": ["joint", "cartesian"], "description": "How the device drives a follower: joint to joint (a leader arm) or by a tracked position."},
+           "leads": {"type": "array", "items": {"type": "string"}, "description": "Followers the source says the device leads joint to joint, as words matched (ignoring case, spaces, '-' and '_') against a robot's name and model file; '*' for any arm (GELLO is built for its target arm)."},
+           "same_joints": {"type": "boolean", "description": "true: the source states the leader has the follower's joints (the same parts or kinematic structure); false: only the joint angles are mapped one to one, and the leader's own joint ranges are not stated."},
+           "dof": {"$ref": "#/$defs/pfield", "description": "Degrees of freedom the device senses, as the source counts them."},
+           "tracking_hz": {"$ref": "#/$defs/pfield", "description": "The stated sample, tracking or camera frame rate."},
+           "latency_ms": {"$ref": "#/$defs/pfield", "description": "The stated latency; the quote says which latency (signal, photon to photon, ...)."},
+           "workspace": {"$ref": "#/$defs/pfield", "description": "The stated workspace as the study's volume ({kind: box | cylinder, center, size} in metres, device frame) or null when the source states none in that shape."},
+           "range_text": {"$ref": "#/$defs/pfield", "description": "The stated range or field of view, as written."},
+           "reach_mm": {"$ref": "#/$defs/pfield"},
+           "accuracy_mm": {"$ref": "#/$defs/pfield", "description": "The stated position accuracy (the quote says of what)."},
+           "position_resolution_mm": {"$ref": "#/$defs/pfield"},
+           "joint_resolution_deg": {"$ref": "#/$defs/pfield"},
+           "feedback": {"$ref": "#/$defs/pfield", "description": "Force or haptic feedback, as stated (text)."}
+         }}
       ]
     },
     "policy": {
@@ -218,6 +306,11 @@
         "lens_model": {"enum": ["pinhole", "brown", "kb", "equidistant", "equisolid", "stereographic", null]},
         "f_number": {"$ref": "#/$defs/num"},
         "focus": {"enum": ["fixed", "auto", null]},
+        "focal_length_mm": {"$ref": "#/$defs/num", "description": "Optional: the lens's (effective) focal length as the maker states it, in mm; null or absent when not stated. Checked against the FOV, resolution and pixel size (validation/checks_library.py, data consistency)."},
+        "sensor_size_mm": {"$ref": "#/$defs/pair_or_null", "description": "Optional: the active area [width, height] in mm as the maker states it; null or absent when not stated."},
+        "sensor_diagonal_mm": {"$ref": "#/$defs/num", "description": "Optional: the active area's diagonal in mm as the maker states it (not the nominal optical-format inch figure); null or absent when not stated."},
+        "optical_format": {"type": ["string", "null"], "description": "Optional: the optical format as written (e.g. '1/2.6\"'), a nominal type, not a measured size."},
+        "figures_conflict": {"type": "string", "description": "Optional: the maker's own figures for this imager disagree with each other (two pages, or angles no centred radially symmetric lens can show together); says which and which figure the entry uses. The data-consistency check reports such imagers instead of failing on them."},
         "exposure_s": {"description": "Optional (core/studies/motion_blur.py, time_sync.py): the manual exposure range the maker states, in seconds; null (or absent) when not stated.",
           "oneOf": [{"type": "null"}, {"type": "object", "properties": {"min": {"$ref": "#/$defs/num"}, "max": {"$ref": "#/$defs/num"}, "what": {"type": "string", "description": "the source's words (table, quote)"}}}]},
         "readout_s": {"description": "Optional: the rolling-shutter readout time, first row to last, in seconds, as the maker states it; null when not stated.",

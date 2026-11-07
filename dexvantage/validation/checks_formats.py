@@ -6,6 +6,7 @@ DexVantage's reader and independently (pyarrow.parquet and json on the files at 
 videos decoded by the ffmpeg command-line tool), against the source arrays."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import zipfile
@@ -433,3 +434,270 @@ def _mjcf_scene(ctx):
                         'rounding along a few links of a chain (measured 2026-11-07: 5.8 × 10⁻⁷ m, 1.1 × 10⁻⁶ rad, '
                         '1.9 × 10⁻³ px); a pose wrong by a link offset is millimetres. In memory, before writing, '
                         'the scene matches within 10⁻⁴ px (groundtruth.scene_intrinsics).')
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# exporters part A (core/exporters: mjcf, ros2, calibration, masks; the work is in formats_exports.py)
+
+@check('formats.mjcf_snippets', 'formats', 'MJCF camera snippets load in MuJoCo and pose like the project',
+       'largest distance (m) between each camera of the exported <camera>/<site> snippets, pasted into its body of '
+       'the robot\'s own MJCF and loaded by MuJoCo, posed at a random joint state by joint name, and the same camera '
+       'posed by DexVantage; also every rotation within 10⁻⁹ rad and the intrinsics MuJoCo compiles within 10⁻³ px; '
+       'the UR5e, SO-100 and dexhand samples',
+       'core/camrender.optical_pose (RobotModel forward kinematics, the mount and the imager pose) and the imagers\' '
+       'lens models; MuJoCo\'s XML parser reading the snippets', 1e-9, 'm',
+       refs=('mujoco_camera_317', 'mujoco_xml'), cost='study')
+def _mjcf_snippets(ctx):
+    from . import formats_exports as FE
+    err, ok, detail = FE.mjcf_snippets(ctx)
+    return Outcome(err, detail, ok=ok,
+                   note='The snippets are written with 17 significant digits (they read back to the same float64), '
+                        'so the poses agree to rounding (10⁻⁹ m and rad leave room for a chain of a dozen bodies); '
+                        'MuJoCo stores the compiled intrinsics in float32 (about 6 × 10⁻⁵ px at a 1 000 px focal '
+                        'length), hence 10⁻³ px. The pasted file is also loaded through MuJoCo\'s own writer to show '
+                        'every camera is found under its body; the figures come from each block parsed by MuJoCo and '
+                        'attached to the robot\'s model in memory, since that writer keeps 6 digits. The full scene is '
+                        'formats.mjcf_scene.')
+
+
+@check('formats.urdf_roundtrip', 'formats', 'URDF parses and its sensor frames match DexVantage\'s kinematics',
+       'largest distance (m) between every sensor body frame and optical frame of the exported rig.urdf, posed at a '
+       'random joint state (1) by a forward-kinematics walk of the XML with urdfdom\'s origin and RPY rules and (2) '
+       'by MuJoCo\'s URDF compiler, and the same frames from DexVantage; also every rotation within 10⁻⁹ rad and no '
+       'structural problem (one root, every link reached once, complete <limit> elements); the three samples',
+       'scenegeom.sensor_world_pose and camrender.optical_pose; Python\'s ElementTree with urdfdom\'s setFromRPY '
+       'quaternion and Rodrigues\' rotation written again; MuJoCo\'s URDF compiler', 1e-9, 'm',
+       refs=('urdfdom', 'urdf', 'mujoco_urdf', 'python_ast'), cost='study')
+def _urdf_roundtrip(ctx):
+    from . import formats_exports as FE
+    err, ok, detail = FE.urdf_roundtrip(ctx)
+    return Outcome(err, detail, ok=ok,
+                   note='The URDF is written from the MuJoCo model DexVantage compiles, joint by joint (anchors and '
+                        'qpos0 folded into the origins), with 17 significant digits; two independent posers, an XML '
+                        'walk with urdfdom\'s conventions and MuJoCo\'s URDF compiler, must both agree with '
+                        'DexVantage to rounding (10⁻⁹ m over chains of up to 30 joints). A wrong joint anchor, a sign '
+                        'of qpos0 or an RPY order would be millimetres or degrees.')
+
+
+@check('formats.ros2_tf', 'formats', 'Static transform launch file and tf2 tree pose the cameras like DexVantage',
+       'largest distance (m) between each optical frame posed from the exported static_transforms.launch.py (its '
+       'static_transform_publisher arguments read with Python\'s ast) on its parent link at a random joint state, or '
+       'from tf_tree.yaml\'s world pose at the export\'s joint state (PyYAML), and the frame posed by DexVantage; '
+       'rotations within 10⁻⁹ rad; the launch file and the tree list the same frames; the three samples',
+       'camrender.optical_pose; RobotModel.link_pose for the parent link; tf2_ros\'s argument names', 1e-9, 'm',
+       refs=('tf2_static_publisher', 'pyyaml', 'python_ast', 'rep103'), cost='study')
+def _ros2_tf(ctx):
+    from . import formats_exports as FE
+    err, ok, detail = FE.ros2_tf(ctx)
+    return Outcome(err, detail, ok=ok,
+                   note='The transforms are numbers written with 17 significant digits: any error beyond rounding is '
+                        'a wrong frame, parent or quaternion order (tf2 takes x, y, z, w).')
+
+
+@check('formats.opencv_yaml', 'formats', 'OpenCV YAML read back by cv2.FileStorage equals the source',
+       'largest absolute difference between what cv2.FileStorage reads back from each imager\'s YAML (image size, K, '
+       'the 4 × 4 extrinsics) and cameras.json and the source; and every lens projected through cv2.projectPoints or '
+       'cv2.fisheye.projectPoints with the written K and D within 10⁻⁶ px of DexVantage\'s lens model when the '
+       'mapping is exact, within the stated error when it is an approximation; seven lens models on the UR5e '
+       'sample\'s six imagers',
+       'the source CameraModel and transforms; OpenCV\'s own projection functions', 0.0, 'abs. difference',
+       refs=('opencv_filestorage', 'opencv_calib3d', 'opencv_fisheye'), cost='study')
+def _opencv_yaml(ctx):
+    from . import formats_exports as FE
+    err, ok, detail = FE.opencv_yaml(ctx)
+    return Outcome(err, detail, ok=ok,
+                   note='Zero: cv2.FileStorage writes doubles with 17 significant digits, so a matrix reads back bit '
+                        'for bit (measured 0 on 2026-11-07). The projection bound of 10⁻⁶ px is far above float64 '
+                        'rounding (10⁻¹² px measured) and far below any wrong coefficient order; the equisolid and '
+                        'stereographic lenses have no OpenCV form and must stay within the error the file states '
+                        '(measured 5 × 10⁻⁹ and 4 × 10⁻⁴ px on these lenses).')
+
+
+@check('formats.kalibr_camchain', 'formats', 'Kalibr camchain parsed back equals the rig',
+       'largest absolute difference between camchain.yaml read with PyYAML (intrinsics [fu fv pu pv], exact '
+       'distortion terms, T_cn_cnm1) and the chain from DexVantage\'s optical poses, inv(T_world_cn) · '
+       'T_world_cnm1; also Kalibr\'s keys, model names and coefficient counts (ConfigReader); seven lens models on '
+       'the UR5e sample and the sample itself',
+       'camrender.optical_pose and the lens models; Kalibr\'s ConfigReader rules', 0.0, 'abs. difference',
+       refs=('kalibr_yaml', 'pyyaml'), cost='study')
+def _kalibr_camchain(ctx):
+    from . import formats_exports as FE
+    err, ok, detail = FE.kalibr_camchain(ctx)
+    return Outcome(err, detail, ok=ok,
+                   note='Zero: the numbers are written in Python\'s shortest round-trip form, which YAML reads back '
+                        'to the same float64.')
+
+
+@check('formats.masks_vs_occlusion', 'formats', 'Exported masks match the occlusion study per pixel',
+       'share of sampled pixels (every 4th row and column; 8th in a quick run) where the exported self-occlusion PNG '
+       'differs from exact ray casting against the occlusion study\'s occluders (robot hit nearer than any other); '
+       'also within 0.5 % of the occlusion study\'s cube map (n = 2048) and the depth-validity codes within 1 % of '
+       'the conditions evaluated again per pixel by exact ray casting; the UR5e sample\'s two cameras and two depth '
+       'sensors',
+       'core/raycast.py (Möller-Trumbore on a uniform grid) on scenegeom.sensor_occluders; core/occlusion.CubeMap; '
+       'the depth-validity conditions written again', 1e-3, 'share of pixels',
+       refs=('moller1997', 'amanatides_woo1987', 'greene1986'), cost='study')
+def _masks_vs_occlusion(ctx):
+    from . import formats_exports as FE
+    err, ok, detail = FE.masks_vs_occlusion(ctx)
+    return Outcome(err, detail, ok=ok,
+                   note='The masks come from the Camera view\'s renderer, which tests each pixel-centre ray against '
+                        'every triangle exactly, so exact ray casting should agree but for rays through a shared '
+                        'edge (10⁻³; measured 0 of 187 200 pixels on 2026-11-07). The cube map answers per texel '
+                        '(0.03° at 2048), so silhouettes may differ by a texel: 0.5 % (measured 0.07 %). The '
+                        'depth codes use the study\'s cube maps for the other imager\'s line of sight: 1 % (measured '
+                        '0.25 %, at silhouettes; at the study\'s own 512 texels it was 4.4 %, the reason the masks use '
+                        '2048).')
+
+
+if importlib.util.find_spec('gmsh') is not None:
+    @check('formats.bracket_step', 'formats', 'Bracket STEP read back by OpenCASCADE equals its mesh',
+           'relative difference between the volume of the exported bracket STEP, read back by gmsh\'s OpenCASCADE '
+           'kernel, and the volume of the faceted mesh it was written from (divergence theorem); also exactly one '
+           'volume and the bounding box within 10⁻³ mm; the UR5e sample\'s wrist bracket at a 2 mm grid',
+           'the triangle mesh (core/meshing.py) by the divergence theorem; OpenCASCADE\'s own STEP reader and mass '
+           'properties', 1e-6, 'relative', refs=('step_ap', 'gmsh'), cost='study')
+    def _bracket_step(ctx):
+        from . import formats_exports as FE
+        err, ok, detail = FE.bracket_step(ctx)
+        return Outcome(err, detail, ok=ok,
+                       note='The STEP is the mesh itself (each triangle a planar face, sewn into one shell), so the '
+                            'volumes agree to the STEP file\'s number format and OpenCASCADE\'s sewing tolerance; '
+                            '10⁻⁶ of the volume is far below a missing or flipped face (a face of a 2 mm grid is '
+                            'about 10⁻⁴ of a bracket). Registered only when gmsh is installed.')
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Isaac Lab and Isaac Sim, LeRobot train configs, reports (core/exporters/isaac.py, lerobot.py, report.py; the work is
+# in formats_isaac_lerobot.py)
+
+EXPORT_B_SAMPLES = ('ur5e', 'so100', 'dexhand')
+
+
+@check('formats.isaac_usd', 'formats', 'Isaac USD camera prims re-opened match the cameras',
+       'largest pixel gap between points projected through each exported camera prim (pxr\'s Gf.Camera frustum of '
+       'the prim as re-opened, files written by pxr and by the text writer) and through the imager\'s pinhole part; '
+       'also every prim\'s world transform within 10⁻⁹ m and 10⁻⁶ rad, focal length and apertures within 10⁻⁶ '
+       'relative, and its OpenCV lens attributes; the three samples, two of their cameras given a Brown-Conrady and '
+       'a Kannala-Brandt unit calibration',
+       'core/camrender.optical_pose and the imagers\' lens models (optics.CameraModel); OpenUSD\'s own camera '
+       'model (pxr UsdGeom.Camera, Gf.Camera)', 1e-3, 'px', refs=('openusd_camera', 'isaaclab_camera_v300'),
+       cost='study')
+def _isaac_usd(ctx):
+    from ..core.exporters import isaac as I
+    from ..core.robot.samples import sample_project
+    from . import formats_isaac_lerobot as V
+    have = I.have_pxr()
+    worst = {'proj_px': 0.0, 'pose_m': 0.0, 'pose_rad': 0.0, 'lens_rel': 0.0}
+    detail, bad = {}, []
+    for name in EXPORT_B_SAMPLES:
+        p = V.lens_variety(sample_project(name))
+        d = V.isaac_usd_errors(p, os.path.join(ctx.tmp(), f'isaac_usd_{name}')) if have else \
+            V.isaac_usd_text_errors(p, '')
+        for k in worst:
+            worst[k] = max(worst[k], d[k])
+        bad += [f'{name}: {m}' for m in d['mismatches']]
+        detail[name] = d
+    detail.update(worst=worst, mismatches=bad, parser='pxr' if have else 'text')
+    ok = worst['pose_m'] <= 1e-9 and worst['pose_rad'] <= 1e-6 and worst['lens_rel'] <= 1e-6 and not bad
+    note = ('USD stores focalLength, the apertures and the OpenCV attributes as 32-bit floats (a relative error up to '
+            '6 × 10⁻⁸, so about 10⁻⁴ px at a 1 400 px focal length across a 1 920 px image); 10⁻³ px allows that '
+            'with margin and is far below a sign or convention error (an aperture offset of the wrong sign moves the '
+            'principal point by twice its offset, tens of pixels on the calibrated cameras here). Measured '
+            '2026-11-07: 2.6 × 10⁻⁵ px. Transforms are matrix4d (64-bit): 10⁻⁹ m and 10⁻⁶ rad are far below a '
+            'frame-convention error (a quarter or half turn), measured 5.6 × 10⁻¹⁷ m and 5.5 × 10⁻¹⁶ rad.')
+    if not have:
+        note = ('usd-core is not installed: the text-written file is read by the check\'s own reader and the pinhole '
+                'its attributes define is computed by GfCamera\'s frustum formula written out in the check; install '
+                'the usd extra for the pxr round trip. ') + note
+    return Outcome(worst['proj_px'], detail, ok=ok, note=note)
+
+
+@check('formats.isaac_config', 'formats', 'Isaac Lab camera configs compile and their values match',
+       'largest position difference (m) between each camera\'s CameraCfg offset in the generated Isaac Lab v3.0.0 '
+       'and v2.3.2 Python files (parsed with ast, executed against stub classes with the fields of the cited source) '
+       'and the camera\'s pose in its parent frame; also orientation within 10⁻⁹ rad in each release\'s quaternion '
+       'order, focal length and OpenCV intrinsics within 10⁻⁹ relative, the randomisation bounds equal to '
+       'core/tolerance.bounds, perturbed_offset within 10⁻⁹ m and 10⁻⁹ rad of the same draw applied by '
+       'core/tolerance.apply_draw, and sample_offset within the bounds; the three samples with calibrated lenses',
+       'core/camrender.optical_pose taken to the parent link by RobotModel.link_pose; core/tolerance and core/factors '
+       'for the draws; the Isaac Lab v3.0.0 and v2.3.2 source for the field names', 1e-9, 'm',
+       refs=('isaaclab_camera_v300', 'isaaclab_camera_v232'), cost='study')
+def _isaac_config(ctx):
+    from ..core.robot.samples import sample_project
+    from . import formats_isaac_lerobot as V
+    rng = ctx.rng('formats.isaac_config')
+    worst = {'pose_m': 0.0, 'pose_rad': 0.0, 'intrinsics_rel': 0.0, 'dr_m': 0.0, 'dr_rad': 0.0}
+    detail, bad = {}, []
+    for name in EXPORT_B_SAMPLES:
+        d = V.isaac_config_errors(V.lens_variety(sample_project(name)), os.path.join(ctx.tmp(), f'isaac_{name}'),
+                                  rng)
+        for k in worst:
+            worst[k] = max(worst[k], d[k])
+        bad += [f'{name}: {m}' for m in d['mismatches']]
+        detail[name] = d
+    detail.update(worst=worst, mismatches=bad)
+    ok = worst['pose_rad'] <= 1e-9 and worst['intrinsics_rel'] <= 1e-9 and worst['dr_m'] <= 1e-9 and \
+        worst['dr_rad'] <= 1e-9 and not bad
+    return Outcome(max(worst['pose_m'], worst['dr_m']), detail, ok=ok,
+                   note='The files write every number with 17 significant digits (Python\'s repr), so values read '
+                        'back to the last bit and the differences are the rounding of composing the transforms in '
+                        'another order (measured 2026-11-07: 1.4 × 10⁻¹⁶ m, 8.2 × 10⁻¹⁶ rad); 10⁻⁹ m and rad is '
+                        'far below a mount or quaternion-order error (millimetres, degrees). Isaac Lab itself is not '
+                        'installed here: '
+                        'the stub classes refuse any field the v3.0.0 or v2.3.2 source does not define and require '
+                        'the ones it leaves MISSING.')
+
+
+@check('formats.lerobot_export', 'formats', 'LeRobot info.json and train configs agree with the reader and the source',
+       'mismatches: the exported v2.1 and v3.0 info.json against the info.json of a dataset written with the same '
+       'features (state names, camera keys and sizes) and read back by DexVantage\'s LeRobot reader (keys, dtypes, '
+       'shapes, names, video sizes and rates, paths); train-config keys that are not fields of the pinned '
+       'TrainPipelineConfig, DatasetConfig or policy config; feature types; ACT\'s temporal-ensembling rule; camera '
+       'shapes against info.json; the ACT and Diffusion Policy YAML through PyYAML and the OpenVLA entry executed '
+       'against stub enums; the UR5e sample with its action-chunk recommendation applied',
+       'core/datasets/lerobot (write_lerobot and LeRobotDataset); the LeRobot source at commit d490e47 (field names); '
+       'ACT, Diffusion Policy and OpenVLA sources at their pinned commits', 0, 'mismatches',
+       refs=('lerobot_dataset_format', 'lerobot_train_config', 'act_repo', 'diffusion_policy_repo', 'openvla_oxe'),
+       cost='study')
+def _lerobot_export(ctx):
+    from ..core import jobs
+    from ..core.robot.samples import sample_project
+    from ..core.studies import action_chunk_sync as AC
+    from . import formats_isaac_lerobot as V
+    p = sample_project('ur5e')
+    applied = []
+    try:
+        applied = AC.apply_recommendations(p, jobs.run_study('action_chunk_sync', p.snapshot()))
+    except jobs.StudyError:
+        pass
+    d = V.lerobot_errors(p, os.path.join(ctx.tmp(), 'lerobot_export'))
+    d['detail']['recommendations_applied_to'] = applied
+    return Outcome(len(d['mismatches']), {'mismatches': d['mismatches'], **d['detail']},
+                   note='LeRobot, ACT, Diffusion Policy and OpenVLA are not installed here, so their own loaders are '
+                        'not run: info.json is checked through DexVantage\'s reader (itself checked against the '
+                        'format by formats.lerobot_roundtrip), and the configs against the field names of the '
+                        'pinned sources. The codec fields are not compared (the writer uses H.264 where PyAV has no '
+                        'AV1 encoder).')
+
+
+@check('formats.report', 'formats', 'Report HTML parses and lists every study present',
+       'mismatches when report.html, built over five studies of the UR5e sample with requirements on two of them, '
+       'is parsed by Python\'s html.parser: a study result without its section and heading, a section without a '
+       'result, a study neither reported nor listed as not run, no scorecard, no provenance block with the project\'s '
+       'content hash, fewer figures than the sections that have one; and report.pdf without a study or the hash '
+       'when read by pdftotext (poppler), where installed',
+       'the report\'s own results document (report.json) and core.provenance.project_digest; Python\'s html.parser; '
+       'poppler\'s pdftotext', 0, 'mismatches', refs=('html_living_standard', 'pdf_32000', 'poppler_pdftotext'),
+       cost='study')
+def _report(ctx):
+    from ..core import requirements as RQ
+    from ..core.robot.samples import sample_project
+    from . import formats_isaac_lerobot as V
+    p = sample_project('ur5e')
+    p.requirements = [r for r in RQ.default_requirements() if r.study in V.REPORT_STUDIES]
+    d = V.report_errors(p, os.path.join(ctx.tmp(), 'report'))
+    note = '' if d['pdf'].get('parser') else ('pdftotext is not installed, so the PDF is checked for its header and '
+                                              'trailer only. ')
+    return Outcome(len(d['mismatches']), d, note=note + 'Studies that refuse on this project are listed under "Not '
+                   'run" with their sentence, which the check accepts.')

@@ -1,0 +1,94 @@
+{
+  "id": "koch-v1-1",
+  "kind": "robot",
+  "maker": "Alexander Koch",
+  "name": "Koch v1.1 (Low-Cost Robot Arm, LeRobot update by Jess Moss)",
+  "family": "open-source Dynamixel arm",
+  "sources": [
+    {
+      "url": "https://github.com/jess-moss/koch-v1-1",
+      "title": "Koch v1.1 repository README",
+      "read": "2026-11-07",
+      "covers": "servos (Dynamixel XL430-W250-T and XL330-M288-T), USB connection"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/low_cost_robot_arm",
+      "title": "MuJoCo Menagerie low_cost_robot_arm/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "that the model is the Low-Cost Robot Arm by Alexander Koch, updated by the LeRobot team as Koch v1.1"
+    }
+  ],
+  "note": "Menagerie's low_cost_robot_arm is the Koch v1.1 (\"updated by HuggingFace LeRobot Team ... with the name Kochv1.1\"). The README lists parts but states no DoF, reach, payload or mass as figures.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "USB (Dynamixel serial bus servo driver board)"
+      ],
+      "source": 0,
+      "quote": "\"plug each arm into your computer using a USB-C cable\""
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "low_cost_robot_arm",
+      "file": "low_cost_robot_arm.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/low_cost_robot_arm"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "low_cost_robot_arm.xml",
+      "imported": true,
+      "joints_in_q": 6,
+      "joint_names": [
+        "base_rotation",
+        "pitch",
+        "elbow",
+        "wrist_pitch",
+        "wrist_roll",
+        "gripper"
+      ],
+      "actuators": 6,
+      "links": 7,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 6,
+      "seconds": 0.15,
+      "note": ""
+    }
+  }
+}

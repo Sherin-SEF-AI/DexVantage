@@ -1,0 +1,68 @@
+{
+  "id": "manus-quantum-metagloves",
+  "kind": "teleop",
+  "maker": "MANUS",
+  "name": "Quantum Metagloves",
+  "family": "MANUS gloves",
+  "sources": [
+    {
+      "url": "https://www.manus-meta.com/products/quantum-metagloves",
+      "title": "MANUS Quantum Metagloves product page (Technical Specs)",
+      "read": "2026-11-07",
+      "covers": "signal latency, finger sensor type, sample rate, battery, weight, communication, wireless range"
+    }
+  ],
+  "note": "Finger tracking gloves. Technical Specs: \"Signal latency ≤ 7.5ms\" (latency_ms 7.5, an upper bound); \"Finger sensor type Absolute position, 3 axis rotation\"; \"Sensor sample rate 120Hz\"; \"Battery duration Up to 3 hours (swappable batteries)\"; \"Weight 138 grams (including battery)\"; wired \"USB Type-C\", wireless \"Bluetooth Low Energy 5\", \"Wireless range Up to 15 meters\"; the page describes \"millimeter accurate end-point fingertip tracking sensors\" without a figure (accuracy_mm null). A glove tracks the fingers; the wrist position comes from a separate tracker (the second spec block lists \"Optical trackers: 2 Reflective Markers\"), so the device's volume in the teleop study is that tracker's, not stated here.",
+  "interface": "USB Type-C; Bluetooth Low Energy 5",
+  "power_w": null,
+  "mass_g": 138.0,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "glove",
+    "mapping": "cartesian",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "tracking_hz": {
+      "value": 120,
+      "source": 0,
+      "quote": "\"Sensor sample rate | 120Hz\""
+    },
+    "latency_ms": {
+      "value": 7.5,
+      "source": 0,
+      "quote": "\"Signal latency | ≤ 7.5ms\""
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated (the wrist is tracked by a separate system)."
+    },
+    "range_text": {
+      "value": "Wireless range up to 15 m",
+      "source": 0,
+      "quote": "\"Wireless range | Up to 15 meters\""
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "id": "e-con-sturdecam57",
+  "kind": "camera",
+  "maker": "e-con Systems",
+  "name": "STURDeCAM57",
+  "family": "STURDeCAM GMSL2 cameras",
+  "sources": [
+    {
+      "url": "https://www.e-consystems.com/gmsl-cameras/5mp-ox05b1s-rgb-ir-global-shutter-gmsl2-camera.asp",
+      "title": "STURDeCAM57 - 5MP RGB-IR Global Shutter GMSL2 Camera (e-con Systems product page)",
+      "read": "2026-11-07",
+      "covers": "sensor (5MP, OmniVision Nyxel), shutter, chroma (colour and NIR), optical format, pixel size, active area, FOV, focus distance, frame rate, output, interface, power, size, board weight, IP67"
+    }
+  ],
+  "note": "An RGB-IR global-shutter GMSL2 camera in an IP67 enclosure, 940 nm IR LED (working range 50 cm to 2 m), fixed focus at 50-200 cm. The page names the sensor only as \"5MP Sensor\" (the URL names OX05B1S). FOV 114.76 (H) x 85.92 (V) x 148.32 (D) degrees. The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rate \"RGB + IR : 2592 x 1946 @ 50 FPS (25 FPS RGB + 25 FPS IR)\", UYVY; the stated stream height 1946 exceeds the stated active area 2592 x 1944, so no stream is entered until the datasheet (behind a form, not read) settles it. power_w is the stated typical 3.42 W (12 V). mass_g is the stated \"Board weight\" 100 g. size_mm: \"70 x 35 x 30 mm (with enclosure)\", entered as [70, 35, 30] on the reading that the 70 mm length is along the optical axis (an ASSUMPTION). Not stated: f-number, focal length, distortion.",
+  "interface": "GMSL2 (FAKRA connector, cable up to 15 m)",
+  "power_w": 3.42,
+  "mass_g": 100.0,
+  "size_mm": [
+    70.0,
+    35.0,
+    30.0
+  ],
+  "imagers": [
+    {
+      "name": "RGB-IR",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 114.76,
+      "vfov_deg": 85.92,
+      "dfov_deg": 148.32,
+      "pixel_um": 2.2,
+      "resolution": [
+        2592,
+        1944
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "optical_format": "1/2.5\"",
+      "figures_conflict": "The stated diagonal (148.32 deg) is wider than a centred, radially symmetric lens without pincushion distortion can show with the stated 114.76 x 85.92 deg across 2592 x 1944 px (at most about 143 deg). The library uses the horizontal and vertical angles."
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null
+}

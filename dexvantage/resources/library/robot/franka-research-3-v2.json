@@ -1,0 +1,98 @@
+{
+  "id": "franka-research-3-v2",
+  "kind": "robot",
+  "maker": "Franka Robotics",
+  "name": "Franka Research 3 (Menagerie fr3_v2 model)",
+  "family": "7-DoF research arm",
+  "sources": [
+    {
+      "url": "https://franka.de/hubfs/Datasheet_FrankaResearch3_R02212_2.4.pdf",
+      "title": "Franka Robotics, Datasheet Franka Research 3, document R02212, release 2.4 (October 2025)",
+      "read": "2026-11-07",
+      "covers": "DoF, payload, reach, weight, repeatability"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/franka_fr3_v2",
+      "title": "MuJoCo Menagerie franka_fr3_v2/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Menagerie's second FR3 model (franka_fr3_v2); its README describes the same Franka Research 3 and the same franka_description source. Which arm revision it matches is not stated, so the joint ranges are left to the model file. The model folder's LICENSE file holds the Apache-2.0 text followed by a BSD licence (Willow Garage) text; the folder's README says \"released under an Apache-2.0 License\" (both read 2026-11-07): the download shows the whole file.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "variant": "the same datasheet as the FR3 entry",
+    "dof": {
+      "value": 7,
+      "source": 0,
+      "quote": "Degrees of freedom 7"
+    },
+    "reach_mm": {
+      "value": 855,
+      "source": 0,
+      "quote": "Maximum reach 855 mm"
+    },
+    "payload_kg": {
+      "value": 3,
+      "source": 0,
+      "quote": "Rated payload 3 kg"
+    },
+    "repeatability_mm": {
+      "value": 0.1,
+      "source": 0,
+      "quote": "Position repeatability <+/- 0.1 mm (ISO 9283)"
+    },
+    "mass_kg": {
+      "value": 18.3,
+      "source": 0,
+      "quote": "Weight ~ 18.3 kg (arm)"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "franka_fr3_v2",
+      "file": "fr3v2.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0 AND BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/franka_fr3_v2"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "fr3v2.xml",
+      "imported": true,
+      "joints_in_q": 7,
+      "joint_names": [
+        "fr3v2_joint1",
+        "fr3v2_joint2",
+        "fr3v2_joint3",
+        "fr3v2_joint4",
+        "fr3v2_joint5",
+        "fr3v2_joint6",
+        "fr3v2_joint7"
+      ],
+      "actuators": 7,
+      "links": 10,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 7,
+      "seconds": 0.49,
+      "note": ""
+    }
+  }
+}

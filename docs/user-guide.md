@@ -62,6 +62,29 @@ dexvantage --sample so100 --silhouette-calib sil.json --dataset out/synth     # 
 why in one sentence and exits 2 (for example `--action-chunk` on the SO-100 sample: SmolVLA's inference time is not
 stated by its source, so enter a measured figure on the Policies page).
 
+Phases 9 and 10 and the research tools add (each measured on the samples on 2026-11-07; times include start-up):
+
+```bash
+dexvantage --sample ur5e --tolerance-mc tol.json          # Monte Carlo mount tolerances (64 draws, about 80 s)
+dexvantage --sample ur5e --experiment design.json         # a designed experiment (docs/models/experiments.md)
+dexvantage --sample ur5e --optimise opt.json --optimise-settings '{"budget": 24}'      # improve this rig
+dexvantage --sample ur5e --design-agent da.json --optimise-settings '{"budget": 24}'   # design new rigs
+dexvantage --sample ur5e --check defaults scorecard.json  # the readiness scorecard (exit 0 pass, 1 fail, 2 error)
+dexvantage --sample ur5e --check requirements.yaml        # your own requirements (docs/examples/requirements.yaml)
+dexvantage --sample ur5e --reproduce scorecard.json       # any result re-run from its provenance
+dexvantage --sample ur5e --run-plan plan.json out/        # studies, checks, exports and reproductions in order
+dexvantage --sample ur5e --export out/ --formats mjcf,urdf,opencv_yaml,isaac,lerobot,report   # exporters
+dexvantage --sample ur5e --canonical-view canon.json      # the cross-embodiment canonical view warp
+dexvantage --sample ur5e --rerun scene.rrd                # the scene for Rerun (optional extra rerun)
+dexvantage --sample aloha --coverage cov.json             # the new samples: aloha, panda-bimanual, g1
+dexvantage a.dexv --diff b.dexv diff.json --diff-html diff.html   # what changed (exit 1 when they differ)
+dexvantage cell.dexv --unpack cell.dexv.d                 # a Git-friendly folder; --pack writes it back
+dexvantage --textconv cell.dexv                           # a stable text for git diff
+dexvantage cell.dexv --cite refs.bib                      # BibTeX of every source the project depends on
+dexvantage --figure spec.json fig.pdf --figure-width double      # a publication figure from a chart's data
+python -m dexvantage.mcp cell.dexv                        # the MCP server on a project file
+```
+
 ## 3. Robots (Phase 1) {#robots}
 
 The models behind this chapter are in [models/robots.md](models/robots.md), [models/kinematics.md](models/kinematics.md)
@@ -441,3 +464,72 @@ The models: [models/datasets.md](models/datasets.md), [models/audit.md](models/a
 
 Worked examples: [guide/datasets.md](guide/datasets.md), [guide/bags_rlds.md](guide/bags_rlds.md) and
 [guide/audit.md](guide/audit.md).
+
+## 11. Requirements, tolerances, experiments and the optimiser (Phase 9) {#requirements}
+
+The models: [models/requirements.md](models/requirements.md), [models/tolerance.md](models/tolerance.md),
+[models/experiments.md](models/experiments.md) and [models/optimise.md](models/optimise.md).
+
+- **Analysis ▸ Requirements and variants** (the Review workspace): list requirements as a metric, an operator and a
+  threshold (each edit one undo step), or load a YAML file; **Run** gives the scorecard (pass, fail, not evaluated,
+  with each margin; a bound shown as "≥" or "≤" decides only in its direction). **Compare variants** evaluates every
+  requirement on every rig variant. The same scorecard is the batch CI gate `--check`.
+- **Analysis ▸ Tolerances**: each mount's ± tolerance (or its calibration covariance), the number of draws and the
+  seed; the result is each metric's spread, the share of draws that meet each requirement with its interval, and the
+  mount components that drive it. **Export perturbations** writes the draws for augmentation or Isaac randomisation.
+- **Analysis ▸ Designed experiments**: add factors (a mount coordinate, a device, a stream, a study setting), choose
+  responses and a design (full factorial, fractional, Latin hypercube, Sobol, Saltelli); the result has the runs, the
+  Sobol indices as bars with their intervals, main effects and the best run; **Apply** sets it as one undo step.
+- **Analysis ▸ Optimise**: improve this rig (mounts within a box and a cone) or design new rigs (devices, mount sites
+  and brackets) over the objectives you choose, with requirements as constraints; the Pareto front, each design
+  explained; **Accept** adds it as a variant.
+
+Worked examples: [guide/requirements.md](guide/requirements.md), [guide/tolerance.md](guide/tolerance.md),
+[guide/experiments.md](guide/experiments.md) and [guide/optimise.md](guide/optimise.md).
+
+## 12. Export, the assistant and MCP (Phase 10) {#export}
+
+The models: [models/exporters_a.md](models/exporters_a.md), [models/exporters_b.md](models/exporters_b.md),
+[models/canonical_warp.md](models/canonical_warp.md), [models/rerun.md](models/rerun.md),
+[models/mcp.md](models/mcp.md) and [models/assistant_dock.md](models/assistant_dock.md).
+
+- **File ▸ Export…** (and the Export menu): tick formats (MuJoCo, ROS 2 URDF and tf, OpenCV and Kalibr calibration,
+  masks, Plücker maps, brackets, Isaac Lab and Isaac Sim, LeRobot and policy configs, the HTML and PDF report,
+  perturbations, the canonical warp, FiftyOne, a synthetic LeRobot dataset), the pose (home or the one on screen) and
+  a folder; the export runs in the background and shows its manifest (every file's SHA-256 and the provenance). The
+  report reuses the results already computed in the window and, by default, runs the studies not yet computed.
+- **Export ▸ Canonical view**: robot B's wrist image warped to robot A's viewpoint through the contact plane, with the
+  residual parallax off the plane; **Export warp maps…** writes the homography and remap LUT.
+- **Export ▸ Stream to Rerun…**: the scene to an `.rrd` file or a new Rerun viewer (`pip install "dexvantage[rerun]"`).
+- **Window ▸ Assistant** (Ctrl+J): ask about the page on screen. Keys are entered in the dock's settings and kept in
+  the system keyring only. Numbers the assistant cannot trace to a tool or the page are shown to you; edits come as
+  proposals you accept (one undo step); long studies run only from a plan you approve.
+- **MCP:** `python -m dexvantage.mcp [cell.dexv]` serves the same tools to an MCP client (Claude Desktop, Claude Code);
+  with the window open it attaches to it, so changes show at once and can be undone.
+
+Worked examples: [guide/exporters_a.md](guide/exporters_a.md), [guide/exporters_b.md](guide/exporters_b.md),
+[guide/canonical_warp.md](guide/canonical_warp.md), [guide/rerun.md](guide/rerun.md), [guide/mcp.md](guide/mcp.md)
+and [guide/assistant_dock.md](guide/assistant_dock.md).
+
+## 13. Samples, the robot catalogue and the larger library {#samples}
+
+- **File ▸ Open sample**: ALOHA 2 (`--sample aloha`), two Franka Pandas (`--sample panda-bimanual`) and the Unitree G1
+  upper body (`--sample g1`) join the SO-100, UR5e and dexhand samples ([guide/samples.md](guide/samples.md)).
+- **Library ▸ Robots**: 53 robots with the maker's figures and their sources; activating one imports its Menagerie
+  model with that model's licence shown ([guide/robots.md](guide/robots.md)).
+- The library holds 138 hardware entries: cameras, depth cameras and tactile sensors
+  ([guide/library.md](guide/library.md)); Jetson hosts, capture cards, policies, lights, cables and the new teleop
+  devices, which the Teleop page adds straight from the library ([guide/library_systems.md](guide/library_systems.md)).
+
+## 14. Research tools (part 1) {#research}
+
+- **File ▸ Compare with…**: every change between the open project and another file, with pose deltas in mm and
+  degrees and, when both have results, metric deltas; export as JSON or HTML. `--merge BASE THEIRS OUT` merges three
+  ways ([guide/versioning.md](guide/versioning.md)).
+- **File ▸ Save as folder (for Git)…** and **Open folder…**: the project as one JSON file per section, with
+  `--textconv` for `git diff`.
+- **Export figure…** (right-click a chart): a publication figure, one or two columns, SVG or PDF; `--cite` writes
+  BibTeX for the project's sources ([guide/publication.md](guide/publication.md)).
+- **Python:** `import dexvantage as dv; rig = dv.sample('ur5e'); rig.run('coverage').headline`
+  ([guide/api.md](guide/api.md)); plugins add studies, metrics, exporters, readers, library folders and pages
+  (Help ▸ Plugins…, [guide/plugins.md](guide/plugins.md)).

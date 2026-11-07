@@ -5,6 +5,12 @@ references its checks cite.
 """
 
 REFERENCES = {
+    'arvo1990': 'J. Arvo, "Transforming axis-aligned bounding boxes", in A. S. Glassner (ed.), Graphics Gems, '
+                'Academic Press, 548–550, 1990.',
+    'mcp_2025_11_25': 'Model Context Protocol specification, version 2025-11-25: basic/lifecycle, basic/transports '
+                      '(stdio), server/tools, https://modelcontextprotocol.io/specification/2025-11-25 (read '
+                      '2026-11-07).',
+    'jsonrpc2': 'JSON-RPC 2.0 Specification (JSON-RPC Working Group, 2010), https://www.jsonrpc.org/specification.',
     'moller1997': 'T. Möller and B. Trumbore, "Fast, minimum storage ray-triangle intersection", Journal of Graphics '
                   'Tools 2(1), 21–28, 1997.',
     'amanatides_woo1987': 'J. Amanatides and A. Woo, "A fast voxel traversal algorithm for ray tracing", '
@@ -338,6 +344,197 @@ REFERENCES = {
                                  'https://docs.opencv.org/4.x/d7/d1b/group__imgproc__misc.html.',
     'liang_zeger1986': 'K.-Y. Liang and S. L. Zeger, "Longitudinal data analysis using generalized linear models", '
                        'Biometrika 73(1), 13–22, 1986 (the cluster-robust "sandwich" covariance).',
+    # designed experiments (checks_experiments.py, core/experiments.py)
+    'sobol1993': 'I. M. Sobol\', "Sensitivity estimates for nonlinear mathematical models", Mathematical Modelling '
+                 'and Computational Experiments 1(4), 407–414, 1993.',
+    'saltelli2002': 'A. Saltelli, "Making best use of model evaluations to compute sensitivity indices", Computer '
+                    'Physics Communications 145(2), 280–297, 2002.',
+    'saltelli2010': 'A. Saltelli, P. Annoni, I. Azzini, F. Campolongo, M. Ratto and S. Tarantola, "Variance based '
+                    'sensitivity analysis of model output. Design and estimator for the total sensitivity index", '
+                    'Computer Physics Communications 181(2), 259–270, 2010 (Table 2: the estimators).',
+    'jansen1999': 'M. J. W. Jansen, "Analysis of variance designs for model output", Computer Physics Communications '
+                  '117(1–2), 35–43, 1999.',
+    'ishigami1990': 'T. Ishigami and T. Homma, "An importance quantification technique in uncertainty analysis for '
+                    'computer models", Proc. First International Symposium on Uncertainty Modeling and Analysis '
+                    '(ISUMA \'90), 398–403, IEEE, 1990.',
+    'mckay1979': 'M. D. McKay, R. J. Beckman and W. J. Conover, "A comparison of three methods for selecting values '
+                 'of input variables in the analysis of output from a computer code", Technometrics 21(2), 239–245, '
+                 '1979.',
+    'hickernell1998': 'F. J. Hickernell, "A generalized discrepancy and quadrature error bound", Mathematics of '
+                      'Computation 67(221), 299–322, 1998 (the centred L2 discrepancy).',
+    'box_hunter2005': 'G. E. P. Box, J. S. Hunter and W. G. Hunter, Statistics for Experimenters: Design, '
+                      'Innovation, and Discovery, 2nd ed., Wiley, 2005 (two-level factorials and their fractions, '
+                      'resolution).',
+    'efron1993': 'B. Efron and R. J. Tibshirani, An Introduction to the Bootstrap, Chapman & Hall, 1993 (percentile '
+                 'intervals).',
+    'scipy_qmc': 'SciPy, scipy.stats.qmc (Sobol with Owen scrambling, discrepancy), '
+                 'https://docs.scipy.org/doc/scipy/reference/stats.qmc.html.',
+    # Monte Carlo tolerances and the perturbation export (checks_tolerance.py, core/tolerance.py)
+    'jcgm100_2008': 'JCGM 100:2008, Evaluation of measurement data — Guide to the expression of uncertainty in '
+                    'measurement (GUM), clause 5.1.2 and 5.2.2, eq. 10 and 13 (the law of propagation of '
+                    'uncertainty), https://www.bipm.org/en/committees/jc/jcgm/publications.',
+    'jcgm101_2008': 'JCGM 101:2008, Evaluation of measurement data — Supplement 1 to the GUM: propagation of '
+                    'distributions using a Monte Carlo method, https://www.bipm.org/en/committees/jc/jcgm/'
+                    'publications.',
+    'kolmogorov1933': 'A. N. Kolmogorov, "Sulla determinazione empirica di una legge di distribuzione", Giornale '
+                      'dell\'Istituto Italiano degli Attuari 4, 83–91, 1933.',
+    'smirnov1948': 'N. Smirnov, "Table for estimating the goodness of fit of empirical distributions", The Annals of '
+                   'Mathematical Statistics 19(2), 279–281, 1948.',
+    'scipy_stats': 'SciPy, scipy.stats (kstest, uniform, truncnorm, norm, spearmanr: independent implementations), '
+                   'https://docs.scipy.org/doc/scipy/reference/stats.html.',
+    'isaaclab_camera_cfg': 'Isaac Lab, source/isaaclab/isaaclab/sensors/camera/camera_cfg.py, CameraCfg.OffsetCfg '
+                           '(pos, rot, convention "ros"; rot (w, x, y, z) at tag v2.3.0, (x, y, z, w) at tag v3.0.0 '
+                           'and main commit d4be263), https://github.com/isaac-sim/IsaacLab, read 2026-11-07.',
+    'kerbl2023_3dgs': 'B. Kerbl, G. Kopanas, T. Leimkühler and G. Drettakis, "3D Gaussian Splatting for real-time '
+                      'radiance field rendering", ACM Transactions on Graphics 42(4), 2023; reference code '
+                      'utils/camera_utils.py camera_to_JSON, https://github.com/graphdeco-inria/gaussian-splatting '
+                      '(main, commit 54c035f), read 2026-11-07.',
+    # the canonical view warp and the Rerun bridge (checks_warp.py, checks_rerun.py)
+    'irani_anandan1996': 'M. Irani and P. Anandan, "Parallax geometry of pairs of points for 3D scene analysis", ECCV '
+                         '1996, LNCS 1064, 17–30, doi:10.1007/BFb0015520 (the plane-plus-parallax decomposition; '
+                         'bibliographic details read at dblp.org, 2026-11-07).',
+    'opencv_warp_perspective': 'OpenCV imgproc, cv2.warpPerspective (dst(x, y) = src(M⁻¹ (x, y)) unless '
+                               'WARP_INVERSE_MAP is set; sample positions in 1/INTER_TAB_SIZE = 1/32 px), the '
+                               'docstring of the installed OpenCV 5.0.0, read 2026-11-07; '
+                               'https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html returned HTTP 403 '
+                               'that day.',
+    'opencv_filestorage': 'OpenCV core, cv::FileStorage (XML, YAML and JSON persistence of matrices), '
+                          'https://docs.opencv.org/4.x/da/d56/classcv_1_1FileStorage.html (HTTP 403 on 2026-11-07; '
+                          'the installed OpenCV 5.0.0 bindings were used).',
+    'rerun_sdk': 'Rerun, rerun-sdk 0.42.0 for Python (RecordingStream, the archetypes Transform3D, Pinhole, Mesh3D, '
+                 'Boxes3D, TextLog, Scalars, and the reader rerun.chunk.RrdReader): the installed wheel\'s source and '
+                 'https://rerun.io/docs/reference/types/archetypes/pinhole (version 0.42.0), read 2026-11-07.',
+    # the optimiser and the design agent (checks_optimise.py)
+    'deb2002_nsga2': 'K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, "A fast and elitist multiobjective genetic '
+                     'algorithm: NSGA-II", IEEE Transactions on Evolutionary Computation 6(2), 182–197, 2002 (the '
+                     'fast non-dominated sort, crowding distance, constrained domination and the CONSTR problem).',
+    'deb_agrawal1995_sbx': 'K. Deb and R. B. Agrawal, "Simulated binary crossover for continuous search space", '
+                           'Complex Systems 9(2), 115–148, 1995.',
+    'deb_goyal1996_mutation': 'K. Deb and M. Goyal, "A combined genetic adaptive search (GeneAS) for engineering '
+                              'design", Computer Science and Informatics 26(4), 30–45, 1996 (polynomial mutation).',
+    'zitzler2000_zdt': 'E. Zitzler, K. Deb and L. Thiele, "Comparison of multiobjective evolutionary algorithms: '
+                       'empirical results", Evolutionary Computation 8(2), 173–195, 2000 (ZDT1 and ZDT2 and their '
+                       'analytic fronts, g = 1).',
+    'deb2001_moo': 'K. Deb, Multi-Objective Optimization Using Evolutionary Algorithms, Wiley, 2001 (constrained test '
+                   'problems).',
+    'coello2004_igd': 'C. A. Coello Coello and M. Reyes Sierra, "A study of the parallelization of a coevolutionary '
+                      'multi-objective evolutionary algorithm", MICAI 2004, LNAI 2972, 688–697 (inverted '
+                      'generational distance).',
+    # the assistant dock (checks_copilot.py)
+    'fips180_4': 'NIST FIPS PUB 180-4, Secure Hash Standard (SHS), August 2015 (SHA-256), as implemented by Python\'s '
+                 'hashlib, https://csrc.nist.gov/pubs/fips/180-4/upd1/final (read 2026-11-07).',
+    # exporters part A (checks_formats.py, core/exporters: mjcf, ros2, calibration, masks)
+    'mujoco_urdf': 'MuJoCo XML reference and modeling guide, URDF extensions: the <mujoco><compiler …/></mujoco> '
+                   'element of a URDF (fusestatic, discardvisual, boundmass), read through mujoco.MjModel at 3.17.0, '
+                   'https://mujoco.readthedocs.io/en/stable/modeling.html#urdf-extensions.',
+    'urdfdom': 'ros/urdfdom at commit bfcf29f (urdf_parser/src/joint.cpp: <limit> needs effort and velocity) and '
+               'ros/urdfdom_headers (urdf_model/pose.h, Rotation::setFromRPY: fixed-axis roll, pitch, yaw), '
+               'https://github.com/ros/urdfdom, read 2026-11-07.',
+    'tf2_static_publisher': 'ros2/geometry2 at commit 183399c, tf2_ros/src/static_transform_broadcaster_program.cpp '
+                            '(--x --y --z --qx --qy --qz --qw --frame-id --child-frame-id), '
+                            'https://github.com/ros2/geometry2, read 2026-11-07.',
+    'kalibr_yaml': 'ethz-asl/kalibr wiki, "YAML formats" (camchain.yaml: camera_model, intrinsics [fu fv pu pv], '
+                   'distortion_model, distortion_coeffs, resolution, rostopic, T_cn_cnm1) and "Supported models"; '
+                   'kalibr_common/ConfigReader.py and aslam_cv RadialTangentialDistortion / EquidistantDistortion '
+                   'at commit 1f60227, https://github.com/ethz-asl/kalibr, read 2026-11-07.',
+    'pyyaml': 'PyYAML (yaml.safe_load), https://pyyaml.org/wiki/PyYAMLDocumentation.',
+    'python_ast': 'Python standard library, ast (parse, literal_eval) and xml.etree.ElementTree, '
+                  'https://docs.python.org/3/library/ast.html.',
+    'gmsh': 'C. Geuzaine and J.-F. Remacle, "Gmsh: a 3-D finite element mesh generator with built-in pre- and '
+            'post-processing facilities", International Journal for Numerical Methods in Engineering 79(11), '
+            '1309–1331, 2009; gmsh 4.15.2 Python API (occ.addPlaneSurface, addSurfaceLoop with sewing, '
+            'importShapes, getMass), https://gmsh.info.',
+    'step_ap': 'ISO 10303-21, Industrial automation systems and integration: product data representation and exchange, '
+               'clear text encoding of the exchange structure (STEP), as written and read by OpenCASCADE through '
+               'gmsh.',
+    'posix_exit': 'The Open Group Base Specifications Issue 7, 2018 edition (IEEE Std 1003.1-2017), exit(): "The value '
+                  'of status may be 0, EXIT_SUCCESS, EXIT_FAILURE, or any other value", '
+                  'https://pubs.opengroup.org/onlinepubs/9699919799/functions/exit.html (read 2026-11-07); the meaning '
+                  'of 1 and 2 is DexVantage\'s (spec §11).',
+    'metropolis_ulam1949': 'N. Metropolis and S. Ulam, "The Monte Carlo method", Journal of the American Statistical '
+                           'Association 44(247), 335–341, 1949.',
+    'rfc8259': 'T. Bray (ed.), RFC 8259, The JavaScript Object Notation (JSON) Data Interchange Format, December 2017.',
+    # the Isaac, LeRobot-config and report exporters (checks_formats.py: formats.isaac_*, lerobot_export, report)
+    'openusd_camera': 'OpenUSD UsdGeomCamera (focalLength, horizontalAperture, verticalAperture and their offsets, '
+                      'clippingRange; a camera looks along -Z with +Y up) and Gf.Camera / GfFrustum '
+                      '(ComputeViewMatrix, ComputeProjectionMatrix), https://openusd.org/release/api/'
+                      'class_usd_geom_camera.html, as implemented by usd-core 26.8 (pxr), read 2026-11-07.',
+    'isaaclab_camera_v300': 'Isaac Lab tag v3.0.0 (commit e3f7d9ff1f5d7f8280de3ece9000b7117f66bcf4), '
+                            'source/isaaclab/isaaclab/sensors/camera/camera_cfg.py (CameraCfg, OffsetCfg rot (x, y, '
+                            'z, w), convention "ros"), tiled_camera_cfg.py (deprecated), camera.py '
+                            '(_initialize_intrinsics), sim/spawners/sensors/sensors_cfg.py (PinholeCameraCfg, '
+                            'OpenCvPinholeDistortionCfg, OpenCvFisheyeDistortionCfg) and sensors.py (spawn_camera, '
+                            'omni:lensdistortion attributes), https://github.com/isaac-sim/IsaacLab, read 2026-11-07.',
+    'isaaclab_camera_v232': 'Isaac Lab tag v2.3.2 (commit 37ddf626871758333d6ed89cf64ad702aef127d0), the same files: '
+                            'CameraCfg.OffsetCfg rot (w, x, y, z), TiledCameraCfg, PinholeCameraCfg without OpenCV '
+                            'distortion fields, https://github.com/isaac-sim/IsaacLab, read 2026-11-07.',
+    'lerobot_train_config': 'Hugging Face LeRobot at commit d490e472a5d1a207cfe0255caaaf74b6d66e4656: '
+                            'src/lerobot/configs/{train, default, policies, types}.py (TrainPipelineConfig, '
+                            'DatasetConfig, PreTrainedConfig, FeatureType), policies/act/configuration_act.py, '
+                            'policies/diffusion/configuration_diffusion.py, datasets/factory.py '
+                            '(resolve_delta_timestamps), https://github.com/huggingface/lerobot, read 2026-11-07.',
+    'act_repo': 'T. Z. Zhao et al., ACT, https://github.com/tonyzhaozh/act at commit '
+                '742c753c0d4a5d87076c8f69e5628c79a8cc5488: constants.py (task configs: camera_names) and '
+                'imitate_episodes.py (temporal aggregation, k = 0.01), read 2026-11-07.',
+    'diffusion_policy_repo': 'C. Chi et al., Diffusion Policy, https://github.com/real-stanford/diffusion_policy at '
+                             'commit 5ba07ac6661db573af695b419a7947ecb704690f: config/task/real_pusht_image.yaml '
+                             '(shape_meta), config/train_diffusion_unet_real_image_workspace.yaml (n_latency_steps), '
+                             'dataset/real_pusht_image_dataset.py, read 2026-11-07.',
+    'openvla_oxe': 'OpenVLA, https://github.com/openvla/openvla at commit c8f03f48af692657d3060c19588038c7220e9af9: '
+                   'prismatic/vla/datasets/rlds/oxe/configs.py (OXE_DATASET_CONFIGS: image_obs_keys, depth_obs_keys, '
+                   'state_obs_keys, StateEncoding, ActionEncoding), read 2026-11-07.',
+    'html_living_standard': 'WHATWG HTML Living Standard, https://html.spec.whatwg.org/, parsed here with the Python '
+                            'standard library\'s html.parser (https://docs.python.org/3/library/html.parser.html).',
+    'pdf_32000': 'ISO 32000-1:2008, Document management — Portable document format — Part 1: PDF 1.7 (§7.5 file '
+                 'structure, §7.4.4 FlateDecode, §9.6.2.2 the standard 14 fonts); Adobe\'s public copy, '
+                 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf.',
+    'poppler_pdftotext': 'Poppler pdftotext, the PDF text extractor of the poppler-utils package, '
+                         'https://poppler.freedesktop.org/.',
+    # the robot catalogue (checks_robots.py)
+    'mujoco_menagerie': 'MuJoCo Menagerie (Google DeepMind), a collection of MuJoCo models with per-model licences, '
+                        'https://github.com/google-deepmind/mujoco_menagerie at commit '
+                        '98a70c569c4c1b6da467a20012f766ee1f8dc521, read 2026-11-07.',
+    'robot_datasheets': 'The makers\' datasheets and product pages each robot catalogue entry cites in its sources '
+                        '(dexvantage/resources/library/robot/*.json), with the date each was read.',
+    # project diff, the Git folder form, citations and figures (checks_versioning.py)
+    'git_textconv': 'Git documentation, gitattributes(5), "Performing text diffs of binary files" (textconv: "The '
+                    'program should take a single argument, the name of a file to convert, and produce the '
+                    'resulting text on stdout"), https://git-scm.com/docs/gitattributes, read 2026-11-07.',
+    'bibtex_btxdoc': 'BibTeX documentation btxdoc ("Using BibTeX" on CTAN), '
+                     'https://mirrors.ctan.org/biblio/bibtex/base/btxdoc.pdf, listed at https://ctan.org/pkg/bibtex, '
+                     'read 2026-11-07.',
+    'svg11': 'W3C, Scalable Vector Graphics (SVG) 1.1 (Second Edition), W3C Recommendation 16 August 2011, '
+             'https://www.w3.org/TR/SVG11/, read 2026-11-07.',
+    'ieee_figure_size': 'IEEE Author Center, "Resolution and Size" ("One column width: 3.5 inches, 88.9 millimeters, '
+                        'or 21 picas"; "Two columns width: 7.16 inches, 182 millimeters, or 43 picas"), '
+                        'https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/'
+                        'create-graphics-for-your-article/resolution-and-size/, read 2026-11-07.',
+    'tol_colours': 'P. Tol, Paul Tol\'s Notes, "Qualitative colour schemes" (the bright scheme: #4477AA, #EE6677, '
+                   '#228833, #CCBB44, #66CCEE, #AA3377, #BBBBBB), https://sronpersonalpages.nl/~pault/ (page dated 16 '
+                   'August 2026), read 2026-11-07.',
+    # library systems entries (checks_library_systems.py)
+    'library_teleop_sources': 'The makers\' pages and the papers each teleop library entry cites in its sources '
+                              '(dexvantage/resources/library/teleop/*.json), with the date each was read.',
+    'library_policy_sources': 'The papers, model cards and official code each policy library entry cites in its '
+                              'sources (dexvantage/resources/library/policy/*.json), with the date each was read.',
+    'library_host_sources': 'The makers\' specification pages and datasheets each host library entry cites in its '
+                            'sources (dexvantage/resources/library/host/*.json), with the date each was read.',
+    'nist_sp811': 'NIST Special Publication 811, Guide for the Use of the International System of Units (SI), '
+                  'Appendix B.8: pound (avoirdupois) = 4.535 924 E-01 kg (exactly 0.453 592 37 kg), '
+                  'https://www.nist.gov/pml/special-publication-811, read 2026-11-07.',
+    'dosovitskiy2021': 'A. Dosovitskiy et al., "An Image is Worth 16x16 Words: Transformers for Image Recognition at '
+                       'Scale", ICLR 2021 (the ViT patch grid: (H/P)(W/P) patches).',
+    # the ALOHA 2, bimanual Panda and G1 samples (checks_samples.py)
+    'aloha2_2024': 'ALOHA 2 Team, "ALOHA 2: An Enhanced Low-Cost Hardware for Bimanual Teleoperation", 2024, '
+                   'https://arxiv.org/html/2405.02292v1 (four RealSense D405 cameras at 848 x 480; the MuJoCo '
+                   'Menagerie model "precisely" models all cameras and robot positions; read 2026-11-07).',
+    'menagerie_98a70c5': 'MuJoCo Menagerie at commit 98a70c569c4c1b6da467a20012f766ee1f8dc521, folders aloha, '
+                         'franka_emika_panda and unitree_g1, https://github.com/google-deepmind/mujoco_menagerie '
+                         '(read 2026-11-07).',
+    'unitree_g1_urdf': 'Unitree Robotics, unitree_ros robots/g1_description/g1_29dof_rev_1_0.urdf at commit '
+                       '7c40519e02d7dd16c06b25fe3fa3b67fdeb7cd74, joint "d435_joint" (torso_link to d435_link: xyz '
+                       '0.0576235 0.01753 0.42987 m, rpy 0 0.8307767239493009 0 rad), '
+                       'https://github.com/unitreerobotics/unitree_ros (read 2026-11-07).',
 }
 
 

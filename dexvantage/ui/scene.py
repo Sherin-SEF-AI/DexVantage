@@ -300,12 +300,13 @@ class SceneProvider(QObject):
     def hud_label(self, vp):
         p = self.project
         n = len(p.variant.sensors)
+        ns = f'{n} sensor{"s" if n != 1 else ""}'
         if not p.robots:
-            return f'{p.variant.name} · no robot yet: Robot ▸ Import robot… · {n} sensors'
+            return f'{p.variant.name} · no robot yet: Robot ▸ Import robot… · {ns}'
         nj = sum(m.nq for _r, m, _q in self.robot_models())
         nr = len(p.robots)
         return (f'{p.variant.name} · {nr} robot{"s" if nr != 1 else ""} · {nj} joint{"s" if nj != 1 else ""} · '
-                f'{n} sensors')
+                f'{ns}')
 
     def overlay(self, p, vp):
         ik = getattr(self.ctx, 'ik_drag', None)

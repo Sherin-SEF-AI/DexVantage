@@ -1,0 +1,58 @@
+{
+  "id": "e-con-see3cam-27cug",
+  "kind": "camera",
+  "maker": "e-con Systems",
+  "name": "See3CAM_27CUG",
+  "family": "See3CAM USB 3 cameras",
+  "sources": [
+    {
+      "url": "https://www.e-consystems.com/usb-cameras/2mp-ov2312-global-shutter-rgb-ir-camera.asp",
+      "title": "See3CAM_27CUG - 2MP OV2312 Global Shutter RGB-IR USB Camera (e-con Systems product page)",
+      "read": "2026-11-07",
+      "covers": "sensor (OmniVision OV2312), shutter, chroma (colour and NIR), optical format, pixel size, active area, FOV with e-con's lens, focus, holder, output formats, frame rate, interface, size, board weight"
+    }
+  ],
+  "note": "An RGB-IR global-shutter USB camera (one OV2312 sensor giving a colour and an IR stream, both UYVY). FOV 88.4 (D) x 74.65 (H) x 62.76 (V) degrees \"with the lens provided by e-con\". The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rate \"Streams 2MP @ 36 fps\"; the stream size of the \"2MP\" mode is not stated, so no stream is entered (the active area is 1600 x 1300). mass_g is the stated board weight with lens, 20 g (16 g without). Power is not stated (null). size_mm is null: the page gives only \"30 x 30\" (l x b). Not stated: f-number, focal length, distortion.",
+  "interface": "USB 3.2 Gen 1 (USB Type-C); UVC",
+  "power_w": null,
+  "mass_g": 20.0,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "RGB-IR",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 74.65,
+      "vfov_deg": 62.76,
+      "dfov_deg": 88.4,
+      "pixel_um": 3.0,
+      "resolution": [
+        1600,
+        1300
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "optical_format": "1/2.9\""
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null
+}

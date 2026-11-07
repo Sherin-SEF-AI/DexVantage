@@ -13,8 +13,14 @@ sync, action-chunk latency (its overshoot map and curve); the lighting page and 
 the UR5e sample with a can and a key light (the lighting checks' scene); on the SO-100 sample teleop dead zones, the
 dataset audit, plan against recording and the silhouette calibration over synthetic campaigns written into out/; on
 the dexhand sample the visual-to-tactile handoff chart.
+The ALOHA 2, bimanual Panda and G1 samples (sample-aloha-*, sample-panda-bimanual-*, sample-g1-*): the main window,
+each camera's Camera view, the Robot page and, for the two bimanual cells, the teleop page after a run.
+Phases 9 and 10 and research tools part 1 (p910-*): tolerances, designed experiments with Sobol bars, the optimiser's
+Pareto front, the requirements scorecard and variants compare, the export dialog, the canonical view, the assistant
+dock with a scripted fake-provider conversation, the plugins dialog, the Library's robots, compare-with (a project
+diff) and each new sample in 3D.
 
-    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3 | --only phase458]
+    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3 | phase458 | samples | phase910]
 """
 import os
 import sys
@@ -333,9 +339,298 @@ def phase458():
     dw.hide()
 
 
-if '--only' in sys.argv and sys.argv[sys.argv.index('--only') + 1] in ('phase3', 'phase458'):
+# ---------------------------------------------------------------- the ALOHA 2, bimanual Panda and G1 samples
+def new_samples():
+    """sample-<name>-*: the ALOHA 2, bimanual Panda and G1 samples: the main window, the Robot page, each camera's
+    Camera view, and the teleop page (the bimanual handover) after a run."""
+    import time
+
+    from dexvantage.core.robot.samples import sample_project as sp
+
+    def wait_sid(win, sid, timeout=600.0):
+        t0 = time.time()
+        while time.time() - t0 < timeout:
+            pump(5)
+            if sid in win.ctx.analysis.results and not win.ctx.analysis.busy():
+                return True
+            time.sleep(0.02)
+        return False
+
+    for name in ('aloha', 'panda-bimanual', 'g1'):
+        sw = MainWindow(sp(name), soft_3d=True, settings=settings)
+        sw.resize(1680, 1000)
+        sw.show()
+        sw.ctx.analysis.wait(5)
+        sw.resizeDocks([sw.docks['inspector'], sw.docks['camview']], [380, 460], Qt.Orientation.Vertical)
+        pump()
+        sw.viewport.frame_box(*sw.scene.home_box(sw.viewport))
+        shot(sw, f'sample-{name}-main.png')
+        for s in sw.ctx.store.project.variant.sensors:
+            sw.ctx.store.select(('sensor', s.uid))
+            pump()
+            sw.camview.render_sync()
+            sw.camview.wait(20)
+            pump(40)
+            tag = ''.join(c if c.isalnum() else '-' for c in s.name.lower()).strip('-')
+            while '--' in tag:
+                tag = tag.replace('--', '-')
+            shot(sw.docks['camview'], f'sample-{name}-camview-{tag}.png')
+        sw.ctx.store.select(())
+        sw.open_page('robot')
+        sw.resizeDocks([sw.docks['bottom']], [520], Qt.Orientation.Vertical)
+        pump()
+        sw.viewport.frame_box(*sw.scene.home_box(sw.viewport))
+        shot(sw, f'sample-{name}-robot-page.png')
+        if name != 'g1':
+            sw.open_page('teleop')
+            pump()
+            page = sw.pages['teleop']
+            sw.ctx.analysis.results.pop(page.STUDY, None)
+            page.run()
+            ok = wait_sid(sw, page.STUDY)
+            pump(40)
+            shot(sw, f'sample-{name}-teleop-page.png' if ok else f'sample-{name}-teleop-page-NOT-FINISHED.png')
+        sw.cancel_jobs()
+        sw.hide()
+
+
+# ---------------------------------------------------------------- Phases 9 and 10, samples, research tools part 1
+def phase910():
+    """p910-*: tolerances, designed experiments (Sobol bars), the optimiser's Pareto front, the requirements
+    scorecard and variants compare, the export dialog, the canonical view, the assistant dock with a scripted
+    (fake-provider) conversation, the plugins dialog, the robot catalogue, compare-with (project diff) and each new
+    sample in 3D, on the UR5e sample unless named."""
+    import time
+
+    from dexvantage.assistant.fake import FakeReply
+    from dexvantage.core.robot.samples import sample_project as sp
+
+    def wait_sid(win, sid, timeout=600.0):
+        t0 = time.time()
+        while time.time() - t0 < timeout:
+            pump(5)
+            if sid in win.ctx.analysis.results and not win.ctx.analysis.busy():
+                return True
+            time.sleep(0.02)
+        return False
+
+    def window(project):
+        pw = MainWindow(project, soft_3d=True, settings=settings)
+        pw.resize(1680, 1000)
+        pw.show()
+        pw.ctx.analysis.wait(5)
+        pw.resizeDocks([pw.docks['inspector'], pw.docks['camview']], [380, 460], Qt.Orientation.Vertical)
+        pw.resizeDocks([pw.docks['inspector']], [430], Qt.Orientation.Horizontal)
+        pw.resizeDocks([pw.docks['bottom']], [520], Qt.Orientation.Vertical)
+        pump()
+        pw.viewport.frame_box(*pw.scene.home_box(pw.viewport))
+        return pw
+
+    def run_page(pw, pid, tag, timeout=900.0):
+        pw.open_page(pid)
+        pump()
+        page = pw.pages[pid]
+        pw.ctx.analysis.results.pop(page.STUDY, None)
+        page.run()
+        t0 = time.time()
+        while page.STUDY not in pw.ctx.analysis.results and not pw.ctx.analysis.busy() and time.time() - t0 < 30:
+            pump(5)
+            time.sleep(0.02)
+        ok = wait_sid(pw, page.STUDY, timeout)
+        pump(40)
+        shot(pw, f'p910-{tag}.png' if ok else f'p910-{tag}-NOT-FINISHED.png')
+        return page
+
+    def tall(pw, page, name, widget=None):
+        pw.resizeDocks([pw.docks['bottom']], [900], Qt.Orientation.Vertical)
+        pump()
+        if widget is not None:
+            page.body.parentWidget().parentWidget().ensureWidgetVisible(widget)
+        pump(20)
+        shot(page, name)
+        pw.resizeDocks([pw.docks['bottom']], [520], Qt.Orientation.Vertical)
+        pump()
+
+    def part(fn):
+        try:
+            fn()
+        except Exception:                        # noqa: BLE001 — one broken shot must not stop the others
+            import traceback
+            traceback.print_exc()
+
+    pw = window(sp('ur5e'))
+    st = pw.ctx.store
+
+    def tolerance():
+        st.edit('analysis', lambda p: p.analysis.studies.__setitem__('tolerance', {'n': 24, 'seed': 1}),
+                'Tolerance settings (screenshot)')
+        page = run_page(pw, 'tolerance', 'ur5e-tolerance-page')
+        tall(pw, page, 'p910-ur5e-tolerance-chart.png', getattr(page, 'chart', None))
+        pw.viewport.frame_box(*pw.scene.home_box(pw.viewport))
+        shot(pw.viewport, 'p910-ur5e-tolerance-3d.png')
+
+    def experiments():
+        page = pw.pages['experiments']
+        pw.open_page('experiments')
+        pump()
+        over = next(s for s in st.project.variant.sensors if s.name == 'Overhead D435')
+        page.add_factor(f'sensor:{over.uid}.dpitch')
+        page.set_factor(f'sensor:{over.uid}.dpitch', lo=-10.0, hi=10.0)
+        page.add_factor(f'sensor:{over.uid}.dz')
+        page.set_factor(f'sensor:{over.uid}.dz', lo=-0.1, hi=0.1)
+        page.set_responses(['coverage.covered'])
+        page._set_design(method='saltelli', text='design type')
+        page._set_design(n=32, text='n')       # 128 runs: with N = 8 the indices' intervals span the axis
+        pump()
+        run_page(pw, 'experiments', 'ur5e-experiments-page')
+        tall(pw, page, 'p910-ur5e-experiments-sobol.png', getattr(page, 'sobol', None))
+
+    def optimise():
+        st.edit('analysis', lambda p: p.analysis.studies.__setitem__('optimise', {'budget': 24, 'population': 8,
+                                                                              'seed': 1}),
+                'Optimiser settings (screenshot)')
+        page = run_page(pw, 'optimise', 'ur5e-optimise-pareto')
+        tall(pw, page, 'p910-ur5e-optimise-chart.png', getattr(page, 'chart', None))
+
+    def requirements():
+        pw.open_page('requirements')
+        pump()
+        pw.pages['requirements'].add_defaults()             # the labelled defaults (one undo step)
+        pump()
+        page = run_page(pw, 'requirements', 'ur5e-requirements-scorecard')
+        tall(pw, page, 'p910-ur5e-requirements-table.png', getattr(page, 'table', None))
+
+        def second(p):
+            v = P.Variant.from_dict(p.variant.to_dict())
+            v.uid, v.name = P.new_uid(), 'Overhead raised 10 cm (screenshot)'
+            for s in v.sensors:
+                s.uid = P.new_uid()
+                if s.name == 'Overhead D435':
+                    s.mount.pose.position[2] += 0.1
+            p.variants.append(v)
+        st.edit('variants', second, 'Add a variant (screenshot)')
+        page.compare()
+        t0 = time.time()
+        while time.time() - t0 < 600 and (pw.ctx.analysis.busy() or 'variants_compare' not in
+                                          pw.ctx.analysis.results):
+            pump(5)
+            time.sleep(0.05)
+        pump(40)
+        tall(pw, page, 'p910-ur5e-variants-compare.png', getattr(page, 'b_compare', None))
+
+    def export_dialog():
+        from dexvantage.ui.dialogs import export as DX
+        d = DX.open_dialog(pw)
+        d.set_chosen(['mjcf', 'urdf', 'isaac', 'lerobot', 'report'])
+        d.resize(900, 900)
+        pump(20)
+        shot(d, 'p910-export-dialog.png')
+        out = tempfile.mkdtemp(prefix='dexvantage-export-')      # no personal path in the picture
+        d.folder.setText(out)
+        d.set_chosen(['mjcf', 'opencv_yaml', 'perturbations'])
+        if d.start():
+            t0 = time.time()
+            while time.time() - t0 < 300 and getattr(pw, '_jobs', None):
+                pump(5)
+                time.sleep(0.05)
+            pump(20)
+            shot(d, 'p910-export-dialog-done.png')
+        d.close()
+
+    def canonical():
+        page = run_page(pw, 'canonical_view', 'ur5e-canonical-view')
+        tall(pw, page, 'p910-ur5e-canonical-view-map.png')
+
+    def assistant():
+        pw.docks['assistant'].show()
+        pw.resizeDocks([pw.docks['assistant']], [460], Qt.Orientation.Horizontal)
+        dock = pw.assistant
+        pw.open_page('tolerance')
+        pump()
+
+        def final(results):
+            h = dict(results)['get_page_context']['shown']['headline']
+            return (f'The Tolerances page shows {h.get("figure")} {h.get("unit", "")} ({h.get("word", "")}). '
+                    'Move the mount with the widest spread first.')
+        dock.ctl.use_script([[FakeReply(calls=[('get_page_context', {})]), FakeReply(text=final)]])
+        dock.input.setPlainText('What does this page say, and what should I change first?')
+        dock.send()
+        dock.ctl.wait(30)
+        pump(40)
+        shot(pw, 'p910-assistant-dock.png')
+        shot(pw.docks['assistant'], 'p910-assistant-dock-only.png')
+        pw.docks['assistant'].hide()
+
+    def plugins():
+        from dexvantage.ui.dialogs import plugins as DP
+        d = DP.open_dialog(pw, modal=False)
+        d.resize(820, 520)
+        pump(20)
+        shot(d, 'p910-plugins-dialog.png')
+        d.close()
+
+    def catalogue():
+        pw.docks['library'].show()
+        pw.resizeDocks([pw.docks['outliner'], pw.docks['library']], [200, 760], Qt.Orientation.Vertical)
+        pw.resizeDocks([pw.docks['library']], [520], Qt.Orientation.Horizontal)
+        tree = pw.library.tree
+        for i in range(tree.topLevelItemCount()):
+            tree.topLevelItem(i).setExpanded(tree.topLevelItem(i).text(0) == 'Robots')
+        pump()
+        shot(pw.docks['library'], 'p910-library-panel-robots.png')
+
+    def compare():
+        from dexvantage.ui import versioning as V
+        other = st.project.snapshot()
+        other.variant.sensors[-1].mount.pose.position[2] += 0.05
+        other.variant.sensors.append(P.Sensor(name='Side camera'))
+        other.notes = 'Overhead raised 5 cm and a side camera (screenshot)'
+        path = os.path.join(ROOT, 'out', 'p910', 'compare_other.dexv')
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        other.save(path)
+        cw = V.compare(pw, path)
+        t0 = time.time()
+        while cw.diff is None and time.time() - t0 < 30:
+            pump(5)
+            time.sleep(0.02)
+        cw.resize(1100, 700)
+        pump(20)
+        shot(cw, 'p910-compare-with.png')
+        cw.close()
+
+    def review_additions():                      # added by the reviews: the Workspace page, the Library's new groups
+        pw.open_page('workspace')
+        pump(20)
+        shot(pw, 'p910-ur5e-workspace-page.png')
+        pw.docks['library'].show()
+        tree = pw.library.tree
+        for i in range(tree.topLevelItemCount()):
+            tree.topLevelItem(i).setExpanded(tree.topLevelItem(i).text(0) in ('Teleop devices', 'Policies'))
+        pump()
+        shot(pw.docks['library'], 'p910-library-panel-teleop-policies.png')
+
+    for fn in (tolerance, experiments, optimise, requirements, export_dialog, canonical, assistant, plugins,
+               catalogue, compare, review_additions):
+        part(fn)
+    pw.cancel_jobs()
+    pw.hide()
+
+    for name in ('aloha', 'panda-bimanual', 'g1'):
+        def sample(name=name):
+            sw = window(sp(name))
+            shot(sw, f'p910-sample-{name}-main.png')
+            shot(sw.viewport, f'p910-sample-{name}-3d.png')
+            if name == 'g1':                     # a study page on the humanoid: its one head camera's coverage
+                run_page(sw, 'coverage', 'sample-g1-coverage-page')
+            sw.cancel_jobs()
+            sw.hide()
+        part(sample)
+
+
+ONLY = {'phase3': phase3, 'phase458': phase458, 'samples': new_samples, 'phase910': phase910}
+if '--only' in sys.argv and sys.argv[sys.argv.index('--only') + 1] in ONLY:
     w.hide()
-    (phase3 if sys.argv[sys.argv.index('--only') + 1] == 'phase3' else phase458)()
+    ONLY[sys.argv[sys.argv.index('--only') + 1]]()
     QTimer.singleShot(0, app.quit)
     sys.exit(0)
 

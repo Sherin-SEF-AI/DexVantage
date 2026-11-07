@@ -46,6 +46,14 @@ Read this before changing anything. The full product specification lives outside
 Tests run offscreen with throw-away XDG folders (tests/conftest.py provides `app`, `win`, `settings`, `pump`).
 Heavy scripts run memory-capped as above. Generated output goes to `out/` (ignored).
 
+Test memory (the full suite runs in one process under its 7 GB cap): `tests/conftest.py` limits glibc to two malloc
+arenas (`core/memlimit.py`; the app's `main` does the same), so memory freed by worker threads goes back to the
+system instead of staying mapped in per-thread arenas; it frees the process caches after every module; and
+`test_validation`'s quick run of every check runs one model per child process (two at a time, the heavy models
+`formats`, `handeye` and `groundtruth` alone), so what the checks build is returned when each child ends. A new test
+module should not keep windows, samples or results at module scope; a test that runs validation checks in process
+should run only its own model's.
+
 ## Frames and units
 
 SI units; joints in radians (shown in degrees); poses as position + quaternion (x, y, z, w) (`core/frames.py`);
@@ -61,6 +69,10 @@ MuJoCo quaternions are (w, x, y, z) — convert with `frames.quat_to_mujoco` / `
 | 3D scene content | `ctx.overlay_sources.append(fn)` | `fn(vp) -> [LineDraw | TriDraw]` (ui/viewport3d.py). Page overlays come from `StudyPage.overlays(vp)`. |
 | A validation check | `dexvantage/validation/checks_<area>.py` | `@check(id, model, title, quantity, reference, tolerance, unit, refs=(...))` returning `Outcome(error, detail, ...)`; model ids are in `validation/suite.py` MODELS; references in `validation/references.py` (add keys there). |
 | A self-test line | `dexvantage/selftest.py` CHECKS | add `(name, fn)`; keep it fast (< 2 s). |
+| A named metric | `dexvantage/core/metric_defs.py` | `@metric('area.figure', 'Title', unit, 'higher' or 'lower', study='id')` on `extract(doc) -> value or None`; read a number the study already computed (None with the study's reason when it is not stated). Requirements, tolerances, experiments, the optimiser and the API name figures by these ids. |
+| A settable quantity | `dexvantage/core/factors.py` | paths `sensor:<id>.x…`, `setting:<study>.<key>`, `json:/pointer`; `apply` returns a new project and refuses locked sensors. |
+| An export format | `dexvantage/core/exporters/<name>.py` | `@exporter('id', 'Title', needs_robot=…)` on `fn(project, out_dir, options, ctx) -> {'files', 'notes'}`; the registry writes the manifest (SHA-256, provenance). Add a round-trip check in `checks_formats.py`. |
+| A plugin (outside the repository) | a package with a `dexvantage.plugins` entry point | `dexvantage/plugin_sdk.py`: studies, metrics, exporters, readers, library folders and pages; `examples/plugin-template/`. |
 | Docs | `docs/models/<area>.md` | the model, equations, references, validation result, known limits; the overview links them. |
 | User guide | `docs/guide/<area>.md` | a worked example on a sample project. |
 

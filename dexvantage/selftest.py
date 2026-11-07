@@ -6,6 +6,8 @@ order a new user meets them.
     mujoco       MuJoCo loads a small model and computes its kinematics (the primary kinematics engine)
     robots       the bundled SO-100 and UR5e samples import, and MuJoCo and the independent product-of-exponentials
                  forward kinematics agree on every link
+    samples      the ALOHA 2, bimanual Panda and G1 samples open, and MuJoCo and the product-of-exponentials chain
+                 agree on every link of their robots at home
     library      every hardware library entry loads and validates against its schema; the UR5e sample's sensors
                  get their imagers from it
     occlusion    a cube map of a small scripted scene agrees with exact ray casting (says which backend ran: the
@@ -21,6 +23,8 @@ order a new user meets them.
     timing       the motion blur, time sync and action-chunk studies on the UR5e sample give their headlines
     datasets     LeRobot v2.1 and v3.0 and an MCAP bag written and read back (independent readers)
     audit        the mount-slip classifier against Vantage's recorded outputs
+    experiments  a Saltelli design's Sobol indices of the Ishigami function against the analytic ones, and a
+                 resolution IV fraction's main effects of a linear model with interactions
     opencv       the chessboard detector and the PNG codec
     fonts        the bundled IBM Plex fonts load
     opengl       the shader renderer draws a frame off-screen (a warning only: the 3D view falls back to QPainter)
@@ -198,6 +202,30 @@ def _check_robots(S):
     return OK, f'samples {", ".join(said)} import; MuJoCo and product-of-exponentials FK agree within {worst:.0e}'
 
 
+def _check_new_samples(S):
+    """The ALOHA 2, bimanual Panda and G1 samples open (robots, cameras, tasks), and every link of their robots at
+    home is where the independent product-of-exponentials chain puts it."""
+    import numpy as np
+    from .core.robot.kinematics import PoEChain
+    from .core.robot.model import get_model
+    from .core.robot.samples import sample_project
+    said, worst = [], 0.0
+    for name in ('aloha', 'panda-bimanual', 'g1'):
+        p = sample_project(name)
+        if not (p.variant.sensors and p.tasks.grasp_sets and p.tasks.trajectories):
+            return FAIL, f'the {name} sample opened without its cameras, grasp sets or trajectories'
+        for r in p.robots:
+            model, chain = get_model(p, r.uid), PoEChain(r, p.sources)
+            d = dict(zip(model.joint_names, model.home))
+            A, B = model.fk(model.home), chain.fk(np.array([d[n] for n in chain.joint_names]))
+            worst = max(worst, max(float(np.abs(A[ln] - B[ln]).max()) for ln in model.link_names))
+        nr, ns = len(p.robots), len(p.variant.sensors)
+        said.append(f'{name} ({nr} robot{"s" if nr != 1 else ""}, {ns} camera{"s" if ns != 1 else ""})')
+    if worst > 1e-9:
+        return FAIL, f'MuJoCo and the product-of-exponentials chain differ by {worst:.1e} on a new sample'
+    return OK, f'{", ".join(said)} open; MuJoCo and product-of-exponentials FK agree within {worst:.0e}'
+
+
 def _check_library(S):
     """Every hardware library entry loads and validates against the library schema, and the UR5e sample's two
     RealSense sensors get their imagers from it (not the labelled default)."""
@@ -218,6 +246,22 @@ def _check_library(S):
     by = {k: sum(e.kind == k for e in es) for k in L.KINDS}
     return OK, f'{len(es)} entries valid (' + ', '.join(f'{n} {k}' for k, n in by.items() if n) + \
         '); the UR5e sample\'s D405 and D435 resolve to their datasheet imagers'
+
+
+def _check_library_teleop(S):
+    """The library's teleop devices are consistent, and the SO-100 leader arm entry makes a teleop device that leads
+    the SO-100 sample's robot with its own joints (core/teleop_devices.py)."""
+    from .core import teleop_devices as TD
+    from .core.robot.samples import sample_project
+    es = TD.entries()
+    bad = [(e.id, m) for e in es for m in TD.entry_problems(e.data)[:1]]
+    if not es or bad:
+        return FAIL, (f'{bad[0][0]}: {bad[0][1]}' if bad else 'the library has no teleop devices')
+    p = sample_project('so100')
+    d = TD.device_from_library(p, 'so100-leader-arm')
+    if (d.get('leader') or {}).get('robot_uid') != p.robots[0].uid or d.get('library_id') != 'so100-leader-arm':
+        return FAIL, f'the SO-100 leader arm entry did not lead the SO-100 sample\'s robot: {d.get("leader")}'
+    return OK, f'{len(es)} teleop devices consistent; the SO-100 leader arm leads the SO-100 sample joint to joint'
 
 
 def _check_occlusion(S):
@@ -339,6 +383,42 @@ def _checks_line(ids, ok_text) -> tuple:
     return OK, ok_text(res) + f' ({ms:.0f} ms)'
 
 
+def _check_tolerance(S):
+    """The tolerance Monte Carlo's seed reproducibility, its rank correlation against SciPy and the perturbation
+    export's round trip (validation checks tolerance.seed_reproducible, tolerance.spearman, tolerance.export_roundtrip,
+    quick)."""
+    return _checks_line(['tolerance.seed_reproducible', 'tolerance.spearman', 'tolerance.export_roundtrip'],
+                        lambda r: f'seeded draws reproduce, ρ within {r[1].error:.0e} of SciPy, exported extrinsics '
+                                  f'within {r[2].error:.0e} of the moved mounts')
+
+
+def _check_versioning(S):
+    """The project diff lists exactly 24 seeded edits, the unpacked folder round trip is byte-stable and the SVG
+    figure's data comes back through its tick labels (validation checks versioning.diff_lists_edits,
+    versioning.unpack_round_trip, versioning.svg_data_recovery, quick)."""
+    return _checks_line(['versioning.diff_lists_edits', 'versioning.unpack_round_trip', 'versioning.svg_data_recovery'],
+                        lambda r: f'diff lists {r[0].detail["edits"]} of {r[0].detail["edits"]} edits, '
+                                  f'{r[1].detail["files"]} folder files byte-stable, SVG data within '
+                                  f'{r[2].error:.0e} of range')
+
+
+def _check_workspace(S):
+    """The workspace check's object boxes against closed forms and its inside-or-outside verdicts on random scenes
+    (validation checks workspace.object_extent, workspace.inside_classification, quick)."""
+    return _checks_line(['workspace.object_extent', 'workspace.inside_classification'],
+                        lambda r: f'object boxes within {r[0].error:.2f} of the tessellation bound; '
+                                  f'{r[1].detail["objects"] - int(r[1].error)} of {r[1].detail["objects"]} objects '
+                                  'placed inside or outside as they are')
+
+
+def _check_requirements(S):
+    """The readiness gate's exit codes on synthetic pass, fail and error cases and the bound rule against a Monte
+    Carlo (validation checks requirements.gate_exit_codes, requirements.bound_decisions, quick)."""
+    return _checks_line(['requirements.gate_exit_codes', 'requirements.bound_decisions'],
+                        lambda r: f'--check exits 0, 1 and 2 as it should on {len(r[0].detail["cases"])} cases; '
+                                  f'bounds decide as a Monte Carlo over {r[1].detail["cases"]} cases does')
+
+
 def _check_teleop(S):
     """The teleop study's follower IK and dexterity (core/studies/teleop.Arm) on a planar 2R arm against the closed
     form w = |l₁ l₂ sin q₂| (validation check teleop.manipulability_2r, quick)."""
@@ -397,6 +477,24 @@ def _check_datasets(S):
                         lambda r: 'LeRobot v2.1 and v3.0 and an MCAP bag read back with 0 mismatches')
 
 
+def _check_optimiser(S):
+    """NSGA-II (core/optimise/nsga2.py) on ZDT1, 30 genes, 6 000 evaluations, against the analytic front (IGD, the
+    validation check optimise.zdt1_igd runs 25 000), and the same seed giving the same archive."""
+    import numpy as np
+
+    from .core.optimise import nsga2 as N
+    t0 = time.perf_counter()
+    p = N.benchmark_problem('zdt1')
+    a, b = N.run(p, pop=60, budget=6000, seed=0), N.run(p, pop=60, budget=6000, seed=0)
+    g = N.igd(a.F[a.front()], N.zdt_front('zdt1'))
+    ms = (time.perf_counter() - t0) * 1000
+    if not np.array_equal(a.archive_F, b.archive_F):
+        return FAIL, 'the same seed gave two different searches'
+    if g > 0.05:
+        return FAIL, f'ZDT1 front {g:.4f} from the analytic front (IGD; 0.05 allowed at 6 000 evaluations)'
+    return OK, f'ZDT1 IGD {g:.4f} at 6 000 evaluations, seed reproducible; {ms:.0f} ms'
+
+
 def _check_audit(S):
     """The auditor's mount-slip classifier (core/audit/slip.py, ported from Vantage) against Vantage's original
     outputs on twelve recorded series (validation check audit.slip_vs_vantage)."""
@@ -422,6 +520,66 @@ def _check_brackets(S):
                       f'{chk["consistent"]}, {chk["degenerate"]} degenerate) or its STL does not read back')
     return OK, (f'ISO 9409-1-50-4-M6 flange disc: {chk["triangles"]} triangles, watertight, {chk["shells"]} shell, '
                 f'{chk["volume_mm3"] / 1000:.1f} cm³, STL {len(data) / 1024:.0f} KB ({ms:.0f} ms)')
+
+
+def _check_experiments(S):
+    import math
+    import time
+
+    import numpy as np
+    from .core import experiments as EX
+    from .validation.checks_experiments import ishigami, ishigami_indices
+    t0 = time.perf_counter()
+    d = {'factors': [{'path': f'x{i}', 'lo': -math.pi, 'hi': math.pi} for i in (1, 2, 3)],
+         'design': {'method': 'saltelli', 'n': 1024, 'seed': 1}, 'analysis': {'bootstrap': 100}}
+    s = EX.run_function(ishigami, d)['analysis']['y']['sobol']
+    S1, ST = ishigami_indices()
+    e = float(max(np.abs(np.array(s['S1']) - S1).max(), np.abs(np.array(s['ST']) - ST).max()))
+    coef = np.array([1.0, -2.0, 0.5, 3.0, 1.5])
+    f2 = {'factors': [{'path': f'x{i}', 'lo': -1, 'hi': 1} for i in range(5)],
+          'design': {'method': 'fractional', 'resolution': 'IV'}}
+    r = EX.run_function(lambda v: float(sum(c * v[f'x{i}'] for i, c in enumerate(coef)) + v['x0'] * v['x1']), f2)
+    e2 = float(np.abs(np.array([m['effect'] for m in r['analysis']['y']['main_effects']]) - 2 * coef).max())
+    ms = (time.perf_counter() - t0) * 1000
+    if e > 2 / math.sqrt(1024) or e2 > 1e-9:
+        return FAIL, f'Sobol indices {e:.3f} from the analytic ones, main effects {e2:.2g} from the coefficients'
+    return OK, (f'Ishigami Sobol indices within {e:.3f} of the analytic ones (N = 1024); a 16-run resolution IV '
+                f'fraction recovers the main effects exactly ({ms:.0f} ms)')
+
+
+def _check_mcp(S):
+    import json
+    import time
+
+    from .assistant.session import FileSession
+    from .core.project import blank_project
+    from .mcp.server import PROTOCOL, Router, Server
+    t0 = time.perf_counter()
+    router = Router(mode='file')
+    router.file = FileSession(project=blank_project('Self-test'))
+    srv = Server(router)
+    init = srv.handle({'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {'protocolVersion': PROTOCOL}})
+    tools = srv.handle({'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list'})['result']['tools']
+    r = srv.handle({'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'get_overview',
+                                                                                 'arguments': {}}})['result']
+    ov = json.loads(r['content'][0]['text'])
+    ms = (time.perf_counter() - t0) * 1000
+    if init['result']['protocolVersion'] != PROTOCOL or r['isError'] or ov.get('project') != 'Self-test':
+        return FAIL, 'the MCP server did not answer initialize, tools/list and tools/call as it should'
+    return OK, f'MCP {PROTOCOL} server: {len(tools)} tools listed, get_overview answered ({ms:.0f} ms)'
+
+
+def _check_warp(S):
+    """The canonical view warp (core/exporters/canonical_warp.py): H carries plane points exactly and the remap through
+    a Brown-Conrady and a fisheye lens agrees with cv2.projectPoints; the Rerun bridge says whether it can run."""
+    from .core.bridges import rerun as RB
+    from .core.exporters import canonical_warp as CW
+    e_h, e_lut = CW.self_test()
+    if not (e_h < 1e-9 and e_lut < 1e-6):
+        return FAIL, f'plane points off by {e_h:.2g} px (homography) and {e_lut:.2g} px (remap with lenses)'
+    return OK, (f'homography on the plane {e_h:.1g} px, remap through two lenses {e_lut:.1g} px against OpenCV; '
+                + ('Rerun bridge ready (rerun-sdk installed)' if RB.available() else
+                   'Rerun bridge off (rerun-sdk not installed: optional)'))
 
 
 def _check_opencv(S):
@@ -542,11 +700,113 @@ def _check_validation(S):
                 f'study-scale checks run with --validate)')
 
 
+def _check_assistant(S):
+    """The Assistant dock's loop with the fake provider (no network, no key): a tool turn, an edit proposal that
+    changes nothing until accepted, a long study refused without an approved plan, the number post-check."""
+    import json as _json
+
+    from .assistant import agent as A
+    from .assistant import toolbox as TB
+    from .assistant.fake import FakeReply
+    from .core.robot.samples import sample_project
+    t0 = time.perf_counter()
+    p = sample_project('so100')
+    tc = TB.ToolContext(project_name=p.name, variant_name=p.variant.name)
+    tc.session = TB.file_session(p.snapshot(), tc)
+    sid = p.variant.sensors[0].uid
+    s = A.new_session('fake', None, A.Settings('fake-model'), script=[[
+        FakeReply(calls=[('get_overview', {}), ('run_study', {'study': 'grasp_visibility'}),
+                         ('propose_changes', {'title': 'self-test', 'changes': [{'factor': f'sensor:{sid}.z',
+                                                                                 'value': 0.05}]})]),
+        FakeReply(text='Proposed z = 0.05 m; 99.9 % is a made-up figure.')]])
+    ev = []
+    s.run_turn('self-test', tc, ev.append)
+    done = [e.data for e in ev if e.kind == 'tool_done']
+    ans = next((e.data for e in ev if e.kind == 'answer'), None)
+    if len(done) != 3 or ans is None:
+        return FAIL, f'the turn ended early ({[e.kind for e in ev][-3:]})'
+    if not done[0]['ok'] or not _json.loads(done[1]['result']).get('plan_required') or len(tc.proposals) != 1:
+        return FAIL, 'a tool, the plan gate or the proposal did not behave'
+    if [u['text'] for u in ans['check']['unsupported']] != ['99.9']:
+        return FAIL, f'the number check flagged {ans["check"]["unsupported"]} (99.9 expected)'
+    return OK, (f'fake provider: 3 tools, 1 proposal, a long study refused, 1 invented figure flagged '
+                f'({(time.perf_counter() - t0) * 1000:.0f} ms)')
+
+
+def _check_exporters(S):
+    """The ROS 2 and OpenCV exporters on the UR5e sample: the URDF compiled by MuJoCo poses every camera frame as
+    DexVantage does, and an OpenCV YAML reads back exactly (validation checks formats.urdf_roundtrip and
+    formats.opencv_yaml run the full comparison)."""
+    from .validation.formats_exports import selftest_export
+    ok, text = selftest_export(os.path.join(S['tmp'], 'export'))
+    return (OK if ok else FAIL), text
+
+
+def _check_isaac_lerobot(S):
+    """The Isaac and LeRobot exporters on the SO-100 sample: the Isaac Lab configs executed against stubs of the cited
+    source and compared with the cameras and the tolerance draws, the USD prims re-read, the LeRobot info.json read back
+    (validation checks formats.isaac_usd, formats.isaac_config and formats.lerobot_export run the full comparison)."""
+    from .validation.formats_isaac_lerobot import selftest_isaac_lerobot
+    ok, text = selftest_isaac_lerobot(os.path.join(S['tmp'], 'export_b'))
+    return (OK if ok else FAIL), text
+
+
+def _check_api(S):
+    """The Python API (dexvantage/api.py) on the SO-100 sample: a study, a metric and a factor through dv, the same
+    figures as core.jobs gives directly, and the plugins found at start-up (dexvantage/plugin_sdk.py)."""
+    import time
+    from . import api as dv
+    from . import plugin_sdk as PL
+    from .core import jobs
+    t0 = time.perf_counter()
+    rig = dv.sample('so100')
+    res = rig.run('coverage')
+    direct = jobs.run_study('coverage', rig.project.snapshot())
+    same = res['summary'] == direct['summary']
+    z = f'sensor:{rig.sensors[-1].name}.z'
+    moved = rig.with_factors({z: rig.factors[z] + 0.05})
+    ok = same and abs(moved.factors[z] - rig.factors[z] - 0.05) < 1e-12
+    recs = PL.loaded()
+    bad = [r for r in recs if r.status == 'error']
+    plug = (f'{sum(r.status == "loaded" for r in recs)} of {len(recs)} plugins loaded' if recs else 'no plugins')
+    ms = (time.perf_counter() - t0) * 1000
+    text = (f'SO-100 coverage {res.headline["text"].split(": ", 1)[-1]} through dv, '
+            f'{"the same as" if same else "DIFFERENT from"} core.jobs; {plug}; {ms:.0f} ms')
+    return (OK if ok and not bad else WARN if ok else FAIL), text + (f'. {bad[0].error}' if bad else '')
+
+
+def _check_robot_catalogue(S):
+    """The robot catalogue (core/robot/catalogue.py): every entry loads, its Menagerie folder is a known one and its
+    DoF agrees with its verified import record and its maker's figure (a data-consistency check; no network)."""
+    from .core import library as L
+    from .core.robot import catalogue as CAT, menagerie as MG
+    L.reload()
+    es = CAT.entries()
+    if not es:
+        return FAIL, 'the robot catalogue has no entries'
+    unknown = [e.id for e in es if CAT.model(e).get('folder') not in MG.OFFLINE_MODELS]
+    if unknown:
+        return FAIL, f'{len(unknown)} entries name a Menagerie folder DexVantage does not know, first {unknown[0]}'
+    bad = [p for e in es for p in CAT.dof_problems(e)]
+    if bad:
+        return FAIL, f'{len(bad)} DoF inconsistencies, first: {bad[0]}'
+    stated = sum(CAT.dof_matches(CAT.figure(e, 'dof')[0], CAT.measured_dof(CAT.verified(e))) is True for e in es)
+    return OK, f'{len(es)} robots; {stated} DoF as the maker states them agree with the imported model'
+
+
 CHECKS = (('project', _check_project), ('frames', _check_frames), ('mujoco', _check_mujoco), ('robots', _check_robots),
-          ('library', _check_library), ('occlusion', _check_occlusion), ('grasp', _check_grasp),
+          ('samples', _check_new_samples),
+          ('library', _check_library), ('robot catalogue', _check_robot_catalogue),
+          ('library teleop', _check_library_teleop), ('workspace', _check_workspace), ('occlusion', _check_occlusion),
+          ('grasp', _check_grasp),
           ('groundtruth', _check_groundtruth), ('brackets', _check_brackets), ('handeye', _check_handeye),
           ('teleop', _check_teleop), ('lighting', _check_lighting), ('timing', _check_timing),
-          ('datasets', _check_datasets), ('audit', _check_audit), ('opencv', _check_opencv),
+          ('datasets', _check_datasets), ('audit', _check_audit), ('tolerance', _check_tolerance),
+          ('experiments', _check_experiments), ('optimiser', _check_optimiser),
+          ('requirements', _check_requirements), ('versioning', _check_versioning),
+          ('mcp server', _check_mcp), ('assistant', _check_assistant), ('opencv', _check_opencv),
+          ('exporters', _check_exporters), ('sim exports', _check_isaac_lerobot), ('warp', _check_warp),
+          ('python api', _check_api),
           ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
           ('software 3d', _check_software_3d), ('validation', _check_validation))
 NAMES = tuple(n for n, _ in CHECKS)
@@ -583,7 +843,7 @@ def run() -> int:
             if len(S['errors']) > n0 and status != FAIL:
                 status, msg = FAIL, S['errors'][-1].strip().splitlines()[-1]
             failed |= status == FAIL
-            print(f'  {name:<12} {status:<8} {msg}', flush=True)
+            print(f'  {name:<15} {status:<8} {msg}', flush=True)
     finally:
         sys.excepthook = hook
         w = S.pop('window', None)

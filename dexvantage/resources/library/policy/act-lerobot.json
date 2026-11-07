@@ -1,0 +1,79 @@
+{
+  "id": "act-lerobot",
+  "kind": "policy",
+  "maker": "Hugging Face (LeRobot)",
+  "name": "ACT (LeRobot default configuration)",
+  "family": "Imitation policy: ResNet18 encoders, CVAE transformer",
+  "sources": [
+    {
+      "url": "https://github.com/huggingface/lerobot/tree/d490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies/act",
+      "title": "LeRobot ACT (official code), commit d490e47: configuration_act.py and modeling_act.py",
+      "read": "2026-11-07",
+      "covers": "chunk_size, n_action_steps, temporal_ensemble_coeff, vision_backbone, n_obs_steps; no resize or crop step"
+    }
+  ],
+  "note": "LeRobot's ACT as configured by default, the variant most SO-100 and SO-101 users train: chunk_size 100, n_action_steps 100 (the whole chunk is executed), temporal_ensemble_coeff None (\"temporal ensembling is not used\"; set 0.01 with n_action_steps 1 for the original paper's ensembling, entry act), resnet18 backbone, one observation step. modeling_act.py has no resize or crop: images go in at the dataset's size, so the input size and the number of cameras are those of your dataset (null here). No inference time or control rate is stated. Code Apache-2.0.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": null,
+      "source": null,
+      "quote": "Not fixed: the dataset's image size."
+    },
+    "crop_rule": {
+      "value": "none",
+      "source": 0,
+      "quote": "modeling_act.py and configuration_act.py have no resize or crop step"
+    },
+    "crop_side_fraction": {
+      "value": null,
+      "source": null
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": null,
+      "source": null,
+      "quote": "Not a ViT (vision_backbone: str = \"resnet18\")."
+    },
+    "tokens_per_image": {
+      "value": null,
+      "source": null,
+      "quote": "Depends on the image size (ResNet feature map)."
+    },
+    "n_cameras": {
+      "value": null,
+      "source": null,
+      "quote": "Not fixed: the dataset's image features."
+    },
+    "action_chunk": {
+      "value": 100,
+      "source": 0,
+      "quote": "chunk_size: int = 100"
+    },
+    "execute_steps": {
+      "value": 100,
+      "source": 0,
+      "quote": "n_action_steps: int = 100"
+    },
+    "temporal_ensemble_m": {
+      "value": false,
+      "source": 0,
+      "quote": "temporal_ensemble_coeff: float | None = None: \"Defaults to None which means temporal ensembling is not used.\""
+    },
+    "inference_ms": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated.",
+      "hardware": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    }
+  }
+}

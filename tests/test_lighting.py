@@ -164,8 +164,10 @@ def test_through_window():
 def test_light_library_entries_and_projector_power():
     from dexvantage.core import library as LB
     LB.reload()
-    es = LB.entries('light')
-    assert {e.id for e in es} == {'elgato-key-light', 'elgato-key-light-air-mk2', 'elgato-ring-light'}
+    elgato = {'elgato-key-light', 'elgato-key-light-air-mk2', 'elgato-ring-light'}
+    # the three Elgato lights (later entries without a stated flux are pinned in tests/test_library_systems.py)
+    es = [e for e in LB.entries('light') if e.id in elgato]
+    assert {e.id for e in es} == elgato
     for e in es:
         assert LB.validate(e.data) == [] and LB.validate_minimal(e.data) == []
         assert e.sources[0]['url'].startswith('https://www.elgato.com/') and e.sources[0]['read'] == '2026-11-07'

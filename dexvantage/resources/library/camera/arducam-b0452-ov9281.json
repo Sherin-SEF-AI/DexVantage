@@ -1,0 +1,58 @@
+{
+  "id": "arducam-b0452-ov9281",
+  "kind": "camera",
+  "maker": "Arducam",
+  "name": "B0452 1MP OV9281 global shutter camera (M12)",
+  "family": "Arducam MIPI cameras",
+  "sources": [
+    {
+      "url": "https://docs.arducam.com/Raspberry-Pi-Camera/Native-camera/Global-Shutter/1MP-OV9281-OV9282/",
+      "title": "1MP OV9281/OV9282 global shutter cameras for Raspberry Pi (Arducam documentation)",
+      "read": "2026-11-07",
+      "covers": "sensor (OV9281), shutter, chroma, active pixels, optical format, pixel size; product catalogue row for B0452 (M12 mount, FOV, manual focus, 650 nm IR-cut filter)"
+    }
+  ],
+  "note": "A small monochrome global-shutter MIPI CSI-2 camera board for Raspberry Pi (22-pin connector) with an M12 lens; the catalogue gives \"75 (H) x 59 (V)\" degrees for the B0452 and states no diagonal. The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Focus \"Manual Focus\" (adjustable lens), entered as null (the schema knows fixed and auto). 650 nm IR-cut filter. The page states no frame rate for this module, so no stream is entered; the B0262 (the same sensor, M12) is listed at 75 x 56.3 degrees. Not stated: power, mass, size, f-number, focal length.",
+  "interface": "MIPI CSI-2 (Raspberry Pi 22-pin camera connector)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Mono",
+      "role": "mono",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 75.0,
+      "vfov_deg": 59.0,
+      "dfov_deg": null,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": null,
+      "optical_format": "1/4\""
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": null
+}

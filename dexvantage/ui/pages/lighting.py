@@ -184,6 +184,7 @@ class LightingPage(StudyPage):
         self.c_cam.setToolTip('The camera whose glare map, saturated points and Camera view outline are shown')
         self.c_cam.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.c_cam.setMinimumContentsLength(16)
+        self.c_cam.setPlaceholderText('Run with lights to choose')
         self.pose = SegmentedControl([('auto', 'Working poses'), ('current', 'Pose on screen')], 'auto')
         self.pose.setToolTip('Working poses: the grasp set\'s reachable grasps (home without a set). Pose on screen: '
                              'the joint state of the 3D view only.')
@@ -283,6 +284,7 @@ class LightingPage(StudyPage):
                                 'transmission come from them (core/materials.py: the roughness and albedos are '
                                 'defaults; a measured value goes in the study\'s settings)')
         self.obj_box.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.obj_box.setPlaceholderText('No task object (Workspace ▸ Add object)')
         self.obj_box.currentIndexChanged.connect(lambda _i: self._fill_material_checks())
         self.mat_checks = {}
         from ...core.materials import MATERIALS

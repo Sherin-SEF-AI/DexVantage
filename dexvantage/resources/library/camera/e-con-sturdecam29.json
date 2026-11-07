@@ -1,0 +1,74 @@
+{
+  "id": "e-con-sturdecam29",
+  "kind": "camera",
+  "maker": "e-con Systems",
+  "name": "STURDeCAM29",
+  "family": "STURDeCAM GMSL2 cameras",
+  "sources": [
+    {
+      "url": "https://www.e-consystems.com/gmsl-cameras/2mp-ov2311-monochrome-global-shutter-gmsl2-camera.asp",
+      "title": "STURDeCAM29 - 2MP OV2311 monochrome global shutter GMSL2 camera (e-con Systems product page)",
+      "read": "2026-11-07",
+      "covers": "sensor (OmniVision OV2311), resolution (2MP, 1600 x 1300), shutter, focus, optical format, output Y10, pixel size, FOV with the standard lens, frame rate, interface, power, size, board weight, IP65"
+    }
+  ],
+  "note": "A monochrome global-shutter GMSL2 camera in an IP65 enclosure with integrated 940 nm IR LEDs synchronised to the sensor; S-mount lens, \"Fixed focus, glued\". FOV \"131 x 93 x 74\" degrees (D x H x V) \"with standard lens\". The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Stream: \"2 MP @ 60 fps\", Y10, with \"Resolution: 2MP (1600 x 1300 pixels)\" on the same page. power_w is the stated 1.7 W at 25 C (12 V supply). mass_g is the stated \"Board weight\" 131 g (the page gives no other mass). size_mm: the stated 52.52 mm (L) x 59.02 mm (W) x 42.75 mm (D), entered as [42.75, 59.02, 52.52] on the reading that D is along the optical axis (an assumption: the page names no axes). Not stated: f-number, focal length, distortion.",
+  "interface": "GMSL2 (FAKRA connector, cable up to 15 m)",
+  "power_w": 1.7,
+  "mass_g": 131.0,
+  "size_mm": [
+    42.75,
+    59.02,
+    52.52
+  ],
+  "imagers": [
+    {
+      "name": "Mono",
+      "role": "mono",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 93.0,
+      "vfov_deg": 74.0,
+      "dfov_deg": 131.0,
+      "pixel_um": 3.0,
+      "resolution": [
+        1600,
+        1300
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "optical_format": "1/2.9\"",
+      "figures_conflict": "The stated diagonal (131 deg) is wider than any centred, radially symmetric lens without pincushion distortion can show with the stated 93 x 74 deg across 1600 x 1300 px (at most about 117 deg); the diagonal may be the lens's rating for a larger image circle. The library uses the horizontal and vertical angles."
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Mono",
+      "width": 1600,
+      "height": 1300,
+      "fps": [
+        60
+      ],
+      "format": "Y10",
+      "bits_per_pixel": 10
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

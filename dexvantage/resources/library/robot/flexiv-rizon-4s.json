@@ -1,0 +1,86 @@
+{
+  "id": "flexiv-rizon-4s",
+  "kind": "robot",
+  "maker": "Flexiv",
+  "name": "Rizon 4s",
+  "family": "7-DoF adaptive arm with wrist F/T sensor",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/flexiv_rizon4s",
+      "title": "MuJoCo Menagerie flexiv_rizon4s/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "flexiv.com loads its specifications with scripts the build could not read. The maker's figures were not read for this build; every figure is null (not found in the sources read).",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "flexiv_rizon4s",
+      "file": "flexiv_rizon4s.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/flexiv_rizon4s"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "flexiv_rizon4s.xml",
+      "imported": true,
+      "joints_in_q": 7,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6",
+        "joint7"
+      ],
+      "actuators": 7,
+      "links": 8,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 7,
+      "seconds": 0.06,
+      "note": ""
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "id": "so100-leader-arm",
+  "kind": "teleop",
+  "maker": "TheRobotStudio and Hugging Face (LeRobot)",
+  "name": "SO-100 leader arm",
+  "family": "SO-ARM100",
+  "sources": [
+    {
+      "url": "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/docs/source/so100.mdx",
+      "title": "Hugging Face LeRobot documentation, \"SO-100\" (docs/source/so100.mdx at commit d490e47; https://huggingface.co/docs/lerobot/so100)",
+      "read": "2026-11-07",
+      "covers": "the leader configuration (steps 1-23 of the follower's assembly, handle and trigger), the six leader motors with their gears removed, the Feetech bus and USB connection, calibration to the same positions"
+    }
+  ],
+  "note": "The SO-100 kit's leader: \"For the leader configuration, perform Steps 1–23\" of the follower's assembly, then a leader holder, a handle on motor 5 and a trigger; \"You need to remove the gear for the motors of the leader arm. As a result, you will only use the position encoding of the motor and reduce friction\". Both arms are calibrated \"to ensure that the leader and follower arms have the same position values when they are in the same physical position\", so it leads an SO-100 joint to joint with the follower's own joints (same_joints true). dof 6 counts the leader's six motors (five arm joints and the trigger that drives the gripper). Not stated: mass, power, sample rate, latency.",
+  "interface": "Feetech serial bus servos, USB to the computer (LeRobot MotorsBus)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "leader_arm",
+    "mapping": "joint",
+    "leads": [
+      "so-100",
+      "so100",
+      "so_arm100",
+      "so-arm100",
+      "trs_so_arm100"
+    ],
+    "same_joints": true,
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "\"Remove the gears of the 6 leader motors\""
+    },
+    "tracking_hz": {
+      "value": null,
+      "source": null
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "The workspace is the follower's own (joint to joint); the source states no separate volume."
+    },
+    "range_text": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

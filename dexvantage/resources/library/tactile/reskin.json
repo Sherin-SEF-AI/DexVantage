@@ -1,0 +1,35 @@
+{
+  "id": "reskin",
+  "kind": "tactile",
+  "maker": "ReSkin",
+  "name": "ReSkin research sensor (20 x 20 mm board)",
+  "family": "ReSkin / AnySkin",
+  "sources": [
+    {
+      "url": "https://arxiv.org/pdf/2111.00071",
+      "title": "R. Bhirangi, T. Hellebrekers, C. Majidi and A. Gupta, \"ReSkin: versatile, replaceable, lasting tactile skins\", CoRL 2021, arXiv:2111.00071",
+      "read": "2026-11-07",
+      "covers": "sensing principle, sensing area 20 mm x 20 mm with 5 MLX90393 magnetometers 7 mm apart, thickness 2-3 mm, data rate ~400 Hz, data path (JST-SH to a Trinket M0 microcontroller), contact localisation and force results"
+    }
+  ],
+  "note": "A contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. A research magnetic skin (open source, reskin.dev): a magnetised elastomer over a flexible board. Figures from the paper: \"For an overall sensing area of 20mm x 20mm ... we measure magnetic flux changes using 5 magnetometers\" (MLX90393, four spaced 7 mm apart around a central one); \"compact (2-3mm thick)\"; 20 values (temperature and Bx, By, Bz for 5 chips) sent over a JST-SH connector to a microcontroller (Adafruit Trinket M0) \"at approximately 400 Hz\" (entered as fps). taxels is null (5 magnetometers, not a taxel grid). Not stated: power, mass, size (beyond the sensing area and the thickness range). Its readings are not an image stream, so no stream is entered; the bandwidth budget needs the data rate as a measured or stated figure.",
+  "interface": "JST-SH to a microcontroller (Adafruit Trinket M0), USB to the host",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": {
+    "pad_mm": [
+      20.0,
+      20.0
+    ],
+    "camera_resolution": null,
+    "fps": 400.0,
+    "sensing": "magnetic (5 three-axis magnetometers)",
+    "taxels": null
+  },
+  "host": null
+}

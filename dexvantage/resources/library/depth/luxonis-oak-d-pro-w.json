@@ -1,0 +1,298 @@
+{
+  "id": "luxonis-oak-d-pro-w",
+  "kind": "depth",
+  "maker": "Luxonis",
+  "name": "OAK-D Pro W (wide, IMX378)",
+  "family": "OAK (RVC2)",
+  "sources": [
+    {
+      "url": "https://docs.luxonis.com/hardware/products/OAK-D%20Pro%20W.md",
+      "title": "OAK-D Pro W, Luxonis hardware documentation (Markdown view)",
+      "read": "2026-11-07",
+      "covers": "variants with FOV, sensor size, shutter, focus; baseline 75 mm, ideal range, MinZ, median depth accuracy, IR dot projector and flood LED, 940 nm notch filters, power subsystems"
+    },
+    {
+      "url": "https://github.com/luxonis/depthai-boards/blob/bfa8f3638a10352c1e5517348fbe4c0c428b86fd/boards/OAK-D-PRO-W.json",
+      "title": "depthai-boards OAK-D-PRO-W.json board configuration (commit bfa8f36), Luxonis",
+      "read": "2026-11-07",
+      "covers": "design translations between the cameras (left to right -7.5 cm, right to centre 3.75 cm), camera HFOVs"
+    },
+    {
+      "url": "https://docs.luxonis.com/hardware/sensors/OV9282.md",
+      "title": "OV9282 sensor page, Luxonis documentation",
+      "read": "2026-11-07",
+      "covers": "shutter, sensor size, pixel size 3 um, RVC2 modes (1280 x 800 at 129, 1280 x 720 at 143, 640 x 400 at 255 fps)"
+    },
+    {
+      "url": "https://docs.luxonis.com/hardware/sensors/IMX378.md",
+      "title": "IMX378 sensor page, Luxonis documentation",
+      "read": "2026-11-07",
+      "covers": "shutter, sensor size, pixel size 1.55 um, RVC2 modes and maximum frame rates"
+    }
+  ],
+  "note": "The wide-FOV OAK-D Pro: active stereo with an IR laser dot projector and a flood IR LED; the stereo pair has notch IR filters at 940 nm. Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map refers to). Positions are Luxonis's design (\"spec\") translations from its board file (specTranslation in cm, rotation zero): the right camera one baseline along -y, the centre colour camera at the baseline midpoint; a unit's calibration differs from these. Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV. Streams are the sensor modes the RVC2 driver supports with their maximum frame rates (Luxonis sensor pages); the format on the USB link depends on the on-device pipeline, so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the stereo mode). Not stated: subpixel accuracy, distortion, depth FOV (null), f-numbers. Depth accuracy is a median absolute error, not RMS. min_z is the docs' MinZ at 800P and at 400P (the extended-disparity figures are in this note only). Wide variant: stereo OV9282 127/79.5/150 deg H/V/D, global shutter, fixed focus; Luxonis's board file calibrates these cameras with a \"perspective_TILTED\" model, so a pinhole is a poor fit at the edges - calibrate a unit. Variant entered: IMX378 colour, 95/72/120 deg, rolling shutter, fixed focus; the board file gives the colour camera's hfov as 108 deg (a conflict with the docs page's 95, which is entered); the OV9782 variant is a global-shutter colour camera at 127/79.5/150 deg. Baseline 75 mm; ideal range ~70 cm - 12 m; MinZ ~70 cm (800P), ~40 cm (400P or 800P + extended disparity), ~20 cm (400P + extended). Power, mass and size: the docs link the OAK-D S2 datasheet and give only subsystem power figures (base 2.5-3 W, up to 1 W AI, 0.5 W stereo, 0.5 W encoder), so power_w, mass_g and size_mm are null (not stated for this model). Projector: the docs state no field of illumination or position for the Pro W (the OAK-D Pro datasheet's 61 x 78 deg is not carried over): FOV null, placed at the baseline midpoint as an ASSUMPTION (pose_stated false); with no stated cone the depth study does not test projector coverage.",
+  "interface": "USB 2/3 (USB Type-C)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Left",
+      "role": "ir_left",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 127.0,
+      "vfov_deg": 79.5,
+      "dfov_deg": 150.0,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed"
+    },
+    {
+      "name": "Right",
+      "role": "ir_right",
+      "pose": {
+        "position": [
+          0.0,
+          -0.075,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 127.0,
+      "vfov_deg": 79.5,
+      "dfov_deg": 150.0,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed"
+    },
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          -0.0375,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "rolling",
+      "hfov_deg": 95.0,
+      "vfov_deg": 72.0,
+      "dfov_deg": 120.0,
+      "pixel_um": 1.55,
+      "resolution": [
+        4056,
+        3040
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed"
+    }
+  ],
+  "projector": {
+    "hfov_deg": null,
+    "vfov_deg": null,
+    "dfov_deg": null,
+    "pose": {
+      "position": [
+        0.0,
+        -0.0375,
+        0.0
+      ],
+      "quaternion": [
+        -0.5,
+        0.5,
+        -0.5,
+        0.5
+      ]
+    },
+    "pose_stated": false
+  },
+  "depth": {
+    "technology": "active_ir_stereo",
+    "reference_imager": "Left",
+    "stereo_pair": [
+      "Left",
+      "Right"
+    ],
+    "baseline_m": 0.075,
+    "min_z": [
+      {
+        "width": 1280,
+        "height": 800,
+        "m": 0.7
+      },
+      {
+        "width": 640,
+        "height": 400,
+        "m": 0.4
+      }
+    ],
+    "max_range_m": null,
+    "ideal_range_m": [
+      0.7,
+      12.0
+    ],
+    "range_text": "Ideal range ~70 cm - 12 m (docs page)",
+    "rms_error": {
+      "text": "Median absolute depth error below 2% below 3.5 m, below 4% at 3.5-6.5 m, below 6% at 6.5-9 m (docs page; not an RMS figure)",
+      "metric": "median_abs",
+      "pct": 2.0,
+      "at_m": 3.5
+    },
+    "subpixel_px": null,
+    "depth_fov": null
+  },
+  "streams": [
+    {
+      "imager": "Left",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        129
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Left",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        143
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Left",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        255
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        129
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        143
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        255
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 4056,
+      "height": 3040,
+      "fps": [
+        30
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 3840,
+      "height": 2160,
+      "fps": [
+        30
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 2024,
+      "height": 1520,
+      "fps": [
+        85
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        60
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1352,
+      "height": 1012,
+      "fps": [
+        52
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

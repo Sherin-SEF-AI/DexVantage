@@ -1,0 +1,299 @@
+{
+  "id": "orbbec-femto-mega",
+  "kind": "depth",
+  "maker": "Orbbec",
+  "name": "Femto Mega",
+  "family": "Femto",
+  "sources": [
+    {
+      "url": "https://new-orbbec3d-s3.s3.amazonaws.com/wp-content/uploads/2023/04/14163303/ORBBEC_Datasheet_Femto-Mega1.pdf",
+      "title": "Femto Mega Datasheet v1.1, Orbbec",
+      "read": "2026-11-07",
+      "covers": "technology (iToF), shutters, wavelength, depth and RGB modes (resolution, FoV, fps, range, format), depth error, IMU, data connections, power modes and consumption, dimensions, weight, installation, multi-camera sync"
+    }
+  ],
+  "note": "An iToF depth camera with an NVIDIA Jetson Nano for in-camera processing, USB 3.2 Gen 1 or Gigabit Ethernet (PoE+). Poses: the body origin is the ToF depth camera (the reference imager). The RGB camera's offset and orientation are not stated (calibration is read from the device): placed at the depth origin with the same orientation as an ASSUMPTION (pose_stated false). The ToF illuminator (850 nm) is not entered as a projector (field of illumination and position not stated). Depth modes as stated: WFOV 1024 x 1024 (5, 15 fps, 0.25-2.21 m) and 512 x 512 (5-30 fps, 0.25-2.88 m) at 120 x 120 deg; NFOV 640 x 576 (0.5-3.86 m) and 320 x 288 (0.5-5.46 m) at 75 x 65 deg (a fov_mode for 10:9 streams); Y16. min_z is each mode's operating-range minimum. Lens model pinhole is a labelled ASSUMPTION (calibrate a unit). RGB 3840 x 2160 at 5/15/25 fps, 16:9 80 x 51 deg; 1280 x 960 4:3 at 65 x 51 deg; formats YUY2, MJPG, H.264, H.265 (MJPEG entered for the large modes, YUY2 for 1280 x 720: the USB data mode supports \"1,920 x 1,080 and below, YUY2 and MJPG\"; H.264/H.265 are for Ethernet). Depth error: typical systematic error < 11 mm + 0.1% of distance; random error standard deviation <= 17 mm (15-95% reflectivity at 850 nm, 2.2 uW/cm2/nm, no multi-path). power_w is the USB power + data figure, 10 W (peak 14 W); DC power + USB data 11 W (peak 16 W); PoE + Ethernet 13 W (peak 17 W). size_mm: the stated \"Dimensions WxHxD 115 mm x 40 mm x 145 mm\", entered as [145, 115, 40]. Mass 560 g. Operating temperature 10-25 C. Mounting bottom 1x 1/4-20 UNC, sides 4x M2.5. Not stated: pixel sizes, f-numbers, RGB focus, distortion.",
+  "interface": "USB 3.2 Gen 1 (USB Type-C); Gigabit Ethernet (PoE+)",
+  "power_w": 10.0,
+  "mass_g": 560.0,
+  "size_mm": [
+    145.0,
+    115.0,
+    40.0
+  ],
+  "imagers": [
+    {
+      "name": "Depth camera",
+      "role": "tof",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 120.0,
+      "vfov_deg": 120.0,
+      "dfov_deg": null,
+      "pixel_um": null,
+      "resolution": [
+        1024,
+        1024
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": null,
+      "fov_modes": [
+        {
+          "aspect": [
+            10,
+            9
+          ],
+          "hfov_deg": 75.0,
+          "vfov_deg": 65.0,
+          "dfov_deg": null,
+          "what": "NFOV depth modes (640 x 576 unbinned, 320 x 288 binned)"
+        }
+      ]
+    },
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": false,
+      "shutter": "rolling",
+      "hfov_deg": 80.0,
+      "vfov_deg": 51.0,
+      "dfov_deg": null,
+      "pixel_um": null,
+      "resolution": [
+        3840,
+        2160
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": null,
+      "fov_modes": [
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 65.0,
+          "vfov_deg": 51.0,
+          "dfov_deg": null,
+          "what": "4:3 RGB mode (1280 x 960)"
+        }
+      ]
+    }
+  ],
+  "projector": null,
+  "depth": {
+    "technology": "tof",
+    "reference_imager": "Depth camera",
+    "stereo_pair": null,
+    "baseline_m": null,
+    "min_z": [
+      {
+        "width": 640,
+        "height": 576,
+        "m": 0.5
+      },
+      {
+        "width": 320,
+        "height": 288,
+        "m": 0.5
+      },
+      {
+        "width": 512,
+        "height": 512,
+        "m": 0.25
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "m": 0.25
+      }
+    ],
+    "max_range_by_mode": [
+      {
+        "width": 640,
+        "height": 576,
+        "m": 3.86
+      },
+      {
+        "width": 320,
+        "height": 288,
+        "m": 5.46
+      },
+      {
+        "width": 512,
+        "height": 512,
+        "m": 2.88
+      },
+      {
+        "width": 1024,
+        "height": 1024,
+        "m": 2.21
+      }
+    ],
+    "max_range_m": 5.46,
+    "min_range_m": 0.25,
+    "range_text": "0.25-5.46 m depending on depth mode (15% to 95% reflectivity at 850 nm, 2.2 uW/cm2/nm, no multi-path interference)",
+    "rms_error": {
+      "text": "Random error standard deviation (precision) <= 17 mm; typical systematic error (accuracy) < 11 mm + 0.1% of distance (no multi-path interference)",
+      "metric": "std_dev",
+      "pct": null,
+      "at_m": null
+    },
+    "subpixel_px": null,
+    "depth_fov": {
+      "h": 120.0,
+      "v": 120.0,
+      "d": null
+    }
+  },
+  "streams": [
+    {
+      "imager": "depth",
+      "width": 1024,
+      "height": 1024,
+      "fps": [
+        5,
+        15
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 512,
+      "height": 512,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 576,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 320,
+      "height": 288,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 3840,
+      "height": 2160,
+      "fps": [
+        5,
+        15,
+        25
+      ],
+      "format": "MJPEG",
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 2560,
+      "height": 1440,
+      "fps": [
+        5,
+        15,
+        25
+      ],
+      "format": "MJPEG",
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "MJPEG",
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 960,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "MJPEG",
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        15,
+        25,
+        30
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    }
+  ],
+  "tactile": null,
+  "host": null,
+  "sync": {
+    "hardware_trigger": null,
+    "sync_cable": true,
+    "imagers": [],
+    "what": "Datasheet: \"8 Pin-Connector\" for multi-device sync; \"Precise synchronization trigger control uses standard Ethernet cables\"; supported functions \"D2C, Multi-Camera Sync\"."
+  }
+}

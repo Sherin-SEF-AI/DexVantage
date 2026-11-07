@@ -1,0 +1,95 @@
+{
+  "id": "openvla-oft-libero",
+  "kind": "policy",
+  "maker": "OpenVLA-OFT (M. J. Kim, C. Finn, P. Liang)",
+  "name": "OpenVLA-OFT (LIBERO)",
+  "family": "Vision-language-action model fine-tuned for speed (OpenVLA 7B base)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2502.19645",
+      "title": "M. J. Kim, C. Finn, P. Liang, Fine-Tuning Vision-Language-Action Models: Optimizing Speed and Success, arXiv:2502.19645 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "Tables II-V: input images and size, chunk sizes, open-loop execution, latency on an A100, the 25 Hz ALOHA controller, the 90 % random crops"
+    },
+    {
+      "url": "https://github.com/moojink/openvla-oft/tree/e4287e94541f459edc4feabc4e181f537cd569a8",
+      "title": "moojink/openvla-oft (official code), commit e4287e9: README.md, LIBERO.md, ALOHA.md",
+      "read": "2026-11-07",
+      "covers": "--center_crop True at test time (the centre 90 % crop), num_images_in_input, NUM_ACTIONS_CHUNK, the 25 Hz ALOHA control frequency"
+    },
+    {
+      "url": "https://huggingface.co/openvla/openvla-7b/blob/main/config.json",
+      "title": "openvla-7b config.json (the base checkpoint OpenVLA-OFT fine-tunes)",
+      "read": "2026-11-07",
+      "covers": "timm_model_ids (patch size 14), image_resize_strategy resize-naive"
+    }
+  ],
+  "note": "OpenVLA-OFT fine-tunes OpenVLA with parallel decoding, action chunking and continuous actions (L1 regression). Images are resized to 224 × 224 without keeping the aspect ratio (OpenVLA's \"resize-naive\") and, because training used random crops of 90 % of the area, the README says \"Setting --center_crop True is important ... at test time we simply take the center 90% crop\" (crop_side_fraction 0.9487 = √0.9 of each side). Each view gives \"256 patch embeddings\" from OpenVLA's two ViTs with 14 px patches. The timings are the paper's, on one NVIDIA A100. Code MIT; the base weights may carry the Llama 2 Community License. DexVantage bundles these figures only. The LIBERO recipe (Table IV): one third-person and one wrist image, chunk 8 executed open-loop; the latency 0.1120 s is Table II's last row (with the wrist image and robot state; one image only: 0.0729 s).",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        224,
+        224
+      ],
+      "source": 0,
+      "quote": "Table IV: \"input image size 224 x 224 px\""
+    },
+    "crop_rule": {
+      "value": "center_crop_resize",
+      "source": 1,
+      "quote": "README: \"Setting --center_crop True is important because we fine-tuned OpenVLA with random crop augmentations (we took a random crop with 90% area in every training sample, so at test time we simply take the center 90% crop).\""
+    },
+    "crop_side_fraction": {
+      "value": 0.9487,
+      "source": 1,
+      "quote": "\"the center 90% crop\" of the area: √0.9 = 0.9487 of each side"
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": 14,
+      "source": 2,
+      "quote": "\"timm_model_ids\": [\"vit_large_patch14_reg4_dinov2.lvd142m\", \"vit_so400m_patch14_siglip_224\"]"
+    },
+    "tokens_per_image": {
+      "value": 256,
+      "source": 0,
+      "quote": "\"we use OpenVLA's dual vision encoder to extract 256 patch embeddings per view\""
+    },
+    "n_cameras": {
+      "value": 2,
+      "source": 0,
+      "quote": "Table IV: \"input images 1 third-person camera image, 1 wrist-mounted camera image\""
+    },
+    "action_chunk": {
+      "value": 8,
+      "source": 0,
+      "quote": "Table IV: \"action chunk size 8 steps (predict 8, execute all 8 open-loop at test time)\""
+    },
+    "execute_steps": {
+      "value": 8,
+      "source": 0,
+      "quote": "\"predict 8, execute all 8 open-loop at test time\""
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated (full chunks are executed open-loop)."
+    },
+    "inference_ms": {
+      "value": 112.0,
+      "source": 0,
+      "quote": "Table II: \"+ PD&AC, Cont-L1 + Additional Inputs (wrist img, proprio)\": throughput 71.4 Hz, latency 0.1120 s (\"averaged over 100 queries on an NVIDIA A100 GPU\")",
+      "hardware": "NVIDIA A100"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated for LIBERO (a simulation benchmark)."
+    }
+  }
+}

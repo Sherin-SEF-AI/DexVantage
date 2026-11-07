@@ -1,0 +1,71 @@
+{
+  "id": "gello",
+  "kind": "teleop",
+  "maker": "GELLO (P. Wu, Y. Shentu, Z. Yi, X. Lin, P. Abbeel)",
+  "name": "GELLO (built for the target arm)",
+  "family": "Joint-space teleoperation controllers",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2309.13037",
+      "title": "P. Wu et al., GELLO: A General, Low-Cost, and Intuitive Teleoperation Framework for Robot Manipulators, arXiv:2309.13037 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "the same kinematic structure as the target arm, the DYNAMIXEL XL330 servos and their encoder resolution, the robots built for, the bill of materials"
+    }
+  ],
+  "note": "GELLO is not one device: \"Given a target robot arm, we build a GELLO controller device that has the same kinematic structure as the target arm, leveraging 3D-printed parts and economical off-the-shelf motors\"; the paper built them for the UR5, the xArm7 and the Franka Panda (\"The bill of materials for each GELLO device is less than $300\"). Its joints map one to one to the follower's, so in DexVantage it leads with the follower's own model (leads \"*\", same_joints true). Its DoF is the target arm's (null here: 6 for the UR5, 7 for the Panda and xArm7). Servos \"DYNAMIXEL XL330 series\" with \"high-resolution 12-bit encoders, enabling joint measurements within 0.088 of a mechanical degree\" (joint_resolution_deg 0.088). Not stated in the paper: a sample rate, a latency, the mass, the power.",
+  "interface": "DYNAMIXEL XL330 servos (serial bus)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "gello",
+    "mapping": "joint",
+    "leads": [
+      "*"
+    ],
+    "same_joints": true,
+    "dof": {
+      "value": null,
+      "source": null,
+      "quote": "The target arm's: \"GELLO is also effective for 7 DOF arms, such as the Panda and xArms\"."
+    },
+    "tracking_hz": {
+      "value": null,
+      "source": null
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "The workspace is the follower's own (joint to joint); the source states no separate volume."
+    },
+    "range_text": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": 0.088,
+      "source": 0,
+      "quote": "\"these servos are equipped with high-resolution 12-bit encoders, enabling joint measurements within 0.088 of a mechanical degree\""
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

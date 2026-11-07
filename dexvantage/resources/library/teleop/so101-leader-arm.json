@@ -1,0 +1,73 @@
+{
+  "id": "so101-leader-arm",
+  "kind": "teleop",
+  "maker": "TheRobotStudio and Hugging Face (LeRobot)",
+  "name": "SO-101 leader arm",
+  "family": "SO-ARM100 (SO-101)",
+  "sources": [
+    {
+      "url": "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/docs/source/so101.mdx",
+      "title": "Hugging Face LeRobot documentation, \"SO-101\" (docs/source/so101.mdx at commit d490e47; https://huggingface.co/docs/lerobot/so101)",
+      "read": "2026-11-07",
+      "covers": "the leader's motors and gear ratios per axis, the handle and trigger, calibration to the same positions"
+    }
+  ],
+  "note": "The SO-101 leader has the follower's six axes (\"Base / Shoulder Pan, Shoulder Lift, Elbow Flex, Wrist Flex, Wrist Roll, Gripper\") but \"uses three differently geared motors to make sure it can both sustain its own weight and it can be moved without requiring much force\": gear ratios 1/191, 1/345, 1/191, 1/147, 1/147, 1/147 (the follower: \"6x STS3215 motors with 1/345 gearing\"). A handle and trigger replace the gripper. Both arms are calibrated so \"the leader and follower arms have the same position values when they are in the same physical position\" (same_joints true). The SO-101 is in MuJoCo Menagerie (robotstudio_so101). Not stated: mass, power, sample rate, latency.",
+  "interface": "Feetech serial bus servos, USB to the computer (LeRobot MotorsBus)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "leader_arm",
+    "mapping": "joint",
+    "leads": [
+      "so-101",
+      "so101",
+      "so_arm101",
+      "robotstudio_so101"
+    ],
+    "same_joints": true,
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "the leader-arm axis table: Base / Shoulder Pan, Shoulder Lift, Elbow Flex, Wrist Flex, Wrist Roll, Gripper (motors 1 to 6)"
+    },
+    "tracking_hz": {
+      "value": null,
+      "source": null
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "The workspace is the follower's own (joint to joint); the source states no separate volume."
+    },
+    "range_text": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "id": "fourier-n1",
+  "kind": "robot",
+  "maker": "Fourier",
+  "name": "N1",
+  "family": "humanoid",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/fourier_n1",
+      "title": "MuJoCo Menagerie fourier_n1/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "fftai.com returned no readable specification on 2026-11-07; no figure is entered.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "fourier_n1",
+      "file": "n1.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/fourier_n1"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "n1.xml",
+      "imported": true,
+      "joints_in_q": 23,
+      "joint_names": [
+        "left_hip_pitch_joint",
+        "left_hip_roll_joint",
+        "left_hip_yaw_joint",
+        "left_knee_pitch_joint",
+        "left_ankle_roll_joint",
+        "left_ankle_pitch_joint",
+        "right_hip_pitch_joint",
+        "right_hip_roll_joint",
+        "right_hip_yaw_joint",
+        "right_knee_pitch_joint",
+        "right_ankle_roll_joint",
+        "right_ankle_pitch_joint",
+        "waist_yaw_joint",
+        "left_shoulder_pitch_joint",
+        "left_shoulder_roll_joint",
+        "left_shoulder_yaw_joint",
+        "left_elbow_pitch_joint",
+        "left_wrist_yaw_joint",
+        "right_shoulder_pitch_joint",
+        "right_shoulder_roll_joint",
+        "right_shoulder_yaw_joint",
+        "right_elbow_pitch_joint",
+        "right_wrist_yaw_joint"
+      ],
+      "actuators": 23,
+      "links": 29,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 23,
+      "seconds": 1.71,
+      "note": ""
+    }
+  }
+}

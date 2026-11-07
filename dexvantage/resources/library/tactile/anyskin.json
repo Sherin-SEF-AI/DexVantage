@@ -1,0 +1,32 @@
+{
+  "id": "anyskin",
+  "kind": "tactile",
+  "maker": "New York University",
+  "name": "AnySkin (research sensor)",
+  "family": "ReSkin / AnySkin",
+  "sources": [
+    {
+      "url": "https://arxiv.org/pdf/2409.08276",
+      "title": "R. Bhirangi, V. Pattabiraman, E. Erciyes, Y. Cao, T. Hellebrekers and L. Pinto, \"AnySkin: Plug-and-play Skin Sensing for Robotic Touch\", arXiv:2409.08276",
+      "read": "2026-11-07",
+      "covers": "sensing principle (magnetised elastomer over 5 magnetometers, the ReSkin circuitry), skin thickness 2 mm, triangular fingertip shape, self-adhering skin, data collection rate 100 Hz in the experiments, signal strength and variability (Table I), replacement time (Table II)"
+    }
+  ],
+  "note": "A contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. A research magnetic skin (open source): a magnetised elastomer (particles in Dragonskin 10 Slow) over \"the same 5-magnetometer circuitry as ReSkin\", self-adhering, replaceable in about 12 s. Figures from the paper: skin thickness 2 mm; the experiments' fingertip skin is triangular (its size is not stated, so pad_mm is null; the 20 mm x 20 mm skin in the alignment test is a ReSkin-style comparison skin); tactile data collected at 100 Hz in the policy experiments (entered as fps; the sensor's maximum rate is not stated). taxels is null: the 5 magnetometers (3-axis each) are not taxels in the sense of a pad grid. Not stated: power, mass, size, interface (the ReSkin electronics use a microcontroller board). Its readings are not an image stream, so no stream is entered; the bandwidth budget needs the data rate as a measured or stated figure.",
+  "interface": null,
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": {
+    "pad_mm": null,
+    "camera_resolution": null,
+    "fps": 100.0,
+    "sensing": "magnetic (5 three-axis magnetometers)",
+    "taxels": null
+  },
+  "host": null
+}

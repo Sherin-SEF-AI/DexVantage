@@ -1,0 +1,99 @@
+{
+  "id": "kuka-lbr-iiwa-14-r820",
+  "kind": "robot",
+  "maker": "KUKA",
+  "name": "LBR iiwa 14 R820",
+  "family": "7-axis sensitive lightweight arm",
+  "sources": [
+    {
+      "url": "https://www.kuka.com/en-de/products/robotics-systems/industrial-robots/lbr-iiwa",
+      "title": "KUKA, LBR iiwa product page, technical data of LBR iiwa 14 R820",
+      "read": "2026-11-07",
+      "covers": "axes, load, reach, mounting, protection class"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/kuka_iiwa_14",
+      "title": "MuJoCo Menagerie kuka_iiwa_14/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The product page states no repeatability, mass, control rate or axis ranges (they are in KUKA's datasheet in the download centre, which needs a session and was not read). The Menagerie model is derived from Drake's iiwa14 URDF.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "variant": "LBR iiwa 14 R820 (standard)",
+    "dof": {
+      "value": 7,
+      "source": 0,
+      "quote": "LBR iiwa (7 axes) - technical data"
+    },
+    "reach_mm": {
+      "value": 820,
+      "source": 0,
+      "quote": "Maximum reach 820 mm"
+    },
+    "payload_kg": {
+      "value": 14,
+      "source": 0,
+      "quote": "Total load 14 kg"
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "KUKA Sunrise Cabinet"
+      ],
+      "source": 0,
+      "quote": "Controller KUKA Sunrise Cabinet"
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "kuka_iiwa_14",
+      "file": "iiwa14.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/kuka_iiwa_14"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "iiwa14.xml",
+      "imported": true,
+      "joints_in_q": 7,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6",
+        "joint7"
+      ],
+      "actuators": 7,
+      "links": 8,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 7,
+      "seconds": 0.11,
+      "note": ""
+    }
+  }
+}

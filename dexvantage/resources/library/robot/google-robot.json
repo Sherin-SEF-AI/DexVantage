@@ -1,0 +1,88 @@
+{
+  "id": "google-robot",
+  "kind": "robot",
+  "maker": "Google",
+  "name": "Google Robot (Everyday Robots, RT-1)",
+  "family": "mobile manipulator",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/google_robot",
+      "title": "MuJoCo Menagerie google_robot/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "No public datasheet; no figure is entered.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "mobile_manipulator",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "google_robot",
+      "file": "robot.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/google_robot"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "robot.xml",
+      "imported": true,
+      "joints_in_q": 9,
+      "joint_names": [
+        "joint_torso",
+        "joint_shoulder",
+        "joint_bicep",
+        "joint_elbow",
+        "joint_forearm",
+        "joint_wrist",
+        "joint_gripper",
+        "joint_finger_right",
+        "joint_finger_left"
+      ],
+      "actuators": 9,
+      "links": 12,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 9,
+      "seconds": 0.18,
+      "note": ""
+    }
+  }
+}

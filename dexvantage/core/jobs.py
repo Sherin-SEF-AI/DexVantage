@@ -129,8 +129,11 @@ class ResultCache:
         from . import provenance as PV
         settings = project.analysis.studies.get(sid, {})
         ids = [s.model_id for v in project.variants for s in v.sensors] + library_ids(project)
+        # the content hash leaves the active variant out (provenance records it on its own): its place keys the
+        # result, else a study of another variant of the same project would hit this one's result
+        active = next((i for i, v in enumerate(project.variants) if v.uid == project.active_uid), 0)
         return (sid, PV.project_digest(project)['sha256'], PV.sha256(PV.canonical(settings)),
-                LB.entries_digest(ids), dataset_fingerprint(sid, project))
+                LB.entries_digest(ids), active, dataset_fingerprint(sid, project))
 
     def get(self, key):
         with self._lock:

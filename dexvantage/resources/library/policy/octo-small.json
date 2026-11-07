@@ -1,0 +1,102 @@
+{
+  "id": "octo-small",
+  "kind": "policy",
+  "maker": "Octo Model Team",
+  "name": "Octo-Small",
+  "family": "Generalist transformer policy with a diffusion action head",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2405.12213",
+      "title": "Octo Model Team, Octo: An Open-Source Generalist Robot Policy, arXiv:2405.12213 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "the 256 × 256 third-person and 128 × 128 wrist inputs, 16 × 16 patches, tokens per image, the Octo-Small checkpoint (27M parameters)"
+    },
+    {
+      "url": "https://github.com/octo-models/octo/tree/241fb3514b7c40957a86d869fecb7c7fc353f540",
+      "title": "octo-models/octo (official code), commit 241fb35: README.md and octo/utils/gym_wrappers.py",
+      "read": "2026-11-07",
+      "covers": "the inference rate of Octo-Small on an NVIDIA 4090, the action chunk of 4, the crop and resize at inference (ResizeImageWrapper)"
+    }
+  ],
+  "note": "Octo-Small (27M parameters, \"a transformer backbone that mirrors the size of a ViT-S\") takes the same inputs as Octo-Base: the primary (third-person) image cropped and resized to 256 × 256 (16 × 16 patches, 256 tokens), the wrist image resized to 128 × 128 with no crop (64 tokens); at inference the official wrapper takes the average of the training crop, a centred crop of √0.9 = 0.949 of each side, for the primary image only. The README's 17 it/sec on one NVIDIA 4090 is Octo-Small (58.8 ms). The number of cameras is not fixed. Code MIT.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        256,
+        256
+      ],
+      "source": 0,
+      "quote": "\"For the 3rd person camera we apply stochastic crops followed be a resize to 256×256\""
+    },
+    "crop_rule": {
+      "value": "center_crop_resize",
+      "source": 1,
+      "quote": "ResizeImageWrapper: \"crop and resize the image with bilinear interpolation to match the average of the crop and resize image augmentation performed during training\" (augmented_keys=(\"image_primary\",))"
+    },
+    "crop_side_fraction": {
+      "value": 0.9487,
+      "source": 1,
+      "quote": "avg_scale: float = 0.9, avg_ratio: float = 1.0; new_height = sqrt(avg_scale / avg_ratio), new_width = sqrt(avg_scale * avg_ratio)"
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": 16,
+      "source": 0,
+      "quote": "\"split into a sequence of flattened patches [22] of size 16×16\""
+    },
+    "tokens_per_image": {
+      "value": 256,
+      "source": 0,
+      "quote": "\"This results in 256 tokens for the 3rd person camera images and 64 tokens for the wrist camera images.\""
+    },
+    "n_cameras": {
+      "value": null,
+      "source": null,
+      "quote": "Not fixed: the checkpoints \"support multiple RGB camera inputs\"."
+    },
+    "action_chunk": {
+      "value": 4,
+      "source": 1,
+      "quote": "\"Octo was pretrained with an action chunking size of 4, meaning it predicts the next 4 actions at once.\""
+    },
+    "execute_steps": {
+      "value": null,
+      "source": null,
+      "quote": "Your choice: \"execute all these actions before sampling new ones, or only execute the first action\" (README)."
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null,
+      "quote": "Optional (TemporalEnsembleWrapper)."
+    },
+    "inference_ms": {
+      "value": 58.8,
+      "source": 1,
+      "quote": "\"Inference on 1x NVIDIA 4090\": Octo-Small 17 it/sec (1000 / 17 = 58.8 ms)",
+      "hardware": "one NVIDIA 4090"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null,
+      "quote": "Not one figure: 5-15 Hz across the paper's fine-tuning setups."
+    },
+    "wrist_input_resolution": {
+      "value": [
+        128,
+        128
+      ],
+      "source": 0,
+      "quote": "\"For the wrist camera, we apply the same procedure except without the random crop and resizing to 128×128 instead.\""
+    },
+    "wrist_tokens_per_image": {
+      "value": 64,
+      "source": 0,
+      "quote": "\"64 tokens for the wrist camera images\""
+    }
+  }
+}

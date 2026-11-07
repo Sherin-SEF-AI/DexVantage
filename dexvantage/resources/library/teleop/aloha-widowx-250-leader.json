@@ -1,0 +1,88 @@
+{
+  "id": "aloha-widowx-250-leader",
+  "kind": "teleop",
+  "maker": "Trossen Robotics (ALOHA: T. Z. Zhao et al.)",
+  "name": "ALOHA leader arm (WidowX-250 6DOF)",
+  "family": "ALOHA",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2304.13705",
+      "title": "T. Z. Zhao, V. Kumar, S. Levine, C. Finn, Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware, arXiv:2304.13705 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "joint-space mapping from the WidowX leader to the ViperX follower, the 50 Hz teleoperation, the handle-and-scissor mechanism"
+    },
+    {
+      "url": "https://docs.trossenrobotics.com/interbotix_xsarms_docs/specifications/wx250s.html",
+      "title": "Interbotix X-Series Arms documentation, WidowX-250 6DOF specifications (Trossen Robotics)",
+      "read": "2026-11-07",
+      "covers": "degrees of freedom, reach, repeatability, accuracy, servos"
+    },
+    {
+      "url": "https://docs.trossenrobotics.com/aloha_docs/2.0/specifications.html",
+      "title": "ALOHA documentation 2.0, Specifications (Trossen Robotics)",
+      "read": "2026-11-07",
+      "covers": "the leader arms \"WidowX 250 S - Aloha Version\", the followers \"ViperX 300 S - Aloha Version\""
+    }
+  ],
+  "note": "ALOHA teleoperates \"by backdriving the smaller WidowX ('the leader'), whose joints are synchronized with the larger ViperX ('the follower')\": \"direct joint-space mapping\"; the two arms \"are approximately scaled versions of each other\" (same_joints false: the WidowX's ranges are not the ViperX's, and DexVantage takes the follower's ranges, an assumption the device record says). \"Both the teleoperation and data recording happen at 50Hz\" (tracking_hz 50). A 3D-printed \"handle and scissor\" mechanism gives continuous gripper control. WidowX-250 6DOF (Trossen): \"Degrees of Freedom 6\", \"Reach 650mm\", \"Repeatability 1mm\", \"Accuracy 5 - 8mm\" (accuracy_mm 8, the upper end; the arm's own positioning accuracy, not a teleop figure), servos DYNAMIXEL XM430-W350 and XL430-W250 with \"4096 positions\". Not stated: the leader's mass, latency.",
+  "interface": "DYNAMIXEL X-series servos, DYNAMIXEL U2D2 (USB)",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "leader_arm",
+    "mapping": "joint",
+    "leads": [
+      "viperx",
+      "vx300",
+      "aloha"
+    ],
+    "same_joints": false,
+    "dof": {
+      "value": 6,
+      "source": 1,
+      "quote": "\"Degrees of Freedom | 6\""
+    },
+    "tracking_hz": {
+      "value": 50,
+      "source": 0,
+      "quote": "\"Both the teleoperation and data recording happen at 50Hz.\""
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "The workspace is the follower's own (joint to joint); the source states no separate volume."
+    },
+    "range_text": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": 650,
+      "source": 1,
+      "quote": "\"Reach | 650mm\""
+    },
+    "accuracy_mm": {
+      "value": 8,
+      "source": 1,
+      "quote": "\"Accuracy | 5 - 8mm\" (the upper end)"
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated (the leader is backdriven; no force feedback is described)."
+    }
+  }
+}

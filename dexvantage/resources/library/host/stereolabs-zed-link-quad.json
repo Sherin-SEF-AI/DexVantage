@@ -1,0 +1,44 @@
+{
+  "id": "stereolabs-zed-link-quad",
+  "kind": "host",
+  "maker": "Stereolabs",
+  "name": "ZED Link Quad Capture Card",
+  "family": "ZED Link capture cards",
+  "sources": [
+    {
+      "url": "https://cdn.sanity.io/files/s18ewfw4/staging/6b055985bfe752e0a073a6a730f84a2fc0dc6147.pdf/ZED%20Link%20Quad%20-%20Datasheet.pdf",
+      "title": "ZED Link Quad Capture Card datasheet, rev1.1 (Stereolabs; linked from the Stereolabs store page)",
+      "read": "2026-11-07",
+      "covers": "compatibility, supported cameras, power, deserializers, temperature, weight, interfaces (J1/J2 FAKRA, J5 Samtec, J10 power, J17 GPIO)"
+    }
+  ],
+  "note": "A GMSL2 deserializer board \"(Compatible with NVIDIA Jetson AGX Orin)\" that mounts on the Jetson's Samtec camera connector (J5, \"Samtec QTH-060-04-H-D-A-K-TR\", \"Can be used with Orin AGX and Xavier AGX Developer Kits\"). Inputs: \"2x 4 GMSL2 I/O\" on J1 and J2 (FAKRA Z 4x1; ports 2, gmsl_links 8); \"Supports up to 8 ZED X GS / ZED X Mini GS / ZED X One GS and up to 4 ZED One 4k\". \"Deserializer: 2 x Maxim MAX96712\". \"Requires external 9V to 19V power supply (Typical power consumption ~0.29W)\" (power_w 0.29, the typical figure). \"Weight: ~ 55 g\". Operating temperature -20 to +75 °C. Not stated: the GMSL2 link rate and the CSI-2 lanes to the Jetson (stated_mbps and lanes null), the size (only in a drawing).",
+  "interface": "GMSL2 in (2x 4-way FAKRA Z); Samtec QTH-060 to the Jetson AGX camera connector",
+  "power_w": 0.29,
+  "mass_g": 55.0,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "gmsl_deser",
+    "ports": 2,
+    "lanes": null,
+    "stated_mbps": null,
+    "practical_mbps": null,
+    "gmsl_links": 8,
+    "ingest": [
+      {
+        "bus": "gmsl",
+        "count": 8,
+        "per_port_mbps": null,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"2x 4 GMSL2 I/O\" (J1 & J2, Fakra Z 4x1); \"Deserializer: 2 x Maxim MAX96712\""
+      }
+    ]
+  }
+}

@@ -272,12 +272,27 @@ def _video_decoder(file: str, pts: np.ndarray, key: str):
             raise DatasetError(f'Camera {key} has {n} frames in this episode; frame {bad[0]} does not exist.')
         if not want_idx:
             return
+        done: set = set()
+        # frame-threaded decoding first; a packet the threaded decoder refuses ("Invalid data found when processing
+        # input", seen intermittently in the full test suite on AV1 files that decode cleanly on their own) is tried
+        # once more single-threaded from that frame on; a file that fails both ways is damaged and the error stands
+        for threads in ('AUTO', 'NONE'):
+            try:
+                yield from _decode_pass(av, threads, [i for i in want_idx if i not in done], done)
+                return
+            except av.error.InvalidDataError:
+                if threads == 'NONE':
+                    raise
+
+    def _decode_pass(av, threads, idx, done):
+        if not idx:
+            return
         with av.open(file() if callable(file) else file) as c:
             s = c.streams.video[0]
-            s.thread_type = 'AUTO'
+            s.thread_type = threads
             tb = s.time_base
-            groups, cur = [], [want_idx[0]]                 # re-seek across gaps of more than 2 s
-            for i in want_idx[1:]:
+            groups, cur = [], [idx[0]]                      # re-seek across gaps of more than 2 s
+            for i in idx[1:]:
                 if float((pts[i] - pts[cur[-1]]) * tb) > 2.0:
                     groups.append(cur)
                     cur = [i]
@@ -292,7 +307,10 @@ def _video_decoder(file: str, pts: np.ndarray, key: str):
                     if fr.pts is None:
                         continue
                     if fr.pts in want:
-                        yield want.pop(fr.pts), fr.to_ndarray(format='rgb24')
+                        i = want.pop(fr.pts)
+                        img = fr.to_ndarray(format='rgb24')
+                        done.add(i)
+                        yield i, img
                     if fr.pts >= last or not want:
                         break
                 if want:

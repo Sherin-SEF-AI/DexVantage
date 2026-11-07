@@ -56,7 +56,8 @@
       ],
       "lens_model": "pinhole",
       "f_number": null,
-      "focus": "fixed"
+      "focus": "fixed",
+      "figures_conflict": "The stated diagonal (128.2 deg) is wider than a centred, radially symmetric lens without pincushion distortion can show with the stated 104.6 x 61.6 deg across 1920 x 1200 px (at most about 116 deg): the three angles were probably not measured on the same image. The library uses the horizontal and vertical angles."
     }
   ],
   "projector": null,

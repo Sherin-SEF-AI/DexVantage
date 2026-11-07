@@ -1,0 +1,821 @@
+{
+  "id": "orbbec-gemini-335l",
+  "kind": "depth",
+  "maker": "Orbbec",
+  "name": "Gemini 335L",
+  "family": "Gemini 330 series",
+  "sources": [
+    {
+      "url": "https://orbbec-debian-repos-aws.s3.amazonaws.com/product/Gemini%20330%20series%20Datasheet-V1.8.pdf",
+      "title": "Gemini 330 Series Datasheet for USB Devices (revision history to V1.8; pages headed V1.7), Orbbec",
+      "read": "2026-11-07",
+      "covers": "specification table (section 2), dimensions and weight (Table 3-2-3), LDM, IR and RGB module tables (3-4-3 to 3-4-5), USB 3.0 stream table (4-4-3), typical depth intrinsics (4-5-2), stream FOVs (4-5-3), minimum-Z (4-6-1), coordinate system positions (4-8-1, 4-8-4), start points (4-9-1), depth performance (5-1-1), power (5-1-1/5-1-2 of section 5.2)"
+    }
+  ],
+  "note": "The long-baseline (95 mm) Gemini 330, in an IP65 housing, with a global-shutter RGB camera. Poses: the depth origin is the left IR module's optical centre (section 4.8); the right IR one stated baseline along -y; the colour origin is \"X 23.75, Y 0, Z 0\" mm from the depth origin (Table 4-8-1; Table 4-8-4 puts depth and colour at X 0 and 23.75 mm, the same Z), entered as body (0, -23.75, 0) mm with pose_stated true, axes taken parallel (no rotation stated). The projector (LDM, 850 nm VCSEL, 101 x 72.5 deg) is drawn between the IR modules but its offset is not dimensioned in the text: placed at the baseline midpoint as an ASSUMPTION (pose_stated false). FOVs: the IR stream FOVs of Table 4-5-3 (91 x 65 deg for 16:10, 91 x 60 for 16:9, 81 x 65 for 4:3, 91 x 14 for 848 x 100; the IR modules are 94/68/104 deg, Table 3-4-4); depth FOV before D2C 90 x 65 deg at 2 m; RGB 94 x 68 deg (16:10), 94 x 62 (16:9), 82 x 68 (4:3). Typical depth intrinsics fx = fy = 620.0 px at 1280 x 800 (Table 4-5-2, shared by the series). min_z is Table 4-6-1 at a disparity search range of 128 (0.5 m at the 16:10 modes and 1280 x 720; with 64, 1 m); the specification table instead gives \"0.25m @ 1280 x 800 / 1280 x 720 / 640 x 400 / 424 x 266\", which matches no 335L/336L column of Table 4-6-1, and the power tables' typical configuration uses a search range of 256, whose min-Z is not tabulated; the 4:3 and 848 x 100 rows are not given for the L models. Streams: Table 4-4-3 (USB 3.0); depth Y16, IR Y8, colour MJPEG or YUYV (YUYV entered, 16 bits per pixel by the 4:2:2 definition). Power: average < 3.0 W (entered), peak < 6.0 W. The lens model pinhole is a labelled ASSUMPTION (distortion < 1.5%, no coefficients). Not stated: pixel size, f-numbers, subpixel accuracy. Mounting: bottom 1x 1/4-20 UNC, back 2x M4. Gemini 335L: \"Visible + NIR-pass\" filter on the IR modules; size 124 x 29 x 27 mm (W x H x D), 133 g; depth and RGB start points 4.080 mm behind the front cover glass (Table 4-9-1).",
+  "interface": "USB 3.0 (USB Type-C)",
+  "power_w": 3.0,
+  "mass_g": 133.0,
+  "size_mm": [
+    27.0,
+    124.0,
+    29.0
+  ],
+  "imagers": [
+    {
+      "name": "IR left",
+      "role": "ir_left",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 91.0,
+      "vfov_deg": 65.0,
+      "dfov_deg": null,
+      "pixel_um": null,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "fov_modes": [
+        {
+          "aspect": [
+            16,
+            9
+          ],
+          "hfov_deg": 91.0,
+          "vfov_deg": 60.0,
+          "dfov_deg": null,
+          "what": "IR stream FOV, 16:9 (Table 4-5-3)"
+        },
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 81.0,
+          "vfov_deg": 65.0,
+          "dfov_deg": null,
+          "what": "IR stream FOV, 4:3 (Table 4-5-3)"
+        },
+        {
+          "aspect": [
+            848,
+            100
+          ],
+          "hfov_deg": 91.0,
+          "vfov_deg": 14.0,
+          "dfov_deg": null,
+          "what": "IR stream FOV, 848 x 100 (Table 4-5-3)"
+        }
+      ]
+    },
+    {
+      "name": "IR right",
+      "role": "ir_right",
+      "pose": {
+        "position": [
+          0.0,
+          -0.095,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 91.0,
+      "vfov_deg": 65.0,
+      "dfov_deg": null,
+      "pixel_um": null,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "fov_modes": [
+        {
+          "aspect": [
+            16,
+            9
+          ],
+          "hfov_deg": 91.0,
+          "vfov_deg": 60.0,
+          "dfov_deg": null,
+          "what": "IR stream FOV, 16:9 (Table 4-5-3)"
+        },
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 81.0,
+          "vfov_deg": 65.0,
+          "dfov_deg": null,
+          "what": "IR stream FOV, 4:3 (Table 4-5-3)"
+        },
+        {
+          "aspect": [
+            848,
+            100
+          ],
+          "hfov_deg": 91.0,
+          "vfov_deg": 14.0,
+          "dfov_deg": null,
+          "what": "IR stream FOV, 848 x 100 (Table 4-5-3)"
+        }
+      ]
+    },
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          -0.02375,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 94.0,
+      "vfov_deg": 68.0,
+      "dfov_deg": 104.0,
+      "pixel_um": null,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "fov_modes": [
+        {
+          "aspect": [
+            16,
+            9
+          ],
+          "hfov_deg": 94.0,
+          "vfov_deg": 62.0,
+          "dfov_deg": null,
+          "what": "RGB FOV 16:9 (Table 4-5-3)"
+        },
+        {
+          "aspect": [
+            4,
+            3
+          ],
+          "hfov_deg": 82.0,
+          "vfov_deg": 68.0,
+          "dfov_deg": null,
+          "what": "RGB FOV 4:3 (Table 4-5-3)"
+        }
+      ]
+    }
+  ],
+  "projector": {
+    "hfov_deg": 101.0,
+    "vfov_deg": 72.5,
+    "dfov_deg": null,
+    "pose": {
+      "position": [
+        0.0,
+        -0.0475,
+        0.0
+      ],
+      "quaternion": [
+        -0.5,
+        0.5,
+        -0.5,
+        0.5
+      ]
+    },
+    "pose_stated": false,
+    "wavelength_nm": 850
+  },
+  "depth": {
+    "technology": "active_ir_stereo",
+    "reference_imager": "IR left",
+    "stereo_pair": [
+      "IR left",
+      "IR right"
+    ],
+    "baseline_m": 0.095,
+    "min_z": [
+      {
+        "width": 1280,
+        "height": 800,
+        "m": 0.5
+      },
+      {
+        "width": 640,
+        "height": 400,
+        "m": 0.5
+      },
+      {
+        "width": 424,
+        "height": 266,
+        "m": 0.5
+      },
+      {
+        "width": 1280,
+        "height": 720,
+        "m": 0.5
+      },
+      {
+        "width": 848,
+        "height": 480,
+        "m": 0.34
+      },
+      {
+        "width": 640,
+        "height": 360,
+        "m": 0.26
+      },
+      {
+        "width": 480,
+        "height": 270,
+        "m": 0.19
+      },
+      {
+        "width": 424,
+        "height": 240,
+        "m": 0.17
+      }
+    ],
+    "max_range_m": 20.0,
+    "ideal_range_m": [
+      0.25,
+      6.0
+    ],
+    "range_text": "Working range 0.17-20 m+ (reflectivity > 10%); ideal range 0.25-6 m",
+    "rms_error": {
+      "text": "Spatial precision <= 0.8% (1280 x 800 at 2 m, 90% x 90% ROI) and <= 1.6% (at 4 m, 80% x 80% ROI); depth accuracy <= +/-1% at 2 m, <= +/-2% at 4 m; temporal precision <= 0.4% at 2 m (Table 5-1-1)",
+      "metric": "rms",
+      "pct": 0.8,
+      "at_m": 2.0
+    },
+    "subpixel_px": null,
+    "depth_fov": {
+      "h": 90.0,
+      "v": 65.0,
+      "d": null
+    },
+    "depth_start_mm": -4.08
+  },
+  "streams": [
+    {
+      "imager": "depth",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 424,
+      "height": 266,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "depth",
+      "width": 848,
+      "height": 100,
+      "fps": [
+        100
+      ],
+      "format": "Y16",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "IR left",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 424,
+      "height": 266,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR left",
+      "width": 848,
+      "height": 100,
+      "fps": [
+        100
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 424,
+      "height": 266,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        10,
+        15,
+        30
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "IR right",
+      "width": 848,
+      "height": 100,
+      "fps": [
+        100
+      ],
+      "format": "Y8",
+      "bits_per_pixel": 8
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60
+      ],
+      "format": "YUYV",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "YUYV",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60
+      ],
+      "format": "YUYV",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 848,
+      "height": 480,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60
+      ],
+      "format": "YUYV",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 640,
+      "height": 360,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "YUYV",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 480,
+      "height": 270,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "YUYV",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 424,
+      "height": 240,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "YUYV",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "RGB",
+      "width": 640,
+      "height": 480,
+      "fps": [
+        5,
+        10,
+        15,
+        30,
+        60,
+        90
+      ],
+      "format": "YUYV",
+      "bits_per_pixel": 16
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

@@ -1,0 +1,83 @@
+{
+  "id": "allied-vision-alvium-1800-c-158c",
+  "kind": "camera",
+  "maker": "Allied Vision",
+  "name": "Alvium 1800 C-158c",
+  "family": "Alvium C",
+  "sources": [
+    {
+      "url": "https://www.alliedvision.com/en/products/area-scan-cameras/alvium/alvium-u/datasheet/1143?t=camera",
+      "title": "Alvium 1800 C-158 data sheet (Allied Vision, generated 2026-Nov-07)",
+      "read": "2026-11-07",
+      "covers": "sensor (Sony IMX273), chroma, resolution, shutter, sensor size and diagonal, pixel size, pixel formats, frame rate, exposure, power, size, lens mounts, mass, interface"
+    }
+  ],
+  "note": "A compact MIPI CSI-2 embedded camera (Alvium C); the data sheet covers the colour (C-158c, entered) and mono models. Sold without a lens, so no FOV, f-number or focus is stated: the imager has no FOV and the library uses its labelled default until the user enters the chosen lens (or a calibration). Sony IMX273, 1456 x 1088, global shutter, sensor \"5 x 3.8 mm (6.3 mm, Type 1/2.9)\", pixel 3.45 um. Maximum frame rate 262 fps; the data sheet does not say for which pixel format (RGB8 and RGB888 are its defaults, but 1456 x 1088 at 262 fps at 24 bits per pixel would be 9.96 Gbit/s, and the sheet gives no lane rate for its \"up to 4 lanes\"), so the stream's format and bits per pixel are null (not stated for that rate; truthfulness review 2026-11-07, data sheet read again). Exposure 28 us to 10 s. power_w is the typical 2.4 W (5 VDC over MIPI CSI-2). size_mm: 26 x 29 x 29 mm (L x W x H); C-, CS- or S-mount. Two programmable GPIOs (trigger use not stated, so sync is null).",
+  "interface": "MIPI CSI-2",
+  "power_w": 2.4,
+  "mass_g": 40.0,
+  "size_mm": [
+    26.0,
+    29.0,
+    29.0
+  ],
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 3.45,
+      "resolution": [
+        1456,
+        1088
+      ],
+      "lens_model": null,
+      "f_number": null,
+      "focus": null,
+      "optical_format": "1/2.9\"",
+      "sensor_size_mm": [
+        5.0,
+        3.8
+      ],
+      "sensor_diagonal_mm": 6.3,
+      "exposure_s": {
+        "min": 2.8e-05,
+        "max": 10.0,
+        "what": "Timing and gain: \"Exposure time 28 us to 10 s\""
+      }
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1456,
+      "height": 1088,
+      "fps": [
+        262
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

@@ -29,7 +29,10 @@ The leader's comfortable workspace, mapped into the follower's frame through the
   of edges `size` or a cylinder of [radius, height] along z, in the device frame) is mapped as
   p_world = B_f · O · (scale · p_d), B_f the follower's base and O the mapping offset (a pose in the follower's base
   frame). A device whose volume is not stated has no comfortable workspace: the study says so and does not guess one.
-  The library has no teleop entries: a figure comes from the device's own `source` (cited or measured), or it is null.
+  Data gloves and hand trackers (kinds 'glove', 'hand_tracker') are cartesian devices the same way, their volume
+  the wrist tracker's or the tracker's own. A figure comes from the device's own `source` (cited or measured), or it
+  is null; a device made from a library teleop entry (core/teleop_devices.py device_from_library) keeps its
+  `library_id` and carries the entry's stated figures, each with its source, in `source`.
 
 The follower over the task volume: the task volumes are voxelised with core/voxels.py SparseGrid at `voxel_mm`
 (default 25 mm, no refinement: each voxel costs an IK solve), plus `search_voxels` (default 2) layers around each
@@ -97,8 +100,10 @@ from .. import jobs
 from ..frames import Pose
 
 STUDY_ID = 'teleop'
-KINDS = ('leader_arm', 'gello', 'vr', 'spacemouse')
-KIND_TITLES = {'leader_arm': 'Leader arm', 'gello': 'GELLO', 'vr': 'VR tracking', 'spacemouse': 'Space mouse'}
+KINDS = ('leader_arm', 'gello', 'vr', 'spacemouse', 'glove', 'hand_tracker')
+KIND_TITLES = {'leader_arm': 'Leader arm', 'gello': 'GELLO', 'vr': 'VR tracking', 'spacemouse': 'Space mouse',
+               'glove': 'Data glove', 'hand_tracker': 'Hand tracker'}
+TRACKED_KINDS = ('vr', 'glove', 'hand_tracker')      # their region is a tracking volume (a space mouse: bounds)
 MAPPINGS = ('joint', 'cartesian')
 VOLUME_KINDS = ('box', 'cylinder')
 CAUSES = ('unreachable', 'self-collision', 'singularity', 'joint limit')
@@ -237,8 +242,11 @@ def clean_device(d, project=None) -> dict:
     if isinstance(src, str):
         src = {'device': src} if src.strip() else {}
     src = {str(k): str(v) for k, v in (src or {}).items() if v} if isinstance(src, dict) else {}
-    return {'uid': str(d.get('uid') or new_uid()), 'name': str(d.get('name') or KIND_TITLES[kind]), 'kind': kind,
-            'follower_uid': follower, 'leader': lead, 'mapping': mapping, 'volume': vol, 'source': src}
+    out = {'uid': str(d.get('uid') or new_uid()), 'name': str(d.get('name') or KIND_TITLES[kind]), 'kind': kind,
+           'follower_uid': follower, 'leader': lead, 'mapping': mapping, 'volume': vol, 'source': src}
+    if d.get('library_id'):                     # the library teleop entry it was made from (core/teleop_devices)
+        out['library_id'] = str(d['library_id'])
+    return out
 
 
 def new_device(project, kind: str = 'leader_arm', follower_uid: str | None = None) -> dict:
@@ -579,17 +587,25 @@ def evaluate_device(project, device: dict, arm: Arm, follower_eval: dict, grid: 
     if device['kind'] in ('leader_arm', 'gello'):
         if lead.get('library_id') and not lead.get('robot_uid'):
             out['stated'] = False
-            notes.append(f'{device["name"]}: the library has no teleop device entries yet, so the leader '
-                         f'"{lead["library_id"]}" has no kinematics here; add the leader arm as a robot (Robot ▸ '
-                         'Import) and choose it as the leader.')
+            from .. import library as _lib
+            le = _lib.get(lead['library_id'])
+            if le is not None and le.kind == 'teleop':
+                notes.append(f'{device["name"]}: the library entry "{le.name}" states the leader\'s figures but no '
+                             'kinematics, and it is not stated to lead this follower; add the leader arm as a robot '
+                             '(Robot ▸ Import) and choose it as the leader.')
+            else:
+                notes.append(f'{device["name"]}: the leader "{lead["library_id"]}" is not in the library, so it has '
+                             'no kinematics here; add the leader arm as a robot (Robot ▸ Import) and choose it as '
+                             'the leader.')
         elif not lead.get('robot_uid') or project.robot(lead['robot_uid']) is None:
             out['stated'] = False
             notes.append(f'{device["name"]}: no leader robot is chosen, so its workspace is not known; choose the '
                          'leader (the follower itself for a leader of the same model).')
     elif device.get('volume') is None:
         out['stated'] = False
-        what = 'tracking volume' if device['kind'] == 'vr' else 'bounds'
-        notes.append(f'{device["name"]}: its {what} {"is" if device["kind"] == "vr" else "are"} not stated, so its '
+        tracked = device['kind'] in TRACKED_KINDS
+        what = 'tracking volume' if tracked else 'bounds'
+        notes.append(f'{device["name"]}: its {what} {"is" if tracked else "are"} not stated, so its '
                      'comfortable workspace is not known. Enter a measured or published figure with its source; '
                      'DexVantage does not guess one.')
     if not out['stated']:
@@ -1046,7 +1062,7 @@ def run(project, ctx: jobs.Ctx) -> dict:
         row = {'uid': d['uid'], 'name': d['name'], 'kind': d['kind'], 'kind_title': KIND_TITLES[d['kind']],
                'follower_uid': d['follower_uid'], 'follower': arm.robot.name, 'mapping': d['mapping'],
                'leader': ev.get('leader'), 'volume': d['volume'], 'source': d['source'], 'stated': ev['stated'],
-               'how': ev['how'], 'comfort_box': ev.get('comfort_box'),
+               'library_id': d.get('library_id'), 'how': ev['how'], 'comfort_box': ev.get('comfort_box'),
                'comfortable_pct': _r(100.0 * comf.sum() / ntot, 2) if ev['stated'] else None,
                'teleoperable_pct': _r(100.0 * good.sum() / ntot, 2) if ev['stated'] else None,
                'dead_zone_pct': _r(100.0 * dead.sum() / ntot, 2) if ev['stated'] else None,

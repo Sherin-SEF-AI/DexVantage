@@ -1,0 +1,133 @@
+{
+  "id": "robotis-omy-f3m",
+  "kind": "robot",
+  "maker": "ROBOTIS",
+  "name": "OMY-F3M",
+  "family": "6-DoF follower arm",
+  "sources": [
+    {
+      "url": "https://emanual.robotis.com/docs/en/platform/omy/specification/",
+      "title": "ROBOTIS e-Manual, OMY specifications (OMY-F3M follower)",
+      "read": "2026-11-07",
+      "covers": "DoF, payload, reach, weight, joint range, repeatability, interfaces"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/robotis_omy_3m",
+      "title": "MuJoCo Menagerie robotis_omy_3m/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Menagerie's README calls the model the OMY-3M, \"a 6-DOF fixed-base robotic manipulator\"; the e-Manual names the follower OMY-F3M. omy_3m.xml models the arm without the RH-P12-RN hand.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "DOF 6"
+    },
+    "reach_mm": {
+      "value": 580,
+      "source": 0,
+      "quote": "Reach 580 [mm]"
+    },
+    "payload_kg": {
+      "value": 3,
+      "source": 0,
+      "quote": "Payload 3 [kg]"
+    },
+    "repeatability_mm": {
+      "value": 0.05,
+      "source": 0,
+      "quote": "Repeatability ±0.05 [mm]"
+    },
+    "mass_kg": {
+      "value": 13.5,
+      "source": 0,
+      "quote": "Weight 13.5 [kg]"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "Ethernet (host)",
+        "RS485 (internal, 4 Mbps)"
+      ],
+      "source": 0,
+      "quote": "Host Interface Ethernet; Internal Communications RS485; Communication Baudrate 4 [Mbps]"
+    },
+    "joint_ranges": {
+      "value": [
+        {
+          "joint": "Joint 1",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Joint 2",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Joint 3",
+          "min": -150,
+          "max": 150
+        },
+        {
+          "joint": "Joint 4",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Joint 5",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Joint 6",
+          "min": -360,
+          "max": 360
+        }
+      ],
+      "source": 0,
+      "quote": "Joint Range Joint 1, 2 : ±360° Joint 3 : ±150° Joint 4, 5, 6 : ±360°",
+      "unit": "deg"
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "robotis_omy_3m",
+      "file": "omy_3m.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/robotis_omy_3m"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "omy_3m.xml",
+      "imported": true,
+      "joints_in_q": 6,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6"
+      ],
+      "actuators": 6,
+      "links": 7,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 6,
+      "seconds": 0.52,
+      "note": ""
+    }
+  }
+}

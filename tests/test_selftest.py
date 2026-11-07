@@ -12,5 +12,5 @@ def test_self_test_passes_offscreen():
     assert r.returncode == 0, r.stdout + r.stderr
     from dexvantage.selftest import NAMES
     for name in NAMES:
-        assert f'  {name:<12} ' in r.stdout
+        assert f'  {name:<15} ' in r.stdout
     assert 'self-test passed' in r.stdout

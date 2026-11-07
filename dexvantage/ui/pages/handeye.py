@@ -746,6 +746,7 @@ class HandEyeSolvePage(_HandEyeBase):
         layout.addWidget(label('Solve', bold=True))
         self.session_box = QComboBox()
         self.session_box.setToolTip('The capture session to solve')
+        self.session_box.setPlaceholderText('No capture session yet: import one above')
         self.session_box.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.session_box.setMinimumWidth(220)
         self.offsets = QCheckBox('Estimate joint zero offsets')

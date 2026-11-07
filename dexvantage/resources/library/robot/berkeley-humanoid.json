@@ -1,0 +1,91 @@
+{
+  "id": "berkeley-humanoid",
+  "kind": "robot",
+  "maker": "UC Berkeley",
+  "name": "Berkeley Humanoid",
+  "family": "research humanoid (legs)",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/berkeley_humanoid",
+      "title": "MuJoCo Menagerie berkeley_humanoid/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The paper (arXiv:2407.21781) was not read for this build; no figure is entered.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "berkeley_humanoid",
+      "file": "berkeley_humanoid.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/berkeley_humanoid"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "berkeley_humanoid.xml",
+      "imported": true,
+      "joints_in_q": 12,
+      "joint_names": [
+        "LL_HR",
+        "LL_HAA",
+        "LL_HFE",
+        "LL_KFE",
+        "LL_FFE",
+        "LL_FAA",
+        "LR_HR",
+        "LR_HAA",
+        "LR_HFE",
+        "LR_KFE",
+        "LR_FFE",
+        "LR_FAA"
+      ],
+      "actuators": 12,
+      "links": 13,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 12,
+      "seconds": 0.72,
+      "note": ""
+    }
+  }
+}

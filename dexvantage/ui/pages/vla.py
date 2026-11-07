@@ -285,7 +285,7 @@ class VlaPage(StudyPage):
         warns = doc.get('warnings') or []
         self.warn_label.setText('\n'.join(f'{w["severity"].capitalize()}: {w["text"]}' for w in warns[:12]) +
                                 (f'\n… and {len(warns) - 12} more (Export for all).' if len(warns) > 12 else '')
-                                if warns else 'None.')
+                                if warns else 'No warnings.')
         sg = doc.get('suggestion')
         self.sugg_label.setText(('Suggestion: ' + sg['text']) if sg else '')
         self.suggestion_ready(bool(sg))

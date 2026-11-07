@@ -140,7 +140,8 @@
       ],
       "lens_model": "pinhole",
       "f_number": 1.8,
-      "focus": "auto"
+      "focus": "auto",
+      "focal_length_mm": 4.81
     }
   ],
   "projector": {

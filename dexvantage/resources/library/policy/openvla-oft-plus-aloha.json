@@ -1,0 +1,95 @@
+{
+  "id": "openvla-oft-plus-aloha",
+  "kind": "policy",
+  "maker": "OpenVLA-OFT (M. J. Kim, C. Finn, P. Liang)",
+  "name": "OpenVLA-OFT+ (ALOHA)",
+  "family": "Vision-language-action model fine-tuned for speed, with FiLM (OpenVLA 7B base)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2502.19645",
+      "title": "M. J. Kim, C. Finn, P. Liang, Fine-Tuning Vision-Language-Action Models: Optimizing Speed and Success, arXiv:2502.19645 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "Tables II-V: input images and size, chunk sizes, open-loop execution, latency on an A100, the 25 Hz ALOHA controller, the 90 % random crops"
+    },
+    {
+      "url": "https://github.com/moojink/openvla-oft/tree/e4287e94541f459edc4feabc4e181f537cd569a8",
+      "title": "moojink/openvla-oft (official code), commit e4287e9: README.md, LIBERO.md, ALOHA.md",
+      "read": "2026-11-07",
+      "covers": "--center_crop True at test time (the centre 90 % crop), num_images_in_input, NUM_ACTIONS_CHUNK, the 25 Hz ALOHA control frequency"
+    },
+    {
+      "url": "https://huggingface.co/openvla/openvla-7b/blob/main/config.json",
+      "title": "openvla-7b config.json (the base checkpoint OpenVLA-OFT fine-tunes)",
+      "read": "2026-11-07",
+      "covers": "timm_model_ids (patch size 14), image_resize_strategy resize-naive"
+    }
+  ],
+  "note": "OpenVLA-OFT fine-tunes OpenVLA with parallel decoding, action chunking and continuous actions (L1 regression). Images are resized to 224 × 224 without keeping the aspect ratio (OpenVLA's \"resize-naive\") and, because training used random crops of 90 % of the area, the README says \"Setting --center_crop True is important ... at test time we simply take the center 90% crop\" (crop_side_fraction 0.9487 = √0.9 of each side). Each view gives \"256 patch embeddings\" from OpenVLA's two ViTs with 14 px patches. The timings are the paper's, on one NVIDIA A100. Code MIT; the base weights may carry the Llama 2 Community License. DexVantage bundles these figures only. The ALOHA recipe (OFT+, with FiLM): three images (one top-down, two wrists; ALOHA.md downsizes the 480 × 640 recordings to 256 × 256 before training), chunk 25 executed open-loop at a 25 Hz controller; latency 0.321 s (Table III).",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        224,
+        224
+      ],
+      "source": 0,
+      "quote": "Table III: \"Each query processes three 224 × 224 px images\""
+    },
+    "crop_rule": {
+      "value": "center_crop_resize",
+      "source": 1,
+      "quote": "ALOHA.md deployment command: --center_crop True; Table V: \"image augmentations 90% random crops\""
+    },
+    "crop_side_fraction": {
+      "value": 0.9487,
+      "source": 1,
+      "quote": "the centre 90 % of the area: √0.9 = 0.9487 of each side"
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": 14,
+      "source": 2,
+      "quote": "\"timm_model_ids\": [\"vit_large_patch14_reg4_dinov2.lvd142m\", \"vit_so400m_patch14_siglip_224\"]"
+    },
+    "tokens_per_image": {
+      "value": 256,
+      "source": 0,
+      "quote": "\"256 patch embeddings per view\""
+    },
+    "n_cameras": {
+      "value": 3,
+      "source": 0,
+      "quote": "\"The ALOHA platform comprises two ViperX 300 S arms, three camera viewpoints (one top-down, two wrist-mounted)\"; ALOHA.md: --num_images_in_input 3"
+    },
+    "action_chunk": {
+      "value": 25,
+      "source": 0,
+      "quote": "\"with action chunk size K=25\""
+    },
+    "execute_steps": {
+      "value": 25,
+      "source": 0,
+      "quote": "\"At inference time, we execute the full action chunk before requerying the model for the next chunk.\""
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated (full chunks are executed open-loop)."
+    },
+    "inference_ms": {
+      "value": 321.0,
+      "source": 0,
+      "quote": "Table III: OpenVLA-OFT+ throughput 77.9 Hz, latency 0.321 s (\"averaged over 100 queries on an NVIDIA A100 GPU\")",
+      "hardware": "NVIDIA A100"
+    },
+    "control_hz": {
+      "value": 25,
+      "source": 0,
+      "quote": "\"It operates at 25 Hz (reduced from the original 50 Hz to enable faster training while still maintaining smooth robotic control)\""
+    }
+  }
+}

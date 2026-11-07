@@ -1,0 +1,104 @@
+{
+  "id": "pndbotics-adam-lite",
+  "kind": "robot",
+  "maker": "PNDbotics",
+  "name": "Adam Lite",
+  "family": "humanoid",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/pndbotics_adam_lite",
+      "title": "MuJoCo Menagerie pndbotics_adam_lite/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "pndbotics.com returned no page content on 2026-11-07; no figure is entered.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "pndbotics_adam_lite",
+      "file": "adam_lite.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "MIT",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/pndbotics_adam_lite"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "adam_lite.xml",
+      "imported": true,
+      "joints_in_q": 25,
+      "joint_names": [
+        "hipPitch_Left",
+        "hipRoll_Left",
+        "hipYaw_Left",
+        "kneePitch_Left",
+        "anklePitch_Left",
+        "ankleRoll_Left",
+        "hipPitch_Right",
+        "hipRoll_Right",
+        "hipYaw_Right",
+        "kneePitch_Right",
+        "anklePitch_Right",
+        "ankleRoll_Right",
+        "waistRoll",
+        "waistPitch",
+        "waistYaw",
+        "shoulderPitch_Left",
+        "shoulderRoll_Left",
+        "shoulderYaw_Left",
+        "elbow_Left",
+        "wristYaw_Left",
+        "shoulderPitch_Right",
+        "shoulderRoll_Right",
+        "shoulderYaw_Right",
+        "elbow_Right",
+        "wristYaw_Right"
+      ],
+      "actuators": 25,
+      "links": 26,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 25,
+      "seconds": 1.74,
+      "note": ""
+    }
+  }
+}

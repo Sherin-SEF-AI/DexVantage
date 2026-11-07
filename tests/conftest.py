@@ -1,6 +1,8 @@
 """One QApplication for the whole session, offscreen, with throw-away config, data and cache folders: a test never
 reads or writes the user's real settings, keyring or keys. Ported from Vantage tests/conftest.py."""
+import atexit
 import os
+import shutil
 import sys
 import tempfile
 import time
@@ -8,16 +10,19 @@ import time
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 for _k in ('XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME'):
     os.environ[_k] = tempfile.mkdtemp(prefix=f'dexvantage-test-{_k[4:8].lower()}-')
+    atexit.register(shutil.rmtree, os.environ[_k], True)    # thrown away when the session ends
 os.environ['DEXVANTAGE_NO_KEYRING'] = '1'
 for _k in ('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'GROQ_API_KEY'):
     os.environ.pop(_k, None)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from dexvantage.core.memlimit import limit_arenas  # noqa: E402
+
+limit_arenas()          # two malloc arenas: freed worker-thread memory goes back (seven modules: 1.64 GB -> 0.84 GB)
 
 import pytest  # noqa: E402
 
-# Run first: the in-process quick validation run of every check grows the process by about 2.7 GB for a while. At the
-# end of the suite (alphabetical order) it came on top of the suite's creep (to about 4.7 GB, heap the allocator keeps)
-# and passed the 7 GB cap (peak 7.4 GB measured 2026-11-07); first, it starts from about 0.2 GB.
+# Run first: the quick validation run of every check now runs one model per child process, two at a time (up to about
+# 6 GB together while they run, in the suite's cgroup); first, the suite's own process is still at about 0.3 GB.
 RUN_FIRST = ('tests/test_validation.py::test_every_check_passes_and_names_its_reference',)
 
 
@@ -44,8 +49,9 @@ def pump(app, seconds=0.05):
 @pytest.fixture
 def settings():
     from PyQt6.QtCore import QSettings
-    path = os.path.join(tempfile.mkdtemp(prefix='dexvantage-test-settings-'), 'settings.ini')
-    return QSettings(path, QSettings.Format.IniFormat)
+    folder = tempfile.mkdtemp(prefix='dexvantage-test-settings-')
+    yield QSettings(os.path.join(folder, 'settings.ini'), QSettings.Format.IniFormat)
+    shutil.rmtree(folder, ignore_errors=True)
 
 
 @pytest.fixture

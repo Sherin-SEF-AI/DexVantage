@@ -16,6 +16,7 @@ API
     add_custom(dict) -> Entry               validated, written to the user library; LibraryError says why not
     remove_custom(model_id) -> bool
     reload()                                re-read both folders (a bad file is skipped and logged: problems())
+    add_folder(path, origin) / remove_folder(path)   a read-only folder of entries from a plugin (plugin_sdk.py)
     generation() -> int                     changes on every (re)read: for caches built from entries
     entries_digest(model_ids) -> str        the entries' content digest: for result cache keys
     validate(dict) -> [str]                 plain messages, [] when the entry is valid
@@ -58,8 +59,9 @@ BUILTIN_DIR = os.path.join(RESOURCES, 'library')
 SCHEMA_PATH = os.path.join(RESOURCES, 'library.schema.json')
 
 # 'policy': robot-learning policies (core/policies.py); 'cable': cables across joints (core/cables.py); 'light': lab
-# light sources (core/lights.py)
-KINDS = ('depth', 'camera', 'tactile', 'host', 'policy', 'cable', 'light')
+# light sources (core/lights.py); 'robot': the robot catalogue (core/robot/catalogue.py); 'teleop': teleoperation
+# devices (core/teleop_devices.py)
+KINDS = ('depth', 'camera', 'tactile', 'host', 'policy', 'cable', 'light', 'robot', 'teleop')
 ROLES = ('ir_left', 'ir_right', 'rgb', 'mono', 'tof')
 LENS_MODELS = ('pinhole', 'brown', 'kb', 'equidistant', 'equisolid', 'stereographic')
 NOT_STATED = 'not stated by the maker'
@@ -217,7 +219,7 @@ def validate_minimal(d) -> list:
         if not (isinstance(s, dict) and isinstance(s.get('imager'), str) and isinstance(s.get('width'), int)
                 and isinstance(s.get('height'), int)):
             msgs.append(f'streams[{i}]: needs imager, width and height')
-    for k in ('tactile', 'host', 'cable', 'light'):
+    for k in ('tactile', 'host', 'cable', 'light', 'robot', 'teleop'):
         if d.get(k) is not None and not isinstance(d[k], dict):
             msgs.append(f'{k}: must be an object or null')
     return msgs
@@ -305,11 +307,11 @@ _entries: dict | None = None
 _problems: list = []
 
 
-def _read_dir(root: str, is_custom: bool, seen: dict, problems: list):
+def _read_dir(root: str, is_custom: bool, seen: dict, problems: list, origin: str = ''):
     files = sorted(glob.glob(os.path.join(root, '**', '*.json'), recursive=True))
     for f in files:
         rel = os.path.relpath(f, root)
-        where = ('your library' if is_custom else 'the built-in library') + f' ({rel})'
+        where = (origin or ('your library' if is_custom else 'the built-in library')) + f' ({rel})'
         try:
             with open(f, encoding='utf-8') as fh:
                 d = json.load(fh)
@@ -323,11 +325,33 @@ def _read_dir(root: str, is_custom: bool, seen: dict, problems: list):
             continue
         if d['id'] in seen:
             other = seen[d['id']]
-            problems.append(f'Skipped {where}: the id "{d["id"]}" is already used by '
-                            f'{"your library" if other.is_custom else "the built-in library"} '
+            by = getattr(other, 'origin', '') or ('your library' if other.is_custom else 'the built-in library')
+            problems.append(f'Skipped {where}: the id "{d["id"]}" is already used by {by} '
                             f'({os.path.basename(other.path)}).')
             continue
         seen[d['id']] = Entry(d, f, is_custom)
+        if origin:
+            seen[d['id']].origin = origin
+
+
+EXTRA_DIRS: list = []           # [(folder, origin words)]: read-only folders added by plugins (plugin_sdk.py)
+
+
+def add_folder(path: str, origin: str = 'a plugin'):
+    """Read library entries from this folder too (after the built-in library, before the user's), read-only; the
+    library is read again."""
+    path = os.path.abspath(path)
+    with _lock:
+        if all(p != path for p, _ in EXTRA_DIRS):
+            EXTRA_DIRS.append((path, origin))
+    reload()
+
+
+def remove_folder(path: str):
+    path = os.path.abspath(path)
+    with _lock:
+        EXTRA_DIRS[:] = [(p, o) for p, o in EXTRA_DIRS if p != path]
+    reload()
 
 
 _generation = 0
@@ -339,6 +363,9 @@ def _load() -> dict:
         if _entries is None:
             seen, problems = {}, []
             _read_dir(BUILTIN_DIR, False, seen, problems)
+            for folder, origin in list(EXTRA_DIRS):
+                if os.path.isdir(folder):
+                    _read_dir(folder, False, seen, problems, origin)
             if os.path.isdir(user_dir()):
                 _read_dir(user_dir(), True, seen, problems)
             for p in problems:

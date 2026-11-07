@@ -1,0 +1,53 @@
+{
+  "id": "basler-usb3-card-fl1100-4hc-x4",
+  "kind": "host",
+  "maker": "Basler",
+  "name": "USB 3.0 Card PCIe, Fresco FL1100, 4 HC, x4, 4 Ports (5 Gbit/s)",
+  "family": "Basler USB 3.0 interface cards",
+  "sources": [
+    {
+      "url": "https://pyramidimaging.com/uploads/Media/11432.pdf",
+      "title": "Basler Technical Specification \"USB 3.0 Card PCIe, Fresco FL1100, 4 HC, x4, 4 Ports\", order number 2000036233, document DG001772, version 03, 11 January 2018 (Basler's document, hosted by the distributor Pyramid Imaging)",
+      "read": "2026-11-07",
+      "covers": "key features (PCIe x4 Gen2, 5 Gbps per port, four FL1100 chipsets), transfer rates, physical dimensions, camera power, environment"
+    }
+  ],
+  "note": "A 4-port USB 3.0 host controller card with one FrescoLogic FL1100 controller per port (\"4 FrescoLogic FL 1100 chipsets\"), \"PCIe x4 Gen2\", \"USB 3.0 SuperSpeed 5 Gbps per port\" (stated_mbps 5000, lanes 4 = the PCIe lanes). Transfer rates: \"1 Camera: Up to 380 MBps per port reliably supported\"; \"Multiple Cameras: Up to 1.52 GBps total bandwidth reliably supported\" (\"For best performance, use new processor generations, e.g. Skylake and x8 or x16 PCIe slots\"). practical_mbps 3040 is the stated per-port figure, 380 MB/s × 8 bit (a unit conversion, decimal megabytes as Basler writes MBps); the stated total, 1.52 GB/s = 12160 Mbit/s (practical_aggregate_mbps), is four times the per-port figure, so with all four ports busy each port keeps 380 MB/s. The figure was measured by Basler on Ivy Bridge, Haswell and Skylake systems; measure your own machine for a figure you rely on. Camera power \"Via SATA 15-pin power connector (5 V)\" or IDE 4-pin; the card's own power is not stated (power_w null). \"Physical Dimensions 101 mm x 120 mm\" (two dimensions only, size_mm null); mass not stated. Operating temperature 5–60 °C. Basler lists the card as \"Last Time Buy\" (shop page, not read here).",
+  "interface": "PCIe x4 Gen2 to 4x USB 3.0 (USB 3.2 Gen 1) Type-A with locking screws",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": null,
+  "host": {
+    "type": "usb_controller",
+    "ports": 4,
+    "lanes": 4,
+    "stated_mbps": 5000.0,
+    "practical_mbps": 3040.0,
+    "gmsl_links": null,
+    "ingest": [
+      {
+        "bus": "usb3",
+        "count": 4,
+        "per_port_mbps": 5000.0,
+        "aggregate_mbps": null,
+        "practical_mbps": 3040.0,
+        "practical_aggregate_mbps": 12160.0,
+        "what": "\"USB 3.0 SuperSpeed 5 Gbps per port\"; \"1 Camera: Up to 380 MBps per port reliably supported\"; \"Multiple Cameras: Up to 1.52 GBps total bandwidth reliably supported\" (MB/s × 8 = Mbit/s)"
+      },
+      {
+        "bus": "pcie",
+        "count": 4,
+        "per_port_mbps": null,
+        "aggregate_mbps": null,
+        "practical_mbps": null,
+        "practical_aggregate_mbps": null,
+        "what": "\"PCIe x4 Gen2\""
+      }
+    ]
+  }
+}

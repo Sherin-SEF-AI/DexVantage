@@ -8,7 +8,15 @@
     sample_project('dexhand')  UR5e with the right Shadow Hand on its flange: a palm micro camera, an angled dorsal
                                wrist camera and a head camera (core/robot/dexhand_sample.py), for the multi-finger
                                occlusion study (spec §7.14)
-    list_samples()             every sample with whether this build has it (aloha, panda-bimanual and g1: Phase 11)
+    sample_project('aloha')    ALOHA 2: the two ViperX 300 arms of MuJoCo Menagerie aloha as two robots at aloha.xml's
+                               base poses, its four cameras (four RealSense D405), leader arms, a handover
+                               (core/robot/bimanual_samples.py)
+    sample_project('panda-bimanual')  two Franka Panda arms (Menagerie franka_emika_panda) in one cell, a wrist D405
+                               on each hand and a front D435, GELLO leaders, a handover
+    sample_project('g1')       Unitree G1 with hands (Menagerie unitree_g1), upper body: legs and waist held at its
+                               "stand" keyframe, both arms and hands in q, the head D435 where Unitree's URDF puts it;
+                               its meshes simplified to fit the package (within 0.5 mm, measured)
+    list_samples()             every sample with whether this build has it
 
 The robots are read with core.robot.import_robot from dexvantage/resources/robots/, which holds only the MuJoCo
 Menagerie models whose own LICENSE allows redistribution; each folder keeps its LICENSE file and THIRD_PARTY.md lists
@@ -60,9 +68,19 @@ BUNDLED = {
                      'folder_commit': '71f066ad0be9cd271f7ed58c030243ef157af9f4'},
     'shadow_hand': {'title': 'Shadow Hand E3M5 (right)', 'main': 'right_hand.xml', 'license': 'Apache-2.0',
                     'folder_commit': '71f066ad0be9cd271f7ed58c030243ef157af9f4'},
+    # the ALOHA 2, bimanual Panda and G1 samples (scripts/bundle_samples.py; LICENSE files read 2026-11-07)
+    'aloha': {'title': 'ALOHA 2 (Trossen ViperX 300 arms)', 'main': 'aloha.xml', 'license': 'BSD-3-Clause',
+              'folder_commit': 'fb36886b3023db08c198264e1e9956ab202c3e3b', 'checked': '2026-11-07'},
+    'franka_emika_panda': {'title': 'Franka Emika Panda with the Franka Hand', 'main': 'panda.xml',
+                           'license': 'Apache-2.0', 'folder_commit': 'fb36886b3023db08c198264e1e9956ab202c3e3b',
+                           'checked': '2026-11-07'},
+    'unitree_g1': {'title': 'Unitree G1 with hands (meshes simplified)', 'main': 'g1_with_hands.xml',
+                   'license': 'BSD-3-Clause', 'folder_commit': '98a70c569c4c1b6da467a20012f766ee1f8dc521',
+                   'checked': '2026-11-07'},
 }
 COMBINED_UR5E = 'ur5e_robotiq_2f85.xml'
 COMBINED_DEXHAND = 'ur5e_shadow_hand.xml'          # scripts/bundle_dexhand.py
+GENERATED = ('aloha_left.xml', 'aloha_right.xml', 'g1_upper_body.xml')   # scripts/bundle_samples.py
 
 SO100_LIMITS_NOTE = ('Its joint limits are the ones Menagerie added to this model as "approximate joint limits" '
                      '(Menagerie trs_so_arm100/README.md, "URDF → MJCF derivation steps", step 7), not figures stated '
@@ -80,9 +98,9 @@ SAMPLES = {
     'so100': ('LeRobot SO-100 arm with a wrist and a third-person camera', None),
     'ur5e': ('UR5e and Robotiq 2F-85 with a wrist D405 and an overhead D435', None),
     'dexhand': ('UR5e and Shadow Hand with a palm, a dorsal wrist and a head camera', None),
-    'aloha': ('ALOHA 2 bimanual', 11),
-    'panda-bimanual': ('Franka Panda bimanual cell', 11),
-    'g1': ('Unitree G1 humanoid upper body', 11),
+    'aloha': ('ALOHA 2 bimanual with its four cameras', None),
+    'panda-bimanual': ('Two Franka Panda arms in one cell with wrist and front cameras', None),
+    'g1': ('Unitree G1 humanoid upper body with its head camera', None),
 }
 
 
@@ -303,7 +321,22 @@ def _dexhand() -> Project:
     return build()
 
 
-_BUILD = {'so100': _so100, 'ur5e': _ur5e, 'dexhand': _dexhand}
+def _aloha() -> Project:
+    from .bimanual_samples import build_aloha
+    return build_aloha()
+
+
+def _panda() -> Project:
+    from .bimanual_samples import build_panda
+    return build_panda()
+
+
+def _g1() -> Project:
+    from .bimanual_samples import build_g1
+    return build_g1()
+
+
+_BUILD = {'so100': _so100, 'ur5e': _ur5e, 'dexhand': _dexhand, 'aloha': _aloha, 'panda-bimanual': _panda, 'g1': _g1}
 
 
 def sample_project(name: str) -> Project:

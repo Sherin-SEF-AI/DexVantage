@@ -1,0 +1,88 @@
+{
+  "id": "rdt-1b",
+  "kind": "policy",
+  "maker": "RDT (S. Liu et al., Tsinghua University)",
+  "name": "RDT-1B",
+  "family": "Diffusion transformer for bimanual manipulation (SigLIP, T5-XXL)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2410.07864",
+      "title": "S. Liu et al., RDT-1B: a Diffusion Foundation Model for Bimanual Manipulation, arXiv:2410.07864 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "the 384 × 384 padded input, three cameras, the chunk size T_a = 64, the 6 Hz chunk rate on an RTX 4090"
+    },
+    {
+      "url": "https://github.com/thu-ml/RoboticsDiffusionTransformer/tree/cd79363a1387e8f81c7724d070ef7e45fd23150f",
+      "title": "thu-ml/RoboticsDiffusionTransformer (official code), commit cd79363: scripts/agilex_model.py, configs/base.yaml, configs/dataset_control_freq.json, README.md",
+      "read": "2026-11-07",
+      "covers": "expand2square (centred padding with the image mean colour), num_cameras, action_chunk_size, the SigLIP checkpoint siglip-so400m-patch14-384, the agilex control frequency, the MIT licence"
+    }
+  ],
+  "note": "Each image is padded to a square and resized to 384 × 384 keeping its aspect ratio (the paper); the code's expand2square centres the image and fills the rest with the image processor's mean colour, not black (the geometry is crop_rule resize_pad; the fill colour differs). The image encoder is SigLIP so400m with 14 px patches at 384 px; the tokens per image are not stated. Three views (exterior, right wrist, left wrist; a single-arm wrist camera is treated as the right wrist and missing views are padded) and two frames of history (T_img = 2). The inference rate is the paper's on the robot's onboard RTX 4090 with DPM-Solver++ at 5 steps: 6 chunks per second (166.7 ms each); the OpenVLA-OFT paper measured RDT-1B at 0.297 s per chunk on an A100 (Table III, not entered). control_hz 25 is the fine-tuning robot's (configs/dataset_control_freq.json: \"agilex\": 25). Code, weights and data MIT. DexVantage bundles these figures only.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        384,
+        384
+      ],
+      "source": 0,
+      "quote": "\"each image is padded into a square and resized to 384×384, keeping its origin aspect ratio\""
+    },
+    "crop_rule": {
+      "value": "resize_pad",
+      "source": 1,
+      "quote": "agilex_model.py expand2square: result.paste(pil_img, (0, (width - height) // 2)) (centred), background_color = image_processor.image_mean"
+    },
+    "crop_side_fraction": {
+      "value": null,
+      "source": null
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": 14,
+      "source": 1,
+      "quote": "README: siglip https://huggingface.co/google/siglip-so400m-patch14-384"
+    },
+    "tokens_per_image": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "n_cameras": {
+      "value": 3,
+      "source": 1,
+      "quote": "configs/base.yaml: num_cameras: 3; the paper: \"N_cam represents the number of cameras, set to three in our configuration\""
+    },
+    "action_chunk": {
+      "value": 64,
+      "source": 0,
+      "quote": "\"the action chunk size is T_a=64\" (configs/base.yaml: action_chunk_size: 64)"
+    },
+    "execute_steps": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "inference_ms": {
+      "value": 166.7,
+      "source": 0,
+      "quote": "\"achieving an action chunk inference frequency of 6 Hz (action chunks per second) and an average action inference frequency of 381 Hz (actions per second) on the target robot's onboard RTX 4090 24GB GPU\" (1000 / 6 = 166.7 ms)",
+      "hardware": "NVIDIA RTX 4090 24GB (onboard)"
+    },
+    "control_hz": {
+      "value": 25,
+      "source": 1,
+      "quote": "configs/dataset_control_freq.json: \"agilex\": 25 (the fine-tuning robot)"
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "id": "flir-firefly-dl-ffy-u3-16s2m-s-dl",
+  "kind": "camera",
+  "maker": "Teledyne FLIR",
+  "name": "Firefly DL FFY-U3-16S2M-S-DL",
+  "family": "Firefly DL",
+  "sources": [
+    {
+      "url": "https://www.teledynevisionsolutions.com/products/firefly-dl/?model=FFY-U3-16S2M-S-DL",
+      "title": "Firefly DL (Legacy), model FFY-U3-16S2M-S-DL (Teledyne Vision Solutions product page)",
+      "read": "2026-11-07",
+      "covers": "resolution, frame rate, sensor (Sony IMX296), pixel size, sensor format, shutter, mono, S-mount, interface, exposure range, ADC, size, mass, power; the model list (status NRND)"
+    }
+  ],
+  "note": "A tiny mono USB3 Vision camera with on-camera neural-network inference and an S-mount (a legacy product: the page lists the model as \"NRND\", not recommended for new designs). Sold without a lens, so no FOV, f-number or focus is stated: the imager has no FOV and the library uses its labelled default until the user enters the chosen lens (or a calibration). Sony IMX296, 1440 x 1080, 1/2.9\", pixel size \"3.45\" (micrometres), maximum frame rate 60 fps; ADC 10 bit; format not listed (null). Exposure \"29.0 us to 30.0 S\". power_w is the stated maximum, 2.2 W (5 V via USB). size_mm is the stated 27 x 27 x 14.5 mm (W x H x L), entered as [14.5, 27, 27]. The page states no trigger input (4 bi-directional GPIO), so sync is null.",
+  "interface": "USB 3.1 Gen 1 (USB Micro-B); USB3 Vision",
+  "power_w": 2.2,
+  "mass_g": 20.0,
+  "size_mm": [
+    14.5,
+    27.0,
+    27.0
+  ],
+  "imagers": [
+    {
+      "name": "Mono",
+      "role": "mono",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 3.45,
+      "resolution": [
+        1440,
+        1080
+      ],
+      "lens_model": null,
+      "f_number": null,
+      "focus": null,
+      "optical_format": "1/2.9\"",
+      "exposure_s": {
+        "min": 2.9e-05,
+        "max": 30.0,
+        "what": "Exposure Range \"29.0 us to 30.0 S\""
+      }
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Mono",
+      "width": 1440,
+      "height": 1080,
+      "fps": [
+        60
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

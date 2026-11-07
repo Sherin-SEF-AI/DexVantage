@@ -26,8 +26,10 @@ def _value(mid, k):
 # ====================================================================== the library entries
 def test_every_policy_named_in_the_spec_has_an_entry():
     L.reload()
-    assert {e.id for e in PO.library_entries()} == set(IDS)
-    assert sorted(os.path.splitext(os.path.basename(f))[0] for f in FILES) == sorted(IDS)
+    # the spec's policies are there (more entries may follow: tests/test_library_systems.py pins the later ones)
+    ids = {e.id for e in PO.library_entries()}
+    assert set(IDS) <= ids
+    assert sorted(os.path.splitext(os.path.basename(f))[0] for f in FILES) == sorted(ids)
     assert not [p for p in L.problems() if 'policy' in p]
 
 
@@ -41,7 +43,7 @@ def test_entry_is_valid_and_every_stated_figure_names_its_source(path):
     jsonschema = pytest.importorskip('jsonschema')
     jsonschema.Draft202012Validator(L.schema()).validate(d)
     for s in d['sources']:
-        assert s['url'].startswith('https://') and s['read'] == '2026-11-06' and s.get('title')
+        assert s['url'].startswith('https://') and s['read'] in ('2026-11-06', '2026-11-07') and s.get('title')
     # every figure is stated (with a source and what it says) or null with no source
     for k, f in d['policy'].items():
         if f['value'] is None:
@@ -347,7 +349,7 @@ def test_page_is_registered_and_starts_empty(page):
     from dexvantage.ui.pages import PAGES
     assert PAGES['policies'].cls is type(page)
     assert page.head.status.text.text() == 'no policy'
-    assert page.add_box.count() == len(IDS)
+    assert page.add_box.count() == len(L.entries('policy')) >= len(IDS)
 
 
 def test_add_override_clear_remove_are_one_undo_step_each(page, win):

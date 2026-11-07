@@ -5,7 +5,9 @@ Ported from Vantage app.py (the application object, fonts, theme and icon); the 
 from __future__ import annotations
 
 import argparse
+import atexit
 import os
+import shutil
 import sys
 import tempfile
 
@@ -48,7 +50,9 @@ def make_app(theme=None, scale=None, settings_scope=None):
     from .ui.theme import THEME, load_fonts
     load_fonts()
     if settings_scope:
-        path = os.path.join(tempfile.mkdtemp(prefix=f'dexvantage-{settings_scope}-'), 'settings.ini')
+        folder = tempfile.mkdtemp(prefix=f'dexvantage-{settings_scope}-')
+        atexit.register(shutil.rmtree, folder, True)        # throw-away: removed when the process ends
+        path = os.path.join(folder, 'settings.ini')
         settings = QSettings(path, QSettings.Format.IniFormat)
     else:
         settings = QSettings('DexVantage', 'DexVantage')
@@ -59,6 +63,8 @@ def make_app(theme=None, scale=None, settings_scope=None):
 
 def main(argv=None):
     from . import __version__
+    from .core.memlimit import limit_arenas
+    limit_arenas()                  # before any worker thread: freed thread memory goes back to the system
     for s in (sys.stdout, sys.stderr):
         try:
             s.reconfigure(errors='replace')
@@ -79,10 +85,21 @@ def main(argv=None):
     later = ', '.join(k for k, (_t, ph) in SAMPLES.items() if ph is not None)
     ap.add_argument('--sample', metavar='NAME', help=f'open a sample project, in the window or in batch mode: {have}'
                                                      + (f' ({later} arrive in a later phase)' if later else ''))
+    ap.add_argument('--no-plugins', action='store_true', help='start without loading the installed plugins (Help ▸ '
+                    'Plugins lists them as off)')
+    ap.add_argument('--list-plugins', action='store_true', help='list the installed plugins, what each added and any '
+                    'error, then exit')
+    from . import plugin_sdk                            # before the batch flags: a plugin study gets its flag too
+    raw = list(sys.argv[1:] if argv is None else argv)
+    plugin_sdk.load(enabled=False if '--no-plugins' in raw else None)
     from . import batch
     batch.add_arguments(ap)
     args = ap.parse_args(argv)
     args._parser = ap
+    if args.list_plugins:
+        lines = plugin_sdk.report_lines()
+        print('\n'.join(lines) if lines else 'No DexVantage plugins are installed.')
+        return 0
     if args.self_test:
         from . import selftest
         return selftest.run()
@@ -122,6 +139,10 @@ def main(argv=None):
             return 2
     w = MainWindow(project or blank_project(), soft_3d=not gl_available(), settings=settings)
     w.show()
+    from .ui.mcp_bridge import start_bridge          # Claude over MCP reaches this window (setting mcp/bridge)
+    bridge = start_bridge(w)
+    if bridge is not None:
+        app.aboutToQuit.connect(bridge.stop)
     if project is not None and project.path:
         w.add_recent(project.path)
     if hasattr(app, 'file_opened'):

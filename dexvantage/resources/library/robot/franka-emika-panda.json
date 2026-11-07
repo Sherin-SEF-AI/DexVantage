@@ -1,0 +1,152 @@
+{
+  "id": "franka-emika-panda",
+  "kind": "robot",
+  "maker": "Franka Emika",
+  "name": "Panda",
+  "family": "7-DoF research arm (discontinued)",
+  "sources": [
+    {
+      "url": "https://web.archive.org/web/20210414074624/https://s3-eu-central-1.amazonaws.com/franka-de-uploads/uploads/Datasheet-EN.pdf",
+      "title": "Franka Emika, Panda datasheet (May 2019), archived copy of franka.de's download (Internet Archive, 2021-04-14)",
+      "read": "2026-11-07",
+      "covers": "DoF, payload, reach, joint limits, weight, repeatability, interfaces"
+    },
+    {
+      "url": "https://frankarobotics.github.io/docs/robot_specifications.html",
+      "title": "Franka Control Interface documentation, Control Interface Specification and Robot Limits: Limits for Franka Emika Robot (FER)",
+      "read": "2026-11-07",
+      "covers": "the joint limits in radians, cross-check"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/franka_emika_panda",
+      "title": "MuJoCo Menagerie franka_emika_panda/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The Panda is no longer sold and its page on franka.de is gone; the datasheet is read from the Internet Archive's copy of Franka Emika's own download. The FCI documentation states the FER joint limits in radians (q_max 2.8973 1.7628 2.8973 -0.0698 2.8973 3.7525 2.8973), the datasheet's degrees rounded. panda.xml includes the Franka Hand: its two finger joints are not counted in the arm's DoF.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "variant": "Panda (FER), datasheet May 2019",
+    "dof": {
+      "value": 7,
+      "source": 0,
+      "quote": "Degrees of freedom 7"
+    },
+    "reach_mm": {
+      "value": 855,
+      "source": 0,
+      "quote": "Maximum reach 855 mm"
+    },
+    "payload_kg": {
+      "value": 3,
+      "source": 0,
+      "quote": "Payload 3 kg"
+    },
+    "repeatability_mm": {
+      "value": 0.1,
+      "source": 0,
+      "quote": "Pose repeatabillity <+/- 0.1 mm (ISO 9283)"
+    },
+    "mass_kg": {
+      "value": 17.8,
+      "source": 0,
+      "quote": "Weight ~ 17.8 kg"
+    },
+    "control_hz": {
+      "value": 1000,
+      "source": 0,
+      "quote": "Research interface 1kHz Franka Control Interface"
+    },
+    "interfaces": {
+      "value": [
+        "Ethernet (TCP/IP), Desk",
+        "Franka Control Interface (FCI), 1 kHz"
+      ],
+      "source": 0,
+      "quote": "ethernet (TCP/IP) for visual intuitive programming with Desk; Research interface 1kHz Franka Control Interface"
+    },
+    "joint_ranges": {
+      "value": [
+        {
+          "joint": "A1",
+          "min": -166,
+          "max": 166
+        },
+        {
+          "joint": "A2",
+          "min": -101,
+          "max": 101
+        },
+        {
+          "joint": "A3",
+          "min": -166,
+          "max": 166
+        },
+        {
+          "joint": "A4",
+          "min": -176,
+          "max": -4
+        },
+        {
+          "joint": "A5",
+          "min": -166,
+          "max": 166
+        },
+        {
+          "joint": "A6",
+          "min": -1,
+          "max": 215
+        },
+        {
+          "joint": "A7",
+          "min": -166,
+          "max": 166
+        }
+      ],
+      "source": 0,
+      "quote": "Joint position limits [°] A1, A3, A5, A7: -166/166; A2: -101/101; A4: -176/-4; A6: -1/215",
+      "unit": "deg"
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "franka_emika_panda",
+      "file": "panda.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/franka_emika_panda"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "panda.xml",
+      "imported": true,
+      "joints_in_q": 9,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6",
+        "joint7",
+        "finger_joint1",
+        "finger_joint2"
+      ],
+      "actuators": 8,
+      "links": 11,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [
+        "finger_joint1",
+        "finger_joint2"
+      ],
+      "dof": 7,
+      "seconds": 0.33,
+      "note": "Excluded from the DoF: finger_joint1, finger_joint2."
+    }
+  }
+}

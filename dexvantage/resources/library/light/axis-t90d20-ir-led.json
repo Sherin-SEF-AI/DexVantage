@@ -1,0 +1,43 @@
+{
+  "id": "axis-t90d20-ir-led",
+  "kind": "light",
+  "maker": "Axis Communications",
+  "name": "AXIS T90D20 IR-LED Illuminator",
+  "family": "AXIS T90D illuminators",
+  "sources": [
+    {
+      "url": "https://www.axis.com/dam/public/be/14/6e/datasheet-axis-t90d20-en-US-302093.pdf",
+      "title": "AXIS T90D20 datasheet (T10116709/EN/M7.2/2010)",
+      "read": "2026-11-07",
+      "covers": "type (850 nm), illumination angle and distance per lens, power, dimensions, weight"
+    },
+    {
+      "url": "https://www.axis.com/products/axis-t90d20-ir-led",
+      "title": "AXIS T90D20 IR-LED Illuminator product page",
+      "read": "2026-11-07",
+      "covers": "the included diverging lenses (35°, 60°, 80°) and the optional 120° lens"
+    }
+  ],
+  "note": "An 850 nm IR LED illuminator (\"Type 850 nm semi-covert\"; wavelength_nm 850). Angle \"Without diverging lenses: 10°\", \"With diverging lenses: 35°, 60°, 80°, 120°\" (beam_deg 10 is the standard lens, 10° × 10°; the diverging lenses are not round: 35° x 10°, 60° x 25°, 80° x 30°, 120° x 50°). Distance \"With standard lens 10° x 10°: 144 m\", 35° x 10°: 78 m, 60° x 25°: 54 m, 80° x 30°: 36 m, 120° x 50°: 24 m (a camera illumination range, not an irradiance). Power: AC/DC variant \"Maximum light: 18 W\" (power_w 18), PoE variant 20 W. Dimensions \"100 x 135 x 66 mm\" (size_mm null: the axes are not named), weight \"950 g\". IEC/EN 62471 risk group 2. Not stated: the radiant power or irradiance (ir_irradiance_w_m2 null), so the lighting study's IR check cannot use it until a measured figure is entered.",
+  "interface": "AC/DC 12-24 V or PoE (IEEE 802.3at Type 2 Class 4)",
+  "power_w": 18.0,
+  "mass_g": 950.0,
+  "size_mm": null,
+  "light": {
+    "type": "spot",
+    "luminous_flux_lm": null,
+    "luminance_cd_m2": null,
+    "cct_k": null,
+    "cct_k_range": null,
+    "emitting_size_m": null,
+    "ring_inner_m": null,
+    "beam_deg": 10.0,
+    "ir_irradiance_w_m2": null,
+    "ir_at_m": null,
+    "cri": null,
+    "illuminance_lux": null,
+    "illuminance_at_m": null,
+    "wavelength_nm": 850.0,
+    "what": "\"Type 850 nm semi-covert\"; \"Angle Without diverging lenses: 10°\"; \"With standard lens 10° x 10°: 144 m\"; \"Maximum light: 18 W\"; \"Weight 950 g\""
+  }
+}

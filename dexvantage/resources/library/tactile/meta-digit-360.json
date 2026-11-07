@@ -1,0 +1,33 @@
+{
+  "id": "meta-digit-360",
+  "kind": "tactile",
+  "maker": "Meta AI (FAIR)",
+  "name": "Digit 360",
+  "family": "DIGIT",
+  "sources": [
+    {
+      "url": "https://arxiv.org/pdf/2411.02479",
+      "title": "M. Lambeta et al., \"Digitizing Touch with an Artificial Multimodal Fingertip\", arXiv:2411.02479v1, 4 Nov 2024",
+      "read": "2026-11-07",
+      "covers": "sensing principle, \"approximately 8.3 million taxels\", camera frame rate (240 fps) and pixel size (1.1 um), solid immersion hyper-fisheye lens, USB 3.0 to the host, comparison table (Table 5: sample rate 10,000 Hz, area 2340 mm^2, spatial resolution 0.007 mm, force resolutions)"
+    }
+  ],
+  "note": "A contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. A finger-shaped, omnidirectional visuotactile fingertip (research platform from Meta FAIR; the paper also describes pressure, temperature, audio/vibration sensing and an on-device AI accelerator). Figures from the paper: a CMOS camera at 240 fps with 1.1 um pixels behind a custom solid immersion hyper-fisheye lens; \"approximately 8.3 million taxels\" (the image pixels; no width and height are stated, so camera_resolution is null and no stream is entered); the comparison table gives a sensing area of 2340 mm^2 (entered as area_mm2: the curved surface has no stated width and height, so pad_mm is null), a 10,000 Hz sample rate (the non-visual channels; vibrations \"upwards to 10 kHz\"), spatial resolution 0.007 mm, normal and shear force resolutions 1.01 mN and 1.27 mN. Host link USB 3.0. Not stated: power, mass, size (the fingertip is described as of human-fingertip size, no dimensions), stream format.",
+  "interface": "USB 3.0",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": {
+    "pad_mm": null,
+    "camera_resolution": null,
+    "fps": 240.0,
+    "sensing": "optical (with pressure, temperature and vibration)",
+    "taxels": null,
+    "area_mm2": 2340.0
+  },
+  "host": null
+}

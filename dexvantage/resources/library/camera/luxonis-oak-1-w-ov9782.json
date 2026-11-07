@@ -1,0 +1,95 @@
+{
+  "id": "luxonis-oak-1-w-ov9782",
+  "kind": "camera",
+  "maker": "Luxonis",
+  "name": "OAK-1 W (wide OV9782, global shutter)",
+  "family": "OAK (RVC2)",
+  "sources": [
+    {
+      "url": "https://docs.luxonis.com/hardware/products/OAK-1%20W.md",
+      "title": "OAK-1 W, Luxonis hardware documentation (Markdown view)",
+      "read": "2026-11-07",
+      "covers": "variants (IMX378 and OV9782) with FOV, sensor size, shutter, focus; connection"
+    },
+    {
+      "url": "https://shop.luxonis.com/products/oak-1-w",
+      "title": "OAK-1 W store page, Luxonis",
+      "read": "2026-11-07",
+      "covers": "dimensions 36 x 54.5 x 27.8 mm, weight 53 g"
+    },
+    {
+      "url": "https://docs.luxonis.com/hardware/sensors/OV9782.md",
+      "title": "OV9782 sensor page, Luxonis documentation",
+      "read": "2026-11-07",
+      "covers": "shutter, sensor size, pixel size 3 um, RVC2 modes (1280 x 800 at 129 fps, 1280 x 720 at 143 fps)"
+    }
+  ],
+  "note": "The wide-FOV OAK-1 with the global-shutter OV9782 (docs variant \"OV9782\"): 150 (D) / 127 (H) / 79.5 (V) degrees, fixed focus; a wide wrist-camera candidate. The IMX378 variant is 120 / 95 / 72 degrees, rolling shutter. The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. (A 127 degree pinhole stretches the image edges strongly; Luxonis's own calibration of wide units is not a pinhole.) Streams are the sensor modes the RVC2 driver supports, each with its maximum frame rate only (Luxonis sensor page); the format on the USB link depends on the on-device pipeline (raw, NV12 or encoded), so format and bits_per_pixel are null. size_mm: the store page's 36 x 54.5 x 27.8 mm read as W x H x D (an ASSUMPTION; the page names no axes), entered as [27.8, 36, 54.5]; mass 53 g. Power: no OAK-1 W datasheet was found; the docs give only subsystem figures (base 2.5-3 W plus up to 1 W AI, 0.5 W stereo, 0.5 W encoder), so power_w is null. Not stated: f-number, distortion.",
+  "interface": "USB 2/3 (USB Type-C)",
+  "power_w": null,
+  "mass_g": 53.0,
+  "size_mm": [
+    27.8,
+    36.0,
+    54.5
+  ],
+  "imagers": [
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 127.0,
+      "vfov_deg": 79.5,
+      "dfov_deg": 150.0,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "optical_format": "1/4\""
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        129
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        143
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

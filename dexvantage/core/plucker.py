@@ -29,8 +29,8 @@ Plücker coordinates: d = the unit direction in the chosen frame, m = o × d wit
 (metres), so m · d = 0 and m is the same for every point o + t d of the line. Channels [d_x, d_y, d_z, m_x, m_y, m_z]
 for order 'dm' (default), [m, d] for 'md'. Invalid pixels hold zeros in all six channels and False in 'valid'.
 
-Frames: 'base' (default) is the base frame of robot_uid (default the project's first robot, whose base is the world
-origin, so 'base' and 'world' agree for a single-arm project; another robot's base pose from Robot.base);
+Frames: 'base' (default) is the base frame of robot_uid (default the project's primary robot, whose base is the world
+origin, so 'base' and 'world' agree unless another robot is named; another robot's base pose from Robot.base);
 'world' is the project's world (the primary robot's base, REP-103: x forward, y left, z up); 'camera' is the
 optical frame (o = 0, so the moments are zero: the directions alone, a ray-direction embedding).
 
@@ -144,15 +144,14 @@ def frame_transform(project, frame: str = 'base', robot_uid: str | None = None) 
         raise PluckerError(f'The frame must be one of {", ".join(FRAMES)}, not {frame!r}.')
     if frame != 'base':
         return np.eye(4), ''
-    robots = list(project.robots)
     if robot_uid:
         rob = project.robot(robot_uid)
         if rob is None:
             raise PluckerError('The robot named for the base frame is not in the project.')
-    elif robots:
-        rob = robots[0]
     else:
-        return np.eye(4), ''                      # no robot: the world (the caller says so)
+        rob = project.primary_robot               # the primary (else the first): its base is the world origin
+        if rob is None:
+            return np.eye(4), ''                  # no robot: the world (the caller says so)
     return np.linalg.inv(rob.base.matrix()), rob.uid
 
 

@@ -1,0 +1,106 @@
+{
+  "id": "unitree-h1",
+  "kind": "robot",
+  "maker": "Unitree",
+  "name": "H1",
+  "family": "full-size humanoid",
+  "sources": [
+    {
+      "url": "https://www.unitree.com/h1",
+      "title": "Unitree, H1 product page, Unitree H1 Parameter table",
+      "read": "2026-11-07",
+      "covers": "DoF per leg and arm, weight, arm length"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/unitree_h1",
+      "title": "MuJoCo Menagerie unitree_h1/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Unitree states the DoF per limb (each leg 5: hip × 3, knee, ankle; each arm 4, \"expandable\") but not a total and not the torso, so the DoF is null and the model's count is recorded as verified only.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "variant": "H1 (not the H1-2)",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 47,
+      "source": 0,
+      "quote": "Total Weight About 47kg (H1)"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "unitree_h1",
+      "file": "h1.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/unitree_h1"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "h1.xml",
+      "imported": true,
+      "joints_in_q": 19,
+      "joint_names": [
+        "left_hip_yaw",
+        "left_hip_roll",
+        "left_hip_pitch",
+        "left_knee",
+        "left_ankle",
+        "right_hip_yaw",
+        "right_hip_roll",
+        "right_hip_pitch",
+        "right_knee",
+        "right_ankle",
+        "torso",
+        "left_shoulder_pitch",
+        "left_shoulder_roll",
+        "left_shoulder_yaw",
+        "left_elbow",
+        "right_shoulder_pitch",
+        "right_shoulder_roll",
+        "right_shoulder_yaw",
+        "right_elbow"
+      ],
+      "actuators": 19,
+      "links": 20,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 19,
+      "seconds": 0.72,
+      "note": ""
+    }
+  }
+}

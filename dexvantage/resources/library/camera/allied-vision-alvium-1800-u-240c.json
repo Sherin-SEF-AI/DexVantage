@@ -1,0 +1,89 @@
+{
+  "id": "allied-vision-alvium-1800-u-240c",
+  "kind": "camera",
+  "maker": "Allied Vision",
+  "name": "Alvium 1800 U-240c",
+  "family": "Alvium 1800 U",
+  "sources": [
+    {
+      "url": "https://www.alliedvision.com/en/products/area-scan-cameras/alvium/alvium-u/datasheet/1144?t=camera",
+      "title": "Alvium 1800 U-240 data sheet (Allied Vision, generated 2026-Nov-07)",
+      "read": "2026-11-07",
+      "covers": "sensor (Sony IMX392), chroma, resolution, shutter, sensor size and diagonal, pixel size, pixel formats, frame rate, exposure, power, size, lens mounts, mass, interface"
+    },
+    {
+      "url": "https://www.alliedvision.com/en/products/area-scan-cameras/alvium/alvium-u/view/1144",
+      "title": "Alvium 1800 U-240 product page (Allied Vision)",
+      "read": "2026-11-07",
+      "covers": "cross-check of sensor, shutter, frame rate, power"
+    }
+  ],
+  "note": "A compact USB3 Vision camera; the data sheet covers the colour (U-240c, entered) and mono (U-240m) models. Sold without a lens, so no FOV, f-number or focus is stated: the imager has no FOV and the library uses its labelled default until the user enters the chosen lens (or a calibration). Sony IMX392, 1936 x 1216, global shutter, sensor \"6.7 x 4.2 mm (7.9 mm, Type 1/2.3)\", pixel 3.45 um. Maximum frame rate 176 fps; the data sheet does not say for which pixel format. RGB8 is the default colour format (BGR8, YCbCr and Bayer also listed), but 1936 x 1216 at 176 fps in RGB8 (24 bits per pixel) would be 9.9 Gbit/s, about twice USB 3.1 Gen 1's 5 Gbit/s signalling, so the maximum cannot be an RGB8 rate: the stream's format and bits per pixel are null (not stated for that rate; truthfulness review 2026-11-07, data sheet read again). Exposure 23 us to 10 s. power_w is the typical figure with USB power, 2.8 W (3.0 W with external power). size_mm: 38 x 29 x 29 mm (L x W x H), L along the optical axis; C-, CS- or S-mount. Four programmable GPIOs (trigger use not stated, so sync is null).",
+  "interface": "USB 3.1 Gen 1; USB3 Vision",
+  "power_w": 2.8,
+  "mass_g": 65.0,
+  "size_mm": [
+    38.0,
+    29.0,
+    29.0
+  ],
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 3.45,
+      "resolution": [
+        1936,
+        1216
+      ],
+      "lens_model": null,
+      "f_number": null,
+      "focus": null,
+      "optical_format": "1/2.3\"",
+      "sensor_size_mm": [
+        6.7,
+        4.2
+      ],
+      "sensor_diagonal_mm": 7.9,
+      "exposure_s": {
+        "min": 2.3e-05,
+        "max": 10.0,
+        "what": "Timing and gain: \"Exposure time 23 us to 10 s\""
+      }
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1936,
+      "height": 1216,
+      "fps": [
+        176
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

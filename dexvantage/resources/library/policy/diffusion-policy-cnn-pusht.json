@@ -1,0 +1,86 @@
+{
+  "id": "diffusion-policy-cnn-pusht",
+  "kind": "policy",
+  "maker": "Diffusion Policy (C. Chi et al.)",
+  "name": "Diffusion Policy (CNN, Push-T)",
+  "family": "Imitation policy: ResNet-18 encoder, 1D temporal U-Net, DDPM/DDIM",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2303.04137",
+      "title": "C. Chi et al., Diffusion Policy: Visuomotor Policy Learning via Action Diffusion, arXiv:2303.04137 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "Table 7 (CNN-based) Push-T row: ImgRes 1x96x96, CropRes 1x84x84, To 2, Ta 8, Tp 16; Appendix A.3 centre crop at inference"
+    }
+  ],
+  "note": "The simulated Push-T setting of the CNN-based policy (Table 7): one 96 × 96 camera view cropped to 84 × 84, random in training and \"a static center crop with the same size\" at inference (Appendix A.3). It is not a ViT (a ResNet-18 with spatial softmax pooling), so patch_px and tokens_per_image are null. 100 training and 100 evaluation diffusion iterations; the paper's 0.1 s latency is for the real-world settings (16 evaluation iterations on an RTX 3080, entry diffusion-policy-cnn) and is not entered here. To 2 observation steps. LeRobot's diffusion configuration defaults differ (horizon 64, n_action_steps 32, no crop); its Push-T checkpoint was not read.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        84,
+        84
+      ],
+      "source": 0,
+      "quote": "Table 7, Push-T: CropRes 1x84x84"
+    },
+    "crop_rule": {
+      "value": "center_crop",
+      "source": 0,
+      "quote": "\"During inference, we take a static center crop with the same size.\" (Appendix A.3)"
+    },
+    "crop_side_fraction": {
+      "value": null,
+      "source": null
+    },
+    "pre_resize": {
+      "value": [
+        96,
+        96
+      ],
+      "source": 0,
+      "quote": "Table 7, Push-T: ImgRes 1x96x96 (the environment observation resolution)"
+    },
+    "patch_px": {
+      "value": null,
+      "source": null,
+      "quote": "Not a ViT."
+    },
+    "tokens_per_image": {
+      "value": null,
+      "source": null,
+      "quote": "Not a token model."
+    },
+    "n_cameras": {
+      "value": 1,
+      "source": 0,
+      "quote": "Table 7, Push-T: ImgRes 1x96x96 (\"Camera views x W x H\")"
+    },
+    "action_chunk": {
+      "value": 16,
+      "source": 0,
+      "quote": "Table 7, Push-T: Tp 16"
+    },
+    "execute_steps": {
+      "value": 8,
+      "source": 0,
+      "quote": "Table 7, Push-T: Ta 8"
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated: the paper uses receding-horizon control."
+    },
+    "inference_ms": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated for Push-T (100 evaluation iterations).",
+      "hardware": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated for the simulated task."
+    }
+  }
+}

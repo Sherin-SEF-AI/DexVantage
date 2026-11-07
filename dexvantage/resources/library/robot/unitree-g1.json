@@ -1,0 +1,173 @@
+{
+  "id": "unitree-g1",
+  "kind": "robot",
+  "maker": "Unitree",
+  "name": "G1",
+  "family": "humanoid",
+  "sources": [
+    {
+      "url": "https://www.unitree.com/g1",
+      "title": "Unitree, G1 product page, Unitree G1 Parameter table",
+      "read": "2026-11-07",
+      "covers": "DoF, weight, arm load, joint ranges"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/unitree_g1",
+      "title": "MuJoCo Menagerie unitree_g1/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The DoF is the G1 EDU's stated range; the Menagerie model is the 29-DoF configuration (waist 3, wrists 3 per arm). Payload and mass are the EDU's \"about\" figures.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "variant": "G1 EDU (the Menagerie model is derived from g1_29dof_rev_1_0)",
+    "dof": {
+      "value": [
+        23,
+        43
+      ],
+      "source": 0,
+      "quote": "Total Degrees of Freedom (Joint Freedom): 23 (G1), 23 - 43 (G1 EDU)"
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": 3,
+      "source": 0,
+      "quote": "Arm Maximum Load About 2Kg (G1), About 3Kg (G1 EDU); varies greatly with arm posture"
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 35,
+      "source": 0,
+      "quote": "Weight (With Battery) About 35kg (G1), About 35kg+ (G1 EDU)"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "WiFi 6",
+        "Bluetooth 5.2"
+      ],
+      "source": 0,
+      "quote": "WiFi 6 、Bluetooth 5.2 YES"
+    },
+    "joint_ranges": {
+      "value": [
+        {
+          "joint": "Waist Z",
+          "min": -155,
+          "max": 155
+        },
+        {
+          "joint": "Waist X (EDU)",
+          "min": -30,
+          "max": 30
+        },
+        {
+          "joint": "Waist Y (EDU)",
+          "min": -30,
+          "max": 30
+        },
+        {
+          "joint": "Knee",
+          "min": 0,
+          "max": 165
+        },
+        {
+          "joint": "Hip P",
+          "min": -154,
+          "max": 154
+        },
+        {
+          "joint": "Hip R",
+          "min": -30,
+          "max": 170
+        },
+        {
+          "joint": "Hip Y",
+          "min": -158,
+          "max": 158
+        },
+        {
+          "joint": "Wrist P (EDU)",
+          "min": -92.5,
+          "max": 92.5
+        },
+        {
+          "joint": "Wrist Y (EDU)",
+          "min": -92.5,
+          "max": 92.5
+        }
+      ],
+      "source": 0,
+      "quote": "Waist joint：Z±155°、X±30°、Y±30°; Knee joint：0~165°; Hip joint：P±154°、R-30~+170°、Y±158°; Wrist joint：P±92.5°、Y±92.5°",
+      "unit": "deg"
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "unitree_g1",
+      "file": "g1.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/unitree_g1"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "g1.xml",
+      "imported": true,
+      "joints_in_q": 29,
+      "joint_names": [
+        "left_hip_pitch_joint",
+        "left_hip_roll_joint",
+        "left_hip_yaw_joint",
+        "left_knee_joint",
+        "left_ankle_pitch_joint",
+        "left_ankle_roll_joint",
+        "right_hip_pitch_joint",
+        "right_hip_roll_joint",
+        "right_hip_yaw_joint",
+        "right_knee_joint",
+        "right_ankle_pitch_joint",
+        "right_ankle_roll_joint",
+        "waist_yaw_joint",
+        "waist_roll_joint",
+        "waist_pitch_joint",
+        "left_shoulder_pitch_joint",
+        "left_shoulder_roll_joint",
+        "left_shoulder_yaw_joint",
+        "left_elbow_joint",
+        "left_wrist_roll_joint",
+        "left_wrist_pitch_joint",
+        "left_wrist_yaw_joint",
+        "right_shoulder_pitch_joint",
+        "right_shoulder_roll_joint",
+        "right_shoulder_yaw_joint",
+        "right_elbow_joint",
+        "right_wrist_roll_joint",
+        "right_wrist_pitch_joint",
+        "right_wrist_yaw_joint"
+      ],
+      "actuators": 29,
+      "links": 30,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 29,
+      "seconds": 1.0,
+      "note": ""
+    }
+  }
+}

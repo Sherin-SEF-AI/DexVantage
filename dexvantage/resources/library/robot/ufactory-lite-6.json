@@ -1,0 +1,96 @@
+{
+  "id": "ufactory-lite-6",
+  "kind": "robot",
+  "maker": "UFACTORY",
+  "name": "Lite 6",
+  "family": "6-axis desktop arm",
+  "sources": [
+    {
+      "url": "https://www.ufactory.cc/lite-6-collaborative-robot/",
+      "title": "UFACTORY, Lite 6 product page",
+      "read": "2026-11-07",
+      "covers": "payload, reach, weight, TCP speed, repeatability, 6-axis"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/ufactory_lite6",
+      "title": "MuJoCo Menagerie ufactory_lite6/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "No joint ranges, control rate or interfaces are stated as figures on the product page.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "\"the most compact 6-axis cobot in the UFACTORY lineup\""
+    },
+    "reach_mm": {
+      "value": 440,
+      "source": 0,
+      "quote": "Reach 440 mm"
+    },
+    "payload_kg": {
+      "value": 0.6,
+      "source": 0,
+      "quote": "Payload 600 g"
+    },
+    "repeatability_mm": {
+      "value": 0.5,
+      "source": 0,
+      "quote": "Repeatability ±0.5 mm"
+    },
+    "mass_kg": {
+      "value": 8,
+      "source": 0,
+      "quote": "Weight 8 kg"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "ufactory_lite6",
+      "file": "lite6.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/ufactory_lite6"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "lite6.xml",
+      "imported": true,
+      "joints_in_q": 6,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6"
+      ],
+      "actuators": 6,
+      "links": 7,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 6,
+      "seconds": 0.28,
+      "note": ""
+    }
+  }
+}

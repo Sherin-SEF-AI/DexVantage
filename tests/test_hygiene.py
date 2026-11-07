@@ -39,5 +39,11 @@ def test_no_personal_paths_or_secrets():
 
 
 def test_no_large_files():
-    big = [os.path.relpath(p, ROOT) for p in _files() if os.path.isfile(p) and os.path.getsize(p) > 2_000_000]
+    """No file over 2 MB, except a bundled robot model's mesh, which may reach 5 MB (the samples' package budget: no
+    file over 5 MB, at most about 12 MB per robot, tests/test_samples.py; ALOHA 2's wrist-mount mesh is 2.3 MB)."""
+    robots = os.path.join(ROOT, 'dexvantage', 'resources', 'robots') + os.sep
+
+    def limit(p):
+        return 5_000_000 if p.startswith(robots) else 2_000_000
+    big = [os.path.relpath(p, ROOT) for p in _files() if os.path.isfile(p) and os.path.getsize(p) > limit(p)]
     assert not big, big

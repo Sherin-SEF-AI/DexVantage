@@ -60,6 +60,7 @@ class CablesPage(StudyPage):
         self.cable_box = QComboBox()
         self.cable_box.setMinimumWidth(220)
         self.cable_box.setToolTip('The cable to edit')
+        self.cable_box.setPlaceholderText('No cable yet: New cable adds one')
         self.b_new = button('New cable', role='ghost', tip='Add a cable for the selected sensor (one undo step)')
         self.b_del = button('Delete', role='ghost', tip='Delete this cable (one undo step)')
         self.b_suggest = button('Suggest attachments', role='ghost',

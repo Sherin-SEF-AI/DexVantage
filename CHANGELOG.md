@@ -4,6 +4,90 @@ All notable changes to DexVantage. The format follows Keep a Changelog; versions
 
 ## [Unreleased]
 
+### Phases 9 and 10, samples, catalogue, library, research tools part 1
+- Shared contracts (additive): named metrics (`core/metrics.py`, `@metric`, `evaluate`, `better_of`) with 53
+  definitions over every study (`core/metric_defs.py`, including `canonical_view.parallax_p95` and
+  `canonical_view.coverage`); settable project quantities (`core/factors.py`: `sensor:<id>.x|…|model|stream`,
+  `setting:<study>.<key>`, `json:/pointer`; locked sensors refused); the exporter registry
+  (`core/exporters/__init__.py`, `@exporter`, `export` with a manifest of SHA-256s and provenance, `unstamped` files).
+- Requirements and the readiness scorecard (`core/requirements.py`, `--check REQUIREMENTS.yaml|defaults`, exit 0, 1,
+  2; `--scorecard`, `--variants-compare`, `--rig-inventory`), the Requirements and variants page, `--reproduce` of any
+  result (`core/reproduce.py`, `--reproduce-out`) and `--run-plan` (`core/run_plan.py`).
+- Monte Carlo tolerances (`core/tolerance.py`, ported from Vantage; `--tolerance-mc`; the Tolerances page) from mount
+  ± bounds or a hand-eye calibration's covariance, with requirement shares and drivers; the extrinsic perturbation
+  export (`perturbations`, §8.5).
+- Designed experiments (`core/experiments.py`, ported from Vantage; `--experiment DESIGN.json`, `--experiment-saved`;
+  the Designed experiments page): full and fractional factorial, Latin hypercube, Sobol, Saltelli; Sobol indices with
+  bootstrap intervals, main effects, the best run.
+- The optimiser and the design agent (`core/optimise/`, NSGA-II in NumPy; `--optimise`, `--design-agent`,
+  `--optimise-settings`; the Optimise page): Pareto fronts over metric objectives with requirements as constraints.
+- Exporters: `mjcf`, `urdf` (with a tf2 launch file), `opencv_yaml` (and Kalibr), `masks`, `plucker`, `brackets`
+  (STEP with the optional `step` extra), `fiftyone`, `lerobot_dataset`, `isaac` (USD prims; Isaac Lab v3.0.0 and
+  v2.3.2 camera configs), `lerobot` (features, ACT and Diffusion Policy train configs with the delay offset and
+  ensemble weight, OpenVLA), `report` (HTML and PDF), `perturbations`, `canonical_warp`; File ▸ Export… (takes over
+  the last placeholder command; the report reuses the window's results) and `--export OUT --formats … --export-options`.
+- The cross-embodiment canonical view warp (§7.16; `--canonical-view`; Export ▸ Canonical view) and the Rerun bridge
+  (§9.4; `--rerun OUT.rrd`, Export ▸ Stream to Rerun…; optional extra `rerun`).
+- The assistant's tool layer (30 tools) and the MCP server (`python -m dexvantage.mcp`, attaching to an open window);
+  the Assistant dock (Window ▸ Assistant, Ctrl+J; Claude or Groq; keys in the system keyring only; a number check on
+  every answer, proposals as one undo step, long studies only from an approved plan; optional extra `assistant`).
+- Samples `--sample aloha|panda-bimanual|g1` (MuJoCo Menagerie, licences read and recorded); a robot catalogue of 53
+  robots in the Library (kind `robot`); 44 more cameras, depth cameras and tactile sensors; 10 more hosts and
+  capture cards, 11 policies, 3 lights and 3 cables; a new `teleop` kind with 13 devices, added from the Teleop page.
+- Research tools part 1: the Python and notebook API (`import dexvantage as dv`), the plugin SDK
+  (`dexvantage/plugin_sdk.py`, `--list-plugins`, `--no-plugins`, Help ▸ Plugins…, a template in
+  `examples/plugin-template/`), project diff and three-way merge (`--diff`, `--diff-html`, `--merge`, File ▸ Compare
+  with…), the Git folder form (`--unpack`, `--pack`, `--textconv`, File ▸ Save as folder (for Git)…), BibTeX
+  (`--cite`) and publication figures (`--figure`, Export figure… on page charts).
+- Validation: models `robots`, `library`, `tolerance`, `experiments`, `optimise`, `assistant`, `requirements`,
+  `copilot`, `versioning`, `samples` and new `formats` and `vla` checks; self-test lines for each new area.
+- Fixes at integration: the brackets study crashed when a sensor with a bracket type had a library device that states
+  no size (now refused in one sentence); four tolerance checks declared no unit; the Export dialog did not pose the
+  Isaac export at the on-screen joint state; File ▸ Open sample built the project on the UI thread (now a window
+  job); the variants compare said "from before the last edit" right after a compare; the LeRobot reader decodes a
+  packet the frame-threaded AV1 decoder refuses once more single-threaded (an intermittent failure in the full
+  suite on files that decode cleanly).
+- Memory: two glibc malloc arenas (`core/memlimit.py`, in `app.main` and the tests), so memory freed by worker
+  threads goes back to the system; the test suite's quick validation of every check runs one model per child
+  process. The full suite's peak fell from over 7.5 GB to 4.85 GB, `--validate`'s from 6.7 to 5.4 GB.
+- Removed: the placeholder Assistant panel; the unpinned `claude` and `keyring` extras (the pinned `assistant` extra
+  replaces them).
+
+### Added (Phases 9 and 10 reviews)
+- Spec §11 names as aliases: `--grasp-study`, `--cable-flex`, `--mujoco-validate out/` (a study given a folder
+  writes `<folder>/<flag>.json`), `--formats usd` (the Isaac export), `--export … fiftyone --dataset`, and
+  `--handeye-solve OUT --captures DIR [--joints FILE]` (capture from a folder of board images in batch).
+- A Workspace page with a workspace check and its one-step suggestion (`core/workspace_check.py`, validation model
+  `workspace`, 2 checks, a self-test line); design-log notes with a filter; a depth-range field on the Canonical view
+  page; Teleop devices, Policies, Lights, Cables and Mounts groups in the Library panel; another variant beside the
+  active one on the Requirements page; variant ghosts in the 3D view.
+
+### Fixed (Phases 9 and 10 reviews and final gate)
+- Truthfulness (sources re-read on 2026-11-07): the Alvium 1800 C-158c and U-240c streams' pixel format and bits per
+  pixel are null (their maximum frame rates cannot be RGB8 rates over their links); Diffusion Policy (CNN)'s 0.1 s is
+  for 10 DDIM iterations where the paper's Table 7 lists 16; the Franka Research 3 and Flexiv model folders' licence
+  texts are recorded as they are (Apache-2.0 followed by a BSD text); the Isaac and OpenVLA exports' notes state their
+  limits.
+- Correctness: a `json:` factor pointer could move, re-model, delete or unlock a locked sensor (refused now, also in
+  the experiments and the optimiser); the tolerance Monte Carlo and the optimiser counted a figure stated only as a
+  bound as meeting a requirement; NSGA-II's crowding favoured designs whose figure is not stated; `--reproduce` of a
+  scorecard for a non-active variant re-ran the active one; the Plücker "base" frame defaulted to the first robot, not
+  the primary one; the optimiser's refused-design path returned a constraint vector of the wrong length.
+- Workflows: bad factor values, unknown devices and malformed streams are refused in a sentence; the API raises
+  `DexVantageError` throughout and `rig.save` to a folder writes the unpacked form; `--reproduce` of a file naming no
+  study and `--optimise-settings '[1]'` explain themselves; an undecided bound shows no margin; a small Saltelli design
+  says its indices are rough; the MCP server and the assistant open the new samples and treat the tolerance, experiment
+  and optimiser runs as long work; the Panda sample's Diffusion Policy takes its two wrist views; the Menagerie import
+  compiles off the UI thread and keeps the catalogue's name; analysis pages open readable; empty selectors say why;
+  "No warnings."; a user-set mount tolerance is not labelled "(default)"; "1 sensor"; the assistant counts moving
+  joints as the Outliner does; the brackets export's refusal names the menu.
+- Throw-away folders (the self-test's and the tests' settings, the tests' XDG folders, the audit check's fallback
+  folder, the plugin template's test folders) are removed when their process or test ends; two days of runs had left
+  about 12 000 folders (4 GB) in the system temp folder, enough to fill it during a full test run.
+- The assistant's and MCP's export tools take the `usd` alias, as `--formats` does.
+- A disabled, ticked checkbox drew an empty box (the Requirements page's read-only "DexVantage default").
+- Final gate: 3 482 tests pass (1 skipped), 179 of 179 validation checks, 37 of 37 self-test lines.
+
 ### Phases 4, 5 and 8: MuJoCo ground truth; teleop, lighting, blur and sync; data
 - MuJoCo ground truth (`core/sim/scene.py`, `core/sim/render.py`, `core/studies/groundtruth.py`, `--groundtruth`,
   Simulate ▸ Rendered against predicted visibility…, Simulate ▸ Build the MuJoCo scene…): the project as one MuJoCo

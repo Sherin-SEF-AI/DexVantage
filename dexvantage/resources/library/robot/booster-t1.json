@@ -1,0 +1,102 @@
+{
+  "id": "booster-t1",
+  "kind": "robot",
+  "maker": "Booster Robotics",
+  "name": "T1",
+  "family": "humanoid",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/booster_t1",
+      "title": "MuJoCo Menagerie booster_t1/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "booster.tech's T1 page loads its specifications with scripts the build could not read; no figure is entered.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "booster_t1",
+      "file": "t1.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/booster_t1"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "t1.xml",
+      "imported": true,
+      "joints_in_q": 23,
+      "joint_names": [
+        "AAHead_yaw",
+        "Head_pitch",
+        "Left_Shoulder_Pitch",
+        "Left_Shoulder_Roll",
+        "Left_Elbow_Pitch",
+        "Left_Elbow_Yaw",
+        "Right_Shoulder_Pitch",
+        "Right_Shoulder_Roll",
+        "Right_Elbow_Pitch",
+        "Right_Elbow_Yaw",
+        "Waist",
+        "Left_Hip_Pitch",
+        "Left_Hip_Roll",
+        "Left_Hip_Yaw",
+        "Left_Knee_Pitch",
+        "Left_Ankle_Pitch",
+        "Left_Ankle_Roll",
+        "Right_Hip_Pitch",
+        "Right_Hip_Roll",
+        "Right_Hip_Yaw",
+        "Right_Knee_Pitch",
+        "Right_Ankle_Pitch",
+        "Right_Ankle_Roll"
+      ],
+      "actuators": 23,
+      "links": 24,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 23,
+      "seconds": 0.21,
+      "note": ""
+    }
+  }
+}

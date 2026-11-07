@@ -1,0 +1,134 @@
+{
+  "id": "unitree-z1",
+  "kind": "robot",
+  "maker": "Unitree",
+  "name": "Z1",
+  "family": "6-axis arm for mobile robots",
+  "sources": [
+    {
+      "url": "https://www.unitree.com/z1",
+      "title": "Unitree, Z1 product page, Parameter table",
+      "read": "2026-11-07",
+      "covers": "DoF, weight, payload, reach, repeatability, interface, joint ranges, motor control frequency"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/unitree_z1",
+      "title": "MuJoCo Menagerie unitree_z1/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The 1 kHz control frequency is in the joint-motor table. Unitree footnotes the repeatability as dependent on the test. The Menagerie README does not say whether the model is the AIR or the PRO.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "variant": "figures of the Z1 AIR; the Z1 PRO differs in mass (4.5 kg) and payload (≥3 kg)",
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "DOF 6 Axis (Z1 AIR and Z1 PRO)"
+    },
+    "reach_mm": {
+      "value": 740,
+      "source": 0,
+      "quote": "Reach 740mm"
+    },
+    "payload_kg": {
+      "value": 2,
+      "source": 0,
+      "quote": "Payload 2kg (Z1 AIR), ≥3kg (Z1 PRO)"
+    },
+    "repeatability_mm": {
+      "value": 0.1,
+      "source": 0,
+      "quote": "Repeatability ～0.1mm"
+    },
+    "mass_kg": {
+      "value": 4.3,
+      "source": 0,
+      "quote": "Weight 4.3kg (Z1 AIR), 4.5kg (Z1 PRO)"
+    },
+    "control_hz": {
+      "value": 1000,
+      "source": 0,
+      "quote": "Control Frequency 1KHz (joint motor parameters)"
+    },
+    "interfaces": {
+      "value": [
+        "Ethernet"
+      ],
+      "source": 0,
+      "quote": "Interface Ethernet"
+    },
+    "joint_ranges": {
+      "value": [
+        {
+          "joint": "J1",
+          "min": -150,
+          "max": 150
+        },
+        {
+          "joint": "J2",
+          "min": 0,
+          "max": 180
+        },
+        {
+          "joint": "J3",
+          "min": -165,
+          "max": 0
+        },
+        {
+          "joint": "J4",
+          "min": -80,
+          "max": 80
+        },
+        {
+          "joint": "J5",
+          "min": -85,
+          "max": 85
+        },
+        {
+          "joint": "J6",
+          "min": -160,
+          "max": 160
+        }
+      ],
+      "source": 0,
+      "quote": "J1 ±150°, J2 0-180°, J3 -165°-0, J4 ±80°, J5 ±85°, J6 ±160°",
+      "unit": "deg"
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "unitree_z1",
+      "file": "z1.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/unitree_z1"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "z1.xml",
+      "imported": true,
+      "joints_in_q": 6,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6"
+      ],
+      "actuators": 6,
+      "links": 7,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 6,
+      "seconds": 0.88,
+      "note": ""
+    }
+  }
+}

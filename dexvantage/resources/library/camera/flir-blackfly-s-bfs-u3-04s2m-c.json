@@ -1,0 +1,84 @@
+{
+  "id": "flir-blackfly-s-bfs-u3-04s2m-c",
+  "kind": "camera",
+  "maker": "Teledyne FLIR",
+  "name": "Blackfly S BFS-U3-04S2M-C",
+  "family": "Blackfly S USB3",
+  "sources": [
+    {
+      "url": "https://www.teledynevisionsolutions.com/products/blackfly-s-usb3/?model=BFS-U3-04S2M-C",
+      "title": "Blackfly S USB3, model BFS-U3-04S2M-C (Teledyne Vision Solutions product page)",
+      "read": "2026-11-07",
+      "covers": "resolution, frame rate, sensor (Sony IMX287), pixel size, sensor format, shutter, mono, C-mount, synchronisation, interface, exposure range, ADC, size, mass, power"
+    }
+  ],
+  "note": "A cased mono USB3 Vision camera with a C-mount. Sold without a lens, so no FOV, f-number or focus is stated: the imager has no FOV and the library uses its labelled default until the user enters the chosen lens (or a calibration). Sony IMX287, 720 x 540, 1/2.9\", pixel size \"6.9\" (the page gives no unit; the sensor's pixel is in micrometres), maximum frame rate 522 fps; ADC 8, 10 and 12 bit; pixel formats are not listed on the page, so the stream format is null. Exposure \"4 us to 30 seconds\". power_w is the stated maximum, 3 W (5 V via USB3 or 8-24 V via GPIO). size_mm is the stated 29 x 29 x 30 mm (W x H x L), entered as [30, 29, 29] with L along the optical axis. Connectors USB3 Micro-B and Hirose HR10A-7R-6PB (GPIO).",
+  "interface": "USB 3.1 Gen 1 (USB Micro-B); USB3 Vision",
+  "power_w": 3.0,
+  "mass_g": 36.0,
+  "size_mm": [
+    30.0,
+    29.0,
+    29.0
+  ],
+  "imagers": [
+    {
+      "name": "Mono",
+      "role": "mono",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 6.9,
+      "resolution": [
+        720,
+        540
+      ],
+      "lens_model": null,
+      "f_number": null,
+      "focus": null,
+      "optical_format": "1/2.9\"",
+      "exposure_s": {
+        "min": 4e-06,
+        "max": 30.0,
+        "what": "Exposure Range \"4 us to 30 seconds\""
+      }
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Mono",
+      "width": 720,
+      "height": 540,
+      "fps": [
+        522
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null,
+  "sync": {
+    "hardware_trigger": true,
+    "sync_cable": null,
+    "imagers": [],
+    "what": "Specifications, Synchronization: \"Software trigger, hardware trigger, action command\"; opto-isolated input and output."
+  }
+}

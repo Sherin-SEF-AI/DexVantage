@@ -1,0 +1,39 @@
+{
+  "id": "paxini-px6ax-gen3-dp-s2015-elite",
+  "kind": "tactile",
+  "maker": "PaXini",
+  "name": "PX-6AX GEN3 fingertip DP-S2015 (Elite)",
+  "family": "PX-6AX GEN3",
+  "sources": [
+    {
+      "url": "https://www.paxini.com/en/ax/gen3",
+      "title": "PX-6AX GEN3 tactile sensors (PaXini product page)",
+      "read": "2026-11-07",
+      "covers": "model list with dimensions (Elite, Core and Omega series), output signals, maximum number of force signals (717), force range, sampling rate, maximum output frequency, minimum recognition force, spatial resolution, repeatability, IP68, operating voltage"
+    }
+  ],
+  "note": "A contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. A multi-dimensional force-array fingertip sensor (PX-6AX GEN3). Product-page figures for the series: output \"Triaxial force array, triaxial resultant force, triaxial resultant torque\", \"Number of Force Signals in Array: Maximum 717\" (per model not stated, so taxels is null), force range 0-25 N normal and +/-10 N tangential, sampling rate 1 MHz, \"Maximum Output Frequency 1000 Hz\" (entered as fps, the output rate; marked \"Data from PaXini AI Lab\"), minimum recognition force 0.01 N and spatial resolution 0.1 mm (also from the lab), repeatability < 0.5% FS, IP68, operating voltage 3-5 V. The sensing principle is not named (the page mentions chip-level stray magnetic field immunity). pad_mm is the stated length x width of the module (the sensing surface also covers the curved sides: \"Comprehensive coverage on the frontal and lateral curved surfaces\"). Not stated: power, mass, host interface. Its readings are not an image stream, so no stream is entered; the bandwidth budget needs the data rate as a measured or stated figure. PX6AX-GEN3-DP-S2015-Elite: fingertip tactile sensor, length 20 mm, width 15 mm, height 10 mm; size_mm [10, 15, 20] with the height along the pad normal (an ASSUMPTION on the axes).",
+  "interface": null,
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": [
+    10.0,
+    15.0,
+    20.0
+  ],
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": {
+    "pad_mm": [
+      20.0,
+      15.0
+    ],
+    "camera_resolution": null,
+    "fps": 1000.0,
+    "sensing": "triaxial force array",
+    "taxels": null
+  },
+  "host": null
+}

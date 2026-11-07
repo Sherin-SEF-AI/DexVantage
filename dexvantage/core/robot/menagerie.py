@@ -209,6 +209,9 @@ def license_name(text: str) -> tuple[str, bool]:
             + ('-ND' if 'noderivatives' in flat or 'noderivs' in flat else '')
         return (f'{kind}-{ver}' if ver else kind), nc
     if 'apache license' in low and 'version 2.0' in low:
+        if 'redistribution and use in source and binary forms' in low:     # a BSD text after it (franka_fr3 at 98a70c5)
+            bsd = 'BSD-3-Clause' if 'neither the name' in low or 'endorse or promote' in low else 'BSD-2-Clause'
+            return f'Apache-2.0 AND {bsd}', nc
         return 'Apache-2.0', nc
     if 'redistribution and use in source and binary forms' in low:
         if 'clear bsd license' in low:

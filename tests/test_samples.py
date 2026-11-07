@@ -1,4 +1,5 @@
-"""The sample projects (spec §14.2, §14.3) and the robot models bundled for them (spec §1.2).
+"""The sample projects (spec §14.2, §14.3) and the robot models bundled for them (spec §1.2); the ALOHA 2, bimanual
+Panda and G1 samples are tested in test_samples_bimanual.py.
 
 Independent references: the bundled Menagerie files compiled directly by MuJoCo (joint limits, the UR5e flange site,
 the gripper's own base offset), not through DexVantage's importer."""
@@ -57,19 +58,24 @@ def test_third_party_lists_every_bundled_model():
     for d, info in S.BUNDLED.items():
         row = next((ln for ln in text.splitlines() if f'`{d}`' in ln and ln.startswith('|')), '')
         assert row, f'{d} is not in THIRD_PARTY.md'
-        assert info['license'] in row and info['folder_commit'] in row and S.CHECKED in row
+        assert info['license'] in row and info['folder_commit'] in row and info.get('checked', S.CHECKED) in row
     assert S.COMBINED_UR5E in text
 
 
 def test_bundled_files_are_only_model_files_and_small():
+    """Only model files; no file over 5 MB and no robot folder over 12 MB (the package budget; the G1's meshes are
+    simplified to fit it, measured: tests/test_samples_bimanual.py)."""
     total = 0
     for r, _d, files in os.walk(ROBOTS):
         for f in files:
             p = os.path.join(r, f)
             total += os.path.getsize(p)
             assert f == 'LICENSE' or f.endswith(('.xml', '.stl', '.obj')), p
-            assert os.path.getsize(p) < 2_000_000, p
-    assert total < 20e6
+            assert os.path.getsize(p) < 5_000_000, p
+    for d in S.BUNDLED:
+        folder = os.path.join(ROBOTS, d)
+        assert sum(os.path.getsize(os.path.join(r, f)) for r, _d, fs in os.walk(folder) for f in fs) < 12e6, d
+    assert total < 50e6
 
 
 def test_every_bundled_mesh_is_used():
@@ -224,13 +230,10 @@ def test_sample_save_load_compiles_from_the_file(tmp_path, so100):
     assert np.allclose(m.fk_array(m.home), a.fk_array(a.home))
 
 
-def test_later_samples_say_their_phase_and_unknown_is_plain():
+def test_every_sample_of_the_spec_is_available_and_unknown_is_plain():
     names = {s['name']: s for s in S.list()}
     assert set(names) == {'so100', 'ur5e', 'dexhand', 'aloha', 'panda-bimanual', 'g1'}
-    for n in ('aloha', 'panda-bimanual', 'g1'):
-        assert not names[n]['available']
-        with pytest.raises(S.SampleError, match='arrives in Phase 11'):
-            S.sample_project(n)
+    assert all(s['available'] and s['phase'] is None for s in names.values())
     with pytest.raises(S.SampleError, match='so100, ur5e'):
         S.sample_project('nope')
 
@@ -241,8 +244,8 @@ def test_cli_sample_batch(tmp_path, capsys):
     assert main(['--sample', 'ur5e', '--analyse', str(out)]) == 0
     doc = json.loads(out.read_text())
     assert doc['project'] == 'UR5e + Robotiq 2F-85 sample' and doc['sensors']['depth'] == 2
-    assert main(['--sample', 'aloha', '--analyse', str(out)]) == 2
-    assert 'Phase 11' in capsys.readouterr().err
+    assert main(['--sample', 'baxter', '--analyse', str(out)]) == 2
+    assert 'There is no sample named "baxter"' in capsys.readouterr().err
 
 
 def test_no_personal_paths_in_bundled_xml():

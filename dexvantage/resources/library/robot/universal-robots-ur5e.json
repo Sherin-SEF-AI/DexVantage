@@ -1,0 +1,136 @@
+{
+  "id": "universal-robots-ur5e",
+  "kind": "robot",
+  "maker": "Universal Robots",
+  "name": "UR5e",
+  "family": "e-Series 6-axis cobot",
+  "sources": [
+    {
+      "url": "https://www.universal-robots.com/manuals/latest/en/datasheets/ur5e/",
+      "title": "Universal Robots, UR5e datasheet (October 2026 issue)",
+      "read": "2026-11-07",
+      "covers": "payload, reach, DoF, repeatability, weight, working ranges, interfaces"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/universal_robots_ur5e",
+      "title": "MuJoCo Menagerie universal_robots_ur5e/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The datasheet states no control rate. The bundled UR5e (core/robot/samples.py) is this Menagerie model; its link offsets are rounded to the millimetre (docs/models/robots.md).",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "Degrees of freedom 6 rotating joints"
+    },
+    "reach_mm": {
+      "value": 850,
+      "source": 0,
+      "quote": "Reach 850 mm / 33.5 in"
+    },
+    "payload_kg": {
+      "value": 5,
+      "source": 0,
+      "quote": "Payload 5 kg / 11 lbs"
+    },
+    "repeatability_mm": {
+      "value": 0.03,
+      "source": 0,
+      "quote": "Pose repeatability per ISO 9283 ± 0.03 mm"
+    },
+    "mass_kg": {
+      "value": 20.7,
+      "source": 0,
+      "quote": "Weight including cable 20,7 kg / 45.7 lbs"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "Ethernet 1 Gb/s",
+        "Modbus TCP",
+        "Ethernet/IP adapter",
+        "PROFINET, PROFIsafe",
+        "ROS/ROS2"
+      ],
+      "source": 0,
+      "quote": "Industrial protocols: Modbus TCP (Client/Server), Ethernet/IP Adapter, PROFINET device, PROFIsafe, ROS/ROS2, Ethernet 1 Gb/s"
+    },
+    "joint_ranges": {
+      "value": [
+        {
+          "joint": "Base",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Shoulder",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Elbow",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Wrist 1",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Wrist 2",
+          "min": -360,
+          "max": 360
+        },
+        {
+          "joint": "Wrist 3",
+          "min": -360,
+          "max": 360
+        }
+      ],
+      "source": 0,
+      "quote": "Base, Shoulder, Elbow, Wrist 1, Wrist 2, Wrist 3: ± 360°",
+      "unit": "deg"
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "universal_robots_ur5e",
+      "file": "ur5e.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/universal_robots_ur5e"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "ur5e.xml",
+      "imported": true,
+      "joints_in_q": 6,
+      "joint_names": [
+        "shoulder_pan_joint",
+        "shoulder_lift_joint",
+        "elbow_joint",
+        "wrist_1_joint",
+        "wrist_2_joint",
+        "wrist_3_joint"
+      ],
+      "actuators": 6,
+      "links": 7,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 6,
+      "seconds": 0.79,
+      "note": ""
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "id": "flir-blackfly-s-bfs-u3-16s2c-cs",
+  "kind": "camera",
+  "maker": "Teledyne FLIR",
+  "name": "Blackfly S BFS-U3-16S2C-CS",
+  "family": "Blackfly S USB3",
+  "sources": [
+    {
+      "url": "https://www.teledynevisionsolutions.com/products/blackfly-s-usb3/?model=BFS-U3-16S2C-CS",
+      "title": "Blackfly S USB3, model BFS-U3-16S2C-CS (Teledyne Vision Solutions product page)",
+      "read": "2026-11-07",
+      "covers": "resolution, frame rate, sensor (Sony IMX273), pixel size, sensor format, shutter, colour, IR-cut filter, CS-mount, synchronisation, interface, exposure range, ADC, size, mass, power"
+    }
+  ],
+  "note": "The colour version of the BFS-U3-16S2M-CS: a cased USB3 Vision camera with a CS-mount and an IR-cut filter (670 nm). Sold without a lens, so no FOV, f-number or focus is stated: the imager has no FOV and the library uses its labelled default until the user enters the chosen lens (or a calibration). Sony IMX273, 1440 x 1080, 1/2.9\", pixel size \"3.45\" (no unit given; micrometres), maximum frame rate 226 fps; ADC 10 and 12 bit; pixel formats not listed (format null). Exposure \"4 us to 30 seconds\". power_w is the stated maximum, 3 W. size_mm is the stated 29 x 29 x 30 mm (W x H x L), entered as [30, 29, 29].",
+  "interface": "USB 3.1 Gen 1 (USB Micro-B); USB3 Vision",
+  "power_w": 3.0,
+  "mass_g": 36.0,
+  "size_mm": [
+    30.0,
+    29.0,
+    29.0
+  ],
+  "imagers": [
+    {
+      "name": "Colour",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": null,
+      "vfov_deg": null,
+      "dfov_deg": null,
+      "pixel_um": 3.45,
+      "resolution": [
+        1440,
+        1080
+      ],
+      "lens_model": null,
+      "f_number": null,
+      "focus": null,
+      "optical_format": "1/2.9\"",
+      "exposure_s": {
+        "min": 4e-06,
+        "max": 30.0,
+        "what": "Exposure Range \"4 us to 30 seconds\""
+      }
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Colour",
+      "width": 1440,
+      "height": 1080,
+      "fps": [
+        226
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null,
+  "sync": {
+    "hardware_trigger": true,
+    "sync_cable": null,
+    "imagers": [],
+    "what": "Specifications, Synchronization: \"Software trigger, hardware trigger, action command\"; opto-isolated input and output."
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "id": "shadow-dexterous-hand",
+  "kind": "robot",
+  "maker": "Shadow Robot Company",
+  "name": "Shadow Dexterous Hand (E3M5)",
+  "family": "tendon-driven 24-joint hand",
+  "sources": [
+    {
+      "url": "https://www.shadowrobot.com/dexterous-hand-series/",
+      "title": "Shadow Robot, Dexterous Hand Series (specification table)",
+      "read": "2026-11-07",
+      "covers": "DoF, joints, weight, actuators, 1 kHz EtherCAT"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/shadow_hand",
+      "title": "MuJoCo Menagerie shadow_hand/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Shadow counts 24 joints of which 20 are actuated; the DoF entered is the 24-joint total, the actuated count is in the quote. The bundled Shadow Hand sample is this Menagerie model.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "hand",
+    "dof": {
+      "value": 24,
+      "source": 0,
+      "quote": "Degrees of Freedom: 20 actuated DOF and a further 4 under-actuated movements for a total of 24 joints"
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 4.3,
+      "source": 0,
+      "quote": "Overall Weight 4.3 Kg"
+    },
+    "control_hz": {
+      "value": 1000,
+      "source": 0,
+      "quote": "Control loop rate through host 1kHz (EtherCat protocol)"
+    },
+    "interfaces": {
+      "value": [
+        "EtherCAT",
+        "ROS"
+      ],
+      "source": 0,
+      "quote": "1kHz (EtherCat protocol); \"Fully ROS integrated\""
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "shadow_hand",
+      "file": "right_hand.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/shadow_hand"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "right_hand.xml",
+      "imported": true,
+      "joints_in_q": 24,
+      "joint_names": [
+        "rh_WRJ2",
+        "rh_WRJ1",
+        "rh_FFJ4",
+        "rh_FFJ3",
+        "rh_FFJ2",
+        "rh_FFJ1",
+        "rh_MFJ4",
+        "rh_MFJ3",
+        "rh_MFJ2",
+        "rh_MFJ1",
+        "rh_RFJ4",
+        "rh_RFJ3",
+        "rh_RFJ2",
+        "rh_RFJ1",
+        "rh_LFJ5",
+        "rh_LFJ4",
+        "rh_LFJ3",
+        "rh_LFJ2",
+        "rh_LFJ1",
+        "rh_THJ5",
+        "rh_THJ4",
+        "rh_THJ3",
+        "rh_THJ2",
+        "rh_THJ1"
+      ],
+      "actuators": 20,
+      "links": 25,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 24,
+      "seconds": 0.07,
+      "note": ""
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "id": "robotis-op3",
+  "kind": "robot",
+  "maker": "ROBOTIS",
+  "name": "ROBOTIS OP3",
+  "family": "small humanoid",
+  "sources": [
+    {
+      "url": "https://emanual.robotis.com/docs/en/platform/op3/introduction/",
+      "title": "ROBOTIS e-Manual, ROBOTIS OP3 introduction (specifications)",
+      "read": "2026-11-07",
+      "covers": "height, weight, DoF, actuators"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/robotis_op3",
+      "title": "MuJoCo Menagerie robotis_op3/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Height about 510 mm; actuators Dynamixel XM430-W350-R.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "dof": {
+      "value": 20,
+      "source": 0,
+      "quote": "DOF 20"
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 3.5,
+      "source": 0,
+      "quote": "Weight About 3.5kg (without skin cover)"
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "robotis_op3",
+      "file": "op3.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/robotis_op3"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "op3.xml",
+      "imported": true,
+      "joints_in_q": 20,
+      "joint_names": [
+        "head_pan",
+        "head_tilt",
+        "l_sho_pitch",
+        "l_sho_roll",
+        "l_el",
+        "r_sho_pitch",
+        "r_sho_roll",
+        "r_el",
+        "l_hip_yaw",
+        "l_hip_roll",
+        "l_hip_pitch",
+        "l_knee",
+        "l_ank_pitch",
+        "l_ank_roll",
+        "r_hip_yaw",
+        "r_hip_roll",
+        "r_hip_pitch",
+        "r_knee",
+        "r_ank_pitch",
+        "r_ank_roll"
+      ],
+      "actuators": 20,
+      "links": 21,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 20,
+      "seconds": 1.41,
+      "note": ""
+    }
+  }
+}

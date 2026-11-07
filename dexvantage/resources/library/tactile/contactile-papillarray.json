@@ -1,0 +1,32 @@
+{
+  "id": "contactile-papillarray",
+  "kind": "tactile",
+  "maker": "Contactile",
+  "name": "PapillArray tactile sensor (Dev Kit v2)",
+  "family": "PapillArray",
+  "sources": [
+    {
+      "url": "https://arxiv.org/pdf/2307.04011",
+      "title": "Q. Wang, P. M. Ulloa, R. Burke, D. Cordova Bulens and S. J. Redmond, \"Robust Learning-Based Incipient Slip Detection using the PapillArray Optical Tactile Sensor for Improved Robotic Gripping\", arXiv:2307.04011",
+      "read": "2026-11-07",
+      "covers": "sensor description: a square array of nine elastic silicone pillars with different heights, x-y-z force per pillar at 1,000 Hz; Dev Kit v1 and v2 differ in size and pillar hardness"
+    }
+  ],
+  "note": "A contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. A commercial pillar-array tactile sensor (Contactile, Australia). The maker's pages could not be fetched on 2026-11-07 (the site did not answer), so the figures are from a paper that used it: \"a square array of nine elastic silicone pillars with varying unloaded heights\" (taxels 9), each giving \"x-y-z force data ... at a high sampling rate of 1,000 Hz\" (entered as fps). The sensing principle is optical (the paper's title: \"PapillArray Optical Tactile Sensor\"). The pad size is not stated in that paper, so pad_mm is null; a later paper gives about 24 x 24 mm, not entered. Not stated: power, mass, size, interface (the kit has a controller and a USB cable). Its readings are not an image stream, so no stream is entered; the bandwidth budget needs the data rate as a measured or stated figure.",
+  "interface": null,
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": {
+    "pad_mm": null,
+    "camera_resolution": null,
+    "fps": 1000.0,
+    "sensing": "optical (pillar displacement and force)",
+    "taxels": 9
+  },
+  "host": null
+}

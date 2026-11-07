@@ -1,0 +1,97 @@
+{
+  "id": "stanford-tidybot",
+  "kind": "robot",
+  "maker": "Stanford University",
+  "name": "TidyBot++",
+  "family": "holonomic mobile manipulator",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/stanford_tidybot",
+      "title": "MuJoCo Menagerie stanford_tidybot/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The TidyBot++ paper was not read for this build; no figure is entered.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "mobile_manipulator",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "stanford_tidybot",
+      "file": "tidybot.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "MIT",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/stanford_tidybot"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "tidybot.xml",
+      "imported": true,
+      "joints_in_q": 18,
+      "joint_names": [
+        "joint_x",
+        "joint_y",
+        "joint_th",
+        "joint_1",
+        "joint_2",
+        "joint_3",
+        "joint_4",
+        "joint_5",
+        "joint_6",
+        "joint_7",
+        "right_driver_joint",
+        "right_coupler_joint",
+        "right_spring_link_joint",
+        "right_follower_joint",
+        "left_driver_joint",
+        "left_coupler_joint",
+        "left_spring_link_joint",
+        "left_follower_joint"
+      ],
+      "actuators": 11,
+      "links": 22,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 18,
+      "seconds": 0.17,
+      "note": ""
+    }
+  }
+}

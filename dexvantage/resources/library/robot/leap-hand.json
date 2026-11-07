@@ -1,0 +1,113 @@
+{
+  "id": "leap-hand",
+  "kind": "robot",
+  "maker": "Carnegie Mellon University",
+  "name": "LEAP Hand",
+  "family": "low-cost 16-motor anthropomorphic hand",
+  "sources": [
+    {
+      "url": "https://arxiv.org/html/2309.06440",
+      "title": "K. Shaw, A. Agarwal, D. Pathak, LEAP Hand: Low-Cost, Efficient, and Anthropomorphic Hand for Robot Learning, RSS 2023 (arXiv:2309.06440)",
+      "read": "2026-11-07",
+      "covers": "joint count (16 motors), mass, USB interface"
+    },
+    {
+      "url": "https://leaphand.com/",
+      "title": "LEAP Hand project page",
+      "read": "2026-11-07",
+      "covers": "cost, released URDF and CAD"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/leap_hand",
+      "title": "MuJoCo Menagerie leap_hand/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The paper counts 16 motor joint angles; that is entered as the DoF. The 20 Hz in the paper is its policy's rate, not a stated control rate of the hand.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "hand",
+    "dof": {
+      "value": 16,
+      "source": 0,
+      "quote": "\"The policy receives joint angles (16 values) from the motors and outputs the target joint angles (16)\""
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 0.595,
+      "source": 0,
+      "quote": "\"The 4-finger LEAP Hand weighs 595g\""
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "USB (Dynamixel U2D2)",
+        "ROS, Python, C++"
+      ],
+      "source": 0,
+      "quote": "\"The hand interfaces with the computer using a USB cable and ROS, Python, or C++\""
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "leap_hand",
+      "file": "right_hand.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "MIT",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/leap_hand"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "right_hand.xml",
+      "imported": true,
+      "joints_in_q": 16,
+      "joint_names": [
+        "if_mcp",
+        "if_rot",
+        "if_pip",
+        "if_dip",
+        "mf_mcp",
+        "mf_rot",
+        "mf_pip",
+        "mf_dip",
+        "rf_mcp",
+        "rf_rot",
+        "rf_pip",
+        "rf_dip",
+        "th_cmc",
+        "th_axl",
+        "th_mcp",
+        "th_ipl"
+      ],
+      "actuators": 16,
+      "links": 17,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 16,
+      "seconds": 0.46,
+      "note": ""
+    }
+  }
+}

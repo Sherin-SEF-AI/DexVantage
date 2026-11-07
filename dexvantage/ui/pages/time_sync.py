@@ -186,6 +186,8 @@ class TimeSyncPage(StudyPage):
         layout.addWidget(row(self.clock_name, self.clock_kind, self.f_off, self.f_jit, self.f_drift))
         layout.addWidget(row(self.f_src, self.b_clock))
         self.clock_list = QComboBox()
+        self.clock_list.setToolTip('The clocks you added (host arrival, the default, is always there)')
+        self.clock_list.setPlaceholderText('No clock added')
         self.b_clock_del = button('Remove clock', role='ghost', tip='Remove the chosen clock (one undo step)')
         self.b_clock_del.clicked.connect(lambda: self.remove_clock(self.clock_list.currentData()))
         layout.addWidget(row(self.clock_list, self.b_clock_del))

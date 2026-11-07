@@ -1,0 +1,136 @@
+{
+  "id": "trossen-viperx-300-6dof",
+  "kind": "robot",
+  "maker": "Trossen Robotics",
+  "name": "ViperX-300 6DOF",
+  "family": "Interbotix X-Series arm (the ALOHA follower arm)",
+  "sources": [
+    {
+      "url": "https://docs.trossenrobotics.com/interbotix_xsarms_docs/specifications/vx300s.html",
+      "title": "Trossen Robotics, Interbotix X-Series Arms documentation, ViperX-300 6DOF specifications",
+      "read": "2026-11-07",
+      "covers": "DoF, reach, repeatability, working payload, servos, default joint limits"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/trossen_vx300s",
+      "title": "MuJoCo Menagerie trossen_vx300s/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Trossen states the repeatability as 1 mm without ±; it is entered as the ± half-width. The joint limits are Trossen's firmware defaults. The forearm-roll row is read from the table as Trossen lists it. vx300s.xml includes the gripper; its two finger joints are not counted.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "Degrees of Freedom 6"
+    },
+    "reach_mm": {
+      "value": 750,
+      "source": 0,
+      "quote": "Reach 750mm"
+    },
+    "payload_kg": {
+      "value": 0.75,
+      "source": 0,
+      "quote": "Working Payload 750g* (inside its maximum reach; no more than 50 % extension recommended for 750 g)"
+    },
+    "repeatability_mm": {
+      "value": 1,
+      "source": 0,
+      "quote": "Repeatability 1mm (Accuracy 5 - 8mm)"
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": [
+        "DYNAMIXEL U2D2 (USB)"
+      ],
+      "source": 0,
+      "quote": "\"the heart of the ViperX-300 6DOF is the Robotis DYNAMIXEL U2D2\""
+    },
+    "joint_ranges": {
+      "value": [
+        {
+          "joint": "Waist",
+          "min": -180,
+          "max": 180
+        },
+        {
+          "joint": "Shoulder",
+          "min": -101,
+          "max": 101
+        },
+        {
+          "joint": "Elbow",
+          "min": -101,
+          "max": 92
+        },
+        {
+          "joint": "Forearm roll",
+          "min": -180,
+          "max": 180
+        },
+        {
+          "joint": "Wrist angle",
+          "min": -107,
+          "max": 130
+        },
+        {
+          "joint": "Wrist rotate",
+          "min": -180,
+          "max": 180
+        }
+      ],
+      "source": 0,
+      "quote": "Default Joint Limits (firmware, degrees from servo centre)",
+      "unit": "deg"
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "trossen_vx300s",
+      "file": "vx300s.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/trossen_vx300s"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "vx300s.xml",
+      "imported": true,
+      "joints_in_q": 8,
+      "joint_names": [
+        "waist",
+        "shoulder",
+        "elbow",
+        "forearm_roll",
+        "wrist_angle",
+        "wrist_rotate",
+        "left_finger",
+        "right_finger"
+      ],
+      "actuators": 7,
+      "links": 10,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [
+        "left_finger",
+        "right_finger"
+      ],
+      "dof": 6,
+      "seconds": 0.08,
+      "note": "Excluded from the DoF: left_finger, right_finger."
+    }
+  }
+}

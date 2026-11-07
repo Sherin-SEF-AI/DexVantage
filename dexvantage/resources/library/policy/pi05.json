@@ -1,0 +1,94 @@
+{
+  "id": "pi05",
+  "kind": "policy",
+  "maker": "Physical Intelligence",
+  "name": "π0.5 (pi05)",
+  "family": "Vision-language-action flow model (PaliGemma backbone)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2504.16054",
+      "title": "Physical Intelligence, π0.5: a Vision-Language-Action Model with Open-World Generalization, arXiv:2504.16054 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "the action horizon, the cameras used for high- and low-level inference, the 50 Hz command rate, the PaliGemma backbone, 10 denoising steps"
+    },
+    {
+      "url": "https://github.com/Physical-Intelligence/openpi/tree/215abfb217dbac7d5f1273282331b9b1866c0479",
+      "title": "openpi (official code), commit 215abfb: src/openpi/models/model.py, pi0.py, pi0_config.py, src/openpi/training/config.py, README.md",
+      "read": "2026-11-07",
+      "covers": "IMAGE_RESOLUTION, IMAGE_KEYS, preprocess_observation (resize_with_pad), the SigLIP variant So400m/14, Pi0Config(pi05=True) action_horizon and the pi05 configurations"
+    },
+    {
+      "url": "https://arxiv.org/abs/2407.07726",
+      "title": "L. Beyer et al., PaliGemma: A versatile 3B VLM for transfer, arXiv:2407.07726",
+      "read": "2026-11-07",
+      "covers": "image tokens per image at 224 px"
+    }
+  ],
+  "note": "openpi runs π0.5 through the same Pi0 model class as π0 (Pi0Config(pi05=True)): every image is resized to 224 × 224 keeping its aspect ratio and padded with black evenly (preprocess_observation, image_tools.resize_with_pad), and the SigLIP encoder is So400m/14. The paper's mobile manipulators have four cameras (forward, backward, two wrists): \"We use all four cameras for high-level inference, and the wrist and forward cameras for the low-level inference process\"; openpi's three image slots match the low-level set. The action chunk depends on the configuration: Pi0Config's default action_horizon 50 (the paper: \"an action horizon of 50\"), pi05_droid 15, pi05_libero 10. No inference time is stated in the paper or the README (the README lists an RTX 4090 with more than 8 GB for inference, a memory requirement, not a timing). Code Apache-2.0 (the Gemma weights carry Gemma's terms). DexVantage bundles these figures only, not the model.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        224,
+        224
+      ],
+      "source": 1,
+      "quote": "IMAGE_RESOLUTION = (224, 224) (src/openpi/models/model.py), used by Pi0Config(pi05=True) through the same Pi0 class"
+    },
+    "crop_rule": {
+      "value": "resize_pad",
+      "source": 1,
+      "quote": "Pi0 calls _model.preprocess_observation, which resizes with image_tools.resize_with_pad(image, *image_resolution)"
+    },
+    "crop_side_fraction": {
+      "value": null,
+      "source": null
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": 14,
+      "source": 1,
+      "quote": "pi0.py: _siglip.Module(... variant=\"So400m/14\" ...) for both π0 and π0.5"
+    },
+    "tokens_per_image": {
+      "value": 256,
+      "source": 2,
+      "quote": "\"We always resize the image to a fixed square size (224, 448, or 896 pixels). This leads to a fixed number of image tokens per model variant (respectively 256, 1024, or 4096 tokens)\""
+    },
+    "n_cameras": {
+      "value": 3,
+      "source": 1,
+      "quote": "IMAGE_KEYS = (\"base_0_rgb\", \"left_wrist_0_rgb\", \"right_wrist_0_rgb\"); the paper: \"the wrist and forward cameras for the low-level inference process\""
+    },
+    "action_chunk": {
+      "value": 50,
+      "source": 0,
+      "quote": "\"an action horizon of 50\" (Pi0Config: action_horizon: int = 50; pi05_droid uses 15, pi05_libero 10)"
+    },
+    "execute_steps": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "inference_ms": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated (the paper gives 10 denoising steps, no timing).",
+      "hardware": null
+    },
+    "control_hz": {
+      "value": 50,
+      "source": 0,
+      "quote": "\"directly commands target poses for the arms, gripper, and torso lift, and the target base velocities at 50 Hz (with action chunking)\""
+    }
+  }
+}

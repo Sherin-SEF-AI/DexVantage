@@ -1,0 +1,76 @@
+{
+  "id": "koch-v1-1-leader-arm",
+  "kind": "teleop",
+  "maker": "Koch v1.1 (from Alexander Koch's low-cost robot) and Hugging Face (LeRobot)",
+  "name": "Koch v1.1 leader arm",
+  "family": "Koch low-cost robot arm",
+  "sources": [
+    {
+      "url": "https://github.com/jess-moss/koch-v1-1/tree/1a553e1fa7d5404b51bbd83b99b0f7eba54888e0",
+      "title": "jess-moss/koch-v1-1 (README.md at commit 1a553e1)",
+      "read": "2026-11-07",
+      "covers": "the leader's bill of materials (6 DYNAMIXEL XL330-M077-T), its own printed parts, the 5 V supply and USB-C"
+    },
+    {
+      "url": "https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/docs/source/koch.mdx",
+      "title": "Hugging Face LeRobot documentation, \"Koch v1.1\" (docs/source/koch.mdx at commit d490e47)",
+      "read": "2026-11-07",
+      "covers": "the leader's 5 V supply, calibration to the same positions"
+    }
+  ],
+  "note": "The Koch v1.1 leader is built from its own printed parts (Leader_Base, Leader_Shoulder_To_Elbow, Leader_Elbow_To_Wrist, Leader_Gripper_Handle, Leader_Gripper_Trigger, ...) and \"Dynamixel XL330-M077-T\" servos (6), while the follower uses XL430-W250-T and XL330-M288-T servos. LeRobot calibrates both \"to ensure that the leader and follower arms have the same position values when they are in the same physical position\", so the joints map one to one; the leader's own joint ranges are not stated (same_joints false: DexVantage takes the follower's ranges, an assumption the device record says). \"power the leader arm using the 5V power supply\"; each arm plugs into the computer \"using a USB-C cable\" through a Waveshare serial bus servo driver board. Not stated: mass, sample rate, latency.",
+  "interface": "DYNAMIXEL XL330 servos, Waveshare serial bus servo driver, USB-C",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": null,
+  "teleop": {
+    "device_kind": "leader_arm",
+    "mapping": "joint",
+    "leads": [
+      "koch"
+    ],
+    "same_joints": false,
+    "dof": {
+      "value": 6,
+      "source": 0,
+      "quote": "Leader Arm bill of materials: \"Dynamixel XL330-M077-T | 6\""
+    },
+    "tracking_hz": {
+      "value": null,
+      "source": null
+    },
+    "latency_ms": {
+      "value": null,
+      "source": null
+    },
+    "workspace": {
+      "value": null,
+      "source": null,
+      "quote": "The workspace is the follower's own (joint to joint); the source states no separate volume."
+    },
+    "range_text": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "accuracy_mm": {
+      "value": null,
+      "source": null
+    },
+    "position_resolution_mm": {
+      "value": null,
+      "source": null
+    },
+    "joint_resolution_deg": {
+      "value": null,
+      "source": null
+    },
+    "feedback": {
+      "value": null,
+      "source": null
+    }
+  }
+}

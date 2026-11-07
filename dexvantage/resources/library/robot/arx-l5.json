@@ -1,0 +1,90 @@
+{
+  "id": "arx-l5",
+  "kind": "robot",
+  "maker": "ARX",
+  "name": "L5",
+  "family": "6-DoF arm",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/arx_l5",
+      "title": "MuJoCo Menagerie arx_l5/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "arx-x.com returned no readable specification on 2026-11-07. The maker's figures were not read for this build; every figure is null (not found in the sources read).",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "arx_l5",
+      "file": "arx_l5.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/arx_l5"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "arx_l5.xml",
+      "imported": true,
+      "joints_in_q": 8,
+      "joint_names": [
+        "joint1",
+        "joint2",
+        "joint3",
+        "joint4",
+        "joint5",
+        "joint6",
+        "joint7",
+        "joint8"
+      ],
+      "actuators": 7,
+      "links": 9,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [
+        "joint7",
+        "joint8"
+      ],
+      "dof": 6,
+      "seconds": 0.18,
+      "note": "Excluded from the DoF: joint7, joint8."
+    }
+  }
+}

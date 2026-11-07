@@ -29,8 +29,9 @@ only inside refinement regions. The summary reports N at the chosen size and at 
 ## Robots {#robots}
 
 A URDF or MJCF robot is read with every file it names into the project and compiled by MuJoCo from memory; joint
-limits and the home pose are the file's own. The UR5e + Robotiq 2F-85 and SO-100 samples are bundled MuJoCo
-Menagerie models, after their licences were read. See [models/robots.md](models/robots.md).
+limits and the home pose are the file's own. The UR5e + Robotiq 2F-85, SO-100, UR5e + Shadow Hand, ALOHA 2, bimanual
+Panda and G1 samples are bundled MuJoCo Menagerie models, after their licences were read ([the new samples](#samples)).
+See [models/robots.md](models/robots.md) (worked example: [guide/robots.md](guide/robots.md)).
 
 ## Robot kinematics {#kinematics}
 
@@ -59,7 +60,11 @@ labelled assumption (`pose_stated: false`). `library.sensor_imagers(sensor)` tur
 each a pose in the device body frame and a lens model fitted to the stated FOV at the chosen stream (a centred crop
 for other aspect ratios, a square-pixel pinhole from a diagonal-only FOV; both assumptions the imager's label says),
 or the unit's own calibration. A sensor with no device gets a labelled default camera (pinhole 1280 × 720 px,
-90° × 60°). 40 entries in Phase 2. See [models/library.md](models/library.md).
+90° × 60°). 40 entries in Phase 2; 138 hardware entries since Phases 9 and 10 (33
+cameras, 33 depth cameras, 10 tactile sensors, 18 hosts and capture cards, 19 policies, 6 lights, 6 cables, 13
+teleop devices in the new `teleop` kind) and 53 robots in the `robot` kind ([the robot catalogue](#catalogue)). See
+[models/library.md](models/library.md) (worked examples: [guide/library.md](guide/library.md),
+[guide/library_systems.md](guide/library_systems.md)).
 
 ## Lens models, pixel density and defocus {#optics}
 
@@ -389,6 +394,194 @@ bag… makes a capture session from the frames with the board in view (`core/cal
 0.046 mm from the true mount (0.2 mm). **Known limits:** no clock offset is estimated (only a given one applied); a
 dataset's own intrinsics are compared, never used. See [models/datalinks.md](models/datalinks.md).
 
+## Metrics, requirements and the readiness scorecard {#requirements}
+
+`core/metric_defs.py` names the figures of merit of every study (`<area>.<figure>`, e.g. `grasp.contact_visibility`,
+`sync.skew_ms`, `canonical_view.parallax_p95`): each reads a number the study already computed, `None` ("not stated")
+with the study's reason when it does not state it, and `at_least` / `at_most` when the study states only a bound.
+A requirement is a metric, an operator and a threshold (`project.requirements`, or a YAML file); the scorecard
+evaluates them on the active variant with a signed margin (pass, fail, not evaluated: a bound decides only in its
+direction), and `--check REQUIREMENTS.yaml` is the CI gate (exit 0 pass, 1 fail or not evaluated, 2 error;
+`defaults` checks the labelled defaults). The variants compare evaluates every requirement on every variant;
+`--reproduce` re-runs any result from its provenance and compares every number; `--run-plan` runs studies, checks,
+exports and reproductions in order. Ported from Vantage `core/requirements.py` (the margin, the verdict, the gate),
+without its priorities. On the UR5e sample the labelled defaults fail (camera to joint-state skew at least 54.4 ms
+against 2 ms; cable pulls and snags; the blind gap); its scorecard reproduces exactly. **Validation:** 8 exit-code
+cases written out from §11, 0 wrong; bound decisions against a Monte Carlo over the true figures each bound allows,
+0 of 4 000 disagree; 14 metric figures against the results read by hand, 0 difference; reproduction round trip and
+the detection of a 10⁻⁶ change, 0 missed. **Known limits:** no priorities (every requirement decides); thresholds
+compare with the study's rounded figure; `rig.cost` reads "not stated" until a library entry states a price (none
+does). See [models/requirements.md](models/requirements.md) (worked example: [guide/requirements.md](guide/requirements.md)).
+
+## Monte Carlo tolerances and the perturbation export {#tolerance}
+
+Ported from Vantage `core/tolerance.py`. Each mount's tolerance is a ± bound per axis (shifts along the mount parent
+frame's axes, turns about the sensor's own x, y, z), drawn uniformly (a labelled default) or as a normal truncated at
+2σ; a sensor with an applied hand-eye result draws from its 6 × 6 calibration covariance instead, converted exactly
+into mount changes. Each draw moves the project through `core/factors.py` and re-evaluates the named metrics, giving
+each metric's distribution, the share of draws that meet each requirement (with its Wilson interval) and the
+components that drive it (rank correlation). `--tolerance-mc OUT.json` (`--tolerance` is `--reproduce`'s option);
+the perturbation export (§8.5, format `perturbations`) writes the same draws as per-sensor extrinsic deltas for
+augmentation and Isaac randomisation. On the UR5e sample (64 draws, the labelled default metrics) the worst motion
+smear reads 38.6 px, "no requirement". **Validation:** the Monte Carlo σ of a linear metric against the GUM law of
+propagation, 0.0060 relative (4 standard errors, 0.020); 18 sampler marginals against `scipy.stats.kstest`, largest
+D 0.0235 (critical 0.037); the seed reproduces exactly; Spearman against SciPy 5.6 × 10⁻¹⁷; the export against the
+moved project 1.5 × 10⁻⁹ m or rad (10⁻⁸). **Known limits:** components and sensors are independent (a shared bracket
+that bends is not modelled); intrinsics, joint encoders and link lengths are not drawn; n is bounded by the slowest
+study. See [models/tolerance.md](models/tolerance.md) (worked example: [guide/tolerance.md](guide/tolerance.md)).
+
+## Designed experiments {#experiments}
+
+Ported from Vantage `core/experiments.py`. Factors are `core/factors.py` paths (a mount coordinate, a device, a
+stream, a study setting); designs are full factorial, two-level fractional factorial at resolution III or IV, Latin
+hypercube, scrambled Sobol and Saltelli; responses are metric ids. The analysis gives first-order and total Sobol
+indices (Jansen estimators) with bootstrap percentile intervals, main effects with Welch intervals, and the best run
+against the rig as it is. `--experiment DESIGN.json` (schema `dexvantage.experiment/1`) or the page's saved design
+(`--experiment-saved`). **Validation:** Ishigami's analytic Sobol indices within 0.0008 (2/√N, 0.031); Latin
+hypercube strata exact; Sobol discrepancy against `scipy.stats.qmc` 3.4 × 10⁻¹¹; a Sobol set's discrepancy 0.027 of
+random's expectation (0.5); exact main effects of a linear model on a factorial and a resolution IV fraction; 20 of 20
+fractions have their stated resolution (brute force). **Known limits:** Sobol indices assume independent factors and
+settle slowly (read them with their intervals); main-effect intervals treat the other factors as noise; the best run
+is a sampled point, not an optimum. See [models/experiments.md](models/experiments.md) (worked example:
+[guide/experiments.md](guide/experiments.md)).
+
+## Optimiser and design agent (NSGA-II) {#optimise}
+
+NSGA-II written from Deb et al. 2002 in NumPy (fast non-dominated sort, crowding distance, bounded SBX and polynomial
+mutation, uniform operators for categorical genes, Deb's constrained domination); the patterns of Vantage
+`core/optimiser.py` and `core/rig_designer.py` (the current layout as the first candidate, locked cameras kept,
+options explained, accepting adds a variant). Objectives are metric ids; requirements become normalised constraints;
+an objective the studies do not state is left out with their reason, and cost only when every candidate device states
+a price. The optimiser ("Improve this rig", `--optimise`) moves mounts within a box and a cone; the design agent
+("Design new rigs", `--design-agent`) chooses devices, mount sites and bracket types. Designs are scored at
+screening settings (the grasp study on 40 grasps, labelled defaults) unless `confirm` re-scores the shown ones.
+**Validation:** ZDT1 and ZDT2 against their analytic fronts, IGD 0.0051 and 0.0053 (0.01); CONSTR 0.021 (0.05) with no
+constraint violated; 0 of 480 designs changed a locked sensor; the seed reproduces; the options' figures re-run
+without the cache, 0 difference. **Known limits:** an approximate front within a budget of evaluations (about 0.8 s
+per design on the UR5e sample, 2 s for the design agent); the design agent's sites are a sphere around the task
+volume and a cone around the gripper, without camera roll or stream choice. See
+[models/optimise.md](models/optimise.md) (worked example: [guide/optimise.md](guide/optimise.md)).
+
+## Exporters {#exporters}
+
+Each format registers with `@exporter` in `core/exporters/`; `core.exporters.export` writes `export_manifest.json`
+(each format's status, files and notes, the SHA-256 of every file, the project's provenance) and stamps every JSON
+file with the provenance block (except those a target parser refuses extra keys in, listed as `unstamped`). Formats:
+`mjcf` (camera and site snippets for the robot's own MJCF, and the full MuJoCo scene), `urdf` (a URDF built from the
+compiled model, the sensor links and optical frames, a tf2 static-transform launch file), `opencv_yaml` (OpenCV
+FileStorage per imager and a Kalibr camchain), `masks` (self-occlusion, the mask atlas over a grasp set, depth
+validity), `plucker`, `brackets` (STL, STEP with the optional gmsh), `isaac` (USD camera prims, Isaac Lab v3.0.0 and
+v2.3.2 camera configs with the tolerance study's randomisation bounds), `lerobot` (the dataset features, train
+configs for ACT and Diffusion Policy with the action-chunk study's delay offset and ensemble weight, OpenVLA's
+entry), `report` (HTML and PDF of the results with the scorecard and provenance), `perturbations`, `canonical_warp`,
+`fiftyone` and `lerobot_dataset`. File ▸ Export… (a window job; the report reuses the results the window has
+computed) or `--export OUT_DIR --formats …`. **Validation:** MJCF snippets through MuJoCo 3.1 × 10⁻¹⁷ m; URDF through
+urdfdom's RPY rule and MuJoCo's URDF compiler 1.1 × 10⁻¹⁵ m; the tf tree 2.8 × 10⁻¹⁷ m; OpenCV YAML read back bit for
+bit and through `projectPoints` 5.1 × 10⁻¹³ px; Kalibr exact; masks against exact ray casting 0 of 187 200 pixels;
+USD through pxr's `Gf.Camera` 2.6 × 10⁻⁵ px (10⁻³, float32); Isaac Lab configs 1.4 × 10⁻¹⁶ m; LeRobot export and the
+report parsed back, 0 mismatches. **Known limits:** one joint state per export; URDF has no inertials or collision
+geometry (effort and velocity 0 where not stated); Isaac Lab, Isaac Sim, LeRobot and Kalibr were not run (configs are
+checked against the pinned sources' fields). See [models/exporters_a.md](models/exporters_a.md) and
+[models/exporters_b.md](models/exporters_b.md) (worked examples: [guide/exporters_a.md](guide/exporters_a.md),
+[guide/exporters_b.md](guide/exporters_b.md)).
+
+## Cross-embodiment canonical view warp {#canonical_warp}
+
+Maps robot B's wrist image to robot A's canonical viewpoint (§7.16) through the fingertip contact plane, measured
+from each gripper's pads (origin at the tool centre point, z the approach axis, x the closing axis):
+H = K_A (R − t n_Bᵀ/d_B) K_B⁻¹, and a full remap LUT through both lenses. Off the plane the error is the residual
+parallax, reported (P95 and a map) over the task volume's depth range along the approach axis. Study
+`canonical_view` (`--canonical-view`), format `canonical_warp`. On the UR5e sample (Wrist D405 to Overhead D435) the
+default depth range gives 675 px, "large parallax": the range is a pessimistic bound. **Validation:** plane points
+2.3 × 10⁻¹³ px (10⁻⁹); the LUT against `cv2.projectPoints` and `fisheye.projectPoints` 2.3 × 10⁻¹³ px; parallax
+against brute force 2.8 × 10⁻¹³ px; the LUT through `cv2.remap` against `cv2.warpPerspective` 1 grey level on 16
+pixels (1, the quantisation bound: zero margin). **Known limits:** exact only on the contact plane; occlusion is not
+modelled; the default depth range is a bound, not a measurement. See [models/canonical_warp.md](models/canonical_warp.md)
+(worked example: [guide/canonical_warp.md](guide/canonical_warp.md)).
+
+## Rerun bridge {#rerun}
+
+`core/bridges/rerun.py` logs the robot over its trajectory, camera frusta and pinholes, min-Z blind zones, task
+volumes and audit flags per episode to an `.rrd` file (`--rerun OUT.rrd [--rerun-audit AUDIT.json]`) or a live
+viewer (Export ▸ Stream to Rerun…), with the optional `rerun-sdk==0.42.0`. **Validation:**
+`formats.rerun_rrd_readback` reads the file back with rerun's own reader (only when rerun-sdk is installed): 83
+entities, none missing; intrinsics 4.8 × 10⁻⁵ px, imager poses 7.7 × 10⁻¹⁰ m, the gripper link 1.3 × 10⁻⁸ m against
+MuJoCo (10⁻⁴: float32). **Known limits:** a fisheye's frustum is approximate in Rerun's pinhole; one trajectory per
+robot; contact pads, objects and study results are not logged; the live viewer was exercised only through a fake
+module. See [models/rerun.md](models/rerun.md) (worked example: [guide/rerun.md](guide/rerun.md)).
+
+## The assistant's tools and the MCP server {#assistant}
+
+Ported from Vantage `assistant/tools.py`, `copilot_tools.py`, `page_guide.py` and `mcp/`. 30 tools with closed JSON
+Schemas (reads of the project and the library with their sources, every study's figures, metrics, edits that
+simulate or apply as one undo step, plans, exports, the page on screen); errors are plain sentences. Nothing is
+computed in the tool layer: figures come from study results, the project or a library entry. `python -m
+dexvantage.mcp` is a stdio MCP server (MCP specification 2025-11-25) on a project file, or attached to an open
+window. **Validation:** 14 tool figures against the study results read again, 3.65 × 10⁻⁵ relative (the briefs'
+4-digit rounding, 5 × 10⁻⁴); the server's replies and 30 tool schemas against MCP's examples and the JSON Schema
+2020-12 meta-schema, 0 nonconformities; edit then undo, content hash identical. **Known limits:** one request at a
+time (a long study blocks the next call); no progress notifications. See [models/mcp.md](models/mcp.md) (worked
+example: [guide/mcp.md](guide/mcp.md)).
+
+## The Assistant dock and the Copilot {#copilot}
+
+Window ▸ Assistant (Ctrl+J): Claude (the official SDK, pinned in the `assistant` extra) or Groq, keys only in the
+system keyring; each question goes with the page on screen. Three rules the loop enforces: every number in an answer
+is checked against the figures the tools and the page returned (unmatched numbers are shown to the user), a changing
+tool comes back as a proposal applied as one undo step, and long studies run only from a plan the user approves
+(recorded with its SHA-256). Chats and memory notes are kept per project. Ported from Vantage's assistant and dock.
+**Validation:** the number check on 25 hand-labelled answers, 0 mismatches; the plan gate on 12 records, 0 wrong; a
+proposal applied and undone, 0 fields differ. **Known limits:** the post-check matches values, not meanings; no
+request was sent to a live API while building (the tests use a fake provider). See
+[models/assistant_dock.md](models/assistant_dock.md) (worked example: [guide/assistant_dock.md](guide/assistant_dock.md)).
+
+## The ALOHA 2, bimanual Panda and G1 samples {#samples}
+
+From MuJoCo Menagerie (commit 98a70c5, each folder's own licence read: ALOHA BSD-3-Clause, Franka Panda Apache-2.0,
+Unitree G1 BSD-3-Clause): `--sample aloha` (both arms as robots of their own, the four ALOHA cameras from `aloha.xml`
+and `scene_parts.xml`, WidowX leaders), `--sample panda-bimanual` (two Pandas, GELLO leaders, sample camera
+placements), `--sample g1` (the G1's upper body with hands, legs held at `stand`, the head D435 on `torso_link`;
+meshes simplified within 0.5 mm). **Validation:** the ALOHA arms against `aloha.xml` 4.6 × 10⁻⁷ m and its cameras
+5.1 × 10⁻⁷ m (10⁻⁶: six-digit XML); the G1's upper body against `g1_with_hands.xml` 0 m, its head camera
+2.2 × 10⁻¹⁶ m; both Pandas 0 m. **Known limits:** the ALOHA gripper's equality constraint is not applied; the G1 does
+not step, squat or bend at the waist; synthetic episodes move one robot. See [models/samples.md](models/samples.md)
+(worked example: [guide/samples.md](guide/samples.md)).
+
+## The robot catalogue {#catalogue}
+
+53 robots in the Library (kind `robot`, one JSON per robot): the maker's figures (DoF, reach, payload,
+repeatability, mass, control rate, interfaces, joint ranges), each with its source's index and own words, `null`
+where no source states it; and the model (Menagerie folder, MJCF file, commit, licence), imported with that model's
+licence shown. 22 entries have no maker figure (pages that render by script, 404s), each note says which.
+**Validation:** `robots.catalogue_dof` recounts the joints of every bundled model the catalogue names against its
+records, 0 disagreements. See [models/robots.md](models/robots.md#catalogue) (worked example:
+[guide/robots.md](guide/robots.md)).
+
+## Project diff, merge, the Git folder form, citations and figures {#versioning}
+
+`core/projdiff.py` lists every change between two projects (meta, robots and joints, variants and sensors with pose
+deltas in mm and degrees, workspace, tasks, requirements, policies, rig, cables, calibration, settings, files), with
+metric deltas when results exist, and merges three ways (refusing conflicts). `core/projfolder.py` writes a project
+as a Git-friendly folder (`.dexv.d`, one JSON per section) and a stable text for `git diff` (`--textconv`).
+`core/cite.py` writes BibTeX for every source a project depends on (`--cite`); `core/figures.py` writes publication
+figures (SVG or PDF, one or two columns, a colour-blind-safe palette) from a chart's data (`--figure`, Export figure…
+on page charts). **Validation:** 24 seeded edits of nine kinds, 0 missed or extra; pose deltas exact; 8 of 8 merge
+cases; a folder round trip byte-identical (66 files); 179 BibTeX entries parse with no repeated key; SVG data
+recovered from the tick labels within 4.7 × 10⁻⁵ of the axis range; the PDF page within 0.36 pt. **Known limits:**
+lists (grasp poses, joint tables) are compared and merged whole; text widths in figures are estimated. See
+[models/versioning.md](models/versioning.md) and [models/publication.md](models/publication.md) (worked examples:
+[guide/versioning.md](guide/versioning.md), [guide/publication.md](guide/publication.md)).
+
+## Python API and plugins {#api}
+
+`import dexvantage as dv`: `dv.open`, `dv.sample`, `dv.new` return a `Rig` (robots, sensors, variants, factors,
+`run(study, **settings)`, `metrics`, `export`, `check`, `synth_episodes`, `to_frame` with the optional pandas);
+`dexvantage/plugin_sdk.py` lets a package add studies, metrics, exporters, readers, library folders and pages
+through the `dexvantage.plugins` entry point (`--list-plugins`, `--no-plugins`, Help ▸ Plugins…), rolled back and
+explained when a plugin fails. Neither computes a figure of its own (no validation model); the plugin template's
+angle is checked in its own test against a closed form. See [guide/api.md](guide/api.md) and
+[guide/plugins.md](guide/plugins.md).
+
 ## Performance {#performance}
 
 No UI-thread step over 100 ms on the samples with the shader renderer (largest: 68 ms median, 96 ms worst, for a UR5e
@@ -397,6 +590,8 @@ frame after a joint change on an integrated GPU). See [models/performance.md](mo
 `scripts/measure_ui_phase3.py`). The grasp study's 2 000-grasp budget is in [Grasp self-occlusion](#grasp). The
 Phase 4, 5 and 8 pages add none either (largest: 80.8 ms, the events after Apply on the multi-finger page with the
 handoff; every new page's Apply under 30 ms; `scripts/measure_ui_phase458.py`).
+The Phase 9 and 10 pages add none either (largest: 48.5 ms, Apply on the Tolerances page; every page shows within
+17 ms; `scripts/measure_ui_phase910.py`); File ▸ Open sample builds the project on a window job.
 
 ## Provenance {#provenance}
 
@@ -421,15 +616,19 @@ multi-finger occlusion 3, bandwidth 3, cables 4, brackets 3, hand-eye 8 (each su
 Phases 4, 5 and 8: 39 more, 113 in all — MuJoCo ground truth 6 (with the synthetic-episode round trip), teleop 4,
 lighting 9, timing 7, the tactile handoff 1, data 4, dataset formats 4 (with the MJCF scene loaded by MuJoCo on its
 own), data links 2, the silhouette calibration 2.
+Phases 9 and 10, the samples, the catalogue and research tools part 1: 64 more, 177 in all — robot catalogue 1,
+library data 6, tolerance 5, experiments 6, optimise 6, formats 11 more (the exporters' round trips and the Rerun
+read-back), the canonical warp 4, assistant 3, requirements 5, copilot 3, versioning 7, samples 5 (each summarised
+in its section above).
 With no project given, the project-dependent checks run on the bundled SO-100 and UR5e samples (the multi-finger
-checks on the dexhand sample). The self-test runs the quick run's cheap checks (`cheap_only`); `--validate` runs them
-all (full run 258 s, peak memory 4.8 GB).
+checks on the dexhand sample). The self-test runs the quick run's cheap checks (`cheap_only`, 122 of them);
+`--validate` runs them all (177 checks: full run 410 s with the test suite alongside, 2026-11-07).
 
 ## Model documents
 
 | Document | Models |
 |---|---|
-| [models/robots.md](models/robots.md) | robot import, the MuJoCo kinematics model, bundled models and samples |
+| [models/robots.md](models/robots.md) | robot import, the MuJoCo kinematics model, bundled models and samples, [the robot catalogue](models/robots.md#catalogue) (worked example: [guide/robots.md](guide/robots.md)) |
 | [models/kinematics.md](models/kinematics.md) | product-of-exponentials forward kinematics, Jacobians, DH tables |
 | [models/ik.md](models/ik.md) | inverse kinematics, manipulability, collision distances |
 | [models/library.md](models/library.md) | the hardware library: entry format, sources and dates, the gaps policy, from a sensor to imagers, custom devices |
@@ -462,3 +661,17 @@ all (full run 258 s, peak memory 4.8 GB).
 | [models/render_calib.md](models/render_calib.md) | targetless link-silhouette calibration and mount drift (worked example: [guide/render_calib.md](guide/render_calib.md)) |
 | [models/datalinks.md](models/datalinks.md) | joint matching, grasp sets and hand-eye captures from recorded datasets (worked examples: [guide/grasps.md](guide/grasps.md), [guide/handeye.md](guide/handeye.md)) |
 | [models/performance.md](models/performance.md) | the UI-thread budget: measured timings on the samples and what was changed to meet it |
+| [models/requirements.md](models/requirements.md) | named metrics, requirements, the readiness scorecard and CI gate, variants compare, reproduction and plans (worked example: [guide/requirements.md](guide/requirements.md)) |
+| [models/tolerance.md](models/tolerance.md) | Monte Carlo mount and calibration tolerances, requirement shares, the perturbation export (worked example: [guide/tolerance.md](guide/tolerance.md)) |
+| [models/experiments.md](models/experiments.md) | designed experiments: factorial, fractional, Latin hypercube, Sobol and Saltelli designs; Sobol indices and main effects (worked example: [guide/experiments.md](guide/experiments.md)) |
+| [models/optimise.md](models/optimise.md) | NSGA-II, objectives and constraints, the optimiser and the design agent (worked example: [guide/optimise.md](guide/optimise.md)) |
+| [models/exporters_a.md](models/exporters_a.md) | exporters part A: MJCF, URDF and tf, OpenCV and Kalibr calibration, masks, Plücker, brackets, FiftyOne and LeRobot dataset wrappers (worked example: [guide/exporters_a.md](guide/exporters_a.md)) |
+| [models/exporters_b.md](models/exporters_b.md) | exporters part B: Isaac Lab and Isaac Sim cameras, LeRobot train configs and policy codes, the HTML and PDF report (worked example: [guide/exporters_b.md](guide/exporters_b.md)) |
+| [models/canonical_warp.md](models/canonical_warp.md) | the cross-embodiment canonical view warp: contact frame, homography, remap LUT, residual parallax (worked example: [guide/canonical_warp.md](guide/canonical_warp.md)) |
+| [models/rerun.md](models/rerun.md) | the Rerun bridge: what is logged, the read-back check (worked example: [guide/rerun.md](guide/rerun.md)) |
+| [models/mcp.md](models/mcp.md) | the assistant's tool layer, sessions, edits as data, plans and the MCP server (worked example: [guide/mcp.md](guide/mcp.md)) |
+| [models/assistant_dock.md](models/assistant_dock.md) | the Assistant dock: providers, the tool loop, the number check, proposals and the Copilot's plan gate (worked example: [guide/assistant_dock.md](guide/assistant_dock.md)) |
+| [models/samples.md](models/samples.md) | the ALOHA 2, bimanual Panda and G1 samples: sources, licences, what was changed and how it was checked (worked example: [guide/samples.md](guide/samples.md)) |
+| [models/versioning.md](models/versioning.md) | project diff, three-way merge, the unpacked folder and the git textconv (worked example: [guide/versioning.md](guide/versioning.md)) |
+| [models/publication.md](models/publication.md) | BibTeX of a project's sources and publication figures (worked example: [guide/publication.md](guide/publication.md)) |
+| [guide/api.md](guide/api.md), [guide/plugins.md](guide/plugins.md) | the Python and notebook API (`import dexvantage as dv`) and the plugin SDK |

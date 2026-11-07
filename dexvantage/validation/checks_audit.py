@@ -207,7 +207,12 @@ def campaign(ctx=None) -> tuple:
     from ..core.robot.samples import sample_project
     from ..core.sim import episodes as SE
     project = sample_project('so100')
-    base = ctx.tmp() if ctx is not None and hasattr(ctx, 'tmp') else tempfile.mkdtemp(prefix='dexvantage-audit-')
+    if ctx is not None and hasattr(ctx, 'tmp'):
+        base = ctx.tmp()
+    else:                                       # no suite folder: one per process, removed when the process ends
+        base = tempfile.mkdtemp(prefix='dexvantage-audit-')
+        import atexit
+        atexit.register(shutil.rmtree, base, True)
     root = os.path.join(base, 'campaign')
     SE.generate(project, root, settings_for(ctx), overwrite=True)
     blind = os.path.join(base, 'blind')

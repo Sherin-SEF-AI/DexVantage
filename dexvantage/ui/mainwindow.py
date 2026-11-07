@@ -24,8 +24,9 @@ from PyQt6.QtWidgets import (QComboBox, QDockWidget, QFileDialog, QLabel, QMainW
 from ..core import project as P
 from ..core.frames import Pose, quat_from_rpy
 from . import icons
+from .assistant import AssistantPanel
 from .context import OVERLAYS, AppContext
-from .panels import AnalysisPanel, AssistantPanel, CameraViewPanel, Inspector, LibraryPanel, Outliner, PoseScrubber
+from .panels import AnalysisPanel, CameraViewPanel, Inspector, LibraryPanel, Outliner, PoseScrubber
 from .scene import SceneProvider
 from .store import ProjectStore
 from .theme import THEME, mono
@@ -193,6 +194,13 @@ class MainWindow(QMainWindow):
         A('open', 'Open…', self.open_project, 'Ctrl+O', 'folder', category='File')
         A('save', 'Save', self.save, 'Ctrl+S', 'file', category='File')
         A('save_as', 'Save as…', self.save_as, 'Ctrl+Shift+S', category='File')
+        _vs = lambda f: lambda: getattr(__import__('dexvantage.ui.versioning', fromlist=[f]), f)(self)  # noqa: E731
+        A('open_folder', 'Open folder…', _vs('open_folder'), category='File', icon='folder',
+          tip='An unpacked project (a .dexv.d folder): one JSON file per section, for Git')
+        A('save_folder', 'Save as folder (for Git)…', _vs('save_folder'), category='File',
+          tip='The project as a .dexv.d folder: one pretty-printed JSON file per section, so git diff reads it')
+        A('compare', 'Compare with…', _vs('compare'), category='File', icon='compare',
+          tip='What changed between the open project and another, section by section, and the figures of merit')
         A('render', 'Render image…', self.render_image, 'F12', 'export', category='File',
           tip='A high-resolution render of the 3D view, for reports')
         A('quit', 'Quit', self.close, 'Ctrl+Q', category='File')
@@ -271,7 +279,14 @@ class MainWindow(QMainWindow):
         # export
         A('export_summary', 'Export the project summary…', self.export_summary, category='Export', icon='export',
           tip='JSON with its provenance block')
-        A('export_formats', 'Export to MuJoCo, Isaac, ROS 2, LeRobot…', category='Export', icon='export', phase=10)
+        A('export_formats', 'Export to MuJoCo, Isaac, ROS 2, LeRobot…', self.export_dialog, category='Export',
+          icon='export', tip='MJCF, URDF and tf2, OpenCV and Kalibr calibration, masks, ray maps, brackets…')
+        A('export', 'Export…', self.export_dialog, 'Ctrl+E', 'export', category='File',
+          tip='Write the project in the formats other tools read, with a manifest and provenance')
+        A('stream_rerun', 'Stream to Rerun…', lambda: __import__('dexvantage.ui.rerun_stream',
+                                                                 fromlist=['stream']).stream(self),
+          category='Export', icon='external', tip='The robot over its trajectory, camera frusta, min-Z zones, task '
+                                                  'volumes and audit flags, to an .rrd file or a Rerun viewer')
         # window
         for k, title in WORKSPACE_TITLES.items():
             A(f'ws_{k}', f'{title} workspace', lambda k=k: self.workspace(k), category='Window', icon='layers')
@@ -283,6 +298,9 @@ class MainWindow(QMainWindow):
         A('shortcuts', 'Keyboard shortcuts', self.shortcuts, '?', 'keyboard', category='Help')
         A('validate', 'Validate the models…', self.validate_models, category='Help', icon='checklist',
           tip='Run the validation suite and open its report')
+        A('plugins', 'Plugins…', lambda: __import__('dexvantage.ui.dialogs.plugins', fromlist=['open_dialog'])
+          .open_dialog(self), category='Help', icon='gear', tip='The installed plugins: what each added, and why one '
+          'could not be loaded')
         A('about', 'About DexVantage', self.about, category='Help', icon='help')
 
     def _build_menus(self):
@@ -303,7 +321,8 @@ class MainWindow(QMainWindow):
                 else:
                     m.addAction(self.actions_by_id[i])
             return m
-        self.m_file = menu('&File', ['new', 'open', '-', 'save', 'save_as', '-', 'render', '-', 'quit'])
+        self.m_file = menu('&File', ['new', 'open', 'open_folder', '-', 'save', 'save_as', 'save_folder', '-',
+                                     'compare', '-', 'render', 'export', '-', 'quit'])
         self.m_recent = self.m_file.addMenu('Open recent')
         self.m_file.insertMenu(self.actions_by_id['save'], self.m_recent)
         self.m_recent.aboutToShow.connect(self._fill_recent)
@@ -311,7 +330,7 @@ class MainWindow(QMainWindow):
         self.m_file.insertMenu(self.actions_by_id['save'], self.m_samples)
         from ..core.robot.samples import list_samples
         for smp in list_samples():
-            a = self.m_samples.addAction(smp['title'], lambda n=smp['name']: self.open_sample(n))
+            a = self.m_samples.addAction(smp['title'], lambda n=smp['name']: self.open_sample(n, background=True))
             a.setEnabled(smp['available'])
             a.setToolTip(f'dexvantage --sample {smp["name"]}' if smp['available'] else
                          f'Arrives in Phase {smp["phase"]}.')
@@ -328,9 +347,9 @@ class MainWindow(QMainWindow):
         menu('&Calibrate', ['handeye_plan', 'handeye_solve'])
         menu('Si&mulate', ['mujoco_scene', 'mujoco_validate', 'synth_episodes'])
         menu('&Data', ['audit', 'plan_vs_recording'])
-        menu('E&xport', ['export_summary', 'export_formats'])
+        menu('E&xport', ['export_summary', 'export_formats', 'stream_rerun'])
         menu('&Window', [f'ws_{k}' for k in WORKSPACE_TITLES] + ['-', 'ws_save', 'ws_reset', '-', 'assistant'])
-        menu('&Help', ['frames_help', 'shortcuts', '-', 'validate', '-', 'about'])
+        menu('&Help', ['frames_help', 'shortcuts', '-', 'validate', 'plugins', '-', 'about'])
 
     def _build_pages(self):
         """Every registered analysis page (ui/pages): a tab in the Analysis dock and a command that opens it."""
@@ -359,7 +378,10 @@ class MainWindow(QMainWindow):
                 m.addAction(a)
 
     def open_page(self, pid):
-        self.docks['bottom'].show()
+        bd = self.docks['bottom']
+        bd.show()
+        if not bd.isFloating() and bd.height() < 300 and self.height() >= 760:   # a page under its headline is
+            self.resizeDocks([bd], [int(self.height() * 0.4)], Qt.Orientation.Vertical)   # unreadable: make room
         self.bottom.show_tab(pid)
         w = self.pages.get(pid)
         if w is not None and hasattr(w, 'activate'):
@@ -742,21 +764,44 @@ class MainWindow(QMainWindow):
             return self.save()
         return r == QMessageBox.StandardButton.Discard
 
-    def open_sample(self, name) -> bool:
-        """File ▸ Open sample: a bundled sample project (core/robot/samples.py), unsaved."""
+    def open_sample(self, name, background=False) -> bool:
+        """File ▸ Open sample: a bundled sample project (core/robot/samples.py), unsaved. background: build it on a
+        window job (the menu does: ALOHA 2 takes about 2.5 s to build the first time) and open it when it is done;
+        otherwise here (scripts and tests)."""
         from ..core.robot.samples import sample_project
         if not self._maybe_save():
             return False
+
+        def failed(e):
+            if isinstance(e, P.ProjectFormatError):
+                QMessageBox.warning(self, 'Could not open the sample', str(e))
+            else:
+                QMessageBox.warning(self, 'Could not open the sample',
+                                    f'The sample could not be built ({type(e).__name__}). Details are in the log.')
+        if background:
+            def job(progress, cancel):
+                try:
+                    return {'project': sample_project(name)}
+                except Exception as e:                  # noqa: BLE001 — explained on the UI thread, traceback logged
+                    traceback.print_exc()
+                    return {'error': e}
+
+            def done(res):
+                if 'error' in res:
+                    failed(res['error'])
+                else:
+                    self._open_built_sample(res['project'])
+            return bool(self.run_job('sample', f'Opening the {name} sample', job, done))
         try:
             proj = sample_project(name)
-        except P.ProjectFormatError as e:
-            QMessageBox.warning(self, 'Could not open the sample', str(e))
-            return False
         except Exception as e:                          # noqa: BLE001 — explained, the traceback logged
-            traceback.print_exc()
-            QMessageBox.warning(self, 'Could not open the sample',
-                                f'The sample could not be built ({type(e).__name__}). Details are in the log.')
+            if not isinstance(e, P.ProjectFormatError):
+                traceback.print_exc()
+            failed(e)
             return False
+        return self._open_built_sample(proj)
+
+    def _open_built_sample(self, proj) -> bool:
         self.store.set_project(proj)
         self.frame_all()
         self.msg(f'Opened the {proj.name}: save it under a name of your own to keep changes.', 6000)
@@ -907,6 +952,12 @@ class MainWindow(QMainWindow):
         if not started:
             self.msg('The models are being validated already', 4000)
         return started
+
+    def export_dialog(self):
+        """File ▸ Export…: the Export dialog (ui/dialogs/export.py)."""
+        from .dialogs.export import open_dialog
+        self._export_dialog = open_dialog(self)
+        return self._export_dialog
 
     # ------------------------------------------------------------------ background jobs
     def run_job(self, kind, title, fn, on_done, on_failed=None):

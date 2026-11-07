@@ -1,0 +1,136 @@
+{
+  "id": "pal-robotics-talos",
+  "kind": "robot",
+  "maker": "PAL Robotics",
+  "name": "TALOS",
+  "family": "torque-controlled biped humanoid",
+  "sources": [
+    {
+      "url": "https://pal-robotics.com/robot/talos/",
+      "title": "PAL Robotics, TALOS product page",
+      "read": "2026-11-07",
+      "covers": "weight, arm payload, EtherCAT control loop rate"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/pal_talos",
+      "title": "MuJoCo Menagerie pal_talos/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "The page states no total DoF. talos.xml has no actuators (a kinematic model), so the verified DoF counts its joints.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "humanoid",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": 6,
+      "source": 0,
+      "quote": "Arm Payload 6 Kg (arm stretched)"
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 95,
+      "source": 0,
+      "quote": "Weight 95 kg"
+    },
+    "control_hz": {
+      "value": 2000,
+      "source": 0,
+      "quote": "\"TALOS' EtherCAT communication network allows to run control loops at 2 kHz, and up to 5 kHz\""
+    },
+    "interfaces": {
+      "value": [
+        "EtherCAT",
+        "ROS"
+      ],
+      "source": 0,
+      "quote": "EtherCAT Network; \"fully developed in ROS\""
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "pal_talos",
+      "file": "talos.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/pal_talos"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "talos.xml",
+      "imported": true,
+      "joints_in_q": 44,
+      "joint_names": [
+        "torso_1_joint",
+        "torso_2_joint",
+        "head_1_joint",
+        "head_2_joint",
+        "arm_left_1_joint",
+        "arm_left_2_joint",
+        "arm_left_3_joint",
+        "arm_left_4_joint",
+        "arm_left_5_joint",
+        "arm_left_6_joint",
+        "arm_left_7_joint",
+        "gripper_left_joint",
+        "gripper_left_inner_double_joint",
+        "gripper_left_fingertip_1_joint",
+        "gripper_left_fingertip_2_joint",
+        "gripper_left_motor_single_joint",
+        "gripper_left_inner_single_joint",
+        "gripper_left_fingertip_3_joint",
+        "arm_right_1_joint",
+        "arm_right_2_joint",
+        "arm_right_3_joint",
+        "arm_right_4_joint",
+        "arm_right_5_joint",
+        "arm_right_6_joint",
+        "arm_right_7_joint",
+        "gripper_right_joint",
+        "gripper_right_inner_double_joint",
+        "gripper_right_fingertip_1_joint",
+        "gripper_right_fingertip_2_joint",
+        "gripper_right_motor_single_joint",
+        "gripper_right_inner_single_joint",
+        "gripper_right_fingertip_3_joint",
+        "leg_left_1_joint",
+        "leg_left_2_joint",
+        "leg_left_3_joint",
+        "leg_left_4_joint",
+        "leg_left_5_joint",
+        "leg_left_6_joint",
+        "leg_right_1_joint",
+        "leg_right_2_joint",
+        "leg_right_3_joint",
+        "leg_right_4_joint",
+        "leg_right_5_joint",
+        "leg_right_6_joint"
+      ],
+      "actuators": 0,
+      "links": 45,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 44,
+      "seconds": 0.26,
+      "note": ""
+    }
+  }
+}

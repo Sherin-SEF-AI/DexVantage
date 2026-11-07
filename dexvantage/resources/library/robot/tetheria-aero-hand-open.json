@@ -1,0 +1,95 @@
+{
+  "id": "tetheria-aero-hand-open",
+  "kind": "robot",
+  "maker": "TetherIA",
+  "name": "Aero Hand Open",
+  "family": "open-source tendon hand",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/tetheria_aero_hand_open",
+      "title": "MuJoCo Menagerie tetheria_aero_hand_open/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "tetheria.ai returned no page on 2026-11-07. The maker's figures were not read for this build; every figure is null (not found in the sources read).",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "hand",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "tetheria_aero_hand_open",
+      "file": "left_hand.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/tetheria_aero_hand_open"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "left_hand.xml",
+      "imported": true,
+      "joints_in_q": 16,
+      "joint_names": [
+        "left_index_mcp_flex",
+        "left_index_pip",
+        "left_index_dip",
+        "left_middle_mcp_flex",
+        "left_middle_pip",
+        "left_middle_dip",
+        "left_ring_mcp_flex",
+        "left_ring_pip",
+        "left_ring_dip",
+        "left_pinky_mcp_flex",
+        "left_pinky_pip",
+        "left_pinky_dip",
+        "left_thumb_cmc_abd",
+        "left_thumb_cmc_flex",
+        "left_thumb_mcp",
+        "left_thumb_ip"
+      ],
+      "actuators": 7,
+      "links": 22,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 16,
+      "seconds": 0.15,
+      "note": ""
+    }
+  }
+}

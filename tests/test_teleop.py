@@ -144,7 +144,8 @@ def test_unstated_vr_volume_and_library_leader_are_said():
     assert not any(d['stated'] for d in doc['devices'])
     assert all(set(d['state']) == {T.NOT_STATED} for d in doc['devices'])
     text = ' '.join(doc['notes'])
-    assert 'not stated' in text and 'does not guess' in text and 'no teleop device entries' in text
+    # the library now has teleop entries (core/teleop_devices.py); 'gello-ur5' is not one of them
+    assert 'not stated' in text and 'does not guess' in text and '"gello-ur5" is not in the library' in text
     assert doc['summary']['teleoperable_pct'] is None and doc['suggestion'] is None
 
 

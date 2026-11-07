@@ -1,0 +1,39 @@
+{
+  "id": "xela-uspa-46",
+  "kind": "tactile",
+  "maker": "XELA Robotics",
+  "name": "uSkin Patch uSPa 46",
+  "family": "uSkin",
+  "sources": [
+    {
+      "url": "https://xelarobotics.com/products/",
+      "title": "Products - XELA Robotics (uSkin sensors)",
+      "read": "2026-11-07",
+      "covers": "uSkin Patch (uSPa) models: sensing points, dimensions, cables; grippers and hands they fit"
+    }
+  ],
+  "note": "A contact sensor, modelled by pad coverage, not a workspace camera, so it has no imagers. A magnetic (Hall-effect) 3-axis tactile patch: each sensing point (taxel) measures X, Y shear and Z normal force (XELA's description of uSkin). pad_mm is the stated module footprint (the sensing area within it is not given separately). Not stated on the product page: sampling rate, force range, power, mass, the host interface (XELA sells a controller; not read). Its readings are not an image stream, so no stream is entered; the bandwidth budget needs the data rate as a measured or stated figure. uSPa 46: \"24 sensing points, 31 x 46 x 5 mm, single 7-wire cable\"; listed for the Allegro Hand V4. size_mm [5, 31, 46]: the 5 mm thickness along the pad normal (body x), an ASSUMPTION on which side is which.",
+  "interface": "7-wire cable to a XELA controller",
+  "power_w": null,
+  "mass_g": null,
+  "size_mm": [
+    5.0,
+    31.0,
+    46.0
+  ],
+  "imagers": [],
+  "projector": null,
+  "depth": null,
+  "streams": [],
+  "tactile": {
+    "pad_mm": [
+      31.0,
+      46.0
+    ],
+    "camera_resolution": null,
+    "fps": null,
+    "sensing": "magnetic (3-axis per taxel)",
+    "taxels": 24
+  },
+  "host": null
+}

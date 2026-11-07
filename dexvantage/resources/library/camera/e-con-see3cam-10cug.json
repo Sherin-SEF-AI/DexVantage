@@ -1,0 +1,85 @@
+{
+  "id": "e-con-see3cam-10cug",
+  "kind": "camera",
+  "maker": "e-con Systems",
+  "name": "See3CAM_10CUG",
+  "family": "See3CAM USB 3 cameras",
+  "sources": [
+    {
+      "url": "https://www.e-consystems.com/1MP-USB3-Globalshutter-Camera.asp",
+      "title": "See3CAM_10CUG - 1.3 MP Global Shutter USB Camera (Mono) (e-con Systems product page)",
+      "read": "2026-11-07",
+      "covers": "sensor (onsemi AR0134), shutter, optical format, output format (YUY2 16 bits per pixel), pixel size, active area, FOV with e-con's lens, CS-mount, frame rates, external trigger, interface, power, weights, size (l x b)"
+    }
+  ],
+  "note": "A monochrome global-shutter USB 3.0 camera with a CS-mount; FOV 73.5 (D) x 58.9 (H) x 44.3 (V) degrees \"with the lens provided by e-con\". The lens model is pinhole, a labelled ASSUMPTION: the maker states no projection or distortion coefficients; calibrate a unit and store its K and D in the sensor calibration. Frame rates: the overview says \"720p@60fps (HD) and 1280x960 resolution@45 fps (Full Resolution)\" over USB 3.0, the key features \"HD @ 60 fps & 1.3 MP @ 54 fps\": the overview's figures (which name the stream size) are entered; 720p is 1280 x 720. Output \"YUY2 (16bits per pixel YUV422 format)\", as stated. power_w is the stated maximum, 0.90 W (minimum 0.87 W). mass_g is the board with lens and without enclosure, 100 g (without lens 23 g; with enclosure 72 g, or 149 g with lens). size_mm is null: the page gives only \"40 x 44mm\". External trigger input (optically isolated). Not stated: f-number, focal length, distortion.",
+  "interface": "USB 3.0 (USB Micro-B); UVC",
+  "power_w": 0.9,
+  "mass_g": 100.0,
+  "size_mm": null,
+  "imagers": [
+    {
+      "name": "Mono",
+      "role": "mono",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 58.9,
+      "vfov_deg": 44.3,
+      "dfov_deg": 73.5,
+      "pixel_um": 3.75,
+      "resolution": [
+        1280,
+        960
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed",
+      "optical_format": "1/3\""
+    }
+  ],
+  "projector": null,
+  "depth": null,
+  "streams": [
+    {
+      "imager": "Mono",
+      "width": 1280,
+      "height": 960,
+      "fps": [
+        45
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    },
+    {
+      "imager": "Mono",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        60
+      ],
+      "format": "YUY2",
+      "bits_per_pixel": 16
+    }
+  ],
+  "tactile": null,
+  "host": null,
+  "sync": {
+    "hardware_trigger": true,
+    "sync_cable": null,
+    "imagers": [],
+    "what": "Product page, key features: \"External Trigger input (optically isolated)\"."
+  }
+}

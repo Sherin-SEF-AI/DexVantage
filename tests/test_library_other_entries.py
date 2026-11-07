@@ -30,11 +30,27 @@ OPTICAL_Q = np.array([-0.5, 0.5, -0.5, 0.5])
 EXPECTED = {
     'camera': {'e-con-see3cam-24cug', 'e-con-see3cam-20cug', 'e-con-sturdecam25-cuoagx',
                'leopard-li-ar0234cs-gmsl2-owl', 'leopard-li-ov2312-gmsl2-110h', 'basler-dart-daa1440-220um',
-               'flir-blackfly-s-bfs-u3-16s2m-cs', 'omnivision-ovm6948', 'ams-osram-naneyec'},
-    'tactile': {'gelsight-mini', 'meta-digit'},
+               'flir-blackfly-s-bfs-u3-16s2m-cs', 'omnivision-ovm6948', 'ams-osram-naneyec',
+               # added 2026-11-07 (docs/models/library.md, "Entries")
+               'e-con-see3cam-37cugm', 'e-con-see3cam-37cug', 'e-con-see3cam-27cug', 'e-con-see3cam-10cug',
+               'e-con-sturdecam29', 'e-con-sturdecam57', 'e-con-nilecam56', 'e-con-sturdecam39',
+               'arducam-b0452-ov9281', 'arducam-b0429-ar0234', 'basler-dart-daa1920-160uc',
+               'basler-ace2-a2a1920-160ucbas', 'flir-blackfly-s-bfs-u3-04s2m-c', 'flir-blackfly-s-bfs-u3-16s2c-cs',
+               'flir-firefly-dl-ffy-u3-16s2m-s-dl', 'allied-vision-alvium-1800-u-240c',
+               'allied-vision-alvium-1800-c-158c', 'leopard-li-ar0234csc-gmsl2-060h',
+               'leopard-li-ar0234csc-gmsl2-120h', 'luxonis-oak-1', 'luxonis-oak-1-ov9782', 'luxonis-oak-1-w-ov9782',
+               'stereolabs-zed-x-one-gs', 'stereolabs-zed-x-one-gs-narrow'},
+    'tactile': {'gelsight-mini', 'meta-digit', 'meta-digit-360', 'xela-uspa-44', 'xela-uspa-46',
+                'paxini-px6ax-gen3-dp-s2015-elite', 'paxini-px6ax-gen3-ip-m2324-core', 'anyskin', 'reskin',
+                'contactile-papillarray'},
     'host': {'usb-3.2-gen1-host', 'usb-3.2-gen2-host', 'usb-3.2-gen2x2-host', 'leopard-li-jag-adp-gmsl2-8ch',
              'nvidia-jetson-agx-orin-64gb', 'nvidia-jetson-agx-orin-devkit', 'nvidia-jetson-orin-nano-8gb',
-             'nvidia-jetson-orin-nano-super-devkit'},
+             'nvidia-jetson-orin-nano-super-devkit',
+             # added 2026-11-07 (library systems: tests/test_library_systems.py pins their figures)
+             'nvidia-jetson-agx-orin-32gb', 'nvidia-jetson-orin-nx-16gb', 'nvidia-jetson-orin-nx-8gb',
+             'nvidia-jetson-orin-nano-4gb', 'nvidia-jetson-agx-thor-devkit', 'nvidia-jetson-t5000',
+             'nvidia-jetson-t4000', 'basler-usb3-card-fl1100-4hc-x4', 'leopard-li-pciefg-gmsl2',
+             'stereolabs-zed-link-quad'},
 }
 
 
@@ -231,7 +247,12 @@ def test_tactile_entries_are_contact_sensors(name):
     t = d['tactile']
     assert isinstance(t, dict)
     assert t.get('sensing')
-    assert t.get('pad_mm') is not None and len(t['pad_mm']) == 2
+    # the pad's width and height where the source states them; a curved pad may state only an area, and a pad whose
+    # size no source states is null with the note saying so
+    if t.get('pad_mm') is not None:
+        assert len(t['pad_mm']) == 2 and min(t['pad_mm']) > 0
+    else:
+        assert t.get('area_mm2') or 'pad_mm is null' in d['note'], 'the pad size is null but the note does not say why'
     assert not d['imagers'], 'a tactile pad is not a workspace camera'
     assert library.sensor_imagers(_sensor(d['id'])) == []
     if t.get('camera_resolution') is not None:
@@ -246,8 +267,11 @@ def test_host_entries(name):
     h = d['host']
     assert isinstance(h, dict) and h.get('type') in ('usb_controller', 'pcie_card', 'gmsl_deser', 'compute')
     assert not d['imagers'] and not d['streams']
-    # a practical figure only when a source states one; none of these sources does
-    assert h.get('practical_mbps') is None
+    # a practical figure only when a source states one (then the note quotes it; the Basler card's "380 MBps per
+    # port reliably supported" and the Leopard grabber's "~51 Gbit/s netto" are the only ones)
+    if h.get('practical_mbps') is not None:
+        assert d['id'] in ('basler-usb3-card-fl1100-4hc-x4', 'leopard-li-pciefg-gmsl2'), d['id']
+        assert 'reliably supported' in d['note'] or 'netto' in d['note']
     if h['type'] == 'usb_controller':
         m = re.search(r'\((\d+) Gbit/s\)', d['name'])
         assert m and h['stated_mbps'] == 1000.0 * int(m.group(1))

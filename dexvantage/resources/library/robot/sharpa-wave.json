@@ -1,0 +1,101 @@
+{
+  "id": "sharpa-wave",
+  "kind": "robot",
+  "maker": "Sharpa",
+  "name": "SharpaWave",
+  "family": "dexterous hand",
+  "sources": [
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/sharpa_wave",
+      "title": "MuJoCo Menagerie sharpa_wave/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "sharpa.com lists \"21 DoF\" and \"22 DoF\" next to each other without saying which product each is; no figure is entered. The maker's figures were not read for this build; every figure is null (not found in the sources read).",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "hand",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": null,
+      "source": null
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "sharpa_wave",
+      "file": "left_hand.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/sharpa_wave"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "left_hand.xml",
+      "imported": true,
+      "joints_in_q": 22,
+      "joint_names": [
+        "left_thumb_CMC_FE",
+        "left_thumb_CMC_AA",
+        "left_thumb_MCP_FE",
+        "left_thumb_MCP_AA",
+        "left_thumb_IP",
+        "left_index_MCP_FE",
+        "left_index_MCP_AA",
+        "left_index_PIP",
+        "left_index_DIP",
+        "left_middle_MCP_FE",
+        "left_middle_MCP_AA",
+        "left_middle_PIP",
+        "left_middle_DIP",
+        "left_ring_MCP_FE",
+        "left_ring_MCP_AA",
+        "left_ring_PIP",
+        "left_ring_DIP",
+        "left_pinky_CMC",
+        "left_pinky_MCP_FE",
+        "left_pinky_MCP_AA",
+        "left_pinky_PIP",
+        "left_pinky_DIP"
+      ],
+      "actuators": 22,
+      "links": 23,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 22,
+      "seconds": 0.23,
+      "note": ""
+    }
+  }
+}

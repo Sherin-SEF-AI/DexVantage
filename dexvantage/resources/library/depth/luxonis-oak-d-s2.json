@@ -1,0 +1,290 @@
+{
+  "id": "luxonis-oak-d-s2",
+  "kind": "depth",
+  "maker": "Luxonis",
+  "name": "OAK-D S2 (auto-focus RGB)",
+  "family": "OAK (RVC2)",
+  "sources": [
+    {
+      "url": "https://docs.luxonis.com/hardware/products/OAK-D%20S2.md",
+      "title": "OAK-D S2, Luxonis hardware documentation (Markdown view)",
+      "read": "2026-11-07",
+      "covers": "variants with FOV, sensor size, shutter, focus; baseline 75 mm, ideal range, MinZ, median depth accuracy, power subsystems"
+    },
+    {
+      "url": "https://github.com/luxonis/depthai-hardware/raw/master/DM9098_OAK-D-S2/Datasheet/OAK-D-S2_Datasheet.pdf",
+      "title": "OAK-D S2 (USB boot) datasheet, Dec 2021, Luxonis",
+      "read": "2026-11-07",
+      "covers": "cameras (OV9282 1280x800@120FPS, focus 19.6 cm - inf; IMX378 4056x3040@60fps), FOVs, shutters, power 4/6/7.5 W, size (W x H x D) 97 x 29.5 x 22.9 mm, mounting (1/4-20, VESA 7.5 cm M4)"
+    },
+    {
+      "url": "https://github.com/luxonis/depthai-boards/blob/bfa8f3638a10352c1e5517348fbe4c0c428b86fd/boards/OAK-D-S2.json",
+      "title": "depthai-boards OAK-D-S2.json board configuration (commit bfa8f36), Luxonis",
+      "read": "2026-11-07",
+      "covers": "design translations between the cameras (left to right -7.5 cm, right to centre 3.75 cm), camera HFOVs"
+    },
+    {
+      "url": "https://docs.luxonis.com/hardware/sensors/OV9282.md",
+      "title": "OV9282 sensor page, Luxonis documentation",
+      "read": "2026-11-07",
+      "covers": "shutter, sensor size, pixel size 3 um, RVC2 modes (1280 x 800 at 129, 1280 x 720 at 143, 640 x 400 at 255 fps)"
+    },
+    {
+      "url": "https://docs.luxonis.com/hardware/sensors/IMX378.md",
+      "title": "IMX378 sensor page, Luxonis documentation",
+      "read": "2026-11-07",
+      "covers": "shutter, sensor size, pixel size 1.55 um, RVC2 modes and maximum frame rates"
+    }
+  ],
+  "note": "The compact passive-stereo OAK-D (Series 2). Poses: the body origin is the left camera's optical centre (the reference imager; ASSUMPTION: the sources do not say which camera the depth map refers to). Positions are Luxonis's design (\"spec\") translations from its board file (specTranslation in cm, rotation zero): the right camera one baseline along -y, the centre colour camera at the baseline midpoint; a unit's calibration differs from these. Lens model pinhole is a labelled ASSUMPTION fitted to the stated FOV. Streams are the sensor modes the RVC2 driver supports with their maximum frame rates (Luxonis sensor pages); the format on the USB link depends on the on-device pipeline, so format and bits_per_pixel are null, and no depth stream is listed (its resolution follows the stereo mode). Not stated: subpixel accuracy, distortion, depth FOV (null), f-numbers. Depth accuracy is a median absolute error, not RMS. min_z is the docs' MinZ at 800P and at 400P (the extended-disparity figures are in this note only). Variant entered: auto-focus IMX378 (66/54/78 deg H/V/D, rolling shutter, AF 8 cm to infinity); the fixed-focus variant is 69/55/82 deg. Stereo OV9282 80/55/89.5 deg, global shutter, no IR filter, fixed focus 19.6 cm to infinity (datasheet). Baseline 75 mm; ideal range ~80 cm - 12 m; MinZ ~80 cm (800P), ~40 cm (400P or 800P + extended disparity), ~20 cm (400P + extended). power_w is the datasheet maximum 7.5 W (typical 6 W, idle 2.5 W). size_mm: datasheet 97 x 29.5 x 22.9 mm (W x H x D). Mass is not stated (null). Passive stereo: no projector.",
+  "interface": "USB 3.1 Gen 1 (USB Type-C)",
+  "power_w": 7.5,
+  "mass_g": null,
+  "size_mm": [
+    22.9,
+    97.0,
+    29.5
+  ],
+  "imagers": [
+    {
+      "name": "Left",
+      "role": "mono",
+      "pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 80.0,
+      "vfov_deg": 55.0,
+      "dfov_deg": 89.5,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed"
+    },
+    {
+      "name": "Right",
+      "role": "mono",
+      "pose": {
+        "position": [
+          0.0,
+          -0.075,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "global",
+      "hfov_deg": 80.0,
+      "vfov_deg": 55.0,
+      "dfov_deg": 89.5,
+      "pixel_um": 3.0,
+      "resolution": [
+        1280,
+        800
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "fixed"
+    },
+    {
+      "name": "RGB",
+      "role": "rgb",
+      "pose": {
+        "position": [
+          0.0,
+          -0.0375,
+          0.0
+        ],
+        "quaternion": [
+          -0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "pose_stated": true,
+      "shutter": "rolling",
+      "hfov_deg": 66.0,
+      "vfov_deg": 54.0,
+      "dfov_deg": 78.0,
+      "pixel_um": 1.55,
+      "resolution": [
+        4056,
+        3040
+      ],
+      "lens_model": "pinhole",
+      "f_number": null,
+      "focus": "auto"
+    }
+  ],
+  "projector": null,
+  "depth": {
+    "technology": "passive_stereo",
+    "reference_imager": "Left",
+    "stereo_pair": [
+      "Left",
+      "Right"
+    ],
+    "baseline_m": 0.075,
+    "min_z": [
+      {
+        "width": 1280,
+        "height": 800,
+        "m": 0.8
+      },
+      {
+        "width": 640,
+        "height": 400,
+        "m": 0.4
+      }
+    ],
+    "max_range_m": null,
+    "ideal_range_m": [
+      0.8,
+      12.0
+    ],
+    "range_text": "Ideal range ~80 cm - 12 m (docs page)",
+    "rms_error": {
+      "text": "Median absolute depth error below 2% below 4 m, below 4% at 4-7 m, below 6% at 7-10 m (docs page; not an RMS figure)",
+      "metric": "median_abs",
+      "pct": 2.0,
+      "at_m": 4.0
+    },
+    "subpixel_px": null,
+    "depth_fov": null
+  },
+  "streams": [
+    {
+      "imager": "Left",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        129
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Left",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        143
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Left",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        255
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 1280,
+      "height": 800,
+      "fps": [
+        129
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 1280,
+      "height": 720,
+      "fps": [
+        143
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "Right",
+      "width": 640,
+      "height": 400,
+      "fps": [
+        255
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 4056,
+      "height": 3040,
+      "fps": [
+        30
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 3840,
+      "height": 2160,
+      "fps": [
+        30
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 2024,
+      "height": 1520,
+      "fps": [
+        85
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1920,
+      "height": 1080,
+      "fps": [
+        60
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    },
+    {
+      "imager": "RGB",
+      "width": 1352,
+      "height": 1012,
+      "fps": [
+        52
+      ],
+      "format": null,
+      "bits_per_pixel": null
+    }
+  ],
+  "tactile": null,
+  "host": null
+}

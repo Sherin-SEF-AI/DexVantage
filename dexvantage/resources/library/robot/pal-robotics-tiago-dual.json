@@ -1,0 +1,111 @@
+{
+  "id": "pal-robotics-tiago-dual",
+  "kind": "robot",
+  "maker": "PAL Robotics",
+  "name": "TIAGo (dual arm)",
+  "family": "mobile manipulator",
+  "sources": [
+    {
+      "url": "https://pal-robotics.com/robot/tiago/",
+      "title": "PAL Robotics, TIAGo product page (specifications)",
+      "read": "2026-11-07",
+      "covers": "arm payload, 7-DoF arms"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/pal_tiago_dual",
+      "title": "MuJoCo Menagerie pal_tiago_dual/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "mobile_manipulator",
+    "dof": {
+      "value": null,
+      "source": null
+    },
+    "reach_mm": {
+      "value": null,
+      "source": null
+    },
+    "payload_kg": {
+      "value": 3,
+      "source": 0,
+      "quote": "Arm Payload 3 Kg (without end-effector), per arm"
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": null,
+      "source": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null
+    },
+    "interfaces": {
+      "value": null,
+      "source": null
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "pal_tiago_dual",
+      "file": "tiago_dual.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "Apache-2.0",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/pal_tiago_dual"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "tiago_dual.xml",
+      "imported": true,
+      "joints_in_q": 25,
+      "joint_names": [
+        "wheel_front_right_joint",
+        "wheel_front_left_joint",
+        "wheel_rear_right_joint",
+        "wheel_rear_left_joint",
+        "torso_lift_joint",
+        "head_1_joint",
+        "head_2_joint",
+        "arm_left_1_joint",
+        "arm_left_2_joint",
+        "arm_left_3_joint",
+        "arm_left_4_joint",
+        "arm_left_5_joint",
+        "arm_left_6_joint",
+        "arm_left_7_joint",
+        "gripper_left_right_finger_joint",
+        "gripper_left_left_finger_joint",
+        "arm_right_1_joint",
+        "arm_right_2_joint",
+        "arm_right_3_joint",
+        "arm_right_4_joint",
+        "arm_right_5_joint",
+        "arm_right_6_joint",
+        "arm_right_7_joint",
+        "gripper_right_right_finger_joint",
+        "gripper_right_left_finger_joint"
+      ],
+      "actuators": 0,
+      "links": 26,
+      "free_joints": 1,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 25,
+      "seconds": 0.24,
+      "note": ""
+    }
+  }
+}

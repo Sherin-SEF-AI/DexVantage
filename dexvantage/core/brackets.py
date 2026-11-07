@@ -1296,6 +1296,8 @@ def build(project, sensor, spec: BracketSpec, *, mesh_it: bool = True, clear: bo
                      'box_assumption': 'ASSUMPTION: the camera is a box of its stated size with the reference '
                                        'imager\'s optical centre at the middle of its front face.'}
     try:
+        if cam.size_mm is None and spec.kind in BUILT:    # placement on a face needs the size too (said, not crashed)
+            raise BracketError(f'The camera\'s size is needed to size the bracket and {cam.size_note}.')
         pl = placement(project, sensor, spec, cam)
         if spec.kind == 'flange' and spec.keepout_mm is None:
             k = gripper_keepout_mm(project, sensor, pl['T_parent_bracket'], spec.disc_mm)

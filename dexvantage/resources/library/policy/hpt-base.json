@@ -1,0 +1,88 @@
+{
+  "id": "hpt-base",
+  "kind": "policy",
+  "maker": "HPT (L. Wang, X. Chen, J. Zhao, K. He)",
+  "name": "HPT-Base",
+  "family": "Heterogeneous pre-trained transformer policy (ResNet18 stem, 12.6M-parameter trunk)",
+  "sources": [
+    {
+      "url": "https://arxiv.org/abs/2409.20537",
+      "title": "L. Wang, X. Chen, J. Zhao, K. He, Scaling Proprioceptive-Visual Learning with Heterogeneous Pre-trained Transformers, arXiv:2409.20537 (HTML version)",
+      "read": "2026-11-07",
+      "covers": "the 224 × 224 resize into a ResNet18, one camera view by default, the action horizon 8, the inference rate on an RTX 3070, the 10 Hz real-world control"
+    },
+    {
+      "url": "https://github.com/liruiw/HPT/tree/549433f70569917eab84dfe0eae9d84a7c4ad9a3",
+      "title": "liruiw/HPT (official code), commit 549433f: hpt/utils/utils.py normalize_image_numpy",
+      "read": "2026-11-07",
+      "covers": "cv2.resize(image, (224, 224)) (no aspect ratio kept)"
+    }
+  ],
+  "note": "HPT resizes each image to 224 × 224 (cv2.resize: stretched, the aspect ratio is not kept) and encodes it with a frozen ResNet18 into a 7 × 7 feature map; a cross-attention stem maps every view's features to N_v = 16 vision tokens (all views together), so tokens_per_image is null and patch_px does not apply. One camera view by default (\"1 camera v.s. 2 cameras\" in the real-world transfer). A fixed action horizon of 8 and an observation horizon of 4. Timing: \"39Hz for HPT-base\" in the real world including all pre-processing and the encoders, on \"an old NVIDIA RTX 3070 GPU\" (25.6 ms; in simulation transfer 47 Hz); \"A modern GPU such as A100 will likely improve the speed by 3-4 times\" (not entered). The trunk sizes run from HPT-Small (3.1M) to HPT-Huge (1.1B); this entry is the Base trunk the timing names.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        224,
+        224
+      ],
+      "source": 0,
+      "quote": "\"we resize each image to the standard square size (224x224) before feeding into a ResNet18\""
+    },
+    "crop_rule": {
+      "value": "resize",
+      "source": 1,
+      "quote": "normalize_image_numpy: \"The input image is resized to (224, 224) using cv2.resize.\" (image = cv2.resize(image, (224, 224)))"
+    },
+    "crop_side_fraction": {
+      "value": null,
+      "source": null
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": null,
+      "source": null,
+      "quote": "Not a ViT: a ResNet18 \"7x7 vision modality token\"."
+    },
+    "tokens_per_image": {
+      "value": null,
+      "source": null,
+      "quote": "Not per image: the stem maps all views to \"N_v=16\" tokens by default."
+    },
+    "n_cameras": {
+      "value": 1,
+      "source": 0,
+      "quote": "\"By default, we use one camera view of the scene with the pre-trained frozen ResNet18 image encode\""
+    },
+    "action_chunk": {
+      "value": 8,
+      "source": 0,
+      "quote": "\"we pick a fixed action horizon (length 8) and observation horizon (length 4) for each embodiment\""
+    },
+    "execute_steps": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "inference_ms": {
+      "value": 25.6,
+      "source": 0,
+      "quote": "\"The inference time, which includes all the pre-processing and encoder time, on the local computer with an old NVIDIA RTX 3070 GPU is 39Hz for HPT-base\" (1000 / 39 = 25.6 ms)",
+      "hardware": "NVIDIA RTX 3070"
+    },
+    "control_hz": {
+      "value": 10,
+      "source": 0,
+      "quote": "\"The episode lengths of real-world teleoperation vary from 50 steps to 150 steps with 10 Hz control frequencies.\""
+    }
+  }
+}

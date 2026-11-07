@@ -1,0 +1,47 @@
+# DexVantage readiness scorecard: dexvantage PROJECT.dexv --check requirements.yaml
+# Each requirement: a metric (core/metric_defs.py), a comparison (>=, <=, <, >, ==), a threshold in the
+# metric's unit, and the study that measures it. "default: true" marks DexVantage's documented
+# defaults (starting points, not standards).
+format: dexvantage.requirements
+version: 1
+requirements:
+- name: Contact visibility
+  metric: grasp.contact_visibility
+  comparison: '>='
+  threshold: 95.0
+  unit: '%'
+  study: grasp_visibility
+  default: true
+  note: 'DexVantage default (a documented starting point, not a standard): change it to your own figure.'
+- name: Camera to joint-state skew
+  metric: sync.skew_ms
+  comparison: <
+  threshold: 2.0
+  unit: ms
+  study: time_sync
+  default: true
+  note: 'DexVantage default (a documented starting point, not a standard): change it to your own figure.'
+- name: No controller over budget
+  metric: bandwidth.over_budget
+  comparison: <=
+  threshold: 0.0
+  unit: count
+  study: bandwidth
+  default: true
+  note: 'DexVantage default (a documented starting point, not a standard): change it to your own figure.'
+- name: No cable pull or snag
+  metric: cables.pull_snag
+  comparison: <=
+  threshold: 0.0
+  unit: count
+  study: cables
+  default: true
+  note: 'DexVantage default (a documented starting point, not a standard): change it to your own figure.'
+- name: No sensory blind gap before contact
+  metric: dexhand.blind_gap_mm
+  comparison: <=
+  threshold: 0.0
+  unit: mm
+  study: dex_occlusion
+  default: true
+  note: 'DexVantage default (a documented starting point, not a standard): change it to your own figure.'

@@ -143,11 +143,13 @@ class MenagerieDialog(VDialog):
             self._apply_filter(self.filter.text())
         elif kind == 'download':
             self._show_download(res)
+        elif kind == 'import':
+            self._finish_import(*res)
         self._sync()
 
     def _on_failed(self, kind, text):
         self._busy = False
-        self.status.set('critical', f'Failed: {text}')
+        self.status.set('critical', f'{"Not imported" if kind == "import" else "Failed"}: {text}')
         self._sync()
 
     # ------------------------------------------------------------------ the list
@@ -229,15 +231,24 @@ class MenagerieDialog(VDialog):
         self.import_btn.setEnabled(ready and self.accept_box.isChecked())
 
     def import_selected(self) -> bool:
-        """Import the downloaded model (only after the licence was accepted) as one undo step."""
+        """Import the downloaded model (only after the licence was accepted) as one undo step. Compiling the model
+        runs on the worker thread (0.1 s for a small arm, seconds for a humanoid); True when the robot is in the
+        project on return (always so without a background thread)."""
         if self.dl is None or not self.accept_box.isChecked():
             self.status.set('warning', 'Not imported: accept the model\'s licence first.')
             return False
-        try:
-            robot, sources = MG.import_download(self.dl, self.file.currentText() or None)
-        except Exception as e:                              # noqa: BLE001 — explained
-            self.status.set('critical', f'Not imported: {self._message(e)}')
+        if self._busy:
             return False
+        dl, main = self.dl, self.file.currentText() or None
+        self.status.set('', f'Importing {dl.model}…')
+        self._run('import', lambda _p: (dl, *MG.import_download(dl, main)))
+        return self.robot is not None
+
+    def _finish_import(self, dl, robot, sources):
+        if dl is not self.dl:                              # the user moved on while it compiled
+            return
+        if getattr(self, 'robot_name', ''):                 # the catalogue's name, not the file's
+            robot.name = self.robot_name
 
         def fn(p):
             robot.primary = not p.robots
@@ -252,7 +263,6 @@ class MenagerieDialog(VDialog):
         if hasattr(self.win, 'msg'):
             self.win.msg(f'Imported {robot.name} from MuJoCo Menagerie; licence {self.dl.license_name} recorded')
         self.accept()
-        return True
 
 
 def open_dialog(window) -> bool:

@@ -1,0 +1,100 @@
+{
+  "id": "smolvla-libero",
+  "kind": "policy",
+  "maker": "Hugging Face (LeRobot)",
+  "name": "SmolVLA (LIBERO fine-tune)",
+  "family": "Vision-language-action flow model (SmolVLM2 500M backbone)",
+  "sources": [
+    {
+      "url": "https://huggingface.co/lerobot/smolvla_libero/tree/a24f1f380461b665158d52acd140152c79e8b36d",
+      "title": "lerobot/smolvla_libero · Hugging Face (config.json at commit a24f1f3; model card licence)",
+      "read": "2026-11-07",
+      "covers": "resize_imgs_with_padding, the camera inputs, chunk_size, n_action_steps, vlm_model_name, the Apache-2.0 licence"
+    },
+    {
+      "url": "https://arxiv.org/abs/2506.01844",
+      "title": "M. Shukor et al., SmolVLA: A vision-language-action model for affordable and efficient robotics, arXiv:2506.01844",
+      "read": "2026-11-07",
+      "covers": "the 64 visual tokens per frame"
+    },
+    {
+      "url": "https://github.com/huggingface/lerobot/tree/d490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies",
+      "title": "LeRobot (official code), commit d490e47: policies/common/vla_utils.py",
+      "read": "2026-11-07",
+      "covers": "resize_with_pad pads on the left and top (the SmolVLA convention)"
+    },
+    {
+      "url": "https://huggingface.co/HuggingFaceTB/SmolVLM2-500M-Video-Instruct/blob/main/config.json",
+      "title": "HuggingFaceTB/SmolVLM2-500M-Video-Instruct config.json (the VLM every SmolVLA checkpoint names)",
+      "read": "2026-11-07",
+      "covers": "vision_config patch_size 16 and image_size 512, scale_factor 4"
+    }
+  ],
+  "note": "The LIBERO checkpoint of SmolVLA from LeRobot: the same model and preprocessing as smolvla-base (vlm_model_name HuggingFaceTB/SmolVLM2-500M-Video-Instruct, resize to fit 512 × 512 padded on the LEFT and TOP, 64 visual tokens per frame), with 2 camera inputs in its config. No inference time or control rate is stated for it. Licence Apache-2.0 (model card). DexVantage bundles these figures only, not the model.",
+  "imagers": [],
+  "streams": [],
+  "policy": {
+    "input_resolution": {
+      "value": [
+        512,
+        512
+      ],
+      "source": 0,
+      "quote": "\"resize_imgs_with_padding\": [512, 512]"
+    },
+    "crop_rule": {
+      "value": "resize_pad_top_left",
+      "source": 2,
+      "quote": "vla_utils.resize_with_pad: \"Resize a (b, c, h, w) image without distortion, padding on the LEFT and TOP. This is the smolvla/xvla convention.\""
+    },
+    "crop_side_fraction": {
+      "value": null,
+      "source": null
+    },
+    "pre_resize": {
+      "value": null,
+      "source": null
+    },
+    "patch_px": {
+      "value": 16,
+      "source": 3,
+      "quote": "vision_config: \"patch_size\": 16, \"image_size\": 512"
+    },
+    "tokens_per_image": {
+      "value": 64,
+      "source": 1,
+      "quote": "\"We use the global image only, in addition to a pixel shuffle operation, limiting the visual tokens to 64 per frame.\""
+    },
+    "n_cameras": {
+      "value": 2,
+      "source": 0,
+      "quote": "input_features observation.images.camera1 and camera2, each [3, 256, 256]; \"empty_cameras\": 0"
+    },
+    "action_chunk": {
+      "value": 50,
+      "source": 0,
+      "quote": "\"chunk_size\": 50"
+    },
+    "execute_steps": {
+      "value": 50,
+      "source": 0,
+      "quote": "\"n_action_steps\": 50"
+    },
+    "temporal_ensemble_m": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    },
+    "inference_ms": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated.",
+      "hardware": null
+    },
+    "control_hz": {
+      "value": null,
+      "source": null,
+      "quote": "Not stated."
+    }
+  }
+}

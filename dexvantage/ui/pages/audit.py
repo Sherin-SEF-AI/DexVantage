@@ -78,6 +78,7 @@ class AuditPage(StudyPage):
         self.ds_box = QComboBox()
         self.ds_box.setMinimumWidth(240)
         self.ds_box.setToolTip('The dataset this page audits (the project\'s datasets, kept with the project)')
+        self.ds_box.setPlaceholderText('No dataset yet: Add folder…')
         self.ds_box.activated.connect(lambda _i: self._choose(self.ds_box.currentData()))
         self.b_add = button('Add folder…', role='ghost', icon_name='open',
                             tip='A LeRobot or RLDS dataset folder, or a ROS 2 bag folder')

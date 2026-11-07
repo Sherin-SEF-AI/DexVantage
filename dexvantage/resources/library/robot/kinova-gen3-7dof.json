@@ -1,0 +1,105 @@
+{
+  "id": "kinova-gen3-7dof",
+  "kind": "robot",
+  "maker": "Kinova",
+  "name": "Gen3 (7 DoF)",
+  "family": "ultra-lightweight 7-DoF arm",
+  "sources": [
+    {
+      "url": "https://www.kinovarobotics.com/uploads/Kinova_Onepager_Gen3_2024_EN.pdf",
+      "title": "Kinova, KINOVA Gen3 one-pager 2024 (technical specifications)",
+      "read": "2026-11-07",
+      "covers": "DoF, payload, weight, reach, interfaces, control frequency"
+    },
+    {
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/kinova_gen3",
+      "title": "MuJoCo Menagerie kinova_gen3/README.md at commit 98a70c5",
+      "read": "2026-11-07",
+      "covers": "which product and version the model describes, and the URL of the source it was derived from"
+    }
+  ],
+  "note": "Payload is the full-range continuous figure; the one-pager gives 4.0 kg mid-range continuous. It states \"Actuator position range Infinite\" and no per-joint ranges (the model file has the limits of the joints that have them). No repeatability is stated in the one-pager.",
+  "imagers": [],
+  "streams": [],
+  "robot": {
+    "type": "arm",
+    "variant": "Gen3 7 DoF, one-pager 2024",
+    "dof": {
+      "value": 7,
+      "source": 0,
+      "quote": "Degrees of freedom 6 DoF / 7 DoF"
+    },
+    "reach_mm": {
+      "value": 902,
+      "source": 0,
+      "quote": "Maximum reach 891 mm (6 DoF) / 902 mm (7 DoF)"
+    },
+    "payload_kg": {
+      "value": 2.0,
+      "source": 0,
+      "quote": "Payload* (full-range continuous)** 2.0 kg; (mid-range continuous) 4.0 kg; *without gripper **in motion"
+    },
+    "repeatability_mm": {
+      "value": null,
+      "source": null
+    },
+    "mass_kg": {
+      "value": 8.2,
+      "source": 0,
+      "quote": "Total weight 7.2 kg (6 DoF) / 8.2 kg (7 DoF)"
+    },
+    "control_hz": {
+      "value": 1000,
+      "source": 0,
+      "quote": "Control system frequency 1 kHz"
+    },
+    "interfaces": {
+      "value": [
+        "Ethernet (2 x 100 Mbps internal)",
+        "Kortex API (C++, Python, MATLAB)",
+        "ROS 1, ROS 2",
+        "End effector: Ethernet, I2C, UART, GPIO"
+      ],
+      "source": 0,
+      "quote": "Internal communications 2 x 100 Mbps Ethernet; End effector interfaces Ethernet, I2C, UART, GPIO, 1A supply @24V"
+    },
+    "joint_ranges": {
+      "value": null,
+      "source": null,
+      "quote": "Actuator position range Infinite"
+    },
+    "model": {
+      "source": "menagerie",
+      "folder": "kinova_gen3",
+      "file": "gen3.xml",
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "license": "BSD-3-Clause",
+      "license_read": "2026-11-07",
+      "url": "https://github.com/google-deepmind/mujoco_menagerie/tree/98a70c569c4c1b6da467a20012f766ee1f8dc521/kinova_gen3"
+    },
+    "verified": {
+      "commit": "98a70c569c4c1b6da467a20012f766ee1f8dc521",
+      "date": "2026-11-07",
+      "file": "gen3.xml",
+      "imported": true,
+      "joints_in_q": 7,
+      "joint_names": [
+        "joint_1",
+        "joint_2",
+        "joint_3",
+        "joint_4",
+        "joint_5",
+        "joint_6",
+        "joint_7"
+      ],
+      "actuators": 7,
+      "links": 8,
+      "free_joints": 0,
+      "dof_rule": "joints",
+      "excluded_joints": [],
+      "dof": 7,
+      "seconds": 0.1,
+      "note": ""
+    }
+  }
+}
