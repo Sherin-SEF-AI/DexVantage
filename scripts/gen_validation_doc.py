@@ -80,8 +80,10 @@ def cell(s: str) -> str:
 
 
 def current_ids() -> list:
+    """Every registered check, also those this machine would leave out (no CUDA, an extra missing): the page is made
+    from a full run where every check ran."""
     from dexvantage.validation import suite
-    return [s.id for s in suite.specs()]
+    return [s.id for s in suite.registered()]
 
 
 def check_report(rep: dict, ids: list | None = None):

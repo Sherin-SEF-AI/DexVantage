@@ -7,8 +7,8 @@ the end of every phase.
 
 The user decides on the **0.1.0 release**: `packaging/release.py --publish` (after tagging and pushing `v0.1.0rc1`
 or `v0.1.0`; run only when the user asks; it publishes a release candidate as a GitHub pre-release), turning on
-GitHub Pages for `site/` (the Website workflow fails until it is), and the next CI run, the first after the Linux-only
-change, the fixes of the first run and Phase 12 (below); the bundle workflow has not run. Phase 12 needs, for its
+GitHub Pages for `site/` (the Website workflow fails until it is), and the next CI run, which shows whether the fixes
+for the second run's three failures hold on the runner (section "Linux only"); the bundle workflow has not run. Phase 12 needs, for its
 figures to describe more than synthetic captures, a real LeRobot recording with measured mounts (open issues).
 Carried over: the occlusion throughput (`core/occlusion.py`, the ALOHA 2 grasp budget), ground truth with distorted
 lenses, and the open issues below.
@@ -105,6 +105,34 @@ folders under `out/` (deleted afterwards).
   experiments pool 4.0 s, the bundle's `--self-test` passed (47 lines, the `splat` warning), the bundle's
   `--validate --models splat` 4 of 4 with 3 left out, naming their extras (`docs/packaging.md`, "The Phase 12 build").
 
+**Phase 12 reviews and their final gate (2026-11-08).** Three reviews after the Phase 12 commit: the splat code line
+by line (the maths checked numerically: quaternions against SciPy, the projected covariance against a 400,000-sample
+Monte Carlo to 0.4 %; fixed the augmented dataset read back as a recording, the PNG/MP4 synthetic marks, the
+stream imager, gsplat with an image background; CHANGELOG), the guide followed step by step as a new user with the UI
+thread timed (fixed the voxel sort that froze the window, the in-window torch import, background runs with Cancel;
+CHANGELOG), and Linux-only completeness with the second CI run (three test fixes; section "Linux only"). The gate,
+run alone on this machine, each memory-capped, `TMPDIR`, `--basetemp` and the XDG folders under `out/` (deleted):
+- Tests: **4 081 passed**, 0 failed, 3 skipped (`python -m pytest -q tests`, offscreen, 7 GB cap, 2 449 s). Peak
+  memory of the test run's cgroup (`memory.peak`, which counts page cache as well as the processes): 6.98 GB.
+- Validation: **239 of 239** (`--validate out/validation`, 412 s in the suite, 415 s for the process, peak 5.71 GB
+  maximum resident set). `docs/validation.md` regenerated from it differs from the committed page only in the run
+  time (425 s there), so the page was left as it is.
+- `dexvantage --self-test`: **47 of 47 ok** (48 s, peak 4.34 GB): 167 of 167 cheap checks, MCP 41 tools, `splat` ok.
+- `ruff check dexvantage tests scripts packaging`: clean. `actionlint` 1.7.12: clean.
+- Generated docs: `gen_cli_reference.py`, `gen_api_reference.py`, `gen_overview_refs.py --check`: up to date;
+  `guide_examples.py --check`: 135 figures from 34 examples, 0 not shown as computed. `build_site.py` rebuilt the
+  pages from the reviewed docs (`guide.html` was behind the user guide's edit), then `--check`: 122 pages, no problems.
+- Linux x86_64 bundle rebuilt (`packaging/build.py --smoke`, 2 min 32 s, peak 3.56 GB): folder 851.2 MB, download
+  316.9 MB (316 901 687 bytes, SHA-256 de0728c4…ded538fbe), start-up 1.67 s median of 3, `--version` 0.19 s, cluster
+  pool 14.4 s, experiments pool 4.0 s; the bundle's `--self-test` passed, 47 lines (164 of 164 cheap checks; the one
+  warning `splat`, the extra the download leaves out), 46.8 s.
+- `packaging/release.py --dry-run` (never `--publish`): 1 release file, `SHA256SUMS.txt` and `RELEASE_NOTES.md` in
+  `out/dist`. MCP over stdio (`python -m dexvantage.mcp --sample so100`): `initialize` answered (protocol 2025-06-18
+  as asked, server `dexvantage` 0.1.0rc1, capability `tools`), `tools/list` 41 tools, each with an input schema.
+- Hygiene, over the 1 373 files git would commit: no personal paths, user or host names, no e-mail addresses, no keys,
+  no AI attribution lines (the hits are the rules and the tests that look for them); no file over 5 MB; no model
+  weights (`.pt`, `.pth`, `.ckpt`, `.safetensors`, `.bin`, `.onnx`).
+
 ## Linux only, and the first GitHub CI run (2026-11-08)
 
 **Decision (the user's, binding): DexVantage supports Linux only** (x86_64; Linux arm64 / Jetson stays a target,
@@ -115,8 +143,8 @@ built by `bundles.yml`). Windows and macOS are no longer supported. Removed: the
 sentence), `scripts/get_actionlint.py` (Linux checksums only), `app.py`'s macOS open-document event, and the
 Windows/macOS folders of `mcp/session.py` and `core/library` (XDG folders only); the Windows- and macOS-only tests
 (the Inno Setup, Info.plist and icon tests, the Windows `resource` and POSIX-import tests, the `os.name == 'nt'`
-skips). Kept as harmless portable code: `core/cluster/shards.py`'s Windows peak-memory branch,
-`core/tracking/store.py`'s `msvcrt` lock fallback, `mlruns.py`'s path spelling. README, `docs/packaging.md`, the
+skips). The CI review then removed what had been kept: `core/cluster/shards.py`'s Windows peak-memory branch and
+macOS `ru_maxrss` scale, `core/tracking/store.py`'s `msvcrt` lock fallback, `mlruns.py`'s Windows name spelling. README, `docs/packaging.md`, the
 user guide (install, troubleshooting), CONTRIBUTING, the site (rebuilt: 120 pages, no problems), pyproject
 (`Operating System :: POSIX :: Linux`) and the CHANGELOG say so. CITATION.cff lists no platforms.
 
@@ -149,6 +177,28 @@ turned on for the repository, which is the user's decision; `pages.yml` is left 
 
 Not verified until the next CI run: the gmsh libraries on the runner (the package names exist; the check itself was
 not run on a runner), and the camera-view and silhouette fixes on the runner's llvmpipe.
+
+**The second CI run** (run 42477659031, commit 2206ce4, Linux only, 22 min in all; `gh run view`, read-only): Lint,
+the Python 3.10 job (1 min 53 s), both self-test and validation jobs (self-test passed with the one `splat` warning;
+quick validation 237 of 237, the two torch checks left out naming the splat extra) and shards 0, 1 and 4 on 3.12 and
+3.14 passed; the gmsh, camera-view and silhouette fixes of the first run held. Three tests failed, each on both
+Pythons, none on the runner's own account:
+- `test_validation_doc.py::test_the_page_lists_the_current_check_list` (shard 2): it compared `docs/validation.md`
+  (239 checks, a full run with every extra and CUDA) with `suite.specs()`, the checks that can run *here* (237 on CI).
+  Fixed: `suite.registered()` (every registered check), used by the test and by `scripts/gen_validation_doc.py`, so a
+  report from a machine without CUDA is refused rather than turned into a shorter page.
+- `test_fresh_install.py::test_checks_that_need_an_extra_are_left_out_and_listed` (shard 3): it expected the hidden
+  package's checks to be the only ones left out; CI also leaves out the two torch checks. Fixed: it subtracts what
+  the machine leaves out before hiding a package (passes with PyTorch blocked, with CUDA hidden and with both here).
+- `test_splat_rig.py::test_init_labels_from_the_masks_are_recovered` (shard 5): 'masks' changed 2.08 % of the true
+  labels on the runner's llvmpipe (11 of 529) against the test's 2 %. Reproduced here on Mesa llvmpipe
+  (`__EGL_VENDOR_LIBRARY_FILENAMES` to Mesa alone, `LIBGL_ALWAYS_SOFTWARE=1`): the same 11 of 529; the RTX 5080
+  10 of 524; over four captures (seeds 1 to 4) 1.3 to 2.1 %. The bound is now 3 % (about 5 Gaussians of margin), the
+  measurement in the docstring.
+All skips on CI name their reason (the splat tests without PyTorch, LaTeX, the demo scripts, actionlint inside the
+test shards; the lint job runs actionlint). A new test (`tests/test_ci_workflows.py`) checks that CI installs no
+PyTorch and that every test that runs on CUDA skips with a sentence where CUDA is not available; shards still cover
+the 150 test files once each (the six splat files count as the table's median until a junit run measures them).
 
 ## Phase 11: samples, documentation, website, packaging and CI; release candidate 0.1.0rc1 (done, 2026-11-08)
 
@@ -1857,10 +1907,23 @@ Phase 12 (splat views) and the Linux-only change:
   98 %.
 - In the downloadable app a `--validate` run that leaves out checks ends with "Install them with pip install …", as
   for every left-out extra; pip cannot add to the download (the splat views' own sentence says so).
-- Not run on GitHub yet: the Linux-only CI and bundle workflows (the bundle workflow has never run; the PyQt6 6.7 pin
-  for Linux arm64 is untested), the gmsh libraries on the runner, the camera-view drag and silhouette fixes on the
-  runner's llvmpipe. CI installs no PyTorch, so the splat tests and checks that need it skip or are left out there.
+- The Linux-only CI ran once (run 42477659031): three test failures, fixed here and not yet run on GitHub (section
+  "Linux only"). The bundle workflow has never run (the PyQt6 6.7 pin for Linux arm64 is untested). CI installs no
+  PyTorch, so the splat tests and checks that need it skip or are left out there. A left-out check's sentence says
+  `pip install "dexvantage[splat]"` without PyTorch's CUDA index URL (the self-test's `splat` line gives it).
 - The silhouette guide figure now passes anywhere within the estimate's own 1 σ (about 0.9 mm): honest but loose.
+- From the Phase 12 reviews: the CUDA fit varies run to run by up to 1.6 dB (UR5e episode, 5 fits); the tables in
+  `docs/models/splat.md` and README's figures are from the first run (the spread is stated in the model page, not in
+  README). Fit times in `docs/performance.md` are from an idle GPU; on a busy one the UR5e demo fit reached its
+  120 s budget at 1,451 steps. Only Splat views reads augmentation's synthetic marks: the audit and the other
+  dataset studies do not flag a splat-augmented dataset as synthetic. Augment's even-pixel rounding at a small
+  `augment_frame_scale` can shift the aspect ratio over 2 %, and a fit to such a dataset is refused with a sentence.
+  The first fit of a session still stalls the window about 150 to 180 ms once while torch loads in the worker
+  thread. The LPIPS weights download (244 MB) cannot be cancelled. With two cameras of the same size the result's
+  notes repeat the lens-model note (the page shows it once) without naming the camera.
+- `pip install "dexvantage[<extra>]"` in the code's messages points at PyPI, where dexvantage is not published; the
+  splat guide gives the from-source command. `scripts/ci_test_durations.json` has no timings for the six splat test
+  files (each counts as the median until a CI run's reports refresh it).
 - Older sections of this file and the Phase 11 packaging review in `docs/packaging.md` still mention Windows and
   macOS as the record of that time.
 

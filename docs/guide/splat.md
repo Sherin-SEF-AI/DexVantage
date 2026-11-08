@@ -13,18 +13,20 @@ views are posed at the planned mounts).
 
 Every figure below was measured on 2026-11-08 on an NVIDIA GeForce RTX 5080 (PyTorch 2.14.1, CUDA 13.0, the
 plain-torch rasteriser); `scripts/splat_quality.py` wrote them to `out/splat/quality.json`. A CUDA fit does not repeat
-bit for bit: another run of the same fit differs by a few tenths of a dB (the page below read 32.0 dB where the
-measurement read 32.4).
+bit for bit: fresh fits with the same settings and seed differed by up to 0.4 dB on the SO-100 episode and 1.6 dB on
+the UR5e's (5 fits each; [models/splat.md](../models/splat.md), "Run to run"), and the page below read 32.0 dB
+where the measurement read 32.4.
 
 ## A. What it needs
 
-The splat extra and a CUDA GPU:
+The splat extra and a CUDA GPU. In DexVantage's source folder (README, "From source"):
 
-    pip install "dexvantage[splat]" --extra-index-url https://download.pytorch.org/whl/cu130
+    .venv/bin/pip install -e ".[splat]" --extra-index-url https://download.pytorch.org/whl/cu130
 
 Without it the **Splat views** page (Simulate ▸ Splat views) says "splat extra not installed" and its buttons are off;
-`dexvantage --self-test` says the same on its `splat` line. Without a CUDA device the study refuses ("There is no CUDA
-device here…") unless the device setting is `cpu`, which fits small scenes slowly.
+`dexvantage --self-test` says the same on its `splat` line. Without a CUDA device the page says so and the study
+refuses ("There is no CUDA device here…") unless **Device** is set to *Processor (slow)* (the setting `device: cpu`),
+which fits small scenes slowly: the fit stops at its time budget (120 s by default) with what it has fitted.
 
 ## B. A demonstration fit (no recording)
 
@@ -32,6 +34,8 @@ device here…") unless the device setting is `cpu`, which fits small scenes slo
 2. Simulate ▸ Splat views. Set **Fit from** to *MuJoCo render of the project (demonstration)*.
 3. Click **Run**. The study renders 48 views of the cell at 160 × 120 px from a sphere round the robot at 3 joint
    states (home and two drawn within ±0.4 rad), fits 1,500 steps (60.3 s) and scores the result: 65.0 s in all.
+   It runs in the background, its progress under the page; **Cancel** beside Run (or Ctrl+.) stops it, and nothing
+   half-fitted is kept.
 
 The headline reads **23.1 dB, "visible differences (synthetic capture)"**, with SSIM 0.936 and LPIPS 0.076 beside it:
 the rig's renders against the 6 views (every 8th) the fit did not use. The quality table adds the 6 held-out joint
@@ -61,8 +65,9 @@ however long it records.
 ## D. A proposed wrist camera pose
 
 Choose the wrist camera, enter **Move** −30 mm along x (back) and 20 mm along z, **Turn** 8° in pitch, and Run. The
-before/after row shows, at three frames of the episode, the recorded frame, the splat render through the current
-mount and the render through the proposed pose; both renders carry a *synthetic* badge.
+fit is not repeated: the rig fitted in C is reused from the cache (a proposed pose does not change the fit), so this
+Run took 1.3 s (timed on the page, offscreen, on the same machine). The before/after row shows, at three frames of the episode, the recorded frame, the splat render
+through the current mount and the render through the proposed pose; both renders carry a *synthetic* badge.
 
 Read the proposed image with its measured quality. Against MuJoCo's own renders through the moved camera (the
 episode's rig, at 4 of the episode's joint states, 160 px wide), the SO-100's wrist camera scores 26.2 dB where it is,
@@ -80,9 +85,17 @@ where it would go.
 
 ## E. Replay the episode through the proposed camera
 
-**Write replay…** (or `dexvantage --sample so100 --splat replay --splat-out out/ --dataset <episode>`) renders every
-state row of the episode at its logged q(t) through the proposed camera at the camera's stream size and writes
-`out/splat_replay_synthetic/`:
+**Write replay…** renders every state row of the episode at its logged q(t) through the proposed camera at the
+camera's stream size and writes `out/splat_replay_synthetic/` (in the background, with Cancel; the status bar shows
+it too). From the command line the proposed pose goes in `--splat-settings` (the camera moved is the first one on a
+link, the wrist camera here, unless `target_sensor` names another):
+
+    dexvantage --sample so100 --splat replay --splat-out out/ --dataset <episode> \
+        --splat-settings '{"target_offset_m": [-0.03, 0, 0.02], "target_rpy_deg": [0, 8, 0]}'
+
+A sample opens with new robot ids each time, so this command fits the rig again before it renders (54 s here, against
+the window's 7 s from its cached fit); a saved project keeps its ids, so a fit cached for it is found again while the
+project and its fit settings are unchanged. It writes:
 
 - `wrist-camera-sample-placement_replay_synthetic.mp4`: AV1 (or H.264), encoded as the LeRobot writer encodes and
   decoded again after writing (every frame must decode);
@@ -90,7 +103,11 @@ state row of the episode at its logged q(t) through the proposed camera at the c
 - `dexvantage_splat_manifest.json`: the camera's proposed pose, the source episode, the rig's quality, the SHA-256 of
   every file and the provenance block, `"synthetic": true`.
 
-The SO-100's 80 rows at 1280 × 720 took 5.7 s (17.1 frames a second with the PNGs).
+The video and every PNG also say so inside the file (the MP4's `comment`, the PNG's `Comment` text: "synthetic: a
+DexVantage splat render …"), so a frame copied elsewhere keeps its label.
+
+The SO-100's 80 rows at 1280 × 720 took 6.3 s (15.3 frames a second with the PNGs; `scripts/splat_quality.py
+--files`, the rig from the cache).
 
 ## F. Perturbed copies for training
 
@@ -98,8 +115,9 @@ The SO-100's 80 rows at 1280 × 720 took 5.7 s (17.1 frames a second with the PN
 `augment_n` copies of the episode (default 4), each with every recorded camera re-rendered through its mount
 perturbed by one draw of the mount tolerances (§8.5, the same draws `--export … --formats perturbations` writes for the
 same seed; here ±1 mm and ±0.5° per axis, uniform). Its `meta/info.json` carries `"dexvantage": {"synthetic": true, …}`
-and every video feature's info `"dexvantage.synthetic": true`; the manifest lists each episode's draw and every file's
-SHA-256. The 4 copies of the SO-100 episode (320 rows, two cameras) took 9.1 s.
+and every video feature's info `"dexvantage.synthetic": true`, every MP4 carries the same `comment` as the replay's,
+and the manifest lists each episode's draw and every file's SHA-256. The Splat views page reads the dataset back as
+synthetic (splat renders): a fit to it is labelled synthetic, never a recording. The 4 copies of the SO-100 episode (320 rows, two cameras) took 10.4 s.
 
 ## G. From Python
 

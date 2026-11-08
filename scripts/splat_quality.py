@@ -17,6 +17,12 @@ For each sample, with the study's default settings (labelled defaults, core/sim/
   joint states (its first, last and two between).
 - spread: the demo rig at 4 joint states drawn within ±0.2, ±0.4, ±0.8 and ±1.2 rad of home (the capture's is 0.4)
   from new sphere poses, against MuJoCo.
+- files: novel camera pose replay (every state row of the episode through the target camera at its stream size) and
+  perturbation augmentation (augment_n = 4 copies at the recorded size), the study's defaults, from the episode's
+  rig as cached by the parts above (so the fit is not timed): the seconds of each call, the replay's render rate, and
+  the synthetic marks read back from the files written (the manifest, the PNG tEXt Comment, the MP4 comment,
+  info.json and the reopened dataset). --files measures only this part (the rig is fitted first when it is not
+  in the cache).
 Every capture here is synthetic (MuJoCo renders); the document says so. A real recording is not measured: none is
 available offline in the repository (docs/models/splat.md).
 """
@@ -97,7 +103,60 @@ def measure(name: str, device: str, out_dir: str) -> dict:
     res['episode'] = {'seconds': round(time.perf_counter() - t0, 1), 'rig': d['rig'], 'quality': _q(d['quality']),
                       'capture': d['capture'], 'source': d['source']}
     print(name, 'episode', json.dumps(res['episode']['quality']), flush=True)
+    res['files'] = files(p, root, device, out_dir, name)
     return res
+
+
+def files(p, root: str, device: str, out_dir: str, name: str) -> dict:
+    """Replay and augment with the study's defaults from the cached episode rig (module docstring, files)."""
+    import shutil
+
+    import av
+    import numpy as np
+
+    from dexvantage.core.sim import splat_views as SV
+    st = {'source': 'episode', 'dataset': root, 'device': device}
+    SV.get_rig(p, SV.settings_of(p, st))                    # fitted here when it is not cached: not timed
+    out = {}
+    for kind, fn in (('replay', SV.replay), ('augment', SV.augment)):
+        dest = os.path.join(out_dir, f'{kind}_{name}')
+        shutil.rmtree(dest, ignore_errors=True)
+        t0 = time.perf_counter()
+        doc = fn(p, dest, st)
+        secs = round(time.perf_counter() - t0, 2)
+        root_k = doc['root']
+        vids = [os.path.join(d, f) for d, _, fs in os.walk(root_k) for f in fs if f.endswith('.mp4')]
+        comments = []
+        for v in vids:
+            with av.open(v) as c:
+                comments.append(c.metadata.get('comment', ''))
+        row = {'seconds': secs, 'synthetic_manifest': doc['synthetic'], 'files': len(doc['files']),
+               'mp4_comment_synthetic': bool(vids) and all(x.startswith('synthetic') for x in comments)}
+        if kind == 'replay':
+            pngs = sorted(os.listdir(os.path.join(root_k, 'frames')))
+            row.update(frames=doc['frames'], size=[doc['camera']['width'], doc['camera']['height']],
+                       render_seconds=doc['render_seconds'], frames_per_s=doc['frames_per_s'],
+                       codec=doc['video']['codec'],
+                       png_comment_synthetic=all(SV.png_text(os.path.join(root_k, 'frames', f)).get(
+                           'Comment', '').startswith('synthetic') for f in pngs))
+        else:
+            info = json.load(open(os.path.join(root_k, 'meta', 'info.json'), encoding='utf-8'))
+            E = SV._Episode(p, root_k, SV.settings_of(p, st))
+            try:
+                reopened = E.synthetic
+            finally:
+                E.close()
+            sizes = sorted({(f['shape'][1], f['shape'][0]) for f in info['features'].values()
+                            if f.get('dtype') == 'video'})
+            row.update(episodes=doc['episodes'], rows=doc['lerobot']['frames'], cameras=len(doc['cameras']),
+                       sizes=[list(x) for x in sizes], codec=doc['lerobot']['codec'],
+                       info_synthetic=bool(info['dexvantage']['synthetic']), reopened_synthetic=bool(reopened),
+                       tolerance_scale=float(np.round(doc['perturbations']['scale'], 3)),
+                       tolerance_sources=doc['perturbations']['sources'],
+                       distribution=doc['perturbations']['distribution'])
+        out[kind] = row
+        print(name, kind, row, flush=True)
+    return out
 
 
 def _offsets(p, rig, st, dev, lp, qs=None) -> dict:
@@ -145,6 +204,7 @@ def main(argv=None) -> int:
     ap.add_argument('--out', required=True)
     ap.add_argument('--samples', nargs='+', default=['so100', 'ur5e'])
     ap.add_argument('--device', default='auto')
+    ap.add_argument('--files', action='store_true', help='measure only the replay and augmentation (module docstring)')
     a = ap.parse_args(argv)
     import torch
     out_dir = os.path.dirname(os.path.abspath(a.out))
@@ -153,7 +213,16 @@ def main(argv=None) -> int:
            'gpu': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
            'measured_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'samples': []}
     for name in a.samples:
-        doc['samples'].append(measure(name, a.device, out_dir))
+        if a.files:
+            from dexvantage.core.robot.samples import sample_project
+            from dexvantage.core.sim import episodes as EPS
+            p = sample_project(name)
+            root = os.path.join(out_dir, f'episodes_{name}')
+            if not os.path.isdir(root):
+                EPS.generate(p, root, {'episodes': 1, 'faults': [], 'max_width': 320, 'codec': 'h264'})
+            doc['samples'].append({'sample': name, 'files': files(p, root, a.device, out_dir, name)})
+        else:
+            doc['samples'].append(measure(name, a.device, out_dir))
         with open(a.out, 'w', encoding='utf-8') as fh:
             json.dump(doc, fh, indent=1, default=str)
     print('wrote', a.out)

@@ -75,7 +75,7 @@ cluster runs (`--jobs N`, and a complete `--gather` of an experiment or a Monte 
 
 **Adding a run.** The run's folder is written under a temporary name inside `runs/` (each file written to a
 temporary file, fsync'd and renamed) and renamed to `runs/<run_id>` in one step; then its index line is appended
-under an exclusive advisory lock (`fcntl.flock`; `msvcrt.locking` on Windows) as one `write()` followed by `fsync`.
+under an exclusive advisory lock (`fcntl.flock`) as one `write()` followed by `fsync`.
 POSIX `rename()` keeps the new name "visible … and refer[ring] either to the file referred to by new or old before the
 operation began": a reader sees a run folder whole or not at all. Updates (tags, note) rewrite `run.json` by
 write-then-rename and append their index line, both under the lock. Nothing is edited in place.

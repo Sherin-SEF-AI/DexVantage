@@ -76,7 +76,6 @@ def mlflow_name(key: str) -> str:
     """A name MLflow accepts for a metric, param or tag (letters, digits, _ - . space : only; no '/'), stable for a
     given key."""
     s = _BAD.sub('_', str(key).replace('/', '_')).strip() or '_'
-    s = s.replace(':', '_') if os.name == 'nt' else s
     s = re.sub(r'\.{2,}', '.', s).strip('.') or '_'      # normpath would fold '..', a leading or trailing '.'
     return s[:MAX_KEY]
 

@@ -483,6 +483,7 @@ class MainWindow(QMainWindow):
         an = self.ctx.analysis
         an.started.connect(lambda sid: self._update_state())
         an.finished.connect(lambda sid, doc: self._update_state())
+        an.failed.connect(lambda sid, m: self._update_state())     # a failed or cancelled run is not "analysing…"
         an.finished.connect(self._study_done)
         an.failed.connect(self._study_failed)
         an.stale_changed.connect(lambda _s: self._update_state())

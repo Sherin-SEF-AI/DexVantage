@@ -39,6 +39,28 @@ the first release candidate of 0.1.0).
 - `core/sim/splat_rig.py` scored a fitted rig with its colours and background clamped back into [0.01, 0.99], which
   turned a learnt black background into 0.01 grey and cost the reported held-out SSIM a third (0.812 against 0.937 on
   the SO-100 sample, same PSNR). The fit report now scores the rig as fitted.
+- Splat views: a dataset written by augmentation was read back as a recording (only DexVantage's ground-truth file
+  marked a dataset synthetic), so a fit to it was labelled a recorded episode; its `info.json` marks are now read
+  (`splat_views.splat_marked`). Every replay PNG now carries a `tEXt` Comment and every replay and augmentation MP4 a
+  container title and comment saying it is a synthetic splat render (packets copied unchanged, checked frame by
+  frame). Renders through a rig sensor use its imager at the sensor's chosen stream, as the capture's MuJoCo views do
+  (ALOHA's 848 × 480 streams were drawn with the 1280 × 720 lens scaled). A gsplat render with an image as the
+  background now goes through torch (gsplat took the image's first pixel). The replay and augmentation timings are
+  now measured by `scripts/splat_quality.py --files`, and `docs/models/splat.md` gives the measured run-to-run spread
+  of the CUDA fit (up to 1.6 dB on the UR5e episode).
+- Splat views page (a step-by-step run of the guide, the UI thread timed with a 10 ms heartbeat): the window froze
+  7 to 9 times for 220 to 317 ms while a fit set up its Gaussians, because `splat_reproject.voxel_centroids` sorted
+  rows with `np.unique(axis=0)`, which holds the GIL; it now sorts one packed integer key (same order, 7 to 10 times
+  faster). The page asks whether PyTorch sees a CUDA device in a child process (`python -m
+  dexvantage.core.cuda_probe`) instead of importing torch into the window (535 MB and 155 ms, measured). The fit,
+  replay, augmentation and LPIPS download run in the background with **Cancel** (Ctrl+.), one at a time; a cancelled
+  run keeps the result shown before and says so; a proposed pose is marked stale when the camera, move or turn
+  entered change; the window no longer shows "analysing…" after a failed or cancelled study (`ui/mainwindow.py`).
+- The second CI run (Linux only) failed three tests that assumed every optional package and a CUDA device are
+  present, or a GPU's rendering: `docs/validation.md` is now checked against every registered check
+  (`suite.registered()`, also used by `scripts/gen_validation_doc.py`) rather than those that can run on the machine;
+  the fresh-install test subtracts what the machine already leaves out; and the 'masks' relabelling bound of
+  `tests/test_splat_rig.py` is 3 % (measured 2.08 % on Mesa llvmpipe, 1.9 % on an RTX 5080, for the same capture).
 
 ## 0.1.0rc1 — unreleased
 
@@ -57,6 +79,11 @@ the maintainer's decision (`packaging/release.py --publish`).
   `core/library`: XDG folders only). `build.py` and the spec stop with a sentence on another system. README, the user
   guide (install and troubleshooting), `docs/packaging.md`, CONTRIBUTING, the website and pyproject (classifier
   `Operating System :: POSIX :: Linux`) say so; the Windows- and macOS-only tests went with them.
+- The last Windows and macOS code paths went too: `core/cluster/shards.py`'s Windows peak working set
+  (`K32GetProcessMemoryInfo`) and macOS `ru_maxrss` scale (the peak is VmHWM from `/proc`, else `ru_maxrss` in KiB),
+  `core/tracking/store.py`'s `msvcrt` lock (the run store locks with `fcntl.flock` only) and `core/tracking/mlruns.py`'s
+  Windows spelling of MLflow names. CI installs no PyTorch (the runners have no GPU); a test checks that every test
+  that runs on CUDA skips, with the reason, where CUDA is not available (`tests/test_ci_workflows.py`).
 
 ### Fixed (the first CI run on GitHub)
 - Python 3.10: `parse_utc` (`core/tracking/store.py`) returned nothing for a time stamp with a one-digit fraction of

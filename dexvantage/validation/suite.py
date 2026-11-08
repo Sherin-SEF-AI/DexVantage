@@ -396,6 +396,13 @@ def specs(settings: ValidationSettings | None = None) -> list:
     return [s for s in _selected(settings) if missing_need(s) is None]
 
 
+def registered(settings: ValidationSettings | None = None) -> list:
+    """Every registered check the settings select, in MODELS order, including those an optional package or a CUDA
+    device that is not here leaves out of a run (specs() is the part that can run here). docs/validation.md lists
+    these: it is made from a full run on a machine with every extra and a CUDA device."""
+    return _selected(settings)
+
+
 def _selected(settings: ValidationSettings | None = None) -> list:
     load_checks()
     st = settings or ValidationSettings()

@@ -156,12 +156,14 @@ def test_synthetic_capture_is_marked_and_posed(so100, capture):
 def test_init_labels_from_the_masks_are_recovered(so100, capture):
     """The starting labels come from MuJoCo's per-pixel owners (true by construction); flip 20 % of them and
     segmentation 'both' gives back at least 90 % of the flipped ones, 'masks' alone does not change the true ones
-    by more than 2 %."""
+    by more than 3 %. Measured (2026-11-08, four synthetic 32 × 24 captures, seeds 1 to 4): 1.3 to 2.0 % on an
+    RTX 5080 and 1.3 to 2.1 % on Mesa's llvmpipe (this capture: 10 of 524 and 11 of 529 Gaussians; CI's llvmpipe
+    11 of 529), the wrong ones at link silhouettes a pixel or two wide at this size; 3 % leaves about 5 of margin."""
     rig = SRG.init_rig(so100, capture, SRG.FitSettings(max_gaussians=600))
     truth = rig.frame.copy()
     assert (truth >= 0).any() and (truth < 0).any()
     lab, _ = SRG.segment_links(rig, so100, capture, 'masks')
-    assert SRG.mislabel_rate(lab, truth)['rate'] <= 0.02
+    assert SRG.mislabel_rate(lab, truth)['rate'] <= 0.03
     rng = np.random.default_rng(9)
     flip = rng.random(rig.n) < 0.2
     wrong = truth.copy()
@@ -261,3 +263,21 @@ def test_fit_on_cuda(so100, capture):
     rig, rep = SRG.fit_splat_rig(so100, capture, _fit_settings(device='cuda', dtype='float32', iterations=30))
     assert rep['device'].startswith('cuda') and not rep['deterministic']
     assert rep['held_out_after']['psnr_db'] > rep['held_out_before']['psnr_db']
+
+
+def test_sensor_renders_use_the_stream_the_scene_renders():
+    """A splat render through a rig sensor uses the imager at the sensor's chosen stream, the one core/sim/scene.py
+    renders the capture's MuJoCo views at (ALOHA's cameras stream 848 × 480, not their 1280 × 720 scaled)."""
+    from dexvantage.core import library as LB
+    from dexvantage.core.studies import coverage as CV
+    p = sample_project('aloha')
+    seen = 0
+    for s in p.variant.sensors:
+        if not s.enabled or s.kind not in ('camera', 'depth'):
+            continue
+        want = CV.pick_imager(s, LB.sensor_imagers(s, CV.sensor_mode(s, {})), {})[0].camera
+        got = SRG.stream_imager(s).camera
+        assert (got.width, got.height, got.fx, got.fy, got.cx, got.cy) == \
+            (want.width, want.height, want.fx, want.fy, want.cx, want.cy)
+        seen += (got.width, got.height) == (848, 480)
+    assert seen >= 1

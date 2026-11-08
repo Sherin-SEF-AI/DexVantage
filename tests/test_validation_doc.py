@@ -19,7 +19,7 @@ DOC = os.path.join(ROOT, 'docs', 'validation.md')
 
 def fake_report(drop=(), extra=(), fail=(), **settings):
     """A report of the shape dexvantage --validate writes, for every registered check (errors half the tolerance)."""
-    specs = [s for s in suite.specs() if s.id not in drop]
+    specs = [s for s in suite.registered() if s.id not in drop]
     models, used = [], []
     for mid, title, mods, anchor in suite.all_models():
         cs = [{'id': s.id, 'model': s.model, 'title': s.title, 'quantity': s.quantity, 'reference': s.reference,
@@ -54,7 +54,7 @@ def test_the_page_lists_the_current_check_list():
     with open(DOC, encoding='utf-8') as fh:
         text = fh.read()
     assert 'Made by scripts/gen_validation_doc.py' in text
-    specs = suite.specs()
+    specs = suite.registered()                     # also the checks this machine leaves out (CI: no PyTorch, no CUDA)
     ids = doc_ids(text)
     assert len(ids) == len(set(ids))
     assert sorted(ids) == sorted(s.id for s in specs), (
@@ -81,7 +81,7 @@ def test_the_script_writes_every_check_with_its_reference(tmp_path):
     src.write_text(json.dumps(rep), encoding='utf-8')
     assert G.main([str(src), '--out', str(out)]) == 0
     text = out.read_text(encoding='utf-8')
-    assert sorted(doc_ids(text)) == sorted(s.id for s in suite.specs())
+    assert sorted(doc_ids(text)) == sorted(s.id for s in suite.registered())
     assert 'agreement 92.75 %, IoU 0.88; by case: home 98 % of 512 points' in text.replace('98.00 %', '98 %')
     assert '| `groundtruth.ur5e_depth` |' in text and 'FAIL' in text and '**Failing checks:**' in text
     for k in rep['references']:
@@ -90,7 +90,7 @@ def test_the_script_writes_every_check_with_its_reference(tmp_path):
 
 @pytest.mark.parametrize('kind', ['missing', 'extra', 'quick', 'models', 'junk'])
 def test_the_script_refuses_a_report_that_is_not_a_full_run_of_the_current_checks(tmp_path, capsys, kind):
-    first = suite.specs()[0].id
+    first = suite.registered()[0].id
     rep = {'missing': lambda: fake_report(drop=(first,)), 'extra': lambda: fake_report(extra=('groundtruth.gone',)),
            'quick': lambda: fake_report(quick=True), 'models': lambda: fake_report(models=['frames']),
            'junk': lambda: {'hello': 1}}[kind]()

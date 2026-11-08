@@ -262,6 +262,36 @@ def test_shards_balance_the_measured_time():
         ci_shards.split(files, 0)
 
 
+def test_ci_installs_no_cuda_and_every_cuda_test_skips_with_a_reason():
+    """The runners have no GPU and CI installs no PyTorch (the extra "splat"), so a test that runs on CUDA must
+    skip, with a sentence, where CUDA is not available, and must never be a test that fails there."""
+    import ast
+    ci = _load('ci.yml')
+    assert 'splat' not in ci['env']['EXTRAS'].split(',')
+    with open(os.path.join(ROOT, '.github', 'ci-constraints.txt'), encoding='utf-8') as f:
+        names = {ln.split('==')[0].strip().lower() for ln in f if '==' in ln.split('#')[0]}
+    assert not names & {'torch', 'torchvision', 'lpips', 'gsplat'}
+    probes = ('cuda.is_available()', 'gsplat_ok()', 'cuda_ok()')
+    found = 0
+    for path in sorted(glob.glob(os.path.join(ROOT, 'tests', 'test_*.py'))):
+        with open(path, encoding='utf-8') as f:
+            text = f.read()
+        if 'cuda' not in text:
+            continue
+        for node in ast.walk(ast.parse(text)):
+            if not (isinstance(node, ast.FunctionDef) and node.name.startswith('test_')):
+                continue
+            src = ast.get_source_segment(text, node)
+            if not re.search(r"""device\(\s*['"]cuda|device=['"]cuda""", src):
+                continue
+            found += 1
+            where = f'{os.path.basename(path)}::{node.name}'
+            assert 'pytest.skip(' in src and any(p in src for p in probes), f'{where} runs on CUDA without a skip'
+            skips = [c for c in ast.walk(node) if isinstance(c, ast.Call) and ast.unparse(c.func) == 'pytest.skip']
+            assert all(c.args for c in skips), f'{where} skips without saying why'
+    assert found >= 3                                       # the rasteriser's, gsplat's and the fit's CUDA tests
+
+
 def test_shard_cli(capsys):
     assert ci_shards.main(['--shards', '6', '--index', '0']) == 0
     assert capsys.readouterr().out.split() == [os.path.join('tests', 'test_validation.py')]

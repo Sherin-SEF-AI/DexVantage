@@ -198,6 +198,14 @@ recordings (`core/sim/episodes.py`: one episode, no faults, its default 1 DN pix
 | SO-100, episode | 29.4 s, 12,328 | 32.4 dB, 0.975, 0.022 (25.6 dB), 6 | 33.3 dB, 0.977, 0.015, 12 |
 | UR5e, episode | 20.8 s, 12,521 | 31.7 dB, 0.969, 0.028 (31.4 dB), 6 | 30.2 dB, 0.960, 0.022, 12 |
 
+**Run to run.** A CUDA fit does not repeat bit for bit, so these figures move between runs of the same settings and
+seed. Measured (2026-11-08, the review of this page; `scripts/splat_quality.py` again, then three more fresh fits of
+each episode): the SO-100 episode's held-out views read 32.4 to 32.8 dB, SSIM 0.975 to 0.976, LPIPS 0.018 to 0.022
+over 5 fits; the UR5e episode's 31.7 to 33.3 dB, SSIM 0.969 to 0.975, LPIPS 0.020 to 0.028 over 5 fits (the table
+gives the first). The SO-100 demonstration read 23.1 dB again; the proposed-pose and spread tables below moved by at
+most 0.8 dB, 0.016 SSIM and 0.034 LPIPS. Fit times depend on what else uses the GPU: the second run's UR5e
+demonstration, on a GPU another program kept busy, reached its 120 s budget after 1,451 of the 1,500 steps (26.4 dB).
+
 The episode fits score higher than the demonstrations because their views are the rig's own two cameras at the
 poses they record from: the held-out frames are close to the training frames. The robot's pixels score lower than the
 whole image (the background is a flat colour that is easy to fit).
@@ -241,8 +249,14 @@ the proposed target camera at `replay_scale` of its stream size. It writes `<out
 H.264), the same encoder options and the one-thread re-encode of an AV1 file that does not decode; then decoded again
 and refused unless every frame decodes), `frames/frame_NNNNNN_synthetic.png` and `dexvantage_splat_manifest.json`
 (schema `dexvantage.splat_replay/1`: `"synthetic": true`, the camera's proposed pose and its first optical frame,
-the source episode, the rig's quality, every file's SHA-256 and the provenance block). Measured on the SO-100
-episode (80 rows at 1280 × 720, the wrist camera): 5.7 s, 17.1 frames a second including the PNGs.
+the source episode, the rig's quality, every file's SHA-256 and the provenance block). The files say it themselves
+too, so one copied out of the folder still does: each PNG carries a `tEXt` `Comment` and the MP4 a container
+`title` and `comment` ("synthetic: a DexVantage splat render …"; the video's packets are copied unchanged into the
+marked file, which is kept only when every frame's time and decode are the same). Measured by
+`scripts/splat_quality.py --files` (2026-11-08, RTX 5080 shared with other work, the rig loaded from the cache, AV1):
+the SO-100 episode's 80 rows at 1280 × 720 through the wrist camera took 6.3 s, rendering 15.3 frames a second
+including the PNGs; the UR5e's 136 rows 11.6 s, 14.2 frames a second. (A first, hand-timed run on the SO-100 read
+5.7 s and 17.1 frames a second.) Every PNG's `Comment` and the MP4's `comment` were read back as synthetic.
 
 **Perturbation augmentation** (`augment`): `augment_n` copies (default 4, at most 100) of the episode; in copy i every
 recorded camera is re-rendered at its own timestamps through its mount perturbed by draw i of
@@ -252,9 +266,16 @@ task are the episode's. It writes a LeRobot dataset (`write_lerobot`, v3.0 by de
 `<out>/splat_augment_synthetic/`, then marks it: `meta/info.json` gains `"dexvantage": {"synthetic": true, "kind":
 "splat render …", "source_dataset", "source_episode", "capture_synthetic", "manifest"}` and every video feature's info
 `"dexvantage.synthetic": true` (LeRobot's DatasetInfo warns about keys it does not know and leaves them out of its
-object; the file keeps them); `dexvantage_splat_manifest.json` (schema `dexvantage.splat_augment/1`) lists each
-copy's draw per camera, the tolerance sources, the rig's quality, every file's SHA-256 and the provenance. Measured on
-the SO-100 episode (4 copies, 320 rows, two cameras at 320 × 180, ±1 mm and ±0.5° per axis, uniform): 9.1 s.
+object; the file keeps them); every MP4 of the dataset carries the same container `title` and `comment` as the
+replay's; `dexvantage_splat_manifest.json` (schema `dexvantage.splat_augment/1`) lists each copy's draw per camera,
+the tolerance sources, the rig's quality, every file's SHA-256 and the provenance. Opened again in DexVantage (a
+splat fit to it, say), the dataset is synthetic ("splat renders: synthetic, not a recording"): `splat_marked` reads
+those marks. Each camera is rendered through its imager at the sensor's chosen stream, the mode the capture's MuJoCo
+views use (`splat_rig.stream_imager`). Measured by
+`scripts/splat_quality.py --files` (as for the replay): the SO-100 episode's 4 copies (320 rows, two cameras at
+320 × 180, the samples' mount tolerances ±1 mm and ±0.5° per axis, uniform) took 10.4 s, the UR5e's (544 rows)
+20.5 s (a first, hand-timed SO-100 run: 9.1 s); `info.json`, every MP4 and the dataset opened again all read as
+synthetic.
 
 **Validation** (`validation/checks_splat.py`, model `splat`, 7 checks; full run 2026-11-08):
 
@@ -332,12 +353,13 @@ Fit time, render rate and GPU memory on this machine: [performance.md](../perfor
 - A joint state far from every captured one shows surfaces no view saw.
 - Objects the robot moves are world Gaussians, so they stay where they were captured.
 - The masks' quality bounds the segmentation; a calibration error shifts the masks.
-- Every reconstruction figure above is synthetic.
 - The torch rasteriser composites per tile in Python-level blocks, not in one fused CUDA kernel as gsplat does: a
   640 × 480 render is about 17 to 26 times slower than gsplat's (Environment). The fit still uses it, because its
   footprint and order rules are the ones the numpy reference checks.
-- Every quality figure on this page is from synthetic captures (MuJoCo renders); no real recording has been
-  measured (see Splat views, below).
+- Every quality figure on this page is from synthetic captures (MuJoCo renders, of the model whose depth and masks
+  the fit also uses); no real recording has been measured (see Splat views, above). None of them says how a real
+  cell would score.
+- A CUDA fit does not repeat bit for bit, and the figures move with it (Reconstruction quality, above).
 - Quality falls for a camera a few centimetres from every captured view and for joint states far from the capture
-  (measured below), on specular and transparent surfaces (MuJoCo's samples have none, so this is not measured here)
+  (measured above), on specular and transparent surfaces (MuJoCo's samples have none, so this is not measured here)
   and in regions no view saw.

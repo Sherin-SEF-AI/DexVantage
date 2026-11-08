@@ -208,6 +208,9 @@ def test_episode_fit_replay_and_augment(so100, dataset, tmp_path):
     import av
     with av.open(os.path.join(root, r['video']['file'])) as c:
         assert sum(1 for _ in c.decode(video=0)) == 12
+    with av.open(os.path.join(root, r['video']['file'])) as c:            # the file itself says what it is
+        assert c.metadata['comment'] == SV.RENDER_NOTE and 'synthetic' in c.metadata['title']
+    assert all(SV.png_text(os.path.join(root, 'frames', n)).get('Comment') == SV.RENDER_NOTE for n in pngs)
     man = json.load(open(os.path.join(root, SV.MANIFEST), encoding='utf-8'))
     assert man['synthetic'] and 'provenance' in man and len(man['files']) == 13
     for f in man['files']:
@@ -233,6 +236,18 @@ def test_episode_fit_replay_and_augment(so100, dataset, tmp_path):
     assert info['dexvantage']['synthetic'] and info['dexvantage']['manifest'] == SV.MANIFEST
     vids = [f for f in info['features'].values() if f.get('dtype') == 'video']
     assert vids and all(f['info']['dexvantage.synthetic'] for f in vids)
+    mp4s = [os.path.join(d, f) for d, _, fs in os.walk(os.path.join(root, 'videos')) for f in fs]
+    assert mp4s and all(f.endswith('.mp4') for f in mp4s)
+    for f in mp4s:
+        with av.open(f) as c:
+            assert c.metadata['comment'] == SV.RENDER_NOTE
+    # opened again in DexVantage, the augmented dataset is synthetic (splat renders), not a recording
+    E = SV._Episode(so100, root, SV.settings_of(so100, st))
+    try:
+        assert E.synthetic and E.info['synthetic_kind'] == 'splat renders'
+    finally:
+        E.close()
+    assert SV.splat_marked(info) and not SV.splat_marked({'features': {}}) and not SV.splat_marked(None)
     man = json.load(open(os.path.join(root, SV.MANIFEST), encoding='utf-8'))
     draws = man['perturbations']['draws']
     assert len(draws) == 2 and draws[0][0]['d'] != draws[1][0]['d'] and 'provenance' in man
@@ -387,3 +402,39 @@ def test_the_fit_reports_held_out_scores_of_the_rig_as_fitted(so100):
         ss.append(s['ssim'])
     assert rep['held_out_after']['psnr_db'] == pytest.approx(np.mean(ps), abs=0.02)
     assert rep['held_out_after']['ssim'] == pytest.approx(np.mean(ss), abs=0.002)
+
+
+@pytest.mark.parametrize('codec', ['av1', 'h264'])
+def test_the_synthetic_mark_copies_a_video_unchanged(tmp_path, codec):
+    """_mark_video copies the packets into a file whose container comment says it is a splat render: the frames'
+    times and pixels are the same (AV1 too, whose decoder is libdav1d, not the encoder's name)."""
+    av = pytest.importorskip('av', reason='PyAV (the lerobot extra) is not installed')
+    from dexvantage.core.datasets import lerobot as L
+    from dexvantage.core.datasets.episode import DatasetError
+    try:
+        enc, _label = L.available_codec(codec)
+    except DatasetError as e:
+        pytest.skip(str(e))
+    path = str(tmp_path / 'v.mp4')
+    c = av.open(path, 'w')
+    s = c.add_stream(enc, rate=30)
+    s.width, s.height, s.pix_fmt = 64, 48, 'yuv420p'
+    for i in range(8):
+        f = av.VideoFrame.from_ndarray(np.full((48, 64, 3), 20 * i, np.uint8), format='rgb24')
+        f.pts = i
+        for p in s.encode(f):
+            c.mux(p)
+    for p in s.encode():
+        c.mux(p)
+    c.close()
+
+    def frames(p):
+        with av.open(p) as c:
+            return [f.to_ndarray(format='rgb24') for f in c.decode(video=0)]
+    before, pts = frames(path), L.video_pts(path)
+    SV._mark_video(path)
+    with av.open(path) as c:
+        assert c.metadata['comment'] == SV.RENDER_NOTE
+    after = frames(path)
+    assert len(after) == 8 and all(np.array_equal(a, b) for a, b in zip(before, after))
+    assert np.array_equal(L.video_pts(path)[0], pts[0]) and os.listdir(tmp_path) == ['v.mp4']

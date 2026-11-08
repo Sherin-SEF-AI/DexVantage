@@ -50,7 +50,9 @@ env:
   PYTHONUTF8: '1'
   QT_QPA_PLATFORM: offscreen
   # the extras the tests use ("site" added after the first CI run skipped two site tests without it); not "pin"
-  # (Pinocchio) or "bundle" (PyInstaller)
+  # (Pinocchio), "bundle" (PyInstaller) or "splat" (PyTorch's CUDA build, 4,689 MB installed, packaging/release.py
+  # extras; the runners have no GPU): the splat tests that need PyTorch or CUDA skip with the reason, and the
+  # validation checks that need them are left out, naming the extra
   EXTRAS: test,lerobot,bags,usd,assistant,rerun,step,research,tracking,dev,site
 
 jobs:

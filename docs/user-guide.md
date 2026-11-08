@@ -398,9 +398,10 @@ recorded episode (each frame posed at its camera's mount at the logged joint sta
 moves, such as a wrist camera) or, for demonstration, to MuJoCo renders of the project, with the robot's Gaussians
 attached to its links so the scene follows the joint state. The headline is its PSNR on frames the fit did not use,
 with SSIM and LPIPS beside it; the quality table adds held-out joint states. Choose a camera, enter a move and a turn in
-its own frame, and the before/after row shows what the proposed pose would see. **Write replay…** renders the episode
-through it to a video and per-frame images; **Write augmented…** writes perturbed copies of the episode (the mount
-tolerances) as a LeRobot dataset. Every splat image is a render, marked synthetic on the page and in every file.
+its own frame, and Run again: the before/after row shows what the proposed pose would see (the fitted rig is reused,
+so this takes seconds). The fit, replay and augmentation run in the background with **Cancel**. **Write replay…**
+renders the episode through it to a video and per-frame images; **Write augmented…** writes perturbed copies of the
+episode (the mount tolerances) as a LeRobot dataset. Every splat image is a render, marked synthetic on the page and in every file.
 
 **Worked example on the SO-100 (synthetic).** A demonstration fit (48 MuJoCo views, 1,500 steps, 65 s on an RTX 5080)
 reads "23.1 dB, visible differences (synthetic capture)", SSIM 0.936, LPIPS 0.076; a fit to a synthetic recorded

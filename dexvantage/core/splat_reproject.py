@@ -125,14 +125,15 @@ def render(gs: GaussianSet, cam, T_world_optical, backend: str = 'auto', device=
            want_index: bool = False, depth: bool = False, dtype: str = 'float32') -> dict:
     """World-frame Gaussians through cam (optics.CameraModel) at T_world_optical (4 × 4 or frames.Pose).
     Returns numpy {'rgb' (H, W, 3), 'alpha' (H, W), 'depth' (H, W) expected range along the ray in m where alpha >
-    0 (depth), 'index' (H, W) the dominant Gaussian, −1 none (want_index; torch and numpy back ends), 'backend'}.
-    bg: the background colour (3,) or an (H, W, 3) image."""
+    0 (depth; the range, not the optical z that a capture's depth and backproject use), 'index' (H, W) the dominant
+    Gaussian, −1 none (want_index; torch and numpy back ends), 'backend'}. bg: the background colour (3,) or an
+    (H, W, 3) image (an image, the index and the depth render through torch when gsplat was chosen)."""
     T = T_world_optical.matrix() if hasattr(T_world_optical, 'matrix') else np.asarray(T_world_optical, float)
     be = backend_for(backend, cam)
-    if be == 'gsplat' and (want_index or depth):
-        be = 'torch'
+    if be == 'gsplat' and (want_index or depth or np.size(bg) != 3):
+        be = 'torch'                                     # gsplat takes one background colour, not an image
     H, W = cam.height, cam.width
-    bgi = np.broadcast_to(np.asarray(bg, float), (H, W, 3)).reshape(H * W, 3)
+    bgi = np.array(np.broadcast_to(np.asarray(bg, float), (H, W, 3))).reshape(H * W, 3)
     if be == 'numpy':
         Pc, Rc = to_camera(gs.means.astype(float), gs.rotations(), T)
         cov = SR.covariance(Rc, gs.scales.astype(float))
@@ -227,15 +228,25 @@ def voxel_centroids(P, size, values=None):
     size = np.broadcast_to(np.asarray(size, float), (len(P),))
     key = np.floor(P / size[:, None]).astype(np.int64)
     key = np.concatenate([key, np.round(np.log2(size) * 4).astype(np.int64)[:, None]], 1)
-    _, inv, cnt = np.unique(key, axis=0, return_inverse=True, return_counts=True)
+    # the four key columns packed into one integer (mixed radix, the first column most significant: the same sorted
+    # order as np.unique over rows): a 1-D sort, 7-10× faster than np.unique(axis=0), whose row sort holds the GIL
+    # for a quarter of a second at 600 000 points and so stalled the UI thread while a splat fit initialised
+    key -= key.min(axis=0)
+    span = key.max(axis=0) + 1
+    if float(np.prod(span.astype(float))) < 2.0 ** 62:
+        flat = key[:, 0]
+        for c in range(1, key.shape[1]):
+            flat = flat * span[c] + key[:, c]
+        _, inv, cnt = np.unique(flat, return_inverse=True, return_counts=True)
+    else:
+        _, inv, cnt = np.unique(key, axis=0, return_inverse=True, return_counts=True)
     inv = inv.ravel()
-    out = np.zeros((len(cnt), 3))
-    np.add.at(out, inv, P)
+    M = len(cnt)
+    out = np.stack([np.bincount(inv, P[:, k], M) for k in range(3)], 1)
     mv = None
     if values is not None:
         V = np.asarray(values, float).reshape(len(P), -1)
-        mv = np.zeros((len(cnt), V.shape[1]))
-        np.add.at(mv, inv, V)
+        mv = np.stack([np.bincount(inv, V[:, k], M) for k in range(V.shape[1])], 1).reshape(M, V.shape[1])
         mv /= cnt[:, None]
     return out / cnt[:, None], cnt, mv, inv
 

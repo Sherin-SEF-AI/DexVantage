@@ -46,7 +46,7 @@ def test_without_the_splat_extra_the_page_says_so(app, win, monkeypatch):
     page.empty()
     assert page.head.status.text.text() == 'splat extra not installed'
     assert not page.b_run.isEnabled() and not page.b_replay.isEnabled() and not page.b_augment.isEnabled()
-    assert 'splat extra is not installed' in page.avail.text()
+    assert 'splat extra is not installed' in page.head.explain.text() and not page.avail.isVisibleTo(page)
     page.run()
     assert page.head.status.text.text() == 'splat extra not installed'
 

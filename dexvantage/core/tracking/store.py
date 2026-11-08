@@ -12,8 +12,8 @@
       .lock                    the lock file appends and updates take
 
 How a run is added: its folder is written under a temporary name inside runs/ and renamed to runs/<run_id> in one
-step (rename within a folder is atomic on POSIX and on NTFS), then its index line is appended under an exclusive lock
-(fcntl.flock on POSIX, msvcrt.locking on Windows) with a single write and an fsync. A writer that dies between the two
+step (rename within a folder is atomic on POSIX), then its index line is appended under an exclusive lock
+(fcntl.flock) with a single write and an fsync. A writer that dies between the two
 leaves a folder the index does not name: readers take such folders from their run.json ("recovered"), so no run is
 lost. A writer that dies inside its append leaves a line without its newline: the next writer starts on a new line
 and readers skip what does not parse ("damaged lines", counted). run.json is rewritten only by update() (tags and
@@ -39,14 +39,7 @@ import time
 
 from ..jobs import StudyError
 
-try:                                     # POSIX
-    import fcntl
-except ImportError:                      # pragma: no cover - Windows
-    fcntl = None
-try:                                     # Windows
-    import msvcrt
-except ImportError:
-    msvcrt = None
+import fcntl
 
 STORE_SCHEMA = 'dexvantage.runstore/1'
 INDEX = 'runs.jsonl'
@@ -109,8 +102,6 @@ def new_run_id() -> str:
 
 
 def _fsync_dir(path: str):
-    if os.name != 'posix':
-        return
     try:
         fd = os.open(path, os.O_RDONLY)
     except OSError:
@@ -146,37 +137,22 @@ def file_lock(path: str, timeout: float = LOCK_TIMEOUT_S):
     locked = False
     try:
         t0 = time.monotonic()
-        if fcntl is not None:
-            while True:
-                try:
-                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    locked = True
-                    break
-                except BlockingIOError:
-                    if time.monotonic() - t0 > timeout:
-                        raise StoreError(f'The run store is locked by another writer for over {timeout:.0f} s '
-                                         f'({os.path.basename(os.path.dirname(path))}): try again, or remove its '
-                                         '.lock file if no DexVantage process is using it.') from None
-                    time.sleep(0.002)
-        elif msvcrt is not None:         # pragma: no cover - Windows
-            while True:
-                try:
-                    msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-                    locked = True
-                    break
-                except OSError:
-                    if time.monotonic() - t0 > timeout:
-                        raise StoreError('The run store is locked by another writer: try again.') from None
-                    time.sleep(0.005)
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
+                break
+            except BlockingIOError:
+                if time.monotonic() - t0 > timeout:
+                    raise StoreError(f'The run store is locked by another writer for over {timeout:.0f} s '
+                                     f'({os.path.basename(os.path.dirname(path))}): try again, or remove its '
+                                     '.lock file if no DexVantage process is using it.') from None
+                time.sleep(0.002)
         yield
     finally:
         if locked:
             try:
-                if fcntl is not None:
-                    fcntl.flock(fd, fcntl.LOCK_UN)
-                elif msvcrt is not None:  # pragma: no cover - Windows
-                    os.lseek(fd, 0, os.SEEK_SET)
-                    msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                fcntl.flock(fd, fcntl.LOCK_UN)
             except OSError:
                 pass
         os.close(fd)

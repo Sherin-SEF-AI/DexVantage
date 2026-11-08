@@ -187,7 +187,7 @@ offered, by the metric's direction) and <code>optimise.options</code>;</li>
 </code></pre>
 <p><strong>Adding a run.</strong> The run's folder is written under a temporary name inside <code>runs/</code> (each file written to a
 temporary file, fsync'd and renamed) and renamed to <code>runs/&lt;run_id&gt;</code> in one step; then its index line is appended
-under an exclusive advisory lock (<code>fcntl.flock</code>; <code>msvcrt.locking</code> on Windows) as one <code>write()</code> followed by <code>fsync</code>.
+under an exclusive advisory lock (<code>fcntl.flock</code>) as one <code>write()</code> followed by <code>fsync</code>.
 POSIX <code>rename()</code> keeps the new name &quot;visible … and refer[ring] either to the file referred to by new or old before the
 operation began&quot;: a reader sees a run folder whole or not at all. Updates (tags, note) rewrite <code>run.json</code> by
 write-then-rename and append their index line, both under the lock. Nothing is edited in place.</p>

@@ -195,3 +195,46 @@ def test_backend_choice_and_refusals():
         RP.backend_for('vulkan', CAMS['kb'])
     if SR.torch_ok():
         assert RP.backend_for('auto', CAMS['kb']) == 'torch'      # gsplat is used for pinhole cameras only
+
+
+def test_the_projection_jacobian_is_the_closed_form_and_the_ewa_covariance_the_sampled_one():
+    """The footprint's Jacobian (central differences, step 10⁻³ of the range) against the pinhole's written out,
+    J = [[fx/z, 0, −fx x/z²], [0, fy/z, −fy y/z²]] (off the axis, where the closed-form footprint test cannot see
+    it), and the EWA covariance J Σ Jᵀ of a small rotated anisotropic Gaussian against the covariance of 200,000 of
+    its samples projected through the lens model itself (pinhole and an equidistant fisheye): an independent
+    Monte Carlo reference. Tolerances: 10⁻⁵ relative (the difference step's truncation, measured 2.9 × 10⁻⁶) and 2 %
+    (the sampling error of a covariance from 200,000 samples is about 0.3 %; the affine approximation's own error
+    for a Gaussian of a few millimetres at 1.2 m is far below that)."""
+    torch = _torch()
+    rng = np.random.default_rng(5)
+    cam = CameraModel(640, 480, 500, 480, 319.5, 239.5)
+    P = np.c_[rng.uniform(-0.5, 0.5, (100, 2)), rng.uniform(0.3, 3.0, 100)]
+    Pt = torch.tensor(P)
+    J = SR._jacobian(SR.TorchProjector(cam), Pt, torch.linalg.norm(Pt, dim=1)).numpy()
+    x, y, z = P.T
+    ref = np.zeros((100, 2, 3))
+    ref[:, 0, 0], ref[:, 0, 2] = 500 / z, -500 * x / z ** 2
+    ref[:, 1, 1], ref[:, 1, 2] = 480 / z, -480 * y / z ** 2
+    assert (np.abs(J - ref).max(axis=(1, 2)) / np.abs(ref).max(axis=(1, 2))).max() < 1e-5
+    for c in (cam, CameraModel(640, 480, 200, 200, 319.5, 239.5, 'equidistant')):
+        mu = np.array([0.3, -0.2, 1.2])
+        R = SR.quat_to_rot_np([0.3, -0.5, 0.2, 0.8])[0]
+        S = R @ np.diag(np.array([0.004, 0.002, 0.0008]) ** 2) @ R.T
+        uv, ok = c.project(rng.multivariate_normal(mu, S, 200000))
+        Jm = SR._jacobian(SR.TorchProjector(c), torch.tensor(mu[None]), torch.tensor([np.linalg.norm(mu)])).numpy()[0]
+        mc = np.cov(uv[ok].T)
+        assert np.abs(Jm @ S @ Jm.T - mc).max() / np.abs(mc).max() < 0.02, c.model
+
+
+def test_an_image_background_is_not_sent_to_gsplat(monkeypatch):
+    """gsplat takes one background colour: with an image as the background, 'auto' renders through torch (gsplat
+    would have used the image's first pixel everywhere)."""
+    _torch()
+    monkeypatch.setattr(SR, 'gsplat_ok', lambda: True)
+    cam = CAMS['pinhole']
+    assert RP.backend_for('auto', cam) == 'gsplat'
+    bg = np.zeros((cam.height, cam.width, 3))
+    bg[:, cam.width // 2:] = 1.0
+    gs = RP.GaussianSet(np.zeros((0, 3)), np.zeros((0, 3)), np.zeros((0, 4)), np.zeros(0), np.zeros((0, 3)))
+    out = RP.render(gs, cam, np.eye(4), backend='auto', bg=bg)
+    assert out['backend'] == 'torch' and np.allclose(out['rgb'], bg)

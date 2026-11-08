@@ -63,7 +63,10 @@ the first camera; target_offset_m and target_rpy_deg in the sensor body frame, a
 the recorded frame beside them when the episode records that camera.
 
 Every splat image is a render, never a photograph: the document, every file replay and augment write and every image
-the page shows are marked synthetic, and their paths carry 'synthetic'.
+the page shows are marked synthetic, and their paths carry 'synthetic'. Inside the files too: each PNG frame has a
+tEXt Comment and each MP4 (the replay's, and every video of the augmented dataset) a container title and comment
+saying so (RENDER_NOTE), so a file copied out of its folder still says what it is; and a dataset augment wrote is
+synthetic when DexVantage opens it again (splat_marked).
 
 References: qureshi2025_splatsim, lou2025_robogs, kerbl2023_3dgs, wang2004_ssim, zhang2018_lpips.
 
@@ -496,11 +499,14 @@ class _Episode:
             truth = self.ds.truth() if hasattr(self.ds, 'truth') else None
         except Exception:                                # noqa: BLE001 — no truth file: a recording
             truth = None
-        self.synthetic = bool(truth) or any((c.meta or {}).get('synthetic') for c in self.ep.cameras.values())
+        splat = splat_marked(getattr(self.ds, 'info', None))
+        self.synthetic = (bool(truth) or splat or
+                          any((c.meta or {}).get('synthetic') for c in self.ep.cameras.values()))
+        kind = 'splat renders' if splat else ('DexVantage synthetic dataset' if self.synthetic else None)
         self.info = {'name': os.path.basename(os.path.normpath(str(path))), 'format': self.ds.format,
                      'version': self.ds.version, 'episodes': len(refs), 'episode': int(idx),
                      'rows': int(len(self.ep.t)), 'duration_s': _num(self.ep.duration_s, 3),
-                     'synthetic': self.synthetic}
+                     'synthetic': self.synthetic, 'synthetic_kind': kind}
 
     def q_at(self, times) -> np.ndarray:
         from ..calib import render_calib as RC
@@ -575,8 +581,9 @@ def _episode_capture(project, E: _Episode, st: dict, R, progress, cancel):
                          'A static camera is one pose however long it records: a camera on the robot\'s wrist that '
                          'moves through the episode, or more cameras, give more views; or use the demonstration '
                          'source (a MuJoCo render of the project).')
+    kind = E.info.get('synthetic_kind')
     cap = SRG.Capture(views, list(R.build.owners), E.synthetic,
-                      {'kind': 'recorded episode' + (' (DexVantage synthetic dataset)' if E.synthetic else ''),
+                      {'kind': 'recorded episode' + (f' ({kind}, synthetic)' if kind else ''),
                        'dataset': E.info, 'cameras': per_cam, 'distinct_views': n_dist,
                        'label': f'episode {E.index} of {E.info["name"]}'})
     return cap, hold, notes + list(E.notes)
@@ -590,6 +597,12 @@ def _rig_key(project, st: dict, kind: str, path: str | None) -> str:
     keys = ('episode', 'cameras', 'views_per_camera', 'width', 'demo_views', 'demo_width', 'demo_height',
             'demo_q_states', 'demo_spread_rad', 'holdout_every', 'iterations', 'time_budget_s', 'max_gaussians',
             'segment', 'device', 'seed')
+    # the project without this study's own settings: those the fit reads are in keys (the dataset by its
+    # fingerprint), and the rest (the proposed pose, LPIPS, the thresholds, replay and augmentation) do not change
+    # the fit, so a new proposed pose, replay or augment reuses the rig instead of fitting it again
+    if (project.analysis.studies or {}).get(SID) is not None:
+        project = project.snapshot()
+        project.analysis.studies.pop(SID, None)
     d = {'schema': SRG.SCHEMA, 'project': PV.project_digest(project)['sha256'], 'kind': kind,
          'robots': [r.uid for r in project.robots],      # the rig is attached to these robots (their uids)
          'dataset': AU.fingerprint(path) if path else None, **{k: st[k] for k in keys}}
@@ -675,7 +688,7 @@ def get_rig(project, settings: dict | None = None, *, progress=None, cancel=None
 
 # =========================================================================== the target camera
 def target_sensor(project, st: dict):
-    from ..plucker import pick_imager
+    from .splat_rig import stream_imager
     cams = [s for s in project.variant.sensors if s.enabled and s.kind in ('camera', 'depth')]
     want = st.get('target_sensor')
     if want:
@@ -686,7 +699,7 @@ def target_sensor(project, st: dict):
         s = next((x for x in cams if x.mount.on_link), cams[0] if cams else None)
         if s is None:
             raise StudyError('The rig has no camera to move: add one first (Sensors).')
-    im = pick_imager(s)
+    im = stream_imager(s)
     if im is None:
         raise StudyError(f'{s.name} has no imager to render.')
     return s, im
@@ -878,7 +891,9 @@ def analyse(project, settings: dict | None = None, *, progress=None, cancel=None
                                 f'{(info.get("episode") or {}).get("name")}',
                      'rig': 'a saved splat rig'}[info['kind']], 'dataset': info.get('episode')}
     if info['kind'] == 'episode' and synth:
-        src['label'] += ' (a DexVantage synthetic dataset)'
+        kind = (info.get('episode') or {}).get('synthetic_kind')
+        src['label'] += (' (splat renders: synthetic, not a recording)' if kind == 'splat renders'
+                         else ' (a DexVantage synthetic dataset)')
     lp = hv.get('lpips')
     advice = ('Use Write replay… for a video of the episode through the proposed camera, and Write augmented… for '
               'perturbed copies of the episode (every render marked synthetic).')
@@ -896,7 +911,9 @@ def analyse(project, settings: dict | None = None, *, progress=None, cancel=None
             'held_out_q_psnr_db': (qual.get('held_out_q') or {}).get('psnr_db')}
     notes = list(info.get('notes') or [])
     if synth:
-        notes.append('The capture is synthetic (MuJoCo renders): a real recording adds pose, calibration and exposure '
+        made = ('splat renders of an earlier fit' if (info.get('episode') or {}).get('synthetic_kind') ==
+                'splat renders' else 'MuJoCo renders')
+        notes.append(f'The capture is synthetic ({made}): a real recording adds pose, calibration and exposure '
                      'errors and will score lower.')
     notes.append('Every splat image is a render, never a photograph: the replay and augmentation files are marked '
                  'synthetic.')
@@ -915,6 +932,96 @@ def analyse(project, settings: dict | None = None, *, progress=None, cancel=None
 
 
 # =========================================================================== files
+RENDER_NOTE = ('synthetic: a DexVantage splat render (robot-aligned 3D Gaussian Splatting of a fitted rig), never a '
+               'real image')
+
+
+def splat_marked(info) -> bool:
+    """True when a LeRobot info.json (a dataset's header) carries augment's marks: 'dexvantage': {'synthetic': true}
+    or a video feature's 'dexvantage.synthetic' (_mark_info). Reopened in DexVantage, such a dataset is synthetic."""
+    if not isinstance(info, dict):
+        return False
+    if isinstance(info.get('dexvantage'), dict) and info['dexvantage'].get('synthetic'):
+        return True
+    feats = info.get('features') if isinstance(info.get('features'), dict) else {}
+    return any(isinstance(f, dict) and isinstance(f.get('info'), dict) and f['info'].get('dexvantage.synthetic')
+               for f in feats.values())
+
+
+def _write_png(path: str, rgb) -> None:
+    """An RGB uint8 image as a PNG whose tEXt chunks say it is a splat render (Software, Comment: RENDER_NOTE),
+    so a frame copied out of its folder still says so (PNG 1.2: a tEXt chunk is keyword, NUL, Latin-1 text, CRC-32
+    over type and data)."""
+    import struct
+    import zlib
+
+    import cv2
+    ok, buf = cv2.imencode('.png', cv2.cvtColor(np.asarray(rgb, np.uint8), cv2.COLOR_RGB2BGR))
+    if not ok:
+        raise StudyError(f'The frame {os.path.basename(path)} could not be encoded as PNG.')
+    data = buf.tobytes()
+    end = 8 + 12 + struct.unpack('>I', data[8:12])[0]          # the signature, then the IHDR chunk
+    text = b''
+    for key, value in (('Software', 'DexVantage'), ('Comment', RENDER_NOTE)):
+        body = key.encode('latin-1') + b'\0' + value.encode('latin-1')
+        text += struct.pack('>I', len(body)) + b'tEXt' + body + struct.pack('>I', zlib.crc32(b'tEXt' + body))
+    with open(path, 'wb') as fh:
+        fh.write(data[:end] + text + data[end:])
+
+
+def png_text(path: str) -> dict:
+    """The tEXt chunks of a PNG file as {keyword: text} (what _write_png wrote)."""
+    import struct
+    out = {}
+    with open(path, 'rb') as fh:
+        data = fh.read()
+    i = 8
+    while i + 8 <= len(data):
+        n, kind = struct.unpack('>I', data[i:i + 4])[0], data[i + 4:i + 8]
+        if kind == b'tEXt':
+            key, _, val = data[i + 8:i + 8 + n].partition(b'\0')
+            out[key.decode('latin-1')] = val.decode('latin-1')
+        if kind == b'IEND':
+            break
+        i += 12 + n
+    return out
+
+
+def _mark_video(path: str) -> None:
+    """Copy an MP4's packets unchanged (no re-encoding) into a file whose container metadata says the video is a
+    splat render (title and comment: RENDER_NOTE), and keep it only when every frame's presentation time is the same
+    and every frame decodes."""
+    from ..datasets import lerobot as L
+    av = L._av()
+    tmp = path[:-4] + '.part.mp4'
+    try:
+        with av.open(path) as src, av.open(tmp, 'w', options={'movflags': 'faststart'}) as dst:
+            dst.metadata['title'] = 'DexVantage splat render (synthetic)'
+            dst.metadata['comment'] = RENDER_NOTE
+            si = src.streams.video[0]
+            so = dst.add_stream_from_template(si, opaque=True)   # no codec opened: AV1 decodes by libdav1d
+            for p in src.demux(si):
+                if p.dts is None:                         # the demuxer's flush packet
+                    continue
+                p.stream = so
+                dst.mux(p)
+        a, ta = L.video_pts(path)
+        b, tb = L.video_pts(tmp)
+        same = len(a) == len(b) and np.allclose(a * float(ta), b * float(tb), rtol=0, atol=1e-9)
+        if not same or not L._decodes(tmp, len(b)):
+            raise StudyError(f'The video {os.path.basename(path)} changed when its synthetic mark was added; '
+                             'nothing was kept.')
+        os.replace(tmp, path)
+    except StudyError:
+        raise
+    except Exception as e:                               # noqa: BLE001 — a muxer error: one sentence
+        raise StudyError(f'The synthetic mark could not be added to the video {os.path.basename(path)} '
+                         f'({type(e).__name__}: {e}).') from None
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
 def _sha256(path: str) -> str:
     h = hashlib.sha256()
     with open(path, 'rb') as fh:
@@ -985,6 +1092,7 @@ def _write_video(path: str, key: str, read_frame, ts, fps: float, codec: str) ->
     if not L._decodes(path, len(ts)):
         raise StudyError(f'The video {os.path.basename(path)} does not decode after writing; write it with the H.264 '
                          'codec instead.')
+    _mark_video(path)
     return {'codec': label, 'encoder': vcodec, 'frames': int(len(ts)), 'fps': fps, 'read_back': True,
             'regular': regular}
 
@@ -992,7 +1100,8 @@ def _write_video(path: str, key: str, read_frame, ts, fps: float, codec: str) ->
 def replay(project, out_dir: str, settings: dict | None = None, *, progress=None, cancel=None) -> dict:
     """Novel camera pose replay (module docstring): the recorded episode at its logged q(t) through the proposed
     target camera, written to out_dir/splat_replay_synthetic/: <camera>_replay_synthetic.mp4, frames/
-    frame_NNNNNN_synthetic.png and the manifest (SHA-256 of every file, provenance). Returns the manifest."""
+    frame_NNNNNN_synthetic.png (each file's own metadata says synthetic too) and the manifest (SHA-256 of every file,
+    provenance). Returns the manifest."""
     import cv2
 
     from .. import provenance as PV
@@ -1037,7 +1146,7 @@ def replay(project, out_dir: str, settings: dict | None = None, *, progress=None
             qq = {E.ruid: q}
             img = _u8(rig.render(project, cam, fn(qq), qq, backend='torch', device=dev)['rgb'])
             n = f'frame_{k:06d}_{SYNTHETIC_TAG}.png'
-            cv2.imwrite(os.path.join(fdir, n), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+            _write_png(os.path.join(fdir, n), img)
             names.append(n)
             if k % 5 == 0 or k == len(Q) - 1:
                 report(0.4 + 0.5 * (k + 1) / len(Q), f'Rendering frame {k + 1} of {len(Q)}')
@@ -1080,8 +1189,8 @@ def augment(project, out_dir: str, settings: dict | None = None, *, progress=Non
     """Perturbation augmentation (module docstring): augment_n copies of the episode, each camera the rig records
     re-rendered through its mount perturbed by one draw of §8.5's tolerances (core/tolerance.perturbed_extrinsics),
     written as a LeRobot dataset in out_dir/splat_augment_synthetic/ with every render marked synthetic: the info.json
-    'dexvantage' block and each video feature's info, the cameras' meta, and the manifest (draws, SHA-256 of every
-    file, provenance). Returns the manifest."""
+    'dexvantage' block and each video feature's info, each MP4's container title and comment, and the manifest (draws,
+    SHA-256 of every file, provenance). Returns the manifest."""
     from .. import provenance as PV
     from .. import tolerance as TL
     from ..datasets import lerobot as L
@@ -1111,8 +1220,8 @@ def augment(project, out_dir: str, settings: dict | None = None, *, progress=Non
         for s, cs in E.matched:
             if s.uid not in col:
                 continue
-            from ..plucker import pick_imager
-            im = pick_imager(s)
+            from .splat_rig import stream_imager
+            im = stream_imager(s)
             W0 = int(cs.width or im.camera.width)
             H0 = int(cs.height or im.camera.height)
             cam = im.camera.scaled(_even(W0 * st['augment_frame_scale']), _even(H0 * st['augment_frame_scale']))
@@ -1168,7 +1277,15 @@ def augment(project, out_dir: str, settings: dict | None = None, *, progress=Non
         dinfo = E.info
     finally:
         E.close()
-    _mark_info(root, info, dinfo)
+    try:
+        _mark_info(root, info, dinfo)
+        for d, _dirs, files in os.walk(os.path.join(root, 'videos')):
+            for f in sorted(files):
+                if f.endswith('.mp4'):
+                    _mark_video(os.path.join(d, f))
+    except BaseException:
+        shutil.rmtree(root, ignore_errors=True)
+        raise
     draws = [[{'sensor_uid': c[0].uid, 'sensor': c[0].name, 'camera': c[1].key,
                'd': [round(float(x), 9) for x in A['d'][i, col[c[0].uid]]]} for c in cams]
              for i in range(st['augment_n'])]

@@ -1,6 +1,7 @@
 # Builds the downloadable DexVantage bundles with PyInstaller (packaging/build.py): Linux x86_64 and Linux arm64
-# (tar.gz). DexVantage supports Linux only. Each bundle is smoke-tested on the machine that built it (build.py --smoke: --version, a batch run, the spawned process
-# pools and the bundle's own --self-test, where every line must pass), and kept as a workflow artefact.
+# (tar.gz). DexVantage supports Linux only. Each bundle is smoke-tested on the machine that built it (build.py
+# --smoke: --version, a batch run, the spawned process pools and the bundle's own --self-test, where every line must
+# pass), and kept as a workflow artefact.
 #
 # Runs on a version tag (git tag v0.1.0 && git push origin v0.1.0) and by hand (Actions > Bundles > Run workflow).
 # On a tag, once every bundle passed, the release job makes a DRAFT GitHub release with the bundles, SHA256SUMS.txt

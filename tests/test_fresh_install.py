@@ -24,16 +24,19 @@ def _hide(monkeypatch, *mods):
 
 def test_checks_that_need_an_extra_are_left_out_and_listed(monkeypatch):
     VS.load_checks()
+    # what this machine leaves out already (CI installs no PyTorch and has no CUDA device: the splat torch checks)
+    here = {d['id'] for d in VS.not_run_specs()}
+    assert not here & (LEROBOT_CHECKS | {'formats.schema'})
     _hide(monkeypatch, 'pyarrow')
-    nr = {d['id']: d for d in VS.not_run_specs()}
+    nr = {d['id']: d for d in VS.not_run_specs() if d['id'] not in here}
     assert set(nr) == LEROBOT_CHECKS
     assert {(d['module'], d['extra']) for d in nr.values()} == {('pyarrow', 'lerobot')}
     assert not LEROBOT_CHECKS & {s.id for s in VS.specs()}
     _hide(monkeypatch, 'av')                 # the other half of the extra: the same checks
-    assert {d['id'] for d in VS.not_run_specs()} == LEROBOT_CHECKS
+    assert {d['id'] for d in VS.not_run_specs()} - here == LEROBOT_CHECKS
     monkeypatch.undo()
     _hide(monkeypatch, 'jsonschema')
-    assert [(d['id'], d['extra']) for d in VS.not_run_specs()] == [('formats.schema', 'test')]
+    assert [(d['id'], d['extra']) for d in VS.not_run_specs() if d['id'] not in here] == [('formats.schema', 'test')]
     # the settings still select by model and cost
     assert VS.not_run_specs(VS.ValidationSettings(models=('stats',))) == []
     assert VS.not_run_specs(VS.ValidationSettings(cheap_only=True)) == [

@@ -351,12 +351,11 @@ class SplatRig:
         """The scene through a rig sensor's imager (its RGB imager when it has one) at q, its mount perturbed by
         extrinsic_delta (frames.Pose or 4 × 4 in the sensor body frame: a proposed pose change or a §8.5 knock), at
         scale of the stream. Adds 'T_world_optical' and 'camera' to the render."""
-        from ..plucker import pick_imager
         from ..scenegeom import sensor_world_pose
         s = project.variant.sensor(sensor_uid)
         if s is None:
             raise StudyError(f'There is no sensor {sensor_uid} in the active rig variant.')
-        im = pick_imager(s)
+        im = stream_imager(s)
         if im is None:
             raise StudyError(f'{s.name} has no imager to render.')
         Tb = sensor_world_pose(project, s, q).matrix()
@@ -430,6 +429,15 @@ class SplatRig:
             raise ValueError(f'{name}: the Gaussians\' frames do not match the sidecar\'s links.')
         return SplatRig(g, frame, links, meta.get('q_ref') or {}, bg, dict(meta.get('robots') or {}),
                         bool(meta.get('synthetic')), dict(meta.get('info') or {}))
+
+
+def stream_imager(sensor):
+    """The imager a sensor's renders go through: its RGB imager (plucker.pick_imager) at the stream chosen for the
+    sensor (Sensor.stream; its largest when none is chosen), the mode core/sim/scene.py renders the sensor at, so a
+    splat render and the capture's MuJoCo views share one lens model (a 848 × 480 stream is not the 1280 × 720
+    one scaled)."""
+    from ..plucker import pick_imager, sensor_stream
+    return pick_imager(sensor, sensor_stream(sensor))
 
 
 def _json_default(o):
