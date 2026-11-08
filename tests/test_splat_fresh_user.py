@@ -133,7 +133,9 @@ def test_a_running_fit_can_be_cancelled_from_the_page(app, win, monkeypatch):
     an.failed.emit('splat_views', 'StudyError: The splat fit was cancelled; nothing was kept.\nTraceback ...')
     pump(app, 0.02)
     assert page.head.status.text.text() == 'cancelled' and 'Run starts the fit again' in page.head.explain.text()
-    assert not page.b_cancel.isVisibleTo(page) and page.b_run.isEnabled()
+    # Run is enabled again unless the splat extra is missing here (CI installs no PyTorch: Run then stays off and
+    # the headline says why)
+    assert not page.b_cancel.isVisibleTo(page) and page.b_run.isEnabled() == (page._avail() is None)
     assert 'Running' not in page.note.text()
 
 
