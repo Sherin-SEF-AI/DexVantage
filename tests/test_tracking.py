@@ -474,3 +474,18 @@ def test_assistant_get_runs_tool(tmp_path, saved):
     out = T.call(s, 'get_runs', {'study': 'rig', 'limit': 5})
     assert out['total'] == 1 and out['runs'][0]['figures']['rig.camera_count']['value'] == 0.0
     assert 'error' in T.call(s, 'get_runs', {'limit': 'x'})
+
+
+def test_time_stamps_with_any_number_of_fraction_digits():
+    """Python 3.10's fromisoformat reads a fraction of a second only as 3 or 6 digits; the first CI run's Python 3.10
+    job failed tracking.store_round_trip on '10:00:02.5Z'. parse_utc reads 1 to 9 digits on every supported Python."""
+    import datetime as dt
+    from dexvantage.core.tracking.store import parse_utc, utc_text
+    utc = dt.timezone.utc
+    assert parse_utc('2026-11-07T10:00:02.5Z') == dt.datetime(2026, 11, 7, 10, 0, 2, 500000, tzinfo=utc)
+    assert parse_utc('2026-11-07T10:00:02.125Z') == dt.datetime(2026, 11, 7, 10, 0, 2, 125000, tzinfo=utc)
+    assert parse_utc('2026-11-07T10:00:02.123456789+00:00') == dt.datetime(2026, 11, 7, 10, 0, 2, 123456, tzinfo=utc)
+    assert parse_utc('2026-11-07T10:00:02Z') == dt.datetime(2026, 11, 7, 10, 0, 2, tzinfo=utc)
+    assert parse_utc('2026-11-07') == dt.datetime(2026, 11, 7, tzinfo=utc)
+    assert parse_utc('not a time') is None
+    assert utc_text(parse_utc('2026-11-07T10:00:02.5Z')) == '2026-11-07T10:00:02.500Z'

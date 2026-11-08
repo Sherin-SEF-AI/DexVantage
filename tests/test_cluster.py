@@ -355,8 +355,6 @@ def _mock_sbatch(tmp_path):
     return env, log
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Slurm runs on Linux: the mock sbatch is a bash script, which Windows '
-                    'cannot find on the PATH without an extension, and the sbatch script is run by bash')
 def test_slurm_folder_and_submit_with_a_mock_sbatch(tmp_path):
     env, log = _mock_sbatch(tmp_path)
     design = tmp_path / 'design.json'
@@ -383,8 +381,6 @@ def test_slurm_folder_and_submit_with_a_mock_sbatch(tmp_path):
         SL.submit(job, sbatch='no-such-sbatch-here')
 
 
-@pytest.mark.skipif(os.name == 'nt', reason='Slurm runs on Linux: the mock sbatch is a bash script, which Windows '
-                    'cannot find on the PATH without an extension, and the sbatch script is run by bash')
 def test_optimiser_rounds_on_slurm_equal_the_serial_search(tmp_path):
     env, log = _mock_sbatch(tmp_path)
     p = _so100()

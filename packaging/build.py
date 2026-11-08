@@ -1,17 +1,12 @@
-"""Build the DexVantage bundle for this platform, smoke-test it and pack it for download.
+"""Build the DexVantage bundle for this Linux machine (x86_64 or arm64), smoke-test it and pack it for download.
 
     python packaging/build.py [--dist DIR] [--work DIR] [--smoke] [--full-smoke] [--no-archive] [--no-build]
 
 Needs PyInstaller and the bundle's requirements in the same Python (pip install -r packaging/requirements-bundle.txt,
 or in a development environment pip install -e ".[bundle,lerobot,bags,assistant]"). Writes into DIR (default
-out/dist, ignored by git; work files in out/build):
-    Linux    DexVantage/ and DexVantage-<version>-linux-<arch>.tar.gz (the folder plus install.sh, uninstall.sh, the
-             .desktop entry, the MIME type and the icon)
-    Windows  DexVantage/, DexVantage-<version>-windows-x64.zip and, when Inno Setup's iscc is on PATH or in its default
-             folder, DexVantage-<version>-windows-x64-setup.exe (a per-user installer: no administrator rights)
-    macOS    DexVantage.app and DexVantage-<version>-macos-arm64.zip (unsigned; docs/packaging.md has the codesign and
-             notarisation steps)
-and prints each archive's size and SHA-256.
+out/dist, ignored by git; work files in out/build) DexVantage/ and DexVantage-<version>-linux-<arch>.tar.gz (the
+folder plus install.sh, uninstall.sh, the .desktop entry, the MIME type and the icon), and prints the archive's size
+and SHA-256. DexVantage supports Linux only: on another system this script stops with a sentence saying so.
 
 --smoke runs the bundled app (QT_QPA_PLATFORM=offscreen, throw-away XDG folders, so no window opens and nothing of
 the user's is read): --version; "-m dexvantage --version" (the worker launch path); the start-up time to the main
@@ -48,8 +43,6 @@ SMOKE_STUDIES = (('--coverage', 'coverage.json'), ('--depth-validity', 'depth.js
 
 def arch():
     m = platform.machine().lower()
-    if os.name == 'nt':
-        return {'amd64': 'x64', 'x86_64': 'x64', 'arm64': 'arm64'}.get(m, m)
     return {'amd64': 'x86_64', 'x64': 'x86_64', 'aarch64': 'arm64'}.get(m, m)
 
 
@@ -64,21 +57,15 @@ def build(dist, work):
 
 
 def bundle_dir(dist):
-    if sys.platform == 'darwin':
-        return os.path.join(dist, f'{NAME}.app')
     return os.path.join(dist, NAME)
 
 
 def cli_path(dist):
-    if sys.platform == 'darwin':
-        return os.path.join(dist, f'{NAME}.app', 'Contents', 'MacOS', 'dexvantage-cli')
-    return os.path.join(dist, NAME, 'dexvantage-cli' + ('.exe' if os.name == 'nt' else ''))
+    return os.path.join(dist, NAME, 'dexvantage-cli')
 
 
 def gui_path(dist):
-    if sys.platform == 'darwin':
-        return os.path.join(dist, f'{NAME}.app', 'Contents', 'MacOS', NAME)
-    return os.path.join(dist, NAME, NAME + ('.exe' if os.name == 'nt' else ''))
+    return os.path.join(dist, NAME, NAME)
 
 
 def folder_mb(path):
@@ -91,8 +78,8 @@ def folder_mb(path):
     return total / 1e6
 
 
-TEXT_SUFFIXES = ('.py', '.json', '.txt', '.cfg', '.toml', '.ini', '.xml', '.md', '.yaml', '.yml', '.desktop', '.plist',
-                 '.cff', 'METADATA', 'RECORD', 'INSTALLER', 'WHEEL')
+TEXT_SUFFIXES = ('.py', '.json', '.txt', '.cfg', '.toml', '.ini', '.xml', '.md', '.yaml', '.yml', '.desktop', '.cff',
+                 'METADATA', 'RECORD', 'INSTALLER', 'WHEEL')
 
 
 def personal_paths(folder, home=None) -> list[str]:
@@ -101,10 +88,7 @@ def personal_paths(folder, home=None) -> list[str]:
     home = os.path.abspath(home or os.path.expanduser('~'))
     if home in ('/', '') or not os.path.isdir(home):
         return []
-    base = home.rstrip('\\/')
-    # as written natively, and on Windows also with forward slashes and with JSON's doubled backslashes
-    needles = {(base + os.sep).encode(), (base.replace('\\', '/') + '/').encode(),
-               (base.replace('\\', '\\\\') + '\\\\').encode()}
+    needles = {(home.rstrip('/') + '/').encode()}
     hits = []
     for d, _, files in os.walk(folder):
         for f in files:
@@ -143,7 +127,7 @@ def self_test_problems(text: str) -> list[str]:
 
 def smoke_env(tmp):
     """The bundle's environment for the smoke test: offscreen Qt and throw-away settings, data and cache folders."""
-    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', TMPDIR=tmp, TMP=tmp, TEMP=tmp)   # TMP, TEMP: Windows
+    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', TMPDIR=tmp)
     for k, sub in (('XDG_CONFIG_HOME', 'config'), ('XDG_DATA_HOME', 'data'), ('XDG_CACHE_HOME', 'cache')):
         env[k] = os.path.join(tmp, sub)
         os.makedirs(env[k], exist_ok=True)
@@ -177,7 +161,7 @@ def startup_seconds(dist, env, runs=3):
                            capture_output=True, text=True, timeout=300)
         sec = time.perf_counter() - t0
         said = r.stdout
-        if os.path.exists(probe):            # the window launcher without a console (Windows) writes it here
+        if os.path.exists(probe):            # the launcher also writes it here (its stdout may be closed)
             with open(probe, encoding='utf-8') as fh:
                 said += fh.read()
         if r.returncode or 'startup-probe' not in said:
@@ -281,34 +265,15 @@ def archive(dist):
     tag = f'{NAME}-{VERSION}'
     if os.path.isdir(os.path.join(dist, NAME)):                 # DexVantage's own licence at the top of the folder
         shutil.copy2(os.path.join(ROOT, 'LICENSE'), os.path.join(dist, NAME, 'LICENSE.txt'))
-    if sys.platform.startswith('linux'):
-        folder = os.path.join(dist, NAME)
-        for f in LINUX_FILES:
-            shutil.copy2(os.path.join(HERE, 'linux', f), folder)
-        for f in ('install.sh', 'uninstall.sh'):
-            os.chmod(os.path.join(folder, f), 0o755)
-        out = os.path.join(dist, f'{tag}-linux-{arch()}.tar.gz')
-        with tarfile.open(out, 'w:gz') as tf:
-            tf.add(folder, arcname=f'{tag}-linux-{arch()}')
-        return [out]
-    if os.name == 'nt':
-        outs = [shutil.make_archive(os.path.join(dist, f'{tag}-windows-{arch()}'), 'zip', dist, NAME)]
-        iscc = shutil.which('iscc') or next((p for p in (r'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
-                                                          r'C:\Program Files\Inno Setup 6\ISCC.exe')
-                                             if os.path.exists(p)), None)
-        if iscc:
-            run([iscc, f'/DAppVersion={VERSION}', f'/DBundleDir={os.path.join(dist, NAME)}',
-                 f'/O{dist}', os.path.join(HERE, 'windows', 'dexvantage.iss')])
-            outs.append(os.path.join(dist, f'{tag}-windows-x64-setup.exe'))
-        else:
-            print('Inno Setup (iscc) not found: no installer, only the zip', flush=True)
-        return outs
-    if sys.platform == 'darwin':
-        out = os.path.join(dist, f'{tag}-macos-{arch()}.zip')
-        # ditto keeps the app's symlinks, permissions and code signature (zip -r does not)
-        run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', os.path.join(dist, f'{NAME}.app'), out])
-        return [out]
-    return []
+    folder = os.path.join(dist, NAME)
+    for f in LINUX_FILES:
+        shutil.copy2(os.path.join(HERE, 'linux', f), folder)
+    for f in ('install.sh', 'uninstall.sh'):
+        os.chmod(os.path.join(folder, f), 0o755)
+    out = os.path.join(dist, f'{tag}-linux-{arch()}.tar.gz')
+    with tarfile.open(out, 'w:gz') as tf:
+        tf.add(folder, arcname=f'{tag}-linux-{arch()}')
+    return [out]
 
 
 def main():
@@ -320,6 +285,8 @@ def main():
     ap.add_argument('--no-archive', action='store_true')
     ap.add_argument('--no-build', action='store_true', help='smoke-test and pack the bundle already in --dist')
     args = ap.parse_args()
+    if not sys.platform.startswith('linux'):
+        raise SystemExit('DexVantage supports Linux only, so its bundle is built on Linux (x86_64 or arm64).')
     dist, work = os.path.abspath(args.dist), os.path.abspath(args.work)
     os.makedirs(work, exist_ok=True)
     if not args.no_build:

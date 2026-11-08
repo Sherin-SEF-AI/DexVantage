@@ -1,18 +1,16 @@
 """Packaging (spec §15): the PyInstaller spec parses and collects what the app needs, the resource lists cover every
 resources/ subfolder, the launcher's freeze support and -m dispatch, the optional extras' bundling decision and the
-sentence the downloadable app adds, release.py (checksums, notes, the gh command only printed), the Linux installer,
-the Windows installer script, the macOS Info.plist and the icons. Ported from Vantage tests/test_packaging.py.
+sentence the downloadable app adds, release.py (checksums, notes, the gh command only printed), the Linux installer
+and the icon. DexVantage supports Linux only. Ported from Vantage tests/test_packaging.py.
 
 Building the bundle itself is not a test (minutes, gigabytes): packaging/build.py --smoke does it, and CI runs it on
-every platform (.github/workflows/bundles.yml)."""
+Linux x86_64 and arm64 (.github/workflows/bundles.yml)."""
 import ast
 import hashlib
 import importlib.util
 import os
-import plistlib
 import re
 import shutil
-import struct
 import subprocess
 import sys
 import tomllib
@@ -64,7 +62,7 @@ def test_spec_parses_and_names_what_a_frozen_app_needs():
     spec = _text('packaging', 'dexvantage.spec')
     tree = ast.parse(spec, 'dexvantage.spec')
     calls = {n.func.id for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
-    assert {'Analysis', 'PYZ', 'EXE', 'COLLECT', 'BUNDLE'} <= calls
+    assert {'Analysis', 'PYZ', 'EXE', 'COLLECT'} <= calls and 'BUNDLE' not in calls      # no macOS app
     # two launchers sharing one folder, both in Python's UTF-8 mode
     assert "name='DexVantage', console=False" in spec and "name='dexvantage-cli', console=True" in spec
     assert "('X utf8', None, 'OPTION')" in spec and spec.count('options, name=') == 2
@@ -77,18 +75,19 @@ def test_spec_parses_and_names_what_a_frozen_app_needs():
     assert "collect_data_files('scipy', includes=['**/*.npz']" in spec and 'copy_metadata(dist)' in spec
     assert "endswith('/direct_url.json')" in spec
     # MuJoCo: the plugin folder, the GL backends chosen by MUJOCO_GL, PyOpenGL's platforms, glfw's library
-    for need in ("'mujoco/plugin'", "'mujoco.egl'", "'mujoco.osmesa'", "'mujoco.glfw'", "'mujoco.cgl'",
-                 "'OpenGL.raw.EGL'", "'OpenGL.osmesa'", "collect_dynamic_libs('glfw')"):
+    for need in ("'mujoco/plugin'", "'mujoco.egl'", "'mujoco.osmesa'", "'mujoco.glfw'", "'OpenGL.raw.EGL'",
+                 "'OpenGL.osmesa'", "collect_dynamic_libs('glfw')"):
         assert need in spec, need
     # the extras left out by decision are excluded even when installed, and the spec checks it
     assert 'excludes += sorted({m for m, _ in left_out})' in spec and 'left out by decision were collected' in spec
-    for gone in ("'tkinter'", "'PyQt6.QtWebEngineCore'", "'PyQt5'", "'torch'", "'zstandard.backend_cffi'",
-                 "'mujoco.experimental'", "'pyarrow.flight'", "'PIL'"):
+    for gone in ("'tkinter'", "'PyQt6.QtWebEngineCore'", "'PyQt5'", "'torch'", "'gsplat'", "'skimage'",
+                 "'zstandard.backend_cffi'", "'mujoco.experimental'", "'pyarrow.flight'", "'PIL'"):
         assert gone in spec, gone
     assert "'PyQt6/Qt6/translations/'" in spec and 'release.license_files(_top' in spec
-    # macOS: the Info.plist file, its version set from the package
-    assert "os.path.join(HERE, 'macos', 'Info.plist')" in spec
-    assert 'CFBundleShortVersionString=VERSION' in spec
+    # Linux only: the spec refuses another system, and carries nothing of Windows or macOS
+    assert "if not sys.platform.startswith('linux'):" in spec and 'supports Linux only' in spec
+    for gone in ('darwin', 'win32', 'Info.plist', '.icns', '.ico', 'mujoco.cgl', 'OpenGL.raw.WGL'):
+        assert gone not in spec, gone
 
 
 def test_resource_lists_cover_every_resources_subfolder():
@@ -248,11 +247,11 @@ def test_missing_extra_messages_use_the_one_sentence():
 def _fake_artefacts(dist):
     dist.mkdir(parents=True)
     files = {'DexVantage-0.1.0.dev0-linux-x86_64.tar.gz': b'linux bundle',
-             'DexVantage-0.1.0.dev0-windows-x64-setup.exe': b'windows installer',
-             'DexVantage-0.1.0.dev0-macos-arm64.zip': b'mac app'}
+             'DexVantage-0.1.0.dev0-linux-arm64.tar.gz': b'linux arm64 bundle'}
     for n, data in files.items():
         (dist / n).write_bytes(data)
     (dist / 'smoke-report.json').write_text('{}')            # not a release file
+    (dist / 'stale-download.zip').write_bytes(b'not ours')   # nor is anything but a Linux .tar.gz
     return files
 
 
@@ -277,7 +276,8 @@ def test_release_dry_run_writes_checksums_and_notes(tmp_path):
         assert notes.endswith(unreleased) and notes.startswith('(Dry run: CHANGELOG.md has no entry for')
     assert 'Not published.' in r.stdout and 'gh release create v' in r.stdout and '--notes-file' in r.stdout
     assert ('--prerelease' in r.stdout) == release.is_prerelease(ver)        # a .dev or rc version
-    assert sorted(os.listdir(tmp_path / 'dist')) == sorted(list(files) + ['smoke-report.json'])   # untouched
+    left = sorted(list(files) + ['smoke-report.json', 'stale-download.zip'])
+    assert sorted(os.listdir(tmp_path / 'dist')) == left                     # untouched
 
 
 def test_release_never_runs_gh_without_publish(tmp_path, monkeypatch):
@@ -349,7 +349,7 @@ def test_self_test_problems():
         lines += [f'  {n:<15} {status.get(n, "ok"):<8} fine' for n in NAMES if n not in drop]
         return '\n'.join(lines + [end]) + '\n'
     assert build.self_test_problems(out()) == []
-    assert BUNDLE_MAY_WARN == ('opengl',)
+    assert BUNDLE_MAY_WARN == ('opengl', 'splat')
     assert build.self_test_problems(out({'opengl': 'warning'})) == []
     bad = build.self_test_problems(out({'mujoco': 'warning'}))
     assert len(bad) == 1 and bad[0].startswith('mujoco')
@@ -358,16 +358,32 @@ def test_self_test_problems():
     assert build.self_test_problems(out(end='self-test FAILED in 3 s')) == ['no "self-test passed" line']
 
 
-def test_archive_names_match_the_installers():
+def test_archive_names_and_linux_only():
     build = _packaging_module('build')
-    iss = _text('packaging', 'windows', 'dexvantage.iss')
-    assert 'OutputBaseFilename=DexVantage-{#AppVersion}-windows-x64-setup' in iss
-    assert "f'{tag}-windows-x64-setup.exe'" in _text('packaging', 'build.py')
     assert build.VERSION == _packaging_module('release').version()
-    assert build.arch() in ('x86_64', 'arm64', 'x64') or build.arch()
+    assert build.arch() in ('x86_64', 'arm64') or build.arch()
     for f in build.LINUX_FILES:
         assert os.path.isfile(os.path.join(PKG, 'linux', f)), f
-    assert build.cli_path('d').endswith(('dexvantage-cli', 'dexvantage-cli.exe'))
+    assert build.cli_path('d') == os.path.join('d', 'DexVantage', 'dexvantage-cli')
+    assert build.gui_path('d') == os.path.join('d', 'DexVantage', 'DexVantage')
+    assert build.bundle_dir('d') == os.path.join('d', 'DexVantage')
+    src = _text('packaging', 'build.py')
+    assert "f'{tag}-linux-{arch()}.tar.gz'" in src and 'supports Linux only' in src
+    for gone in ('darwin', "os.name == 'nt'", "'.exe'", 'iscc', 'ditto', 'make_archive'):
+        assert gone not in src, gone
+    # the Windows and macOS packaging is gone
+    for gone in ('windows', 'macos', 'icons', 'make_icon.py'):
+        assert not os.path.exists(os.path.join(PKG, gone)), gone
+    assert _packaging_module('release').ARTEFACT_SUFFIXES == ('.tar.gz',)
+
+
+def test_build_refuses_another_system(monkeypatch, capsys):
+    build = _packaging_module('build')
+    monkeypatch.setattr(build.sys, 'platform', 'darwin')
+    monkeypatch.setattr(build.sys, 'argv', ['build.py', '--no-build', '--no-archive'])
+    with pytest.raises(SystemExit) as e:
+        build.main()
+    assert 'supports Linux only' in str(e.value)
 
 
 def test_bundle_requirements():
@@ -415,55 +431,10 @@ def test_license_notice(tmp_path):
 
 
 # ------------------------------------------------------------------------------------------------ installers
-def test_inno_setup_script():
-    """Per-user install without administrator rights, the .dexv association, and a self-test shortcut whose command
-    line survives cmd.exe's quote stripping wherever the program is installed."""
-    iss = _text('packaging', 'windows', 'dexvantage.iss')
-    for line in ('PrivilegesRequired=lowest', 'DefaultDirName={autopf}\\DexVantage', 'ChangesAssociations=yes',
-                 'ArchitecturesInstallIn64BitMode=x64compatible', 'SetupIconFile=..\\icons\\dexvantage.ico',
-                 'VersionInfoVersion={#AppVersion}', 'LicenseFile=..\\..\\LICENSE'):
-        assert line in iss, line
-    assert 'Software\\Classes\\.dexv\\OpenWithProgids' in iss
-    assert 'ValueData: """{app}\\DexVantage.exe"" ""%1"""' in iss
-    assert 'Vantage.exe' not in iss.replace('DexVantage.exe', '')       # nothing of Vantage's left
-    shortcut = next(ln for ln in iss.splitlines() if ln.startswith('Name: "{group}\\DexVantage self-test"'))
-    quoted = shortcut.split('Parameters: "', 1)[1].rsplit('"; IconFilename', 1)[0]
-    params = quoted.replace('""', '"')
-    for app in (r'C:\Users\ana\AppData\Local\Programs\DexVantage', r'C:\Program Files\DexVantage',
-                r'C:\Users\Sam Lee (work)\AppData\Local\Programs\DexVantage'):
-        cmdline = params.replace('{app}', app)[3:]
-        assert cmdline.count('"') > 2
-        i, j = cmdline.index('"'), cmdline.rindex('"')
-        assert cmdline[:i] + cmdline[i + 1:j] + cmdline[j + 1:] == f'"{app}\\dexvantage-cli.exe" --self-test'
-
-
-def test_macos_info_plist():
-    with open(os.path.join(PKG, 'macos', 'Info.plist'), 'rb') as fh:
-        info = plistlib.load(fh)
-    assert info['CFBundleIdentifier'] == 'io.github.sherin-sef-ai.dexvantage'
-    assert info['LSMinimumSystemVersion'] == '14.0' and info['LSArchitecturePriority'] == ['arm64']
-    assert info['LSBackgroundOnly'] is False and info['NSHighResolutionCapable'] is True
-    uti = info['UTExportedTypeDeclarations'][0]
-    assert uti['UTTypeTagSpecification']['public.filename-extension'] == ['dexv']
-    assert info['CFBundleDocumentTypes'][0]['LSItemContentTypes'] == [uti['UTTypeIdentifier']]
-    with open(os.path.join(PKG, 'macos', 'entitlements.plist'), 'rb') as fh:
-        ent = plistlib.load(fh)
-    assert ent == {'com.apple.security.cs.allow-unsigned-executable-memory': True,
-                   'com.apple.security.cs.disable-library-validation': True}
-    sh = _text('packaging', 'macos', 'sign_and_notarise.sh')
-    assert '--options runtime' in sh and 'notarytool submit' in sh and 'stapler staple' in sh
-
-
 def test_icons_are_valid():
     from dexvantage.app import APP_ICON
     with open(APP_ICON, 'rb') as fh:
-        assert fh.read(8) == b'\x89PNG\r\n\x1a\n'
-    with open(os.path.join(PKG, 'icons', 'dexvantage.ico'), 'rb') as fh:
-        reserved, kind, count = struct.unpack('<HHH', fh.read(6))
-        assert (reserved, kind) == (0, 1) and count >= 4
-    with open(os.path.join(PKG, 'icons', 'dexvantage.icns'), 'rb') as fh:
-        head = fh.read(8)
-        assert head[:4] == b'icns' and struct.unpack('>I', head[4:])[0] == os.path.getsize(fh.name)
+        assert fh.read(8) == b'\x89PNG\r\n\x1a\n'                 # the window icon and the Linux menu entry's
 
 
 def _exec_argv(value):
@@ -504,8 +475,6 @@ def _exec_argv(value):
     return args
 
 
-@pytest.mark.skipif(os.name == 'nt', reason="the Linux installer's escaping: Windows hands the sh of Git or MSYS its "
-                    'arguments through its own command-line quoting, which is not what install.sh sees on Linux')
 @pytest.mark.skipif(not shutil.which('sh') or not shutil.which('sed'), reason='needs sh and sed')
 def test_exec_line_escaping():
     script = _text('packaging', 'linux', 'install.sh')

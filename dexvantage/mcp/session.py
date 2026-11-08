@@ -11,28 +11,19 @@ Without a window, the server works on a project file (assistant/session.FileSess
 
 Ported from Vantage mcp/session.py (windows(), LiveLink); the file session moved to assistant/session.py.
 
-Known limits: on Windows a window's liveness is told by its port answering (no signal 0); a window that crashed
-leaves its file until the next windows() call finds its process gone.
+Known limits: a window that crashed leaves its file until the next windows() call finds its process gone.
 """
 from __future__ import annotations
 
 import json
 import os
 import socket
-import sys
 
 
 def config_dir() -> str:
-    """DexVantage's configuration folder: $XDG_CONFIG_HOME/DexVantage (when set, on every platform), else
-    ~/.config, ~/Library/Application Support or %APPDATA%."""
-    root = os.environ.get('XDG_CONFIG_HOME')
-    if not root:
-        if sys.platform.startswith('win'):
-            root = os.environ.get('APPDATA') or os.path.expanduser('~')
-        elif sys.platform == 'darwin':
-            root = os.path.expanduser('~/Library/Application Support')
-        else:
-            root = os.path.join(os.path.expanduser('~'), '.config')
+    """DexVantage's configuration folder: $XDG_CONFIG_HOME/DexVantage, XDG_CONFIG_HOME defaulting to ~/.config (the
+    XDG Base Directory specification; DexVantage supports Linux only)."""
+    root = os.environ.get('XDG_CONFIG_HOME') or os.path.join(os.path.expanduser('~'), '.config')
     return os.path.join(root, 'DexVantage')
 
 
@@ -43,8 +34,6 @@ def bridge_dir() -> str:
 def _alive(pid: int) -> bool:
     if pid <= 0:
         return False
-    if sys.platform.startswith('win'):
-        return True
     try:
         os.kill(pid, 0)
     except ProcessLookupError:

@@ -86,7 +86,8 @@ def library_ids(project) -> list:
     return [i for i in ids if i]
 
 
-DATASET_STUDIES = ('audit', 'plan_vs_recording', 'silhouette_calib', 'sim2real')  # studies that read a recorded dataset
+DATASET_STUDIES = ('audit', 'plan_vs_recording', 'silhouette_calib', 'sim2real',
+                   'splat_views')         # studies that read a recorded dataset
 
 
 def dataset_fingerprint(sid: str, project) -> str:

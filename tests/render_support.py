@@ -5,12 +5,12 @@ DexVantage renders MuJoCo scenes in a worker process with MUJOCO_GL=egl (validat
 study, the synthetic episodes (core/sim/episodes.py, which the dataset tests generate their recordings with), the
 silhouette calibration, the sim-to-real gap and the rendered validation checks. EGL needs Linux with an OpenGL driver
 that offers it: a GPU driver, or Mesa (llvmpipe, software rendering) on a machine without a GPU, as on a CI runner.
-Windows and macOS have no EGL, so there these tests are skipped and say why.
+DexVantage supports Linux only; on another system these tests are skipped and say why.
 
 DEXVANTAGE_TEST_RENDER (environment) chooses what a marked test does:
     unset or 'auto'   probe once (a 4 × 4 render in the worker); skip with the probe's reason when it fails
-    'require'         probe; when it fails, the test fails with the reason (CI on Linux, where Mesa is installed, so
-                      the rendered tests can never be skipped there unnoticed)
+    'require'         probe; when it fails, the test fails with the reason (CI, where Mesa is installed, so the
+                      rendered tests can never be skipped there unnoticed)
     'skip'            skip without probing (emulates a machine with no offscreen renderer)
 """
 from __future__ import annotations

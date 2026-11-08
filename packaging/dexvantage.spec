@@ -1,8 +1,8 @@
-# PyInstaller spec for DexVantage: one folder with two launchers that share one copy of Python, Qt, NumPy, MuJoCo,
-# OpenCV, PyAV (FFmpeg) and pyarrow.
+# PyInstaller spec for DexVantage on Linux (x86_64 and arm64; DexVantage supports Linux only): one folder with two
+# launchers that share one copy of Python, Qt, NumPy, MuJoCo, OpenCV, PyAV (FFmpeg) and pyarrow.
 #
-#   DexVantage(.exe)        the window; built without a console, so double-clicking it on Windows opens no console
-#   dexvantage-cli(.exe)    the same program with a console: batch mode, --self-test, --version, error output
+#   DexVantage              the window (the .desktop entry starts it)
+#   dexvantage-cli          the same program for a terminal: batch mode, --self-test, --version, error output
 #
 #   pyinstaller packaging/dexvantage.spec        (or: python packaging/build.py)
 #
@@ -15,12 +15,11 @@
 #     schema, the project schema, the bundled robots and USD robots, JSON next to modules; LICENSE, CITATION.cff and
 #     THIRD_PARTY.md at the top;
 #   - MuJoCo: libmujoco and its extension modules (found by the analysis), its plugin libraries (mujoco/plugin, loaded
-#     by mujoco/__init__.py from that folder), its OpenGL backends mujoco.egl, mujoco.osmesa, mujoco.glfw and
-#     mujoco.cgl (chosen by MUJOCO_GL at run time) with the PyOpenGL platform modules they load by name, and the glfw
-#     package's own libglfw (`import mujoco` loads its GLFW backend on Windows, and on macOS when CGL fails; DexVantage
-#     itself renders MuJoCo only through EGL, on Linux). MuJoCo's wheel ships no EGL or OSMesa library: those are the
-#     system's (a GPU driver or Mesa), loaded by PyOpenGL with ctypes, and never bundled;
-#   - Qt: PyQt6's hook collects the platform plugins (xcb, wayland, offscreen, cocoa, windows), image formats,
+#     by mujoco/__init__.py from that folder), its OpenGL backends mujoco.egl, mujoco.osmesa and mujoco.glfw (chosen
+#     by MUJOCO_GL at run time) with the PyOpenGL platform modules they load by name, and the glfw package's own
+#     libglfw (DexVantage itself renders MuJoCo only through EGL). MuJoCo's wheel ships no EGL or OSMesa library:
+#     those are the system's (a GPU driver or Mesa), loaded by PyOpenGL with ctypes, and never bundled;
+#   - Qt: PyQt6's hook collects the platform plugins (xcb, wayland, offscreen), image formats,
 #     icon engines (SVG) and TLS backends; the Qt modules DexVantage does not use are left out;
 #   - PyAV with its FFmpeg libraries (av.libs) and pyarrow, through pyinstaller-hooks-contrib's hooks;
 #   - the optional extras dexvantage/extras.py marks bundled (lerobot, bags, assistant) when installed; the others
@@ -37,7 +36,8 @@ from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, co
 
 ROOT = os.path.dirname(SPECPATH)            # noqa: F821  (SPECPATH is set by PyInstaller)
 HERE = os.path.join(ROOT, 'packaging')
-ICONS = os.path.join(HERE, 'icons')
+if not sys.platform.startswith('linux'):
+    raise SystemExit('dexvantage.spec: DexVantage supports Linux only, so its bundle is built on Linux.')
 sys.path.insert(0, HERE)
 import release                              # noqa: E402  (packaging/release.py)
 
@@ -58,13 +58,11 @@ hiddenimports = collect_submodules('dexvantage')
 # MuJoCo picks its OpenGL backend by MUJOCO_GL when mujoco.rendering.classic.gl_context is first imported
 hiddenimports += ['mujoco.rendering.classic.gl_context', 'mujoco.rendering.classic.renderer', 'mujoco.egl',
                   'mujoco.egl.egl_ext', 'mujoco.osmesa', 'mujoco.glfw', 'glfw', 'glfw.library']
-if sys.platform == 'darwin':
-    hiddenimports += ['mujoco.cgl', 'mujoco.cgl.cgl']
-# PyOpenGL picks its platform module (EGL, GLX, OSMesa, WGL, CGL) and array handlers by name at run time
-for mod in ('OpenGL.platform', 'OpenGL.arrays', 'OpenGL.raw.EGL', 'OpenGL.raw.GLX', 'OpenGL.raw.WGL',
-            'OpenGL.raw.osmesa', 'OpenGL.EGL', 'OpenGL.osmesa'):
+# PyOpenGL picks its platform module (EGL, GLX, OSMesa) and array handlers by name at run time
+for mod in ('OpenGL.platform', 'OpenGL.arrays', 'OpenGL.raw.EGL', 'OpenGL.raw.GLX', 'OpenGL.raw.osmesa', 'OpenGL.EGL',
+            'OpenGL.osmesa'):
     hiddenimports += collect_submodules(mod, on_error='ignore')
-hiddenimports += ['OpenGL.EGL', 'OpenGL.GLX', 'OpenGL.WGL', 'OpenGL.osmesa']
+hiddenimports += ['OpenGL.EGL', 'OpenGL.GLX', 'OpenGL.osmesa']
 
 # the optional extras the bundle carries (when the build environment has them) and the small validation references
 REFERENCES = {'jsonschema': 'library entries checked against their JSON Schema; validation references',
@@ -98,6 +96,12 @@ excludes = ['tkinter', 'matplotlib', 'IPython', 'pytest', '_pytest', 'ruff', 'se
             'PyQt5', 'PySide2', 'PySide6', 'torch', 'tensorflow', 'jax', 'jaxlib', 'cupy', 'dask', 'sparse', 'numba',
             'llvmlite', 'sklearn', 'sympy', 'onnxruntime', 'gi', 'notebook', 'jupyter_client', 'lerobot', 'curobo',
             'fiftyone', 'fast_simplification',
+            # gsplat (the splat views' optional fast back end, scripts/build_gsplat.sh): its CUDA library links
+            # PyTorch's, and the splat extra (PyTorch) is left out of the bundle (dexvantage/extras.py)
+            'gsplat',
+            # scikit-image: only the SSIM reference check imports it (the test extra; requirements-bundle.txt does not
+            # install it), so a development environment would otherwise give the bundle a fragment of it
+            'skimage',
             # MuJoCo's parts DexVantage does not use: the interactive viewer, the experimental studio (41 MB), the
             # Filament renderer, system identification, MJX
             'mujoco.viewer', 'mujoco._simulate', 'mujoco.experimental', 'mujoco.rendering.filament', 'mujoco.mjrf',
@@ -246,9 +250,8 @@ def drop_unreached(binaries, folder):
     return [b for b in binaries if b[0] not in gone]
 
 
-if sys.platform.startswith('linux'):
-    a.binaries = drop_unused_libraries(a.binaries, ('platformthemes/libqgtk3.so', 'imageformats/libqpdf.so'))
-    a.binaries = drop_unreached(a.binaries, 'pyarrow/')      # measured on Linux; Windows and macOS keep them all
+a.binaries = drop_unused_libraries(a.binaries, ('platformthemes/libqgtk3.so', 'imageformats/libqpdf.so'))
+a.binaries = drop_unreached(a.binaries, 'pyarrow/')
 
 
 def drop_dangling_links(entries, others):
@@ -277,27 +280,10 @@ a.datas = drop_dangling_links(a.datas, a.binaries)
 pyz = PYZ(a.pure)                           # noqa: F821
 
 common = dict(exclude_binaries=True, debug=False, strip=False, upx=False, disable_windowed_traceback=False)
-if sys.platform == 'win32':
-    common['icon'] = os.path.join(ICONS, 'dexvantage.ico')
-elif sys.platform == 'darwin':
-    common['icon'] = os.path.join(ICONS, 'dexvantage.icns')
-# Python's UTF-8 mode: output to a pipe or a file (batch mode, the self-test on CI) is UTF-8 on every system, not
-# Windows' ANSI code page, which cannot encode the arrows and symbols the reports print
+# Python's UTF-8 mode: output to a pipe or a file (batch mode, the self-test on CI) is UTF-8 whatever the locale (a
+# C or POSIX locale would otherwise make it ASCII, which cannot encode the arrows and symbols the reports print)
 options = [('X utf8', None, 'OPTION')]
 gui = EXE(pyz, a.scripts, options, name='DexVantage', console=False, **common)          # noqa: F821
 cli = EXE(pyz, a.scripts, options, name='dexvantage-cli', console=True, **common)       # noqa: F821
 coll = COLLECT(gui, cli, a.binaries, a.datas, strip=False, upx=False, name='DexVantage')   # noqa: F821
 
-if sys.platform == 'darwin':
-    import plistlib                         # noqa: E402
-    with open(os.path.join(HERE, 'macos', 'Info.plist'), 'rb') as fh:
-        info = plistlib.load(fh)            # the app's document type, minimum macOS and flags (versions set here)
-    info.update(CFBundleShortVersionString=VERSION, CFBundleVersion=VERSION)
-    app = BUNDLE(                           # noqa: F821
-        coll,
-        name='DexVantage.app',
-        icon=os.path.join(ICONS, 'dexvantage.icns'),
-        bundle_identifier=info['CFBundleIdentifier'],
-        version=VERSION,
-        info_plist=info,
-    )

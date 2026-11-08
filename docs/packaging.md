@@ -1,11 +1,14 @@
 # Packaging: the downloadable app
 
-DexVantage ships as a PyInstaller bundle for each platform. The bundle is a folder with Python, Qt, NumPy, SciPy,
-MuJoCo, OpenCV, PyAV (FFmpeg) and pyarrow inside, plus two launchers:
+**DexVantage supports Linux only** (x86_64, and arm64 such as NVIDIA Jetson). Windows and macOS are not supported:
+there is no bundle, installer or CI job for them, and `packaging/build.py` and the spec stop with a sentence saying
+so on another system.
 
-- `DexVantage` (`DexVantage.exe`) opens the window. On Windows it has no console.
-- `dexvantage-cli` (`dexvantage-cli.exe`) runs batch mode, `--self-test`, `--version` and `--validate`, and shows
-  errors in the terminal.
+DexVantage ships as a PyInstaller bundle for Linux x86_64 and Linux arm64. The bundle is a folder with Python, Qt,
+NumPy, SciPy, MuJoCo, OpenCV, PyAV (FFmpeg) and pyarrow inside, plus two launchers:
+
+- `DexVantage` opens the window (the menu entry `install.sh` adds starts it).
+- `dexvantage-cli` runs batch mode, `--self-test`, `--version` and `--validate`, and shows errors in the terminal.
 
 The two launchers share one copy of everything else. Each launcher is 22.8 MB on Linux (`ls -l` of the 0.1.0rc1
 build), so the second one costs 22.8 MB; two bundles would cost the whole 849 MB
@@ -15,8 +18,6 @@ again.
 |---|---|---|---|
 | Linux x86_64 | `DexVantage-<version>-linux-x86_64.tar.gz` | `./install.sh` for your user only, no root | here; by CI (not run yet) |
 | Linux arm64 (Jetson) | `DexVantage-<version>-linux-arm64.tar.gz` | `./install.sh` | by CI only (not run yet) |
-| Windows x64 | `DexVantage-<version>-windows-x64-setup.exe` (and a `.zip`) | per-user installer, no administrator rights | by CI only (not run yet) |
-| macOS (Apple silicon) | `DexVantage-<version>-macos-arm64.zip` (`DexVantage.app`) | drag to Applications | by CI only (not run yet) |
 
 Everything here is ported from Vantage `packaging/`. The automotive parts are gone. The style of the spec, the build
 script, the installers and the release script is kept.
@@ -27,15 +28,12 @@ script, the installers and the release script is kept.
 |---|---|
 | `packaging/dexvantage.spec` | The PyInstaller spec: what goes in, what stays out, and the checks that stop a broken build. |
 | `packaging/run_dexvantage.py` | The entry script. It calls `multiprocessing.freeze_support()` first, runs `-m dexvantage.…` worker launches, then calls `dexvantage.app.main()`. |
-| `packaging/build.py` | Builds, smoke-tests (`--smoke`, `--full-smoke`) and packs the bundle for this platform. |
+| `packaging/build.py` | Builds, smoke-tests (`--smoke`, `--full-smoke`) and packs the bundle for this Linux machine (x86_64 or arm64). |
 | `packaging/release.py` | Reads the version, CHANGELOG notes, data files and licences. Makes the release: checksums and notes. It prints the `gh` command and runs it only with `--publish`. |
 | `packaging/requirements-bundle.txt` | The pinned versions CI builds the bundles from. |
-| `packaging/make_icon.py` | Writes `icons/dexvantage.ico` and `icons/dexvantage.icns` with the same drawing as `scripts/make_icon.py`. |
-| `packaging/linux/` | `install.sh`, `uninstall.sh`, the `.desktop` entry and the `.dexv` MIME type. |
-| `packaging/windows/dexvantage.iss` | The Inno Setup script for the per-user installer. |
-| `packaging/macos/` | `Info.plist` (the spec reads it), `entitlements.plist` and `sign_and_notarise.sh`. |
+| `packaging/linux/` | `install.sh`, `uninstall.sh`, the `.desktop` entry and the `.dexv` MIME type. The icon is the window's own, `dexvantage/resources/icons/dexvantage.png` (`scripts/make_icon.py`). |
 | `dexvantage/extras.py` | Which optional extras the bundle carries, and the sentence the app adds when one is missing. |
-| `.github/workflows/bundles.yml` | CI: builds and smoke-tests every platform. On a version tag it makes a draft release. |
+| `.github/workflows/bundles.yml` | CI: builds and smoke-tests the Linux x86_64 and arm64 bundles. On a version tag it makes a draft release. |
 
 ## Building on Linux x86_64
 
@@ -67,11 +65,10 @@ writes into `out/build` and `out/dist`.
   above the package. `tests/test_packaging.py` checks that every `resources/` subfolder is listed.
 - **MuJoCo.** The analysis finds `libmujoco` and its extension modules. The spec adds three things by hand:
   - the plugin libraries in `mujoco/plugin`, which `mujoco/__init__.py` loads from that folder;
-  - the OpenGL backends `mujoco.egl`, `mujoco.osmesa`, `mujoco.glfw` and `mujoco.cgl`, which MuJoCo picks by
-    `MUJOCO_GL` at run time, and the PyOpenGL platform modules they load by name (EGL, GLX, OSMesa, WGL);
-  - the `glfw` package's `libglfw`. `import mujoco` loads MuJoCo's GLFW backend on Windows (and on macOS when CGL
-    fails), so the bundle needs it even though DexVantage never renders through it: DexVantage renders MuJoCo scenes
-    only through EGL, in a worker process (`validation/mjrender.py`), and EGL is a Linux API. On Windows and macOS
+  - the OpenGL backends `mujoco.egl`, `mujoco.osmesa` and `mujoco.glfw`, which MuJoCo picks by `MUJOCO_GL` at run
+    time, and the PyOpenGL platform modules they load by name (EGL, GLX, OSMesa);
+  - the `glfw` package's `libglfw` (MuJoCo's dependency). DexVantage never renders through it: it renders MuJoCo
+    scenes only through EGL, in a worker process (`validation/mjrender.py`). On a Linux machine with no EGL driver
     the rendered features (ground truth, synthetic episodes, the silhouette calibration, the sim-to-real gap and the
     rendered validation checks) stop with the message "MuJoCo cannot render offscreen through EGL on this machine",
     and the tests that need a render skip with that reason (`tests/render_support.py`).
@@ -87,15 +84,15 @@ writes into `out/build` and `out/dist`.
   - the Filament renderer;
   - sysid and MJX.
 - **Qt.** PyQt6's own hook collects:
-  - the platform plugins: xcb, wayland, offscreen, cocoa and windows;
+  - the platform plugins: xcb, wayland and offscreen;
   - the image formats, the SVG icon engine and the TLS backends.
 
-  Qt modules DexVantage never imports are excluded, and so are Qt's translations. On Linux the spec also drops the
+  Qt modules DexVantage never imports are excluded, and so are Qt's translations. The spec also drops the
   GTK 3 platform theme and the 30 libraries only it loads, the same as Vantage. A bundled GTK loads the user's own GTK
   modules and themes.
 - **Video and Parquet.** hooks-contrib's hooks collect PyAV with its FFmpeg libraries (`av.libs`) and pyarrow. Some
   pyarrow parts are excluded: Flight, the S3, GCS, Azure and HDFS filesystems, ORC, Substrait, CUDA, and its C++
-  headers and Cython sources. On Linux the spec also drops the nine libraries that only those parts load. DexVantage
+  headers and Cython sources. The spec also drops the nine libraries that only those parts load. DexVantage
   reads and writes local Parquet only.
 - **Data and metadata.** SciPy's hook leaves out `scipy/stats/_sobol_direction_numbers.npz`, which the Sobol designs
   need, so the spec adds it. It also adds the `importlib.metadata` of mujoco, numpy, PyQt6 and PyQt6-Qt6, which the
@@ -134,11 +131,12 @@ Python 3.14). Each figure is the sum of each distribution's `RECORD` files.
 | `bags` (zstandard, lz4) | compressed ROS 2 bags | yes | 28.6 | small; a compressed bag cannot be read at all without it |
 | `assistant` (anthropic, keyring) | the Assistant dock | yes | 51.4 | small; the dock should work in the download (it still needs the user's key) |
 | `usd` (usd-core) | USD import, pxr-written Isaac prims | no | 217.6 | the Isaac exporter writes `cameras.usda` as text without it; import URDF or MJCF instead |
-| `rerun` (rerun-sdk) | the Rerun bridge | no | 554.4 | the largest; the Rerun viewer is a separate install anyway |
+| `rerun` (rerun-sdk) | the Rerun bridge | no | 554.4 | large; the Rerun viewer is a separate install anyway |
 | `step` (gmsh) | bracket STEP export | no | 109.4 | STL brackets work without it |
 | `research` (pandas) | `Result.to_frame()` in the Python API | no | 75.1 | the bundle has no Python prompt |
 | `tracking` (mlflow-skinny, wandb) | reading the tracker's exports back | no | 160.6 | the tracker writes the MLflow store and W&B script without them |
 | `pin` (pinocchio) | a second IK backend | no | — | not installed where measured |
+| `splat` (torch, torchvision, lpips; CUDA 13.0 build) | fitting robot-aligned 3D Gaussian Splatting rigs, LPIPS | no | 4689.2 | by far the largest; only the optional splat rig fits with it (docs/models/splat.md) |
 
 Small validation references also ship when they are installed: jsonschema, mcap and protobuf. With them,
 `--validate` runs the same checks in the bundle as from source.
@@ -151,7 +149,13 @@ pip installation the sentence is empty. The features that add it are:
 - the Rerun bridge;
 - the USD import, in the importer and the wizard;
 - the Isaac exporter's USD note;
-- the bracket STEP export.
+- the bracket STEP export;
+- splat views (the page, the study, batch mode, the Python API and the self-test's `splat` line). Here the whole
+  sentence is replaced (`extras.missing`), since a pip command cannot add PyTorch to the download: *This DexVantage
+  download leaves out PyTorch for fitting robot-aligned 3D Gaussian Splatting rigs and LPIPS (it would add about
+  4689 MB): install DexVantage from source with the splat extra (pip install -e ".[splat]" in its folder) to use it,
+  adding --extra-index-url https://download.pytorch.org/whl/cu130 for PyTorch's CUDA build.* The bundle's
+  `--self-test` may warn on that line (`selftest.BUNDLE_MAY_WARN`).
 
 ### Processes in a frozen app
 
@@ -161,7 +165,7 @@ DexVantage starts processes in two ways, and both work in the bundle.
    (`core/experiments.py`) use multiprocessing's spawn start method. In a bundle the child is the bundle's own
    executable, started with `--multiprocessing-fork`. Its resource tracker is started with `-c "from
    multiprocessing.resource_tracker import main…"`. PyInstaller's multiprocessing runtime hook makes
-   `freeze_support()` recognise both on every platform. `run_dexvantage.py` calls it first, before the argument parser
+   `freeze_support()` recognise both. `run_dexvantage.py` calls it first, before the argument parser
    sees those arguments.
 2. **Worker modules.** The MuJoCo render worker, the occlusion GPU worker, a cluster shard and the MCP batch runner
    are started as `[sys.executable, '-m', 'dexvantage.…']`. In a bundle `sys.executable` is the launcher, so
@@ -225,50 +229,27 @@ build.
 | `--self-test` | passed, 46 of 46 lines ok, 46.3 s | `build.py --smoke` |
 | The whole build and smoke test | 2 min 30 s, peak 3.59 GB | `/usr/bin/time -v`, memory-capped at 7 GB |
 
-## Windows (not built here)
+**The Phase 12 build (2026-11-08, Linux only, splat views).** Built again with `packaging/build.py --smoke` from the
+Phase 12 source, in the development environment, which now has the splat extra (PyTorch 2.14.1+cu130, torchvision,
+lpips), gsplat 1.5.3 and scikit-image. The spec leaves them out: the splat extra by `extras.py` (`bundled` False:
+it would add about 4,689 MB to an 851 MB folder, and a CUDA build of PyTorch is useless on most machines that run the
+download), gsplat because its CUDA library links PyTorch's, and scikit-image because only the SSIM reference check
+imports it (the first build of this source took a 1.0 MB fragment of it; `splat.ssim_vs_skimage` is now left out in
+the bundle, naming the test extra). No `torch`, `torchvision`, `lpips`, `gsplat`, `skimage`, NVIDIA or Triton folder
+is in `_internal`. The splat views say in one sentence how to get them (above), and the self-test's `splat` line is
+the one warning:
 
-`packaging/windows/dexvantage.iss` is an Inno Setup 6 script with `PrivilegesRequired=lowest`. It installs for the
-user into `%LOCALAPPDATA%\Programs\DexVantage`, with no administrator rights. It adds:
-- a Start menu entry;
-- a "DexVantage self-test" shortcut (`cmd /k` with quoting that survives a path with spaces);
-- an optional desktop icon;
-- the `.dexv` file type under `HKCU`.
-
-The setup also offers an all-users install, which then asks for administrator rights. An update replaces
-`{app}\_internal`.
-
-`build.py` runs `iscc` when Inno Setup is on `PATH` or in its default folder. It also writes a `.zip` of the folder.
-The installer is not signed. SmartScreen shows "Windows protected your PC"; choose **More info ▸ Run anyway**.
-
-## macOS, Apple silicon (not built or signed here)
-
-The spec's `BUNDLE` step makes `DexVantage.app` from `packaging/macos/Info.plist`. It adds the version, the icon and
-the executable.
-
-`LSMinimumSystemVersion` is 14.0, because the newest arm64 wheels the bundle is built from need macOS 14 (PyPI, read
-2026-11-08):
-- pyqt6 6.12.0 is `macosx_14_0_universal2`;
-- numpy 2.5.4 and scipy 1.18.1 ship `macosx_14_0_arm64` builds, which pip prefers on macOS 14 and later.
-
-`LSBackgroundOnly` is false. Without it, PyInstaller marks the app background-only, because COLLECT takes the console
-flag of the last launcher. The plist also declares the `.dexv` document type.
-
-Signing and notarisation are documented, not run. They need the maintainer's Developer ID certificate, and none is
-in this repository. `packaging/macos/sign_and_notarise.sh APP "Developer ID Application: NAME (TEAMID)" PROFILE`
-does it in three steps, as in Apple's "Notarizing macOS software before distribution":
-1. **Sign** every Mach-O file inside the app, deepest first, then the app itself. Each one gets the hardened runtime
-   (`--options runtime`), a secure timestamp and `packaging/macos/entitlements.plist`.
-2. **Notarise.** Zip the app with `ditto` and submit it with `xcrun notarytool submit … --wait`.
-3. **Staple.** Run `xcrun stapler staple`, check with `spctl --assess`, then zip again for the release.
-
-`PROFILE` is a keychain profile, made once with `xcrun notarytool store-credentials`.
-
-The entitlements turn off library validation and allow unsigned executable memory (ctypes callbacks). They have not
-been tried on a signed build yet. When the first signed build runs, try removing each one and keep only what the app
-needs.
-
-An unsigned app shows "cannot be opened because Apple cannot check it for malicious software". Open it anyway from
-**System Settings ▸ Privacy & Security ▸ Open Anyway**.
+| What | Measured | How |
+|---|---|---|
+| Bundle folder | 851.2 MB (851 209 699 bytes) | `du -sb out/dist/DexVantage` |
+| Download | `DexVantage-0.1.0rc1-linux-x86_64.tar.gz`, 316.9 MB (316 886 376 bytes), SHA-256 `6df12a98c5f23cde151c6e421f40eba4bd0561ef795023d577b8043ca7364b26` | the file `build.py` wrote |
+| Start-up to the main window | 1.70 s median of 3 (first 1.73 s) | `build.py --smoke` |
+| `dexvantage-cli --version` | 0.25 s | `build.py --smoke` |
+| Batch run of three studies on SO-100 | 0.8 s | `build.py --smoke` |
+| Cluster local pool, 2 workers | 14.5 s | `build.py --smoke` |
+| Experiments pool, 2 workers | 4.0 s | `build.py --smoke` |
+| `--self-test` | passed, 47 lines: 46 ok, `splat` warning (the extra is left out; `BUNDLE_MAY_WARN`), 47.8 s | `build.py --smoke` |
+| The whole build and smoke test | 2 min 32 s, peak 3.57 GB | `/usr/bin/time -v`, memory-capped at 7 GB |
 
 ## Linux arm64 (NVIDIA Jetson): what differs
 
@@ -308,8 +289,7 @@ Checked on PyPI on 2026-11-08 (`https://pypi.org/pypi/<name>/<version>/json`), a
     python packaging/release.py --publish ...      # the maintainer only: runs the printed gh release create
 
 `release.py` writes:
-- `SHA256SUMS.txt`, over every artefact in `--dist` (`.tar.gz`, `.zip`, `-setup.exe`, `.AppImage`, `.dmg`), in
-  `sha256sum`'s format;
+- `SHA256SUMS.txt`, over every Linux bundle (`.tar.gz`) in `--dist`, in `sha256sum`'s format;
 - `RELEASE_NOTES.md`, the CHANGELOG entry of the version.
 
 It then prints the `gh release create v<version> … --verify-tag --notes-file …` command, with `--prerelease` for a
@@ -322,63 +302,53 @@ version takes the `[Unreleased]` notes and says so in the first line.
 `python packaging/release.py notes --tag vX.Y.Z` prints the notes for CI and fails when the tag and the version
 disagree.
 
-CI's `bundles.yml` builds every platform on a version tag and makes a draft release. It never publishes.
+CI's `bundles.yml` builds the Linux x86_64 and arm64 bundles on a version tag and makes a draft release. It never
+publishes.
 
 ## Packaging and CI review (2026-11-08)
 
-A review of every workflow and packaging file, line by line, after the Phase 11 gate. What was checked, and how:
+A review of every workflow and packaging file, line by line, after the Phase 11 gate. It was made while Windows and
+macOS were still targets; what it checked and fixed for them went with those platforms when DexVantage became Linux
+only (CHANGELOG, 0.1.0rc1), and is left out here. What was checked, and how:
 
 | What | How | Result |
 |---|---|---|
 | Action pins | `git ls-remote` of each action's repository, 2026-11-08 | all seven SHAs are the commits their tags name, and each is the newest release |
-| actionlint download | its v1.7.12 `checksums.txt`, fetched again | all six pinned SHA-256 match |
-| Runner labels | the runner-images README, 2026-11-08 | all listed; `windows-latest` and `ubuntu-latest` replaced by `windows-2025` and `ubuntu-24.04` (a `-latest` label moves to a new image over one to two months) |
-| Bundle pins have wheels | PyPI JSON of each pin in `requirements-bundle.txt`, CPython 3.12 (what CI builds with) | all 24 have wheels for Linux x86_64 and arm64 (glibc 2.35 or older), Windows x64 and macOS arm64 |
-| macOS minimum | the newest macOS tag of the arm64 wheel pip picks on macOS 15, per pin | 14.0 (pyqt6, numpy, scipy, av), as `LSMinimumSystemVersion` says |
+| actionlint download | its v1.7.12 `checksums.txt`, fetched again | all six pinned SHA-256 matched; the two Linux ones are kept |
+| Runner labels | the runner-images README, 2026-11-08 | all listed; `ubuntu-latest` replaced by `ubuntu-24.04` (a `-latest` label moves to a new image over one to two months) |
+| Bundle pins have wheels | PyPI JSON of each pin in `requirements-bundle.txt`, CPython 3.12 (what CI builds with) | all 24 have wheels for Linux x86_64 and arm64 (glibc 2.35 or older) |
 | CI pins have wheels | the same for `.github/ci-constraints.txt`, CPython 3.12 and 3.14 | all have wheels on the test platforms; `usd-core` and `gmsh` have none for Linux arm64, where CI runs no tests |
 | Oldest Python | every source file compiled by CPython 3.10.20 and 3.12.13 | no syntax error |
 | Shards | `scripts/ci_shards.py --list` | every test file in exactly one shard (141 when checked, 144 at the end: other reviews added files). The duration table lacked 34 files, which counted as the median (about 5 s) although `test_guide_examples.py` takes 374 s; it is now taken from the review's full run (3 993 tests, 2 610 s), and the five shards beside `test_validation`'s are 468 s each on this machine |
 | CI's Linux renderer | the rendered tests (20 files, `DEXVANTAGE_TEST_RENDER=require`) and `--validate --quick` with Mesa alone (`__EGL_VENDOR_LIBRARY_FILENAMES` naming Mesa's vendor file, `LIBGL_ALWAYS_SOFTWARE=1`), `MUJOCO_GL` unset | the probe reports llvmpipe; 212 of 213 tests passed (the other failed on another agent's half-written file and passed alone), 20 min 48 s; validation 232 of 232, 10 min 34 s; the bundle's `--self-test` passed (OpenGL, occlusion and grasp on llvmpipe) |
-| No renderer (as on Windows and macOS) | 52 render-related test files with no EGL vendor (`__EGL_VENDOR_LIBRARY_FILENAMES` naming no file), `DEXVANTAGE_TEST_RENDER=auto` | 1 019 passed, 82 skipped, none failed (27 min 38 s): no test renders without the marker or a gated fixture. The skips say why: 74 "needs MuJoCo's offscreen renderer (EGL)" with the worker's reason, 6 "no OpenGL for the GPU backend here" (the occlusion GPU backend's own tests), 2 no LaTeX engine. Tests in the same files that do not render ran. (A first run stopped once with a Qt abort in a window fixture while an earlier test's statistics thread was still running; the rerun did not repeat it.) |
+| No renderer (a Linux machine with no EGL driver) | 52 render-related test files with no EGL vendor (`__EGL_VENDOR_LIBRARY_FILENAMES` naming no file), `DEXVANTAGE_TEST_RENDER=auto` | 1 019 passed, 82 skipped, none failed (27 min 38 s): no test renders without the marker or a gated fixture. The skips say why: 74 "needs MuJoCo's offscreen renderer (EGL)" with the worker's reason, 6 "no OpenGL for the GPU backend here" (the occlusion GPU backend's own tests), 2 no LaTeX engine. Tests in the same files that do not render ran. (A first run stopped once with a Qt abort in a window fixture while an earlier test's statistics thread was still running; the rerun did not repeat it.) |
 | The bundle, every page | the rebuilt bundle (below) running a walk script through its own `-m` dispatch: the 35 pages opened on all six samples offscreen, each page's study run on the UR5e sample and its result exported | 29 studies ran, 24 with a result; the other 5 refused in a plain sentence for want of input (a capture session, a dataset, a factor, two conditions, two cells); no missing module, resource or traceback |
 | The bundle, every batch flag | 82 commands: every study flag on SO-100 (the multi-finger one on the dexhand), three studies on each other sample, synthetic episodes and the dataset studies on them, every export format alone and together, `--check`, `--reproduce`, `--run-plan`, `--unpack`, `--pack`, `--textconv`, `--diff`, `--merge`, `--cite`, `--figure`, `--campaign`, `--stats`, `--track`, `--runs-export`, `--cells`, `--experiment` (serial and `--jobs 2`), `--tolerance-mc --jobs 2`, `--slurm` with both `--run-shard`s and `--gather`, `--cluster-studies --jobs 2`, `--optimise --jobs 2`, `--validate --models optics` | none printed a traceback, a missing module or a missing file; the non-zero exits are the documented ones (a failing `--check`, a `--diff` that finds changes, a refused input, the Rerun bridge left out) |
 | Rebuilt bundle | `build.py --smoke` into a scratch folder | passed: start-up 2.13 s median of 3, cluster pool 19.1 s, experiments pool 7.7 s, self-test 46 ok in 82 s (load average about 15) |
 
 Fixed:
-- **Windows: every spawned pool worker failed.** `core/cluster/shards.py` imported the POSIX-only `resource` module at
-  its top, and the pool's task imports it in each worker, so `--jobs N` (and the bundle smoke test's
-  `--tolerance-mc --jobs 2`) would stop with `ModuleNotFoundError` on Windows. It now imports `resource` where it is
-  used, and on Windows reads the peak working set (`K32GetProcessMemoryInfo`).
 - **`--self-test` failed on a plain `pip install`.** Four lines (datasets, sim exports, tracking, validation) failed
   without pyarrow or jsonschema, which are optional extras, so README's first command after `pip install -e .`, and
   CI's oldest-Python job, failed. Such a line is now a warning that names the package and the extra
   (`selftest.OPTIONAL_PACKAGES`), and only when the package is really absent; the bundles carry those packages, so
   there the line must still be ok.
-- **The start-up measurement used the real settings** on Windows (the registry) and macOS (the preferences), which the
-  smoke test's XDG folders do not redirect; it now uses throw-away settings. It also writes its line to a file, as the
-  console-less Windows launcher may have no stdout. The smoke test sets `TMP` and `TEMP` (Windows' names) as well as
-  `TMPDIR`.
-- **The home-folder scan** in `build.py` also matches forward slashes and JSON's doubled backslashes (Windows).
-- **bundles.yml:** the self-test step names the executable with forward slashes and makes its temporary folder with
-  Python (a Windows path, not Git Bash's `/tmp`); the draft release of a pre-release (0.1.0rc1) is marked
-  `--prerelease`, so publishing it does not make it the repository's latest release.
+- **The start-up measurement used the real settings;** it now uses throw-away settings whatever the environment. It
+  also writes its line to a file, for a launcher whose standard output is closed.
+- **bundles.yml:** the draft release of a pre-release (0.1.0rc1) is marked `--prerelease`, so publishing it does not
+  make it the repository's latest release.
 - **ci.yml:** no process-wide `MUJOCO_GL=egl` (the render worker sets it itself; the suite and validation had only
   been measured without it); Python's UTF-8 mode (`PYTHONUTF8=1`), because 77 opens in the tests name no encoding;
   ruff over `examples` and `packaging` too, as the gate ran it.
-- **Tests that cannot run on Windows** say so: the mock-sbatch tests (Slurm is Linux; the mock is a bash script) and
-  the Linux installer's escaping test.
 - **Comments:** `requirements-bundle.txt` named a `build.yml` that does not exist; the spec, the requirements and this
-  page said MuJoCo renders through GLFW on Windows and macOS, but DexVantage renders only through EGL (above).
+  page said MuJoCo renders through GLFW, but DexVantage renders only through EGL (above).
 
 The regression tests are in `tests/test_packaging_ci_review.py`.
 
 ## Known limits
 
-- Only the Linux x86_64 bundle has been built and run. Windows, macOS and Linux arm64 are built only by CI, and their
-  spec branches are untested until CI runs:
-  - the Windows icon and the Inno Setup step;
-  - the macOS `BUNDLE` step, the plist and signing;
-  - the PyQt6 6.7 pin on arm64.
+- DexVantage supports Linux only; there is no Windows or macOS bundle.
+- Only the Linux x86_64 bundle has been built and run. The Linux arm64 bundle is built only by CI, and the PyQt6 6.7
+  pin on arm64 is untested until it runs.
 - The Linux bundle built here takes opencv-python, the development environment's OpenCV, which carries its own Qt 5
   libraries. CI builds from `requirements-bundle.txt` with opencv-python-headless. The headless 5.0.0.93 wheel
   unpacks to 159.5 MB, against 195.8 MB for opencv-python as installed (measured from the wheel and site-packages).
@@ -389,7 +359,5 @@ The regression tests are in `tests/test_packaging_ci_review.py`.
   from the build machine (and `GLIBC_2.42` in `libtinfo` and Python's `termios`), so it does not run on Ubuntu 24.04
   or 22.04. The glibc 2.35 figure in the README's install table holds for the bundles CI builds on Ubuntu 22.04,
   none of which has been built yet.
-- The pyarrow prune and the GTK theme drop run on Linux only, because that is where they were measured. Windows and
-  macOS keep all of pyarrow's libraries.
 - The bundle's start-up time is measured to the first event-loop turn with the main window shown (offscreen). A
   real display adds the first paint.

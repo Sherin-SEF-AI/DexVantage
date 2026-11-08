@@ -107,12 +107,13 @@ def test_ci_triggers_platforms_shards_and_steps():
     assert ci['env']['QT_QPA_PLATFORM'] == 'offscreen'
     tests = ci['jobs']['tests']
     oses = {t['os'] for t in tests['strategy']['matrix']['target']}
-    assert oses == {'ubuntu-24.04', 'windows-2025', 'macos-15'}
+    assert oses == {'ubuntu-24.04'}                                         # DexVantage supports Linux only
     shards = tests['strategy']['matrix']['shard']
     run = next(s['run'] for s in tests['steps'] if 'ci_shards.py' in s.get('run', ''))
     n = int(re.search(r'--shards (\d+)', run).group(1))
     assert shards == list(range(n)) and f'/{n}' in tests['name']
-    assert 'require' in tests['env']['DEXVANTAGE_TEST_RENDER']            # Linux must render, never skip
+    assert tests['env']['DEXVANTAGE_TEST_RENDER'] == 'require'             # must render, never skip
+    assert {t['os'] for t in ci['jobs']['checks']['strategy']['matrix']['target']} == {'ubuntu-24.04'}
     checks = ci['jobs']['checks']
     runs = [s.get('run', '') for s in checks['steps']]
     assert any(r.strip() == 'python -m dexvantage --self-test' for r in runs)
@@ -130,7 +131,10 @@ def test_linux_installs_the_mesa_egl_and_qt_libraries():
         text = f.read()
     pkgs = set(re.findall(r'\b(lib[\w.+-]+)', text.split('--no-install-recommends', 1)[1]))
     for p in ('libegl1', 'libegl-mesa0', 'libgl1-mesa-dri', 'libopengl0', 'libxkbcommon0', 'libfontconfig1',
-              'libxcb-cursor0', 'libdbus-1-3'):
+              'libxcb-cursor0', 'libdbus-1-3',
+              # gmsh's libgmsh.so (the extra "step"): the first CI run failed formats.bracket_step without libGLU
+              'libglu1-mesa', 'libxrender1', 'libxcursor1', 'libxfixes3', 'libxext6', 'libxft2', 'libxinerama1',
+              'libgomp1'):
         assert p in pkgs, p
     assert 'glib=libglib2.0-0t64' in text and '|| glib=libglib2.0-0' in text     # 24.04's name, else 22.04's
     for path in _workflows():
@@ -140,12 +144,11 @@ def test_linux_installs_the_mesa_egl_and_qt_libraries():
                     assert 'bash .github/scripts/apt-gl-qt.sh' in ln     # needs no executable bit
 
 
-def test_bundles_build_everywhere_and_the_release_stays_a_draft():
+def test_bundles_build_on_linux_only_and_the_release_stays_a_draft():
     b = _load('bundles.yml')
     assert set(b['on']) == {'push', 'workflow_dispatch'} and b['on']['push'] == {'tags': ['v*']}
     # Linux on 22.04 (glibc 2.35), so the bundles also run on 22.04 and on Jetson with JetPack 6
-    assert b['jobs']['bundle']['strategy']['matrix']['os'] == ['ubuntu-22.04', 'ubuntu-22.04-arm', 'windows-2025',
-                                                               'macos-15']
+    assert b['jobs']['bundle']['strategy']['matrix']['os'] == ['ubuntu-22.04', 'ubuntu-22.04-arm']
     runs = ' '.join(s.get('run', '') for s in b['jobs']['bundle']['steps'])
     assert 'packaging/build.py --smoke' in runs and '--self-test' in runs
     rel = b['jobs']['draft-release']
@@ -227,7 +230,7 @@ def test_actionlint_download_is_refused_when_the_checksum_differs(tmp_path, monk
 
 
 def test_actionlint_platform_keys():
-    assert set(get_actionlint.SHA256) >= {'linux_amd64', 'linux_arm64', 'darwin_arm64', 'windows_amd64'}
+    assert set(get_actionlint.SHA256) == {'linux_amd64', 'linux_arm64'}
     assert all(re.fullmatch(r'[0-9a-f]{64}', v) for v in get_actionlint.SHA256.values())
     assert re.fullmatch(r'[a-z]+_[a-z0-9]+', get_actionlint.target())
 

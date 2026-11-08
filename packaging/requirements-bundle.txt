@@ -11,7 +11,7 @@
 #
 # Linux arm64 (NVIDIA Jetson with JetPack 6 = Ubuntu 22.04, glibc 2.35): PyQt6's and Qt's aarch64 wheels from 6.8 on
 # are manylinux_2_39 (glibc 2.39, Ubuntu 24.04) and will not install there; 6.7.1 / 6.7.3 are the newest built for
-# manylinux_2_28 (PyPI, read 2026-11-08). Every other platform takes 6.12.0. DexVantage declares PyQt6>=6.5 but has
+# manylinux_2_28 (PyPI, read 2026-11-08). Linux x86_64 takes 6.12.0. DexVantage declares PyQt6>=6.5 but has
 # been tested on 6.12 only: the arm64 CI job's self-test is the check for 6.7.
 PyQt6==6.12.0; platform_machine != "aarch64"
 PyQt6==6.7.1; platform_machine == "aarch64"
@@ -23,8 +23,8 @@ scipy==1.18.1
 PyOpenGL==3.1.10
 PyYAML==6.0.3
 opencv-python-headless==5.0.0.93   # the same OpenCV without its own GUI and the copy of Qt 5 that comes with it
-mujoco==3.17.0                     # manylinux_2_28 x86_64 and aarch64, win_amd64, macosx_11_0_arm64 wheels
-glfw==2.11.0                       # MuJoCo's dependency: `import mujoco` loads its GLFW backend on Windows
+mujoco==3.17.0                     # manylinux_2_28 x86_64 and aarch64 wheels
+glfw==2.11.0                       # MuJoCo's dependency (DexVantage renders through EGL, not GLFW)
 certifi==2026.10.23
 # the extra "lerobot": LeRobot Parquet and AV1/MP4 video (PyAV carries its own FFmpeg libraries)
 pyarrow==26.0.1

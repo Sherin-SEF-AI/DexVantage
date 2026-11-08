@@ -34,6 +34,9 @@ order a new user meets them.
                  a desktop)
     software 3d  the QPainter 3D view, the fallback without OpenGL, draws the scene
     validation   the validation suite's quick run of its cheap checks passes (--validate runs every check)
+    splat        the splat views' rasteriser (numpy reference against its closed form, torch against numpy),
+                 reprojection and SSIM against closed forms; a warning saying the splat extra is not installed where
+                 PyTorch is not (the downloadable app leaves it out)
 
 Ported from Vantage selftest.py (the runner and the headless EGL context); the checks are DexVantage's. Nothing is
 written outside a temporary folder and no network connection is made. The exit code is 0 when everything the app needs
@@ -970,6 +973,24 @@ def _check_cluster(S):
                 f'studies run directly ({ms:.0f} ms)')
 
 
+def _check_splat(S):
+    """Splat views (core/sim/splat_views.py): validation checks splat.footprint_closed_form, raster_torch_cpu,
+    reproject_disparity and ssim_closed_form (quick); without PyTorch, a warning that the splat extra is not
+    installed."""
+    from .core.sim import splat_views as SV
+    why = SV.requirement()
+    if why is not None:
+        from . import extras
+        if extras.frozen():                 # the downloadable app: pip cannot add PyTorch to it (extras.missing)
+            return WARN, 'splat extra not installed: ' + why[0].lower() + why[1:].rstrip('.')
+        return WARN, f'splat extra not installed: splat views need PyTorch ({SV.INSTALL})'
+    return _checks_line(['splat.footprint_closed_form', 'splat.raster_torch_cpu', 'splat.reproject_disparity',
+                         'splat.ssim_closed_form'],
+                        lambda r: f'footprint within {r[0].error:.0e} of the closed form, torch within '
+                                  f'{r[1].error:.0e} of the numpy rasteriser, disparity within {r[2].error:.0e} px, '
+                                  f'SSIM within {r[3].error:.0e}')
+
+
 def _check_prices(S):
     """Cited prices: every built-in price block sound (core/prices.problems) and the rig cost of a two-camera rig
     against its two stated prices added up by hand (D405 + D435)."""
@@ -1013,9 +1034,9 @@ CHECKS = (('project', _check_project), ('frames', _check_frames), ('mujoco', _ch
           ('robot io', _check_robot_io),
           ('python api', _check_api), ('tracking', _check_tracking),
           ('fonts', _check_fonts), ('opengl', _check_opengl), ('main window', _check_window),
-          ('software 3d', _check_software_3d), ('validation', _check_validation))
+          ('software 3d', _check_software_3d), ('validation', _check_validation), ('splat', _check_splat))
 NAMES = tuple(n for n, _ in CHECKS)
-BUNDLE_MAY_WARN = ('opengl',)
+BUNDLE_MAY_WARN = ('opengl', 'splat')      # splat: the downloadable app leaves out the splat extra (PyTorch)
 
 
 def run() -> int:

@@ -105,6 +105,9 @@
 | `--optimise-continue FOLDER` | the next round of an optimiser job folder on Slurm |
 | `--stats SPEC.json` | statistics and power analysis from a spec (schema dexvantage.stats/1, docs/models/stats.md): compare success counts, samples, two variants over the tolerance Monte Carlo, experiment or tracker runs; the power calculator; writes the result as JSON with provenance |
 | `--stats-out OUT.json` | with --stats: the result file (default SPEC.results.json beside the spec; "-" for stdout) |
+| `--splat ACTION` | splat views (core/sim/splat_views.py; needs the splat extra): fit (the rig and its quality on held-out frames), replay (the --dataset episode through a proposed camera pose, to a video) or augment (perturbed copies of the episode as a LeRobot dataset); with --splat-out OUT_DIR. Every render is marked synthetic (one of: fit, replay, augment) |
+| `--splat-out OUT_DIR` | with --splat: the output folder |
+| `--splat-settings JSON` | with --splat: settings as JSON text or a .json file, e.g. {"target_offset_m": [0, 0, 0.02], "augment_n": 8} |
 
 ## Studies (each writes its result as JSON with provenance; "-" for stdout; a folder gets <folder>/<flag>.json)
 
@@ -136,6 +139,7 @@
 | `--rig-inventory OUT.json` | Rig inventory |
 | `--silhouette-calib OUT.json` | Silhouette calibration |
 | `--sim2real OUT.json` | Sim-to-real gap |
+| `--splat-views OUT.json` | Splat views |
 | `--stats-saved OUT.json` | Statistics |
 | `--teleop OUT.json`, `--teleop-overlap OUT.json` | Teleop overlap and dead zones |
 | `--time-sync OUT.json`, `--sync OUT.json` | Time sync |
@@ -143,4 +147,4 @@
 | `--runs OUT.json` | Runs |
 | `--vla-tokens OUT.json` | VLA token resolution |
 
-106 options in all.
+110 options in all.

@@ -44,6 +44,7 @@ class Fig:
     value: object
     text: str
     tol: float | None = None          # absolute: a number in the span within tol of value also matches
+    unit: str | None = None           # with tol: only numbers followed by this unit count (not "4 episodes")
 
 
 @dataclass
@@ -74,8 +75,8 @@ def pct(frac, d: int = 1) -> str:
     return num(100.0 * float(frac), d)
 
 
-def F(v, d: int = 1, tol: float | None = None, scale: float = 1.0) -> Fig:
-    return Fig(v, num(float(v) * scale, d), tol)
+def F(v, d: int = 1, tol: float | None = None, scale: float = 1.0, unit: str | None = None) -> Fig:
+    return Fig(v, num(float(v) * scale, d), tol, unit)
 
 
 def T(text: str) -> Fig:
@@ -425,7 +426,14 @@ def ex_silhouette():
     folder = tmpdir('ur5e-synth')
     rig.synth_episodes(folder)
     sc = rig.run('silhouette_calib', dataset=folder)
-    return {'headline': T(sc.headline['text'])}
+    h, text = sc['headline'], sc.headline['text']
+    # the offset depends on the silhouettes' edge pixels, which differ between renderers (measured 2026-11-08: 4.21 mm
+    # on the development machine's NVIDIA EGL, 4.14 mm on its Mesa llvmpipe, 4.28 mm on Mesa llvmpipe on the first
+    # GitHub CI run; the estimate's own σ 0.86 to 1.01 mm): a figure in mm in the guide within the estimate's 1 σ of
+    # the one computed here matches
+    return {'title': T(text.split(':', 1)[0] + ':'),
+            'offset_mm': F(h['offset_mm'], 2, tol=h['sigma_mm'], unit='mm'),
+            'word': T('(' + text.rsplit('(', 1)[1]) if '(' in text else T(''), '_sigma_mm': F(h['sigma_mm'], 3)}
 
 
 @example('sim2real')
@@ -657,9 +665,11 @@ def spans(text: str) -> dict:
     return out
 
 
-def _numbers(span: str) -> list:
+def _numbers(span: str, unit: str | None = None) -> list:
     vals = []
     for m in _NUM.finditer(span):
+        if unit and not span[m.end():].lstrip().startswith(unit):
+            continue
         try:
             vals.append(float(m.group(0).replace('−', '-').replace(' ', '').replace(' ', '')))
         except ValueError:
@@ -685,7 +695,7 @@ def check(results: dict, root: str = ROOT) -> list:
             if _norm(f.text) in span:
                 continue
             if f.tol is not None and isinstance(f.value, (int, float)) and \
-                    any(abs(x - float(f.value)) <= f.tol for x in _numbers(span)):
+                    any(abs(x - float(f.value)) <= f.tol for x in _numbers(span, f.unit)):
                 continue
             problems.append(f'{doc}, example {eid}: the figure {name} reads "{f.text}" now, and the guide does not '
                             'show it.')

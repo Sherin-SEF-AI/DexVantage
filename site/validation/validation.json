@@ -2,8 +2,8 @@
  "schema": "dexvantage.validation/1",
  "project": "sample (built in)",
  "variant": "Wrist + third-person (sample)",
- "created_utc": "2026-11-08T00:04:37Z",
- "seconds": 383.18,
+ "created_utc": "2026-11-08T10:46:16Z",
+ "seconds": 425.11,
  "settings": {
   "models": [],
   "quick": false,
@@ -24,8 +24,8 @@
  "limits": "The suite checks the models against references for the cases it builds; it does not show that a model describes a real robot, lens or sensor. Monte Carlo checks are statistical: their tolerance is 4.5 standard errors of the estimated spread, at a fixed seed.",
  "cancelled": false,
  "summary": {
-  "checks": 232,
-  "passed": 232,
+  "checks": 239,
+  "passed": 239,
   "failed": [],
   "ok": true
  },
@@ -51,7 +51,7 @@
      "tolerance": 1e-12,
      "unit": "(unitless)",
      "passed": true,
-     "seconds": 0.106,
+     "seconds": 0.102,
      "note": "Double precision rounding is about 1e-16 per element; 1e-12 leaves room for the products.",
      "exception": "",
      "detail": {
@@ -74,7 +74,7 @@
      "tolerance": 1e-12,
      "unit": "rad",
      "passed": true,
-     "seconds": 0.009,
+     "seconds": 0.007,
      "note": "The angle of the relative rotation (scipy's magnitude, full precision near zero). The quaternion's sign is chosen with w ≥ 0, which the check also requires.",
      "exception": "",
      "detail": {
@@ -97,7 +97,7 @@
      "tolerance": 1e-12,
      "unit": "(unitless)",
      "passed": true,
-     "seconds": 0.037,
+     "seconds": 0.036,
      "note": "",
      "exception": "",
      "detail": {
@@ -157,7 +157,7 @@
      "tolerance": 1e-12,
      "unit": "(unitless)",
      "passed": true,
-     "seconds": 0.008,
+     "seconds": 0.009,
      "note": "",
      "exception": "",
      "detail": {
@@ -211,7 +211,7 @@
      "tolerance": 0.0001,
      "unit": "m",
      "passed": true,
-     "seconds": 0.512,
+     "seconds": 0.519,
      "note": "The tolerance is the solver's convergence tolerance (0.1 mm, 1 mrad): a solution reported as converged must meet it when its pose is computed by an independent route. The targets come from joint vectors inside the limits, so all are reachable and must be solved; MuJoCo's forward kinematics must also agree with the product of exponentials to 1e-12.",
      "exception": "",
      "detail": {
@@ -561,7 +561,7 @@
      "tolerance": 0.0001,
      "unit": "m",
      "passed": true,
-     "seconds": 0.437,
+     "seconds": 0.441,
      "note": "A 5-joint arm cannot set all six pose coordinates; the solver reaches the position and gets the orientation as close as it can (as the target came from a real pose of the arm, the orientation is often reached too, which the detail counts).",
      "exception": "",
      "detail": {
@@ -589,7 +589,7 @@
      "tolerance": 1e-12,
      "unit": "m²",
      "passed": true,
-     "seconds": 0.017,
+     "seconds": 0.024,
      "note": "MuJoCo's Jacobian is analytic, so agreement is to rounding (1e-12 m² for w of order 0.1 m²). The condition number is checked as well (relative error < 1e-6, away from the singularity, where it is infinite).",
      "exception": "",
      "detail": {
@@ -4641,7 +4641,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 0.017,
+     "seconds": 0.018,
      "note": "Sphere–sphere distance is closed form in MuJoCo as here, so agreement is to rounding.",
      "exception": "",
      "detail": {
@@ -8732,7 +8732,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 0.235,
+     "seconds": 0.261,
      "note": "Both are double-precision products of about twenty rigid transforms, so rounding stays near 1e-15; 1e-9 leaves room for that while any convention error (an rpy order, a quaternion order, degrees for radians, a joint anchor) shows as 1e-3 or more. Robots the independent reader cannot read are listed, not compared.",
      "exception": "",
      "detail": {
@@ -8922,7 +8922,7 @@
      "tolerance": 1e-07,
      "unit": "m/rad",
      "passed": true,
-     "seconds": 0.4,
+     "seconds": 0.417,
      "note": "Central differences carry a truncation error of about h²/6 times the third derivative (1e-13 here) and a rounding error of about 1e-16/h = 1e-10; 1e-7 is well above both and well below any wrong column (of order the link lengths, 0.1 m).",
      "exception": "",
      "detail": {
@@ -8952,7 +8952,7 @@
      "tolerance": 1e-09,
      "unit": "m/rad",
      "passed": true,
-     "seconds": 0.894,
+     "seconds": 0.912,
      "note": "Both are exact formulas in double precision; 1e-9 allows for rounding only. The offset point (up to 0.2 m from the link origin on each axis) exercises the point argument and the link-to-world rotation that the origin alone does not.",
      "exception": "",
      "detail": {
@@ -8984,7 +8984,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.211,
+     "seconds": 0.223,
      "note": "MuJoCo measures sphere–box and sphere–sphere distances in closed form and sphere–cylinder and sphere–mesh through its convex solver (GJK, with EPA for penetration), whose convergence tolerance is far below a micrometre at these sizes; 1e-6 m is the solver's margin, while a wrong frame (the base pose, a quaternion order, a half-size taken for a full size) shows as centimetres.",
      "exception": "",
      "detail": {
@@ -10247,7 +10247,7 @@
      "tolerance": 0.0,
      "unit": "entries",
      "passed": true,
-     "seconds": 0.978,
+     "seconds": 0.964,
      "note": "53 entries; 21 with a maker DoF to compare, 0 explained differences; 6 bundled models counted again.",
      "exception": "",
      "detail": {
@@ -10370,7 +10370,7 @@
      "tolerance": 0.01,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.773,
+     "seconds": 0.69,
      "note": "The study stores pixels per millimetre in steps of 0.01 px/mm, so a value of 0.5 px/mm or more is within 1 % of its exact figure; the finite differences are accurate to about 1e-8 at a 0.1 mm step. 1 % is the storage step and nothing else.",
      "exception": "",
      "detail": {
@@ -10424,7 +10424,7 @@
      "tolerance": 1e-06,
      "unit": "px",
      "passed": true,
-     "seconds": 0.108,
+     "seconds": 0.09,
      "note": "Both evaluate the same polynomial in double precision; they differ only in the order of operations (about 1e-13 px at 1000 px). 1e-6 px is far below any convention error: a half-pixel shift, swapped p1/p2 or a mis-ordered k3 shows as 1e-3 px or more.",
      "exception": "",
      "detail": {
@@ -10525,7 +10525,7 @@
      "tolerance": 1e-06,
      "unit": "px",
      "passed": true,
-     "seconds": 0.086,
+     "seconds": 0.079,
      "note": "The Brown-Conrady and Kannala-Brandt inverses are iterative (Newton, converged to 1e-12 in normalised units, about 1e-9 px); 1e-6 px allows for the image scale. Pixels with no ray (a Brown-Conrady model folding back before the corner) are counted, not compared.",
      "exception": "",
      "detail": {
@@ -10556,7 +10556,7 @@
      "tolerance": 1e-06,
      "unit": "deg",
      "passed": true,
-     "seconds": 0.128,
+     "seconds": 0.122,
      "note": "The closed forms invert r(θ) exactly and the Kannala-Brandt fit passes through the stated points as constraints, so only rounding and the iterative inverse remain (about 1e-12°); 1e-6° is far below a datasheet's 0.1° rounding and catches an edge off by half a pixel (about 0.05° at 1000 px).",
      "exception": "",
      "detail": {
@@ -10580,7 +10580,7 @@
      "tolerance": 1e-06,
      "unit": "(relative)",
      "passed": true,
-     "seconds": 0.048,
+     "seconds": 0.043,
      "note": "Central differences with a step of 1e-5 of the range: truncation about 1e-10 relative, rounding about 1e-16 × 1000 px / 1e-5 ≈ 1e-8; 1e-6 leaves margin for both while any error in the closed form (a missing cos θ, the sin θ of the tangential direction) is 1e-2 or more away from the axis.",
      "exception": "",
      "detail": {
@@ -10633,7 +10633,7 @@
      "tolerance": 1e-11,
      "unit": "(relative)",
      "passed": true,
-     "seconds": 0.07,
+     "seconds": 0.067,
      "note": "The reference is computed in exact rational arithmetic (fractions.Fraction) from the same floating-point inputs, so the error is DexVantage's own rounding: a few 1e-16, amplified by s / |s − z| because the focus distance passes through a metre-to-millimetre conversion. Points within 0.1 % of the focus distance are moved to 0.1 % from it, bounding that to about 1e-13; 1e-11 leaves margin.",
      "exception": "",
      "detail": {
@@ -10658,7 +10658,7 @@
      "tolerance": 0.1,
      "unit": "px",
      "passed": true,
-     "seconds": 0.675,
+     "seconds": 0.638,
      "note": "Both masks sample the same pixel centres, so they differ only where MuJoCo's drawn sphere (a 128 × 64 polygon mesh, inscribed in the sphere) or its rasteriser's edge rule decides a boundary pixel the other way. One such pixel moves the centroid of a 150–200 px mask by about (its distance from the centroid) / (mask area) ≈ 7 / 180 ≈ 0.04 px; 0.1 px allows two. A focal length 0.1 % off, or a principal point 0.1 px off, would show as more at the image edge (0.3 px for 0.1 % at 320 px from the centre). Every mask must be found and overlap its prediction by at least 95 % (intersection over union).",
      "exception": "",
      "detail": {
@@ -10677,7 +10677,7 @@
       ],
       "renderer": "NVIDIA GeForce RTX 5080/PCIe/SSE2",
       "mujoco": "3.17.0",
-      "render_s": 0.38
+      "render_s": 0.37
      },
      "figure": {
       "kind": "xy",
@@ -11919,7 +11919,7 @@
      "tolerance": 0.02,
      "unit": "fraction",
      "passed": true,
-     "seconds": 0.0,
+     "seconds": 0.001,
      "note": "Measured on the shipped entries. A failure is a mistyped pixel pitch, resolution or size.",
      "exception": "",
      "detail": {
@@ -12009,7 +12009,7 @@
      "tolerance": 3.0,
      "unit": "deg",
      "passed": true,
-     "seconds": 0.0,
+     "seconds": 0.001,
      "note": "180 FOV statements checked; 6 imagers declare that the maker's own angles disagree (figures_conflict) and 2 FOV statements are of fisheye lenses (the bounds need not hold): both are listed, not counted.",
      "exception": "",
      "detail": {
@@ -12460,7 +12460,7 @@
      "tolerance": 0.0,
      "unit": "problems",
      "passed": true,
-     "seconds": 0.0,
+     "seconds": 0.001,
      "note": "13 teleop entries, 17 stated figures found in their quotes.",
      "exception": "",
      "detail": {
@@ -12653,7 +12653,7 @@
      "tolerance": 0.005,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.0,
+     "seconds": 0.001,
      "note": "7 totals and conversions compared.",
      "exception": "",
      "detail": {
@@ -12725,7 +12725,7 @@
      "tolerance": 0.0,
      "unit": "entries",
      "passed": true,
-     "seconds": 0.015,
+     "seconds": 0.038,
      "note": "81 of 191 built-in entries state a price; the two-year age limit is a default.",
      "exception": "",
      "detail": {
@@ -12748,7 +12748,7 @@
      "tolerance": 0.005,
      "unit": "USD",
      "passed": true,
-     "seconds": 1.472,
+     "seconds": 1.42,
      "note": "66 rigs: 57 with a stated (or lower-bound) cost, 40 of them lower bounds.",
      "exception": "",
      "detail": {
@@ -13039,7 +13039,7 @@
      "tolerance": 0.001,
      "unit": "fraction",
      "passed": true,
-     "seconds": 7.771,
+     "seconds": 8.103,
      "note": "Both measure the distance to the same triangle's plane along the same lens ray, so away from silhouettes they agree to rounding. Near a silhouette the image answers for its pixel centre (pinhole) or for the nearest pixel of its base or cube image, so a ray grazing an edge may land on the other side: those are counted but not held against it (they must stay under 3 % of the pixels). Hits closer than 1 cm, where the two near-clip rules differ, are left out.",
      "exception": "",
      "detail": {
@@ -13150,7 +13150,7 @@
      "tolerance": 0.005,
      "unit": "fraction of the volume",
      "passed": true,
-     "seconds": 3.842,
+     "seconds": 5.196,
      "note": "The study judges occlusion per cube-map texel (2/n rad at a face centre) and the reference per exact ray, so voxels within about a texel of a silhouette may differ either way; the image edges are the same closed interval in both. Half a percent of the volume leaves room for those voxels and nothing else. Per voxel, the disagreement must stay under 2 %, the occlusion answers farther than two texels from a silhouette must agree but for 1e-3 (rounding at the near clip), and the in-image answers but for 1e-4 (a voxel centre exactly on an image edge).",
      "exception": "",
      "detail": {
@@ -13251,7 +13251,7 @@
      "tolerance": 0.001,
      "unit": "fraction",
      "passed": true,
-     "seconds": 2.909,
+     "seconds": 2.89,
      "note": "Both compute the distance to the triangle plane along the same ray; a texel can differ only where its centre lies on an edge shared by two triangles at different depths (the rasteriser's edge rule against the ray test's), or by float32 rounding of the stored distance. 1e-3 of the texels leaves room for those edge ties and nothing else.",
      "exception": "",
      "detail": {
@@ -13316,7 +13316,7 @@
      "tolerance": 0.001,
      "unit": "fraction",
      "passed": true,
-     "seconds": 2.342,
+     "seconds": 2.545,
      "note": "The cube map answers per texel (2/n rad at a face centre), so a point within about a texel of a silhouette may be judged by a ray that passes the edge on the other side; those are counted but not held against it (they must stay under 2 % of the points). Anywhere else the two must agree: 1e-3 leaves room for rounding at the near clip and nothing else.",
      "exception": "",
      "detail": {
@@ -13382,7 +13382,7 @@
      "tolerance": 0.0145,
      "unit": "fraction",
      "passed": true,
-     "seconds": 14.968,
+     "seconds": 16.534,
      "note": "The cube map answers per texel: a point is judged by the ray through its texel's centre, at most half a texel diagonal from its own line of sight (√2/n rad = 0.16° at a face centre for n = 512; less towards a face's edges). So a point can be judged wrongly only when an occluder's silhouette passes within that angle of it, and the tolerance is the share of points that close to a silhouette, measured on these scenes with raycast.near_silhouette (a subsample of 1,000 points per map; half_texel_band_fraction). Disagreements farther than a whole texel (2/n rad) from any silhouette are faults: at most 1e-3 of the points may be there.",
      "exception": "",
      "detail": {
@@ -13510,7 +13510,7 @@
      "tolerance": 0.001,
      "unit": "fraction",
      "passed": true,
-     "seconds": 0.459,
+     "seconds": 0.46,
      "note": "Error: the share of target pixels where a cube map (or exact ray casting) disagrees with MuJoCo's segmentation and that are not within a texel (2/n rad) of a silhouette; those are faults, and 1e-3 leaves room for depth-buffer rounding of the back-projected points and nothing else. Near silhouettes the cube map answers per texel, coarser than the camera's pixels, so overall agreement must be at least 99 % for every backend; the agreement percentages are reported as measured.",
      "exception": "",
      "detail": {
@@ -13528,7 +13528,7 @@
       ],
       "renderer": "NVIDIA GeForce RTX 5080/PCIe/SSE2",
       "mujoco": "3.17.0",
-      "render_s": 0.32
+      "render_s": 0.33
      },
      "figure": {
       "kind": "xy",
@@ -13590,7 +13590,7 @@
      "tolerance": 0.001,
      "unit": "fraction",
      "passed": true,
-     "seconds": 2.031,
+     "seconds": 2.197,
      "note": "Error: the share of target pixels where a cube map (or exact ray casting) disagrees with MuJoCo's segmentation and that are not within a texel (2/n rad) of a silhouette; those are faults, and 1e-3 leaves room for depth-buffer rounding of the back-projected points and nothing else. Near silhouettes the cube map answers per texel, coarser than the camera's pixels, so overall agreement must be at least 99 % for every backend; the agreement percentages are reported as measured. Measured with the default seed: 4 of about 163,000 target pixels disagree away from every silhouette, for exact ray casting and both cube maps alike. Three are single pixels inside a robot mesh where MuJoCo's rasteriser leaves a crack between two triangles and shows the table through it (our ray hits the mesh there); one lies on the table's own edge, where the two renders (with and without the robot, so with different depth ranges) round the edge differently.",
      "exception": "",
      "detail": {
@@ -13617,7 +13617,7 @@
       "robot_pixels": 53037,
       "renderer": "NVIDIA GeForce RTX 5080/PCIe/SSE2",
       "mujoco": "3.17.0",
-      "render_s": 0.31
+      "render_s": 0.34
      },
      "figure": {
       "kind": "xy",
@@ -13686,7 +13686,7 @@
      "tolerance": 0.018277978239374774,
      "unit": "relative",
      "passed": true,
-     "seconds": 1.625,
+     "seconds": 1.587,
      "note": "The tolerance is 4.5 standard errors of a standard deviation estimated from the trials (1/√(2(n − 1)) relative) plus 3 (σ_d / d)², the size of the second-order term the first-order model leaves out (z = f B / d is not linear in d).",
      "exception": "",
      "detail": {
@@ -13997,7 +13997,7 @@
      "tolerance": 0.0,
      "unit": "figures",
      "passed": true,
-     "seconds": 0.015,
+     "seconds": 0.014,
      "note": "A second reading of the same tables, typed in this file without copying from the library files: it finds transcription errors and a broken lookup (resolution to min-Z), not errors in the datasheet. The D405 has no 640 × 480 min-Z (\"-\" in Table 4-12), so the study must report it as not stated.",
      "exception": "",
      "detail": {
@@ -14665,7 +14665,7 @@
      "tolerance": 0.01,
      "unit": "°",
      "passed": true,
-     "seconds": 0.648,
+     "seconds": 0.589,
      "note": "The extent is found by a sweep at the stated step, so it can be off by up to two steps; 0.01° leaves room for that and the pixel-edge tolerance of the projection. The formula takes the left imager as the reference and the right imager one baseline to its right, as the datasheet does.",
      "exception": "",
      "detail": {
@@ -15046,7 +15046,7 @@
      "tolerance": 0.001,
      "unit": "fraction",
      "passed": true,
-     "seconds": 6.061,
+     "seconds": 6.168,
      "note": "The cube maps answer per texel, so points within about a texel of a silhouette may differ (counted, held under 2 %); elsewhere the two must agree. The check also requires some points to be seen by one imager only, so the parallax and finger-shadow case is exercised.",
      "exception": "",
      "detail": {
@@ -15128,7 +15128,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.378,
+     "seconds": 0.49,
      "note": "The dataset stores the joint state as float32, so the frame at the onset matches the script to about 10⁻⁷ m; reading the wrong row or episode shows as millimetres. The script holds the fingers still between its ramps, so the strokes are exact.",
      "exception": "",
      "detail": {
@@ -15195,7 +15195,7 @@
      "tolerance": 0.001,
      "unit": "fraction",
      "passed": true,
-     "seconds": 2.875,
+     "seconds": 2.939,
      "note": "The cube map answers per texel, so a point within about a texel of an edge may be judged either way; those are counted but not held against it (all disagreements must stay under 2 %). Elsewhere the two must agree, which also shows that culling the triangles outside the cone around the points changes nothing.",
      "exception": "",
      "detail": {
@@ -15287,7 +15287,7 @@
      "tolerance": 0.030676073128135334,
      "unit": "probability",
      "passed": true,
-     "seconds": 1.221,
+     "seconds": 1.204,
      "note": "Tolerance: three standard errors of a coverage estimated from 1000 samples (0.021) plus 0.01 for the binomial's discreteness (the exact coverage of any interval of a proportion moves by about a percent between neighbouring n and p). The mean gap between the bootstrap and Wilson endpoints must stay under 0.02.",
      "exception": "",
      "detail": {
@@ -15437,7 +15437,7 @@
      "tolerance": 0.02,
      "unit": "fraction",
      "passed": true,
-     "seconds": 1.109,
+     "seconds": 1.081,
      "note": "Within a 0.1° bucket the gripper moves by up to about a millimetre at the UR5e's reach. That is a real change of the view; on average it may move a patch's visible fraction by at most 2 % (2.5 of 128 points; measured 0.05 to 0.8 % over four seeds). Where an occluder's edge crosses a patch a whole row of its points can flip at once (a row of the 2F-85 pad is about 11 of its 128 points), so the largest single difference may reach a row or two: it must stay at most 0.15. The cache must have been used (hits > 0).",
      "exception": "",
      "detail": {
@@ -15583,7 +15583,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.219,
+     "seconds": 0.231,
      "note": "The meshes are stored as float32 (about 3e-8 m at half a metre) and the transforms are double; 1e-6 m leaves room for that, while picking the wrong face (the outer one, 8 mm away) or the wrong link frame shows as millimetres.",
      "exception": "",
      "detail": {
@@ -15790,7 +15790,7 @@
      "tolerance": 0.5,
      "unit": "deg",
      "passed": true,
-     "seconds": 0.194,
+     "seconds": 0.209,
      "note": "The pads are mirror images about the axis on which the file puts the pinch site, so the measured axis should match it to rounding; 0.5° is 1.3 mm over the 145 mm to the site. The TCP is the pads' centre, 14 mm short of the pinch site (which sits at the pads' tips).",
      "exception": "",
      "detail": {
@@ -15824,7 +15824,7 @@
      "tolerance": 1e-09,
      "unit": "m or unit vector",
      "passed": true,
-     "seconds": 0.232,
+     "seconds": 0.254,
      "note": "Every quantity is a closed form of the sampler's definition; the only rounding is double precision through a quaternion (about 1e-15), so 1e-9 catches any frame or sign mistake.",
      "exception": "",
      "detail": {
@@ -15854,7 +15854,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 0.004,
+     "seconds": 0.005,
      "note": "Points are drawn on the box's own triangles, so their distance to the surface is rounding (1e-17 m); a wrong pose or size shows as centimetres. 4σ keeps the area test from failing by chance (about 1 in 16 000 per face) while a sampler ignoring area is off by tens of σ.",
      "exception": "",
      "detail": {
@@ -15887,7 +15887,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.229,
+     "seconds": 0.293,
      "note": "The pads are rigid boxes, so the opening is exact up to float32 meshes (about 3e-8 m); picking the wrong face or link shows as millimetres. The strokes are exact: the script holds the fingers still between its ramps.",
      "exception": "",
      "detail": {
@@ -16332,7 +16332,7 @@
      "tolerance": 0.4,
      "unit": "px",
      "passed": true,
-     "seconds": 2.077,
+     "seconds": 2.128,
      "note": "Both masks sample the same pixel centres through the same rays, so they differ only where a boundary pixel goes the other way: MuJoCo draws a sphere as a 128 × 64 polygon mesh (0.10 px measured on the pinhole, as in optics.mujoco_fiducial_masks), and the remap samples the base image at its nearest pixel, which moves a boundary by up to half a base pixel; the base is at least twice as dense as the lens image (render.OVERSAMPLE = 2, a default), so that is at most a quarter of a lens pixel at a boundary and less on a centroid of about 110 pixels (measured up to 0.33 px with OVERSAMPLE = 1). 0.4 px allows both; a principal point off by a pixel, a focal length off by 0.3 %, a wrong remap direction or a wrong cube face would each show as one pixel or more. The centroid against CameraModel.project of the centre (centre_vs_project_max_px) adds the sphere image's own offset from its centre's projection. Every mask must be found and overlap its prediction by at least 85 % (IoU; a 6 px sphere has about 110 pixels, 38 of them on its boundary).",
      "exception": "",
      "detail": {
@@ -16435,7 +16435,7 @@
      "tolerance": 0.001,
      "unit": "px",
      "passed": true,
-     "seconds": 0.806,
+     "seconds": 0.825,
      "note": "MuJoCo stores the intrinsics as float32 lengths (cam_intrinsic = focalpixel · sensorsize / resolution): a relative rounding of 6 × 10⁻⁸ on a focal length of 1 400 px is 10⁻⁴ px. 10⁻³ px allows that; a principal point taken with the wrong sign is off by twice its offset.",
      "exception": "",
      "detail": {
@@ -16576,7 +16576,7 @@
      "tolerance": 0.001,
      "unit": "fraction of pixels",
      "passed": true,
-     "seconds": 2.834,
+     "seconds": 2.621,
      "note": "Both sample each pixel at its centre (MuJoCo with multi-sampling off), so a pixel differs only where a triangle edge passes within rounding of a pixel centre and the two edge rules (OpenGL's top-left rule, camrender's inclusive test) decide it differently: a few pixels per image (measured 0 to 1.8 × 10⁻⁴ of the pixels). 10⁻³ allows that; a camera off by a pixel, or a link at the wrong pose, would differ along every edge (about 10⁻² here). Where the owners agree, at most 10⁻³ of the pixels may differ in range along the pixel ray by more than 1 mm (they agree to float32 rounding except where a pixel sees one link's silhouette through two of its triangles, up to 9 mm on the SO-100's third-person camera).",
      "exception": "",
      "detail": {
@@ -16682,7 +16682,7 @@
      "tolerance": 0.15000000000000002,
      "unit": "fraction of points",
      "passed": true,
-     "seconds": 10.511,
+     "seconds": 11.049,
      "note": "The floor is 85% agreement (measured 92.8 % over home, 50 grasps and 8 trajectory frames: the grasps 91.1 %, the trajectory frames 98.9 %): most disagreements are points within a pixel of a segmentation edge (the overhead camera sees the pads nearly edge-on) or a difference of rule (the prediction tests the contact location 2 mm in front of the pad, the render the pad face); those are reported, not hidden. Occlusion disagreements away from an edge must stay under 2% of the points (measured 0.4 %): more would mean the prediction's scene or cube maps differ from the render. The SO-100 sample reads 84.2 % here, not held to this floor (its jaws' contact patches come from collision geometry off the visual mesh, so its rule disagreements are larger); it is held to the same occlusion limit (0.4 % measured) and its agreement is in the detail, not hidden.",
      "exception": "",
      "detail": {
@@ -16741,7 +16741,7 @@
        }
       },
       "renderer": "NVIDIA GeForce RTX 5080/PCIe/SSE2",
-      "frames_per_s": 64.56,
+      "frames_per_s": 60.5,
       "so100": {
        "agreement": 0.842131,
        "iou": 0.781339,
@@ -16819,7 +16819,7 @@
      "tolerance": 0.0,
      "unit": "mismatches",
      "passed": true,
-     "seconds": 1.047,
+     "seconds": 1.186,
      "note": "The faults are injected by the generator itself and recorded in the sidecar; this check confirms the files carry exactly them. Finding them from the data alone is the auditor's job (spec §8.2).",
      "exception": "",
      "detail": {
@@ -16871,8 +16871,8 @@
          "frames": 6
         }
        },
-       "seconds": 0.535,
-       "camera_frames_per_s": 100.93,
+       "seconds": 0.648,
+       "camera_frames_per_s": 83.29,
        "renderer": "NVIDIA GeForce RTX 5080/PCIe/SSE2"
       },
       "v3.0": {
@@ -16923,8 +16923,8 @@
          "frames": 6
         }
        },
-       "seconds": 0.441,
-       "camera_frames_per_s": 122.51,
+       "seconds": 0.415,
+       "camera_frames_per_s": 130.01,
        "renderer": "NVIDIA GeForce RTX 5080/PCIe/SSE2"
       },
       "mismatches": []
@@ -16955,7 +16955,7 @@
      "tolerance": 0.2,
      "unit": "mm",
      "passed": true,
-     "seconds": 9.042,
+     "seconds": 8.738,
      "note": "0.2 mm and 0.05°: the error is 3-4 times the solver's own σ even on uncoded frames at full size (0.020 mm against σ 0.006 mm, measured: the corner errors of a rendered view are not independent, as σ assumes); half the stream size doubles the corner error in the sensor's pixels and AV1 coding adds under 0.002 mm. The camera starts 2.7 mm and 0.62° away; joints read at the wrong frames or corners left in the stream's pixels miss by millimetres.",
      "exception": "",
      "detail": {
@@ -16997,7 +16997,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 0.712,
+     "seconds": 0.777,
      "note": "Every method is exact on noise-free motions; what is left is rounding (about 1e-15 m). 1e-9 m fails any convention error (a transform inverted or A and B swapped gives errors of centimetres to metres). Backend \"numpy\": the NumPy versions in core/calib/axxb.py, because this OpenCV has no calibrateHandEye in its Python bindings.",
      "exception": "",
      "detail": {
@@ -17108,7 +17108,7 @@
      "tolerance": 15.0,
      "unit": "mm",
      "passed": true,
-     "seconds": 4.186,
+     "seconds": 4.005,
      "note": "The closed-form methods solve algebraic errors on PnP poses that are each a few tenths of a millimetre off, so they are not exact; on these scenes their errors were 3–8 mm and up to 0.6° when the tolerance was set. 15 mm and 1.5° leave margin over that spread and still fail a convention error (tens of millimetres to tens of degrees). Tsai-Lenz is singular for a camera rotation of 180°; the eye-to-hand scene's camera is at 151°.",
      "exception": "",
      "detail": {
@@ -17253,7 +17253,7 @@
      "tolerance": 5.0,
      "unit": "σ",
      "passed": true,
-     "seconds": 8.026,
+     "seconds": 6.097,
      "note": "With Gaussian corner noise an unbiased estimate is within about 3σ in each component almost always; 5σ over the few tens of components checked is passed by chance with probability below 1e-5, while a biased model (a frame convention, a wrong FK link, a pixel-centre error) is off by tens to thousands of σ. In the joint-offset scene the first and last joints' offsets are not determined by the views (they trade off against Z and X about the same axes); only the determined offsets are compared there.",
      "exception": "",
      "detail": {
@@ -17333,7 +17333,7 @@
      "tolerance": 1.0,
      "unit": "of the band",
      "passed": true,
-     "seconds": 10.156,
+     "seconds": 9.741,
      "note": "With n draws the empirical σ of an unbiased Gaussian estimate scatters about the true σ by the χ² law with n degrees of freedom; the band holds 99 % of that scatter for each of the 12 components together. A covariance missing the residual variance, or J built at the wrong point, is off by factors of 2 or more.",
      "exception": "",
      "detail": {
@@ -17448,7 +17448,7 @@
      "tolerance": 15.0,
      "unit": "mm",
      "passed": true,
-     "seconds": 0.357,
+     "seconds": 0.316,
      "note": "The closed-form solvers start from PnP poses and minimise algebraic errors, so they differ from the bundle adjustment by the order of their own error (a few millimetres here); the tolerance is that of handeye.closed_form_noisy. The bundle adjustment itself is held to the truth within 5σ, as in handeye.ba_truth.",
      "exception": "",
      "detail": {
@@ -17496,7 +17496,7 @@
      "tolerance": 0.25,
      "unit": "px",
      "passed": true,
-     "seconds": 2.437,
+     "seconds": 6.041,
      "note": "Sub-pixel corner detectors locate sharp chessboard corners to about a tenth of a pixel; 0.25 px fails a half-pixel convention error, a wrong board layout or a wrong corner order (a pixel or more). The renderer integrates each pixel over 3 × 3 rays, so the corners carry the area coverage a sensor sees.",
      "exception": "",
      "detail": {
@@ -17621,7 +17621,7 @@
      "tolerance": 0.25,
      "unit": "px",
      "passed": true,
-     "seconds": 1.634,
+     "seconds": 4.048,
      "note": "With Kalibr's corner squares every tag corner is a chessboard-like X corner, which the sub-pixel step locates without bias; 0.25 px as for ChArUco.",
      "exception": "",
      "detail": {
@@ -17744,7 +17744,7 @@
      "tolerance": 0.09531017980432493,
      "unit": "ln ratio",
      "passed": true,
-     "seconds": 3.673,
+     "seconds": 3.897,
      "note": "Both are the Gauss-Newton covariance of the same estimator, so they agree when the planner's Jacobian is right; they differ by the bundle adjustment's σ̂ (its relative scatter is 1/√(2·dof), 2.3 % here, 3 × that within the tolerance) and by linearising at its estimate instead of the truth (far smaller at 0.5 px). With σ̂ / σ taken out the ratios must agree within 0.01 in ln (the shape of the covariance). A wrong sign, frame or missing rotation coupling in the planner gives factors of 2 or more. The bundle adjustment's covariance is itself held to a Monte Carlo spread by handeye.ba_covariance_mc.",
      "exception": "",
      "detail": {
@@ -17892,7 +17892,7 @@
      "tolerance": 5.0,
      "unit": "σ",
      "passed": true,
-     "seconds": 3.899,
+     "seconds": 3.821,
      "note": "Errors of an unbiased estimator are within 5σ with probability above 99.9 % per component; a camera located through the wrong board pose, or a shared board estimated twice, shows as its 10 mm start offset, many σ away.",
      "exception": "",
      "detail": {
@@ -17948,7 +17948,7 @@
      "tolerance": 2.0,
      "unit": "px",
      "passed": true,
-     "seconds": 32.237,
+     "seconds": 33.291,
      "note": "so100 (Third-person camera (sample placement)): episode 0 1.65 px (2.39 mm, 0.299°), episode 1 1.66 px (2.16 mm, 0.301°); ur5e (Overhead D435): episode 0 1.13 px (1.28 mm, 0.031°), episode 1 0.32 px (0.37 mm, 0.026°); rendered on NVIDIA GeForce RTX 5080/PCIe/SSE2",
      "exception": "",
      "detail": {
@@ -18007,7 +18007,7 @@
           ],
           "iou_after": 0.3669085675247397,
           "rms_px": 0.8405237394784776,
-          "seconds": 3.945,
+          "seconds": 3.954,
           "pose": {
            "position": [
             0.4006089030886855,
@@ -18059,7 +18059,7 @@
           ],
           "iou_after": 0.3840038846363529,
           "rms_px": 0.8860323818141588,
-          "seconds": 4.19,
+          "seconds": 4.145,
           "pose": {
            "position": [
             0.3983097744713634,
@@ -18097,7 +18097,7 @@
          }
         ],
         "renderer": "NVIDIA GeForce RTX 5080/PCIe/SSE2",
-        "generator_seconds": 7.73
+        "generator_seconds": 7.793
        },
        {
         "sample": "ur5e",
@@ -18139,7 +18139,7 @@
           ],
           "iou_after": 0.3342064207598647,
           "rms_px": 0.7977233814908176,
-          "seconds": 4.506,
+          "seconds": 4.28,
           "pose": {
            "position": [
             -0.13356041140035352,
@@ -18191,7 +18191,7 @@
           ],
           "iou_after": 0.3201915551988256,
           "rms_px": 0.6384108584054762,
-          "seconds": 3.415,
+          "seconds": 3.787,
           "pose": {
            "position": [
             -0.13375435699495422,
@@ -18229,7 +18229,7 @@
          }
         ],
         "renderer": "NVIDIA GeForce RTX 5080/PCIe/SSE2",
-        "generator_seconds": 7.902
+        "generator_seconds": 8.79
        }
       ],
       "problems": []
@@ -18258,7 +18258,7 @@
      "tolerance": 2.0,
      "unit": "px",
      "passed": true,
-     "seconds": 7.958,
+     "seconds": 15.206,
      "note": "silhouette 1.65 px (2.12 mm, 0.299°) from the board solve; the board solve 0.039 mm and 0.0047° from the truth",
      "exception": "",
      "detail": {
@@ -18307,7 +18307,7 @@
      "tolerance": 1e-05,
      "unit": "fraction",
      "passed": true,
-     "seconds": 0.26,
+     "seconds": 0.324,
      "note": "Central differences are exact to O(h²): at h = 10 µs the truncation is far below 10⁻⁸ of the speed and the rounding of uv (about 10⁻¹³ px) over 2h is about 10⁻⁸ px/s, so 10⁻⁵ of the peak speed leaves room for both while a wrong frame, sign or lever arm shows as a share near 1.",
      "exception": "",
      "detail": {
@@ -18536,7 +18536,7 @@
      "tolerance": 0.05,
      "unit": "fraction",
      "passed": true,
-     "seconds": 1.317,
+     "seconds": 1.347,
      "note": "The study takes the image motion as linear over the readout; the simulation follows the true motion (the camera turning, the perspective changing), so they differ at second order: ½·ü·t² against u̇·t, a share ü·t/(2·u̇) of how far the point moved (at least 1 px is used), a few per cent for a wrist camera over a 30 ms readout. 5 % allows that; a wrong row time, direction or sign moves the point by a share near 1.",
      "exception": "",
      "detail": {
@@ -18767,7 +18767,7 @@
      "tolerance": 1e-09,
      "unit": "steps",
      "passed": true,
-     "seconds": 0.012,
+     "seconds": 0.013,
      "note": "i = 0 is the oldest prediction, as in ACT's code; a negative m weights the newest more.",
      "exception": "",
      "detail": {
@@ -18892,7 +18892,7 @@
      "tolerance": 1e-09,
      "unit": "s",
      "passed": true,
-     "seconds": 0.426,
+     "seconds": 0.46,
      "note": "Both sides add the same physical terms, so a stamp outside the interval is a term the study misses or a wrong sign; 10⁻⁹ s is rounding. The span condition shows the interval is not wider than the timeline allows (each term is drawn at its ends a third of the time, so the extremes are reached).",
      "exception": "",
      "detail": {
@@ -19197,7 +19197,7 @@
      "tolerance": 0.02,
      "unit": "fraction",
      "passed": true,
-     "seconds": 0.738,
+     "seconds": 0.791,
      "note": "The study takes the largest displacement over every instant (a 1 ms path, linear between); the simulation only sees the frames it samples, so it can fall a little short of the largest displacement, and the path's chords differ from the arc by far less than a micrometre. 2 % allows the sampling; a skew applied with the wrong sign or scale shows as tens of per cent.",
      "exception": "",
      "detail": {
@@ -19261,7 +19261,7 @@
      "tolerance": 0.0,
      "unit": "fraction",
      "passed": true,
-     "seconds": 0.019,
+     "seconds": 0.049,
      "note": "The stated rates are the interface's serial bit rates, which carry the line and frame framing as well as the pixels: the pixel payload must not exceed them (tolerance 0) and the implied framing share, 25.6 to 26.3 %, is reported, not judged. It disagrees with the study's default overhead (5 %): the study's on-the-wire figure for these modes is up to 16.9 % below the stated serial rate. The default is meant for what a USB or GMSL link adds on top of the pixels, not for this sensor's own serial framing; for a link that carries the NanEyeC's raw serial stream, enter the stated rate as a measured figure or an overhead of about this share. No other maker in the library states a data rate for a stream mode, so no USB or GMSL device can be checked this way.",
      "exception": "",
      "detail": {
@@ -19412,7 +19412,7 @@
      "tolerance": 1e-09,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.016,
+     "seconds": 0.018,
      "note": "Both paths do the same arithmetic in a different order on the same stated figures, so they agree to rounding (1e-9 relative leaves room for summation order); a wrong stream lookup, a hub counted on the wrong controller or a wrong allowance shows as a whole-number factor.",
      "exception": "",
      "detail": {
@@ -19785,7 +19785,7 @@
      "tolerance": 0.0,
      "unit": "defects",
      "passed": true,
-     "seconds": 3.993,
+     "seconds": 4.221,
      "note": "A printable STL must be a closed, consistently wound surface; any defect is a fault (a slicer may then fill or drop regions), so the tolerance is zero.",
      "exception": "",
      "detail": {
@@ -19886,7 +19886,7 @@
      "tolerance": 0.01,
      "unit": "relative",
      "passed": true,
-     "seconds": 1.768,
+     "seconds": 1.668,
      "note": "The mesher interpolates the distance linearly between grid points, so every sharp edge is cut by a fraction of a grid step; summed over the disc's edges that removes about 0.1 to 0.2 % of the volume (measured at 0.35 and 0.25 mm). 1 % allows for it while a wrong hole size (0.4 mm on a bolt hole is 1.5 % of its area) or a missing feature fails.",
      "exception": "",
      "detail": {
@@ -19914,7 +19914,7 @@
      "tolerance": 0.05,
      "unit": "mm",
      "passed": true,
-     "seconds": 3.865,
+     "seconds": 3.797,
      "note": "UR's drawing holds the bolt circle to ±0.1 mm on its diameter (±0.05 mm on a hole's radius position); a generated hole must sit well inside that, so 0.05 mm. A circle fitted to some hundred wall vertices locates its centre far better than the 0.25 mm grid.",
      "exception": "",
      "detail": {
@@ -20062,7 +20062,7 @@
      "tolerance": 1e-12,
      "unit": "m²",
      "passed": true,
-     "seconds": 0.166,
+     "seconds": 0.18,
      "note": "",
      "exception": "",
      "detail": {
@@ -20088,7 +20088,7 @@
      "tolerance": 1e-06,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.238,
+     "seconds": 0.236,
      "note": "",
      "exception": "",
      "detail": {
@@ -20115,7 +20115,7 @@
      "tolerance": 0.05,
      "unit": "share",
      "passed": true,
-     "seconds": 11.635,
+     "seconds": 11.817,
      "note": "The tolerance allows for voxel centres within 5 mm of the comfortable workspace's boundary and for targets the local IK misses from its seeds.",
      "exception": "",
      "detail": {
@@ -20193,7 +20193,7 @@
      "tolerance": 1e-06,
      "unit": "absolute",
      "passed": true,
-     "seconds": 0.004,
+     "seconds": 0.006,
      "note": "Quadrature to 1e-12; the integral is exactly 1 for the GGX distribution, so 1e-6 leaves room only for the quadrature itself.",
      "exception": "",
      "detail": {
@@ -20231,7 +20231,7 @@
      "tolerance": 1e-06,
      "unit": "absolute",
      "passed": true,
-     "seconds": 0.907,
+     "seconds": 0.963,
      "note": "The measured figure is the quadrature (exact to about 10⁻⁹). The Monte Carlo estimator, shown in the figure, grows as 1 / cos θo at grazing view on rough surfaces, so its standard error is largest at 89° and α 0.9; it must lie within four standard errors of 1.",
      "exception": "",
      "detail": {
@@ -20480,7 +20480,7 @@
      "tolerance": 0.0,
      "unit": "albedo",
      "passed": true,
-     "seconds": 4.611,
+     "seconds": 4.777,
      "note": "The tolerance is 0: any albedo above 1 by more than three standard errors fails.",
      "exception": "",
      "detail": {
@@ -20678,7 +20678,7 @@
      "tolerance": 1e-12,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.037,
+     "seconds": 0.036,
      "note": "Both terms are symmetric by construction; the tolerance allows rounding only.",
      "exception": "",
      "detail": {
@@ -21165,7 +21165,7 @@
      "tolerance": 0.005,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.285,
+     "seconds": 0.391,
      "note": "The point law is the far-field limit: expanding the closed form of the square, its relative error is about (a / d)² / 3, 1.3 % at d = 5 a and 0.33 % at d = 10 a, so 0.5 % from ten source sizes on states it; the Monte Carlo error at this sample count is below 10⁻⁴.",
      "exception": "",
      "detail": {
@@ -21235,7 +21235,7 @@
      "tolerance": 0.025,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.163,
+     "seconds": 0.173,
      "note": "The split converges as 1 / n² (patches per side n); with the default 4 × 4 the largest difference is about 2 % at half the panel's size, where the patch is a quarter of the distance; 2.5 % states that bound.",
      "exception": "",
      "detail": {
@@ -21293,7 +21293,7 @@
      "tolerance": 0.015,
      "unit": "area share",
      "passed": true,
-     "seconds": 4.091,
+     "seconds": 3.989,
      "note": "The disagreements are within about a texel of a silhouette or a contact (the cube map is sampled per texel; at 512 texels one spans 3.9 mrad at a face centre) and where the slope tolerance lets a point just behind an oblique edge through. Measured on the RTX 5080: 0.66 % of the area at 512 texels, 0.85 % at 256, 0.31 % at 1024.",
      "exception": "",
      "detail": {
@@ -21452,7 +21452,7 @@
      "tolerance": 1e-06,
      "unit": "px",
      "passed": true,
-     "seconds": 0.084,
+     "seconds": 0.081,
      "note": "",
      "exception": "",
      "detail": {
@@ -21687,7 +21687,7 @@
      "tolerance": 0.0,
      "unit": "tokens",
      "passed": true,
-     "seconds": 1.378,
+     "seconds": 1.424,
      "note": "0 of 84586 covered pixels differ (silhouette edges)",
      "exception": "",
      "detail": {
@@ -22436,7 +22436,7 @@
      "tolerance": 1e-06,
      "unit": "(unitless d, m for m)",
      "passed": true,
-     "seconds": 0.402,
+     "seconds": 0.392,
      "note": "",
      "exception": "",
      "detail": {
@@ -22626,7 +22626,7 @@
      "tolerance": 1e-06,
      "unit": "px",
      "passed": true,
-     "seconds": 0.005,
+     "seconds": 0.006,
      "note": "",
      "exception": "",
      "detail": {
@@ -22651,7 +22651,7 @@
      "tolerance": 1e-06,
      "unit": "px",
      "passed": true,
-     "seconds": 0.313,
+     "seconds": 0.312,
      "note": "",
      "exception": "",
      "detail": {
@@ -22676,7 +22676,7 @@
      "tolerance": 1.0,
      "unit": "grey level",
      "passed": true,
-     "seconds": 0.073,
+     "seconds": 0.085,
      "note": "",
      "exception": "",
      "detail": {
@@ -22709,7 +22709,7 @@
      "tolerance": 0.002,
      "unit": "m",
      "passed": true,
-     "seconds": 5.242,
+     "seconds": 5.32,
      "note": "13 visibility evaluations against 21 for the scan; the tolerance is one refine step.",
      "exception": "",
      "detail": {
@@ -22819,7 +22819,7 @@
      "tolerance": 0.001,
      "unit": "fraction of a pad",
      "passed": true,
-     "seconds": 0.736,
+     "seconds": 0.648,
      "note": "Every pad point lies 0.5 mm (on the pad plane) from a shadow edge, which is 1.7 mrad from camera 1 and more from camera 2, against a texel of 1 mrad at n = 2048: no point is ambiguous for either path, so both must reproduce the closed form point for point. 1e-3 (less than one of the 400 points of a pad) allows nothing else.",
      "exception": "",
      "detail": {
@@ -23028,7 +23028,7 @@
      "tolerance": 0.001,
      "unit": "fraction",
      "passed": true,
-     "seconds": 0.138,
+     "seconds": 0.143,
      "note": "Both are exact ray–triangle tests; they can differ only for a ray through a shared edge or corner (rounding) or a hit within rounding of the 1 mm visibility margin. 1e-3 leaves room for those and nothing else. The scenes must show at least three owners (seen, its own finger and another group) for the check to count.",
      "exception": "",
      "detail": {
@@ -23136,7 +23136,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 1.156,
+     "seconds": 1.241,
      "note": "The cube map of a union keeps, per texel, the nearest of the triangles drawn into it, so the minimum over maps of disjoint groups must equal it exactly (float32 distances on the GPU, the same arithmetic per group); 1e-6 m allows float32 rounding of a distance near 1 m. The detail lists, per camera and finger, how many points (percent of the patch) the cube-map path sees differently from exact ray casting at this face size: the texel effect that makes ray casting the study's default.",
      "exception": "",
      "detail": {
@@ -28237,7 +28237,7 @@
      "tolerance": 0.005,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.059,
+     "seconds": 0.063,
      "note": "The loop's points lie on the circle, so the three-point circle is the arc itself; what remains is the polyline being slightly shorter than the arc it samples (the bisection matches the polyline's length to s), well under 0.5 % at 49 points.",
      "exception": "",
      "detail": {
@@ -28682,7 +28682,7 @@
      "tolerance": 0.0,
      "unit": "poses",
      "passed": true,
-     "seconds": 0.839,
+     "seconds": 0.961,
      "note": "Both sides test the same loop polylines; the study by ray casting segments against triangles and a parity test, brute force by points 0.5 mm apart in closed-form boxes. A loop that only grazes a box (less than 1 mm deep or clear) can fall between the brute-force points, so those poses are not counted; every other pose must agree. Between the sampled poses the swept volume is not tested: the share-of-time comparison shows how much that sampling misses.",
      "exception": "",
      "detail": {
@@ -29398,7 +29398,7 @@
      "tolerance": 0.0,
      "unit": "share",
      "passed": true,
-     "seconds": 52.894,
+     "seconds": 62.834,
      "note": "Recall and false-positive rate per fault kind; floors are what the method supports at the injected sizes (FLOOR_WHY), drift is reported, not claimed.",
      "exception": "",
      "detail": {
@@ -29616,7 +29616,7 @@
         }
        }
       },
-      "seconds_audit": 36.65
+      "seconds_audit": 46.63
      },
      "figure": null
     },
@@ -29754,7 +29754,7 @@
      "tolerance": 1e-09,
      "unit": "units of the series",
      "passed": true,
-     "seconds": 0.036,
+     "seconds": 0.037,
      "note": "Vantage's outputs were recorded from its checkout (commit and date in the detail).",
      "exception": "",
      "detail": {
@@ -30099,14 +30099,14 @@
      "tolerance": 0.3,
      "unit": "°",
      "passed": true,
-     "seconds": 1.258,
+     "seconds": 1.164,
      "note": "The rotation vectors are compared, not only their sizes. The registration fits a pure rotation and the slip also moves the camera 3 mm, which at the scene's 0.56 m subtends up to 0.31°: the tolerance states that.",
      "exception": "",
      "detail": {
       "cameras": [
        {
         "key": "observation.images.third_person_camera",
-        "sensor_uid": "a5c9e567ca",
+        "sensor_uid": "ff8b3670c4",
         "sensor": "Third-person camera (sample placement)",
         "matched": "by name",
         "present": "yes",
@@ -30173,7 +30173,7 @@
        },
        {
         "key": "observation.images.wrist_camera",
-        "sensor_uid": "fa276d30ee",
+        "sensor_uid": "d8955e4ad3",
         "sensor": "Wrist camera (sample placement)",
         "matched": "by name",
         "present": "yes",
@@ -30276,7 +30276,7 @@
      "tolerance": 0.02,
      "unit": "relative",
      "passed": true,
-     "seconds": 9.834,
+     "seconds": 10.416,
      "note": "tolerance 4 standard errors of a sample σ at n = 20000",
      "exception": "",
      "detail": {
@@ -30352,7 +30352,7 @@
      "tolerance": 0.03708453154821468,
      "unit": "KS statistic D",
      "passed": true,
-     "seconds": 6.739,
+     "seconds": 6.808,
      "note": "critical D at α = 0.001 over 30 marginals (Bonferroni), n = 4000",
      "exception": "",
      "detail": {
@@ -30634,7 +30634,7 @@
      "tolerance": 0.0,
      "unit": "m or rad",
      "passed": true,
-     "seconds": 0.048,
+     "seconds": 0.049,
      "note": "",
      "exception": "",
      "detail": {
@@ -30710,7 +30710,7 @@
      "tolerance": 0.0,
      "unit": "statements",
      "passed": true,
-     "seconds": 0.027,
+     "seconds": 0.026,
      "note": "300 random designs of 12 runs; draws include every interval's ends",
      "exception": "",
      "detail": {
@@ -30740,7 +30740,7 @@
      "tolerance": 0.03125,
      "unit": "index",
      "passed": true,
-     "seconds": 0.117,
+     "seconds": 0.132,
      "note": "tolerance 2/√N at N = 4096",
      "exception": "",
      "detail": {
@@ -30905,7 +30905,7 @@
      "tolerance": 1e-09,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.009,
+     "seconds": 0.008,
      "note": "",
      "exception": "",
      "detail": {
@@ -30933,7 +30933,7 @@
      "tolerance": 0.5,
      "unit": "ratio",
      "passed": true,
-     "seconds": 0.063,
+     "seconds": 0.06,
      "note": "",
      "exception": "",
      "detail": {
@@ -31267,7 +31267,7 @@
      "tolerance": 0.01,
      "unit": "IGD (objective units)",
      "passed": true,
-     "seconds": 1.745,
+     "seconds": 1.662,
      "note": "",
      "exception": "",
      "detail": {
@@ -31733,7 +31733,7 @@
      "tolerance": 0.01,
      "unit": "IGD (objective units)",
      "passed": true,
-     "seconds": 1.709,
+     "seconds": 1.74,
      "note": "",
      "exception": "",
      "detail": {
@@ -32199,7 +32199,7 @@
      "tolerance": 0.05,
      "unit": "IGD (objective units)",
      "passed": true,
-     "seconds": 0.685,
+     "seconds": 0.7,
      "note": "",
      "exception": "",
      "detail": {
@@ -32655,7 +32655,7 @@
      "tolerance": 0.0,
      "unit": "designs",
      "passed": true,
-     "seconds": 0.184,
+     "seconds": 0.219,
      "note": "",
      "exception": "",
      "detail": {
@@ -32677,7 +32677,7 @@
      "tolerance": 0.0,
      "unit": "objective units",
      "passed": true,
-     "seconds": 0.042,
+     "seconds": 0.044,
      "note": "",
      "exception": "",
      "detail": {
@@ -32700,7 +32700,7 @@
      "tolerance": 1e-09,
      "unit": "metric units",
      "passed": true,
-     "seconds": 15.817,
+     "seconds": 15.905,
      "note": "",
      "exception": "",
      "detail": {
@@ -32783,7 +32783,7 @@
      "tolerance": 0.0,
      "unit": "differences",
      "passed": true,
-     "seconds": 0.002,
+     "seconds": 0.001,
      "note": "",
      "exception": "",
      "detail": {
@@ -32809,7 +32809,7 @@
      "tolerance": 0.0,
      "unit": "mismatches",
      "passed": true,
-     "seconds": 0.564,
+     "seconds": 0.518,
      "note": "The lerobot package is not installed, so this check uses DexVantage's own reader and an independent read with pyarrow and ffmpeg, against the format as read from the LeRobot source at commit d490e47 (v3.0) and tag v0.3.3 (v2.1); LeRobot's own loader is not run. Tolerances: columns are compared bit for bit after the float32 cast the format stores; camera times within half a tick of the 1/90000 s time base used for irregular cameras (regular ones are exact); frames at 30 dB PSNR or better, because the videos are lossy (LeRobot's defaults: AV1 or H.264, yuv420p, crf 30) and 30 dB, an RMS error of 8 grey levels, is below what was measured on this pattern (worst frame 33.2 dB at v3.0 and 35.7 dB at v2.1 with libsvtav1, 2026-11-07) with margin for other encoder builds.",
      "exception": "",
      "detail": {
@@ -32863,7 +32863,7 @@
      "tolerance": 0.0,
      "unit": "mismatches",
      "passed": true,
-     "seconds": 0.082,
+     "seconds": 0.11,
      "note": "Zero: a container format either carries every byte or it is wrong; the reader must return the written joint states and stamps bit for bit.",
      "exception": "",
      "detail": {
@@ -32898,7 +32898,7 @@
      "tolerance": 0.0,
      "unit": "mismatches",
      "passed": true,
-     "seconds": 0.106,
+     "seconds": 0.11,
      "note": "Zero: a checksum is exact; one wrong bit would accept damaged records or refuse good ones.",
      "exception": "",
      "detail": {
@@ -32962,7 +32962,7 @@
      "tolerance": 2e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 1.215,
+     "seconds": 1.309,
      "note": "The file is the one Simulate ▸ Build the MuJoCo scene… writes, read back by MuJoCo from disk with its assets folder, so a missing mesh, a wrong path or a pose lost in writing shows here. MuJoCo 3.17.0's XML writer (MjSpec.to_xml, no precision option) writes 6 significant digits: half a unit of the 6th digit is 5 × 10⁻⁷ m on a coordinate under 1 m, about 10⁻⁶ rad on a quaternion and 0.005 px on a focal length of 1 000 to 9 999 px (focalpixel \"1396.81\"). The tolerances, 2 µm, 5 × 10⁻⁶ rad and 0.01 px, allow that rounding along a few links of a chain (measured 2026-11-07: 5.8 × 10⁻⁷ m, 1.1 × 10⁻⁶ rad, 1.9 × 10⁻³ px); a pose wrong by a link offset is millimetres. In memory, before writing, the scene matches within 10⁻⁴ px (groundtruth.scene_intrinsics).",
      "exception": "",
      "detail": {
@@ -33090,7 +33090,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 0.896,
+     "seconds": 0.965,
      "note": "The snippets are written with 17 significant digits (they read back to the same float64), so the poses agree to rounding (10⁻⁹ m and rad leave room for a chain of a dozen bodies); MuJoCo stores the compiled intrinsics in float32 (about 6 × 10⁻⁵ px at a 1 000 px focal length), hence 10⁻³ px. The pasted file is also loaded through MuJoCo's own writer to show every camera is found under its body; the figures come from each block parsed by MuJoCo and attached to the robot's model in memory, since that writer keeps 6 digits. The full scene is formats.mjcf_scene.",
      "exception": "",
      "detail": {
@@ -33199,7 +33199,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 0.922,
+     "seconds": 0.827,
      "note": "The URDF is written from the MuJoCo model DexVantage compiles, joint by joint (anchors and qpos0 folded into the origins), with 17 significant digits; two independent posers, an XML walk with urdfdom's conventions and MuJoCo's URDF compiler, must both agree with DexVantage to rounding (10⁻⁹ m over chains of up to 30 joints). A wrong joint anchor, a sign of qpos0 or an RPY order would be millimetres or degrees.",
      "exception": "",
      "detail": {
@@ -33425,7 +33425,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 0.765,
+     "seconds": 0.749,
      "note": "The transforms are numbers written with 17 significant digits: any error beyond rounding is a wrong frame, parent or quaternion order (tf2 takes x, y, z, w).",
      "exception": "",
      "detail": {
@@ -33555,7 +33555,7 @@
      "tolerance": 0.0,
      "unit": "abs. difference",
      "passed": true,
-     "seconds": 1.596,
+     "seconds": 1.79,
      "note": "Zero: cv2.FileStorage writes doubles with 17 significant digits, so a matrix reads back bit for bit (measured 0 on 2026-11-07). The projection bound of 10⁻⁶ px is far above float64 rounding (10⁻¹² px measured) and far below any wrong coefficient order; the equisolid and stereographic lenses have no OpenCV form and must stay within the error the file states (measured 5 × 10⁻⁹ and 4 × 10⁻⁴ px on these lenses).",
      "exception": "",
      "detail": {
@@ -33958,7 +33958,7 @@
      "tolerance": 0.0,
      "unit": "abs. difference",
      "passed": true,
-     "seconds": 1.991,
+     "seconds": 1.815,
      "note": "Zero: the numbers are written in Python's shortest round-trip form, which YAML reads back to the same float64.",
      "exception": "",
      "detail": {
@@ -34319,7 +34319,7 @@
      "tolerance": 0.001,
      "unit": "share of pixels",
      "passed": true,
-     "seconds": 18.922,
+     "seconds": 25.034,
      "note": "The masks come from the Camera view's renderer, which tests each pixel-centre ray against every triangle exactly, so exact ray casting should agree but for rays through a shared edge (10⁻³; measured 0 of 187 200 pixels on 2026-11-07). The cube map answers per texel (0.03° at 2048), so silhouettes may differ by a texel: 0.5 % (measured 0.07 %). The depth codes use the study's cube maps for the other imager's line of sight: 1 % (measured 0.25 %, at silhouettes; at the study's own 512 texels it was 4.4 %, the reason the masks use 2048).",
      "exception": "",
      "detail": {
@@ -34379,7 +34379,7 @@
      "tolerance": 1e-06,
      "unit": "relative",
      "passed": true,
-     "seconds": 8.112,
+     "seconds": 8.46,
      "note": "The STEP is the mesh itself (each triangle a planar face, sewn into one shell), so the volumes agree to the STEP file's number format and OpenCASCADE's sewing tolerance; 10⁻⁶ of the volume is far below a missing or flipped face (a face of a 2 mm grid is about 10⁻⁴ of a bracket). Registered only when gmsh is installed.",
      "exception": "",
      "detail": {
@@ -34406,7 +34406,7 @@
      "tolerance": 0.001,
      "unit": "px",
      "passed": true,
-     "seconds": 0.841,
+     "seconds": 0.763,
      "note": "USD stores focalLength, the apertures and the OpenCV attributes as 32-bit floats (a relative error up to 6 × 10⁻⁸, so about 10⁻⁴ px at a 1 400 px focal length across a 1 920 px image); 10⁻³ px allows that with margin and is far below a sign or convention error (an aperture offset of the wrong sign moves the principal point by twice its offset, tens of pixels on the calibrated cameras here). Measured 2026-11-07: 2.6 × 10⁻⁵ px. Transforms are matrix4d (64-bit): 10⁻⁹ m and 10⁻⁶ rad are far below a frame-convention error (a quarter or half turn), measured 5.6 × 10⁻¹⁷ m and 5.5 × 10⁻¹⁶ rad.",
      "exception": "",
      "detail": {
@@ -34459,7 +34459,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 1.643,
+     "seconds": 1.424,
      "note": "The files write every number with 17 significant digits (Python's repr), so values read back to the last bit and the differences are the rounding of composing the transforms in another order (measured 2026-11-07: 1.4 × 10⁻¹⁶ m, 8.2 × 10⁻¹⁶ rad); 10⁻⁹ m and rad is far below a mount or quaternion-order error (millimetres, degrees). Isaac Lab itself is not installed here: the stub classes refuse any field the v3.0.0 or v2.3.2 source does not define and require the ones it leaves MISSING.",
      "exception": "",
      "detail": {
@@ -34533,7 +34533,7 @@
      "tolerance": 0.0,
      "unit": "mismatches",
      "passed": true,
-     "seconds": 0.576,
+     "seconds": 0.651,
      "note": "LeRobot, ACT, Diffusion Policy and OpenVLA are not installed here, so their own loaders are not run: info.json is checked through DexVantage's reader (itself checked against the format by formats.lerobot_roundtrip), and the configs against the field names of the pinned sources. The codec fields are not compared (the writer uses H.264 where PyAV has no AV1 encoder).",
      "exception": "",
      "detail": {
@@ -34601,7 +34601,7 @@
      "tolerance": 0.0,
      "unit": "mismatches",
      "passed": true,
-     "seconds": 0.645,
+     "seconds": 0.747,
      "note": "Studies that refuse on this project are listed under \"Not run\" with their sentence, which the check accepts.",
      "exception": "",
      "detail": {
@@ -34637,7 +34637,7 @@
      "tolerance": 0.0001,
      "unit": "px or m",
      "passed": true,
-     "seconds": 0.621,
+     "seconds": 0.562,
      "note": "",
      "exception": "",
      "detail": {
@@ -34667,7 +34667,7 @@
      "tolerance": 1e-12,
      "unit": "px",
      "passed": true,
-     "seconds": 2.11,
+     "seconds": 5.327,
      "note": "",
      "exception": "",
      "detail": {
@@ -34711,7 +34711,7 @@
      "tolerance": 0.0005,
      "unit": "relative",
      "passed": true,
-     "seconds": 1.258,
+     "seconds": 1.344,
      "note": "14 figures compared on the sample; the tools return the studies' own figures, rounded for reading.",
      "exception": "",
      "detail": {
@@ -34835,12 +34835,12 @@
      "tolerance": 0.0,
      "unit": "count",
      "passed": true,
-     "seconds": 0.026,
-     "note": "40 tool definitions and 8 request kinds checked against the specification.",
+     "seconds": 0.023,
+     "note": "41 tool definitions and 8 request kinds checked against the specification.",
      "exception": "",
      "detail": {
       "problems": [],
-      "tools": 40,
+      "tools": 41,
       "schema_check": "jsonschema Draft202012Validator"
      },
      "figure": null
@@ -34905,7 +34905,7 @@
      "tolerance": 0.0,
      "unit": "cases",
      "passed": true,
-     "seconds": 0.039,
+     "seconds": 0.057,
      "note": "",
      "exception": "",
      "detail": {
@@ -34983,7 +34983,7 @@
      "tolerance": 0.0,
      "unit": "cases",
      "passed": true,
-     "seconds": 0.061,
+     "seconds": 0.068,
      "note": "",
      "exception": "",
      "detail": {
@@ -35005,7 +35005,7 @@
      "tolerance": 0.0,
      "unit": "figure units",
      "passed": true,
-     "seconds": 2.18,
+     "seconds": 2.129,
      "note": "",
      "exception": "",
      "detail": {
@@ -35111,7 +35111,7 @@
      "tolerance": 0.0,
      "unit": "values",
      "passed": true,
-     "seconds": 1.03,
+     "seconds": 1.07,
      "note": "",
      "exception": "",
      "detail": {
@@ -35147,7 +35147,7 @@
      "tolerance": 0.0,
      "unit": "results",
      "passed": true,
-     "seconds": 1.164,
+     "seconds": 1.106,
      "note": "",
      "exception": "",
      "detail": {
@@ -35194,7 +35194,7 @@
      "tolerance": 0.0,
      "unit": "answers",
      "passed": true,
-     "seconds": 0.004,
+     "seconds": 0.003,
      "note": "",
      "exception": "",
      "detail": {
@@ -35243,12 +35243,12 @@
      "exception": "",
      "detail": {
       "factors": [
-       "sensor:e4297a0ed1.z",
-       "sensor:e4297a0ed1.dpitch",
-       "sensor:e4297a0ed1.enabled"
+       "sensor:6269e8a680.z",
+       "sensor:6269e8a680.dpitch",
+       "sensor:6269e8a680.enabled"
       ],
       "sections": [
-       "variant:5aefa98a9d"
+       "variant:9296875bec"
       ],
       "after_apply_differs": 0,
       "after_restore_differs": 0
@@ -35277,7 +35277,7 @@
      "tolerance": 0.0,
      "unit": "changes",
      "passed": true,
-     "seconds": 0.056,
+     "seconds": 0.071,
      "note": "",
      "exception": "",
      "detail": {
@@ -35331,7 +35331,7 @@
      "tolerance": 0.0,
      "unit": "cases",
      "passed": true,
-     "seconds": 0.183,
+     "seconds": 0.178,
      "note": "",
      "exception": "",
      "detail": {
@@ -35442,7 +35442,7 @@
      "tolerance": 0.0,
      "unit": "files",
      "passed": true,
-     "seconds": 0.239,
+     "seconds": 0.282,
      "note": "",
      "exception": "",
      "detail": {
@@ -35466,11 +35466,11 @@
      "tolerance": 0.0,
      "unit": "entries",
      "passed": true,
-     "seconds": 0.021,
+     "seconds": 0.022,
      "note": "",
      "exception": "",
      "detail": {
-      "entries": 235,
+      "entries": 241,
       "duplicate_keys": 0,
       "missing_urls": [],
       "library_urls": 4
@@ -35517,7 +35517,7 @@
      "tolerance": 0.5,
      "unit": "pt",
      "passed": true,
-     "seconds": 0.034,
+     "seconds": 0.058,
      "note": "",
      "exception": "",
      "detail": {
@@ -35555,7 +35555,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.408,
+     "seconds": 0.639,
      "note": "The arm files are aloha.xml with the other arm deleted and the base moved to the origin, written back by MuJoCo's to_xml, which rounds numbers to about six significant digits (measured 4.5e-7 when the files were written); 1e-6 allows that rounding and nothing more.",
      "exception": "",
      "detail": {
@@ -35583,7 +35583,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.298,
+     "seconds": 0.289,
      "note": "The wrist cameras ride on the arm files (to_xml rounding, as for the arms); the two frame cameras are read from scene_parts.xml through aloha.xml's base pose. 1e-6 allows the rounding only.",
      "exception": "",
      "detail": {
@@ -35611,7 +35611,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.348,
+     "seconds": 0.63,
      "note": "The upper-body file deletes joints that are 0 at \"stand\", so their bodies stay where the keyframe puts them; what remains is MuJoCo's to_xml rounding (1e-6).",
      "exception": "",
      "detail": {
@@ -35635,7 +35635,7 @@
      "tolerance": 1e-12,
      "unit": "m",
      "passed": true,
-     "seconds": 0.27,
+     "seconds": 0.274,
      "note": "Both sides compose the same figures by different routes (a quaternion through the mount against the URDF's rotation written out here); only floating-point rounding remains.",
      "exception": "",
      "detail": {
@@ -35658,7 +35658,7 @@
      "tolerance": 1e-09,
      "unit": "m",
      "passed": true,
-     "seconds": 0.178,
+     "seconds": 0.343,
      "note": "The file's bodies are not rewritten (only its mesh file names), so only the base pose's floating-point composition remains; 1e-9 m is far below any figure the studies report.",
      "exception": "",
      "detail": {
@@ -35693,7 +35693,7 @@
      "tolerance": 1.0,
      "unit": "of the bound",
      "passed": true,
-     "seconds": 0.077,
+     "seconds": 0.074,
      "note": "The tessellated cylinder and sphere lie inside the true shapes, so their boxes may fall short by up to 1.70 % of the radius and never stick out; a box is exact to rounding. A wrong rotation or a size read as a diameter shows as many times the bound.",
      "exception": "",
      "detail": {
@@ -35721,7 +35721,7 @@
      "tolerance": 0.0,
      "unit": "objects",
      "passed": true,
-     "seconds": 0.057,
+     "seconds": 0.091,
      "note": "Every object is clear of each face by 3 mm (more than the 1 mm tolerance plus the 1.7 % tessellation shortfall of a 60 mm radius), so the classification is unambiguous: any disagreement is a fault.",
      "exception": "",
      "detail": {
@@ -35756,7 +35756,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.804,
+     "seconds": 0.823,
      "note": "10⁻⁶ m is the round trip's stated requirement; the file writes 17 significant digits, so the error is rounding (measured 2026-11-07: 5.3 × 10⁻¹⁶ m) and a wrong joint anchor or frame would be millimetres. Inertials: MuJoCo's URDF compiler diagonalises the written full tensor again, so 10⁻⁹ relative leaves room for its eigen-decomposition only. Before this export wrote inertials, MuJoCo refused the file (\"mass and inertia of moving bodies must be larger than mjMINVAL\").",
      "exception": "",
      "detail": {
@@ -35801,7 +35801,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 1.525,
+     "seconds": 1.555,
      "note": "UsdPhysics stores joint frames as point3f and quatf and limits as float (32-bit): about 6 × 10⁻⁸ relative, so a chain of a dozen joints within a metre lands within a few 10⁻⁸ m (measured 2026-11-07: 2.5 × 10⁻⁸ m, 1.0 × 10⁻⁷ rad); 10⁻⁶ m and rad leave that margin and sit far below a convention error (a sign of the axis, an anchor or a frame swap is millimetres or degrees). \"Exact\" limits: the imported limit equals the stored float32 decoded (degrees × π/180), which is within one float32 spacing of the source.",
      "exception": "",
      "detail": {
@@ -35856,7 +35856,7 @@
      "tolerance": 1e-06,
      "unit": "m",
      "passed": true,
-     "seconds": 0.207,
+     "seconds": 0.221,
      "note": "An independent writer: a sign, axis or frame convention the importer and DexVantage's writer shared by mistake would show here. The file stores float32 frames and limits (degrees), hence 10⁻⁶. Its mesh library (6.3 MB) is not bundled, so its visual meshes are left out and said; the bodies, joints, limits, masses and collision primitives are read. Measured 2026-11-07: 2.6 × 10⁻⁸ m, 1.9 × 10⁻¹⁵ rad.",
      "exception": "",
      "detail": {
@@ -35891,7 +35891,7 @@
      "tolerance": 0.0,
      "unit": "mismatches",
      "passed": true,
-     "seconds": 1.244,
+     "seconds": 1.165,
      "note": "The rules are a table of the sources' statements (which action encodings each loader accepts, the 7 + 1 and 2 × (6 + 1) layouts); a zero means every rig got the encoding those lines give and the export says when none fits. Not run in OpenVLA itself (not installed).",
      "exception": "",
      "detail": {
@@ -35959,7 +35959,7 @@
      "tolerance": 0.001,
      "unit": "px",
      "passed": true,
-     "seconds": 0.252,
+     "seconds": 0.244,
      "note": "USD stores the OpenCV attributes as 32-bit floats (about 3 × 10⁻⁵ px at 640 px); 10⁻³ px leaves margin and is far below the effect checked: without the OpenCV attributes Isaac Lab centres the principal point (cx = width / 2), 16.6 and 28.5 px off on these cameras. Measured 2026-11-07: 4.8 × 10⁻⁵ px. Not rendered in Isaac Sim (not installed).",
      "exception": "",
      "detail": {
@@ -36075,7 +36075,7 @@
      "tolerance": 0.0,
      "unit": "count",
      "passed": true,
-     "seconds": 0.054,
+     "seconds": 0.079,
      "note": "",
      "exception": "",
      "detail": {
@@ -36116,7 +36116,7 @@
      "tolerance": 1e-09,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.384,
+     "seconds": 0.473,
      "note": "",
      "exception": "",
      "detail": {
@@ -36182,7 +36182,7 @@
      "tolerance": 0.04,
      "unit": "power (0-1)",
      "passed": true,
-     "seconds": 0.012,
+     "seconds": 0.013,
      "note": "The normal approximation is furthest off near a rate of 0 or 1 (0.8 against 0.95: exact power 0.833 for 80 %); the exact power of a discrete test also steps with n.",
      "exception": "",
      "detail": {
@@ -36565,7 +36565,7 @@
      "tolerance": 0.0,
      "unit": "numbers",
      "passed": true,
-     "seconds": 0.568,
+     "seconds": 0.573,
      "note": "A paragraph with fewer than 20 numbers would not exercise the check.",
      "exception": "",
      "detail": {
@@ -36612,7 +36612,7 @@
      "tolerance": 0.0,
      "unit": "problems",
      "passed": true,
-     "seconds": 0.465,
+     "seconds": 0.458,
      "note": "",
      "exception": "",
      "detail": {
@@ -36668,7 +36668,7 @@
      "tolerance": 0.0,
      "unit": "fields",
      "passed": true,
-     "seconds": 0.039,
+     "seconds": 0.014,
      "note": "",
      "exception": "",
      "detail": {
@@ -36692,7 +36692,7 @@
      "tolerance": 0.0,
      "unit": "runs",
      "passed": true,
-     "seconds": 1.682,
+     "seconds": 1.573,
      "note": "8 of 8 writers were writing at the same moment at the busiest",
      "exception": "",
      "detail": {
@@ -36709,7 +36709,7 @@
       "temporary_left": 0,
       "errors": [],
       "first_corrupt": [],
-      "seconds": 1.38
+      "seconds": 1.27
      },
      "figure": null
     },
@@ -36761,7 +36761,7 @@
      "tolerance": 0.0,
      "unit": "cells",
      "passed": true,
-     "seconds": 0.018,
+     "seconds": 0.022,
      "note": "",
      "exception": "",
      "detail": {
@@ -36786,7 +36786,7 @@
      "tolerance": 0.0,
      "unit": "fields",
      "passed": true,
-     "seconds": 0.48,
+     "seconds": 0.469,
      "note": "read back with the MLflow 3.17.2 MlflowClient",
      "exception": "",
      "detail": {
@@ -36820,7 +36820,7 @@
      "tolerance": 1e-12,
      "unit": "index",
      "passed": true,
-     "seconds": 0.092,
+     "seconds": 0.096,
      "note": "",
      "exception": "",
      "detail": {
@@ -36849,7 +36849,7 @@
      "tolerance": 1e-09,
      "unit": "°",
      "passed": true,
-     "seconds": 0.179,
+     "seconds": 0.155,
      "note": "",
      "exception": "",
      "detail": {
@@ -36979,7 +36979,7 @@
      "tolerance": 1e-09,
      "unit": "mm",
      "passed": true,
-     "seconds": 0.132,
+     "seconds": 0.107,
      "note": "",
      "exception": "",
      "detail": {
@@ -37043,7 +37043,7 @@
      "tolerance": 0.02,
      "unit": "share",
      "passed": true,
-     "seconds": 0.05,
+     "seconds": 0.049,
      "note": "",
      "exception": "",
      "detail": {
@@ -37162,7 +37162,7 @@
      "tolerance": 0.0,
      "unit": "count",
      "passed": true,
-     "seconds": 0.217,
+     "seconds": 0.267,
      "note": "",
      "exception": "",
      "detail": {
@@ -37337,7 +37337,7 @@
      "tolerance": 1e-09,
      "unit": "mm or °",
      "passed": true,
-     "seconds": 0.288,
+     "seconds": 0.319,
      "note": "",
      "exception": "",
      "detail": {
@@ -37380,7 +37380,7 @@
      "tolerance": 1e-09,
      "unit": "proportion",
      "passed": true,
-     "seconds": 1.258,
+     "seconds": 1.264,
      "note": "",
      "exception": "",
      "detail": {
@@ -37422,7 +37422,7 @@
      "tolerance": 1e-09,
      "unit": "p",
      "passed": true,
-     "seconds": 0.072,
+     "seconds": 0.083,
      "note": "",
      "exception": "",
      "detail": {
@@ -37449,7 +37449,7 @@
      "tolerance": 1e-09,
      "unit": "p or ratio",
      "passed": true,
-     "seconds": 0.003,
+     "seconds": 0.004,
      "note": "",
      "exception": "",
      "detail": {
@@ -37470,7 +37470,7 @@
      "tolerance": 1e-12,
      "unit": "p",
      "passed": true,
-     "seconds": 0.082,
+     "seconds": 0.08,
      "note": "",
      "exception": "",
      "detail": {
@@ -37492,7 +37492,7 @@
      "tolerance": 4.0,
      "unit": "standard errors",
      "passed": true,
-     "seconds": 0.066,
+     "seconds": 0.068,
      "note": "",
      "exception": "",
      "detail": {
@@ -37552,7 +37552,7 @@
      "tolerance": 0.25,
      "unit": "standard errors",
      "passed": true,
-     "seconds": 0.018,
+     "seconds": 0.019,
      "note": "",
      "exception": "",
      "detail": {
@@ -37913,7 +37913,7 @@
      "tolerance": 4.0,
      "unit": "standard errors",
      "passed": true,
-     "seconds": 1.303,
+     "seconds": 1.286,
      "note": "",
      "exception": "",
      "detail": {
@@ -37991,7 +37991,7 @@
      "tolerance": 4.0,
      "unit": "standard errors",
      "passed": true,
-     "seconds": 1.671,
+     "seconds": 1.61,
      "note": "",
      "exception": "",
      "detail": {
@@ -38060,7 +38060,7 @@
      "tolerance": 1e-09,
      "unit": "value",
      "passed": true,
-     "seconds": 0.005,
+     "seconds": 0.006,
      "note": "",
      "exception": "",
      "detail": {
@@ -38094,7 +38094,7 @@
      "tolerance": 0.0,
      "unit": "values",
      "passed": true,
-     "seconds": 6.125,
+     "seconds": 6.252,
      "note": "",
      "exception": "",
      "detail": {
@@ -38121,7 +38121,7 @@
      "tolerance": 0.0,
      "unit": "pairs",
      "passed": true,
-     "seconds": 0.083,
+     "seconds": 0.078,
      "note": "",
      "exception": "",
      "detail": {
@@ -38145,7 +38145,7 @@
      "tolerance": 0.0,
      "unit": "reads",
      "passed": true,
-     "seconds": 1.388,
+     "seconds": 1.114,
      "note": "",
      "exception": "",
      "detail": {
@@ -38176,7 +38176,7 @@
      "tolerance": 0.0,
      "unit": "mismatches",
      "passed": true,
-     "seconds": 0.001,
+     "seconds": 0.003,
      "note": "",
      "exception": "",
      "detail": {
@@ -38219,7 +38219,7 @@
      "tolerance": 1e-09,
      "unit": "DN",
      "passed": true,
-     "seconds": 0.009,
+     "seconds": 0.011,
      "note": "",
      "exception": "",
      "detail": {
@@ -38291,7 +38291,7 @@
      "tolerance": 0.05,
      "unit": "relative",
      "passed": true,
-     "seconds": 0.008,
+     "seconds": 0.011,
      "note": "",
      "exception": "",
      "detail": {
@@ -38405,7 +38405,7 @@
      "tolerance": 1.0,
      "unit": "ratio",
      "passed": true,
-     "seconds": 14.516,
+     "seconds": 14.285,
      "note": "",
      "exception": "",
      "detail": {
@@ -38448,6 +38448,212 @@
       ],
       "project": "the built-in UR5e sample (not the project given)",
       "dataset": "1 episode, 40 rows, 320 × 180 px, LeRobot v3.0"
+     },
+     "figure": null
+    }
+   ]
+  },
+  {
+   "id": "splat",
+   "title": "Robot-aligned 3D Gaussian Splatting (rasteriser, reprojection, re-posing, image scores)",
+   "modules": "dexvantage.core.splat_raster, dexvantage.core.splat_reproject, dexvantage.core.sim.splat_rig, dexvantage.core.sim.splat_views",
+   "methods_anchor": "splat",
+   "passed": 7,
+   "checks": [
+    {
+     "id": "splat.footprint_closed_form",
+     "model": "splat",
+     "title": "One Gaussian's footprint against the closed form",
+     "quantity": "largest |α − o·exp(−½ d²/s²)| over the pixels of one Gaussian on the axis (numpy reference rasteriser)",
+     "reference": "the EWA footprint of an isotropic Gaussian written out: s² = (fσ/z)² + 0.3 px²",
+     "references": [
+      "kerbl2023_3dgs",
+      "zwicker2001_ewa"
+     ],
+     "error": 6.161737786669619e-15,
+     "tolerance": 1e-12,
+     "unit": "alpha",
+     "passed": true,
+     "seconds": 0.004,
+     "note": "",
+     "exception": "",
+     "detail": {
+      "pixels_inside": 25,
+      "s_px": 0.9695359714832659,
+      "cutoff_sigma": 3.0,
+      "largest_outside": 0.0
+     },
+     "figure": null
+    },
+    {
+     "id": "splat.raster_torch_cpu",
+     "model": "splat",
+     "title": "Torch rasteriser (CPU, float64) against the numpy reference",
+     "quantity": "largest colour difference over 300 fixed Gaussians through three lens models",
+     "reference": "the numpy rasteriser written again without tiles (splat_raster.splat_numpy)",
+     "references": [
+      "kerbl2023_3dgs",
+      "zwicker2001_ewa"
+     ],
+     "error": 1.965094753586527e-14,
+     "tolerance": 1e-09,
+     "unit": "colour (0–1)",
+     "passed": true,
+     "seconds": 0.242,
+     "note": "",
+     "exception": "",
+     "detail": {
+      "per_lens": {
+       "pinhole": 3.3306690738754696e-16,
+       "brown": 3.3306690738754696e-16,
+       "kb": 1.965094753586527e-14
+      },
+      "gaussians": 300,
+      "size_px": [
+       64,
+       48
+      ],
+      "device": "cpu",
+      "dtype": "float64"
+     },
+     "figure": null
+    },
+    {
+     "id": "splat.raster_torch_cuda",
+     "model": "splat",
+     "title": "Torch rasteriser (CUDA, float32) against the numpy reference",
+     "quantity": "largest colour difference over 300 fixed Gaussians through three lens models",
+     "reference": "the numpy rasteriser written again without tiles, in float64",
+     "references": [
+      "kerbl2023_3dgs",
+      "zwicker2001_ewa"
+     ],
+     "error": 1.3000555981523831e-05,
+     "tolerance": 0.0001,
+     "unit": "colour (0–1)",
+     "passed": true,
+     "seconds": 0.614,
+     "note": "",
+     "exception": "",
+     "detail": {
+      "per_lens": {
+       "pinhole": 1.0594265141550263e-05,
+       "brown": 1.2163427858424836e-05,
+       "kb": 1.3000555981523831e-05
+      },
+      "gaussians": 300,
+      "size_px": [
+       64,
+       48
+      ],
+      "device": "cuda",
+      "dtype": "float32",
+      "gpu": "NVIDIA GeForce RTX 5080"
+     },
+     "figure": null
+    },
+    {
+     "id": "splat.reproject_disparity",
+     "model": "splat",
+     "title": "Reprojection between a rectified stereo pair",
+     "quantity": "largest pixel difference of 500 reprojected points against the closed-form disparity",
+     "reference": "u_r = u_l − f b / z, v_r = v_l (rectified pinholes)",
+     "references": [
+      "kerbl2023_3dgs"
+     ],
+     "error": 1.7763568394002505e-13,
+     "tolerance": 1e-09,
+     "unit": "px",
+     "passed": true,
+     "seconds": 0.0,
+     "note": "",
+     "exception": "",
+     "detail": {
+      "points": 493,
+      "baseline_m": 0.06,
+      "f_px": 400.0
+     },
+     "figure": null
+    },
+    {
+     "id": "splat.repose_rigid",
+     "model": "splat",
+     "title": "Re-posing a link's Gaussians with the joint state",
+     "quantity": "largest colour difference: the rig posed at q against the link-frame Gaussians through the camera moved into the link frame, 5 joint states",
+     "reference": "the rigid-motion identity render(T · G, C) = render(G, T⁻¹ · C), T from the robot model's link_pose",
+     "references": [
+      "qureshi2025_splatsim",
+      "lou2025_robogs"
+     ],
+     "error": 5.931175473539163e-07,
+     "tolerance": 1e-05,
+     "unit": "colour (0–1)",
+     "passed": true,
+     "seconds": 0.195,
+     "note": "",
+     "exception": "",
+     "detail": {
+      "link": "Moving_Jaw",
+      "gaussians": 60,
+      "joint_states": 5,
+      "link_moved_m": [
+       0.0979,
+       0.0878,
+       0.0792,
+       0.1444,
+       0.102
+      ]
+     },
+     "figure": null
+    },
+    {
+     "id": "splat.ssim_closed_form",
+     "model": "splat",
+     "title": "SSIM and PSNR of constant images against their closed forms",
+     "quantity": "largest |SSIM − (2ab + C1)/(a² + b² + C1)| over 40 constant pairs, and |PSNR − (−20 log10 d)|",
+     "reference": "SSIM's luminance term for constant patches (contrast and structure terms are 1); PSNR's definition",
+     "references": [
+      "wang2004_ssim"
+     ],
+     "error": 2.4436008771999695e-13,
+     "tolerance": 1e-12,
+     "unit": "SSIM / dB",
+     "passed": true,
+     "seconds": 0.01,
+     "note": "",
+     "exception": "",
+     "detail": {
+      "pairs": 40,
+      "ssim_error": 2.4436008771999695e-13,
+      "psnr_error_db": 3.552713678800501e-15
+     },
+     "figure": null
+    },
+    {
+     "id": "splat.ssim_vs_skimage",
+     "model": "splat",
+     "title": "SSIM against scikit-image",
+     "quantity": "largest |SSIM − scikit-image's| on the interior of 20 random image pairs",
+     "reference": "skimage.metrics.structural_similarity (gaussian_weights, σ 1.5, population covariance, data_range 1)",
+     "references": [
+      "wang2004_ssim",
+      "skimage_ssim"
+     ],
+     "error": 0.0,
+     "tolerance": 1e-09,
+     "unit": "SSIM",
+     "passed": true,
+     "seconds": 0.03,
+     "note": "",
+     "exception": "",
+     "detail": {
+      "pairs": 20,
+      "size_px": [
+       64,
+       48
+      ],
+      "interior_margin_px": 5,
+      "skimage": "0.26.0"
      },
      "figure": null
     }
@@ -38680,16 +38886,22 @@
   "gretton2012": "A. Gretton, K. M. Borgwardt, M. J. Rasch, B. Schölkopf and A. Smola, \"A Kernel Two-Sample Test\", Journal of Machine Learning Research 13(25), 723–773, 2012, https://www.jmlr.org/papers/v13/gretton12a.html (read 2026-11-07; the unbiased MMD² of Lemma 6, eq. 3; the median heuristic, section 8).",
   "immerkaer1996": "J. Immerkær, \"Fast Noise Variance Estimation\", Computer Vision and Image Understanding 64(2), 300–302, 1996, doi:10.1006/cviu.1996.0060 (bibliographic record and abstract read 2026-11-07; the full text is paywalled, the estimator's factors are derived again in core/sim2real/measures.py).",
   "tai_yang2008": "S.-C. Tai and S.-M. Yang, \"A fast method for image noise estimation using Laplacian operator and adaptive edge detection\", 3rd International Symposium on Communications, Control and Signal Processing (ISCCSP 2008), 1077–1081, doi:10.1109/ISCCSP.2008.4537384 (abstract read 2026-11-07: Sobel edge pixels left out of Immerkær's estimate).",
-  "shapley1953": "L. S. Shapley, \"A value for n-person games\", in H. W. Kuhn and A. W. Tucker (eds.), Contributions to the Theory of Games II, Annals of Mathematics Studies 28, Princeton University Press, 307–317, 1953."
+  "shapley1953": "L. S. Shapley, \"A value for n-person games\", in H. W. Kuhn and A. W. Tucker (eds.), Contributions to the Theory of Games II, Annals of Mathematics Studies 28, Princeton University Press, 307–317, 1953.",
+  "kerbl2023_3dgs": "B. Kerbl, G. Kopanas, T. Leimkühler and G. Drettakis, \"3D Gaussian Splatting for real-time radiance field rendering\", ACM Transactions on Graphics 42(4), 2023; reference code utils/camera_utils.py camera_to_JSON, https://github.com/graphdeco-inria/gaussian-splatting (main, commit 54c035f), read 2026-11-07.",
+  "zwicker2001_ewa": "M. Zwicker, H. Pfister, J. van Baar and M. Gross, \"EWA volume splatting\", IEEE Visualization 2001, 29–36 (the local affine approximation of the projection of a Gaussian).",
+  "qureshi2025_splatsim": "M. N. Qureshi, S. Garg, F. Yandun, D. Held, G. Kantor and A. Silwal, \"SplatSim: Zero-shot Sim2Real transfer of RGB manipulation policies using Gaussian Splatting\", ICRA 2025, arXiv:2409.10161, https://splatsim.github.io (read 2026-11-08).",
+  "lou2025_robogs": "H. Lou, Y. Liu, Y. Pan, Y. Geng, J. Chen, W. Ma, C. Li, L. Wang, H. Feng, L. Shi, L. Luo and Y. Shi, \"Robo-GS: A physics consistent spatial-temporal model for robotic arm with hybrid representation\", ICRA 2025, arXiv:2408.14873, https://arxiv.org/abs/2408.14873 (read 2026-11-08).",
+  "wang2004_ssim": "Z. Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli, \"Image quality assessment: from error visibility to structural similarity\", IEEE Transactions on Image Processing 13(4), 600–612, 2004.",
+  "skimage_ssim": "scikit-image 0.26.0, skimage.metrics.structural_similarity (gaussian_weights, sigma 1.5, use_sample_covariance False and data_range to match Wang et al. 2004), https://scikit-image.org/docs/stable/api/skimage.metrics.html (read 2026-11-08)."
  },
  "provenance": {
   "schema": "dexvantage.provenance/1",
   "dexvantage": {
    "version": "0.1.0rc1",
-   "code_sha256": "817dbf32a7b40e84c7e478e47e19398894e7b0b0d217acf929031f5bc0c0eba5",
+   "code_sha256": "2b5a7311a609b94044c31f186a095cfa08e9356ed1c6fd8bce0b1d064fd83df2",
    "git": {
-    "commit": "a668e4900e4f865d1da5fe19745ab4bc31912eab",
-    "describe": "a668e4900e",
+    "commit": "3449cbab4567222fc7fc184a80b99e69ed9949d7",
+    "describe": "3449cbab45",
     "dirty": true
    },
    "frozen": false
@@ -38726,8 +38938,8 @@
    "validation"
   ],
   "inputs": [],
-  "created_utc": "2026-11-08T00:11:01Z",
-  "result_sha256": "247c729f28f6bb2ea4310a6f0ffd223fd0f1921a9c5324dbb0e308cf5c7ccf4c",
+  "created_utc": "2026-11-08T10:53:22Z",
+  "result_sha256": "7ed12549fa94c4a1869f0a56510be738f41e40ced3b0671eba6f9b4b7fb70be0",
   "result_hash": "SHA-256 of the canonical JSON of this document without its provenance block (keys sorted, no spaces, UTF-8, integral numbers as integers), date-time stamps and computation times (the numbers under keys named \"seconds\" or ending in \"_seconds\") blanked",
   "content_hash": "SHA-256 of the canonical JSON of the project in memory: uids replaced by their objects' places, mesh arrays by dtype, shape and bytes, source files by SHA-256; times, the log, the active variant and view toggles left out"
  }

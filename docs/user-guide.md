@@ -85,7 +85,8 @@ dexvantage --sample aloha --export out/aloha --formats mjcf,lerobot
 
 ## 2. Getting started {#getting-started}
 
-1. **Install.** The [README](../README.md#install) has the bundles and the source install
+1. **Install.** DexVantage supports Linux only (x86_64, and arm64 such as NVIDIA Jetson); Windows and macOS are not
+   supported. The [README](../README.md#install) has the Linux bundles and the source install
    (`pip install -e .`, Python 3.10 or newer) with the optional extras (`lerobot`, `bags`, `usd`, `pin`, `step`,
    `rerun`, `assistant`, `research`, `tracking`).
 2. **Check the installation.** `dexvantage --self-test` checks, without a window, the project file, frames, MuJoCo,
@@ -387,6 +388,25 @@ matches)".
 "Sim-to-real image gap (worst camera): 18.6 DN (very large gap)", with the causes ranked and the change that closes
 the first one offered by Apply.
 
+### Splat views {#splat}
+
+Model: [overview](overview.md#splat); longer example: [guide/splat.md](guide/splat.md). Needs the `splat` extra
+(PyTorch) and a CUDA GPU; without them the page says so.
+
+**Simulate ▸ Splat views** opens the **Splat views** page: a 3D Gaussian Splatting scene of the cell fitted to a
+recorded episode (each frame posed at its camera's mount at the logged joint state; the episode needs a camera that
+moves, such as a wrist camera) or, for demonstration, to MuJoCo renders of the project, with the robot's Gaussians
+attached to its links so the scene follows the joint state. The headline is its PSNR on frames the fit did not use,
+with SSIM and LPIPS beside it; the quality table adds held-out joint states. Choose a camera, enter a move and a turn in
+its own frame, and the before/after row shows what the proposed pose would see. **Write replay…** renders the episode
+through it to a video and per-frame images; **Write augmented…** writes perturbed copies of the episode (the mount
+tolerances) as a LeRobot dataset. Every splat image is a render, marked synthetic on the page and in every file.
+
+**Worked example on the SO-100 (synthetic).** A demonstration fit (48 MuJoCo views, 1,500 steps, 65 s on an RTX 5080)
+reads "23.1 dB, visible differences (synthetic capture)", SSIM 0.936, LPIPS 0.076; a fit to a synthetic recorded
+episode reads 32.4 dB. Through the wrist camera moved 2 cm back the render scores 17.9 dB against MuJoCo's: read a
+proposed view for its layout, not its detail.
+
 ## 9. Optimisation and requirements {#requirements}
 
 Models: [requirements](overview.md#requirements), [tolerances](overview.md#tolerance),
@@ -454,7 +474,7 @@ undone; otherwise it works on `--project cell.dexv` or `--sample NAME`.
 
 <!-- example: mcp -->
 **Worked example.** `python -m dexvantage.mcp --sample aloha` (or in process, `dexvantage.mcp.server.Server`):
-`initialize` answers protocol 2025-11-25 and `tools/list` lists 40 tools.
+`initialize` answers protocol 2025-11-25 and `tools/list` lists 41 tools.
 
 ## 12. Research workflows {#research}
 
@@ -505,7 +525,7 @@ lighting presets, demonstrations from a 50 % against 70 % power analysis, 30 s e
 <!-- example: versioning -->
 **Worked example: a diff and the citations.** The UR5e sample against a copy with the overhead D435 raised 10 cm: 1
 change, "Sensor Overhead D435: mount pose moved 100.0 mm (x +0.0, y +0.0, z +100.0 mm) and turned 0.00°". Its BibTeX
-(`--cite refs.bib`, `dv.bibtex(rig)`) holds 236 BibTeX entries: every source the project and the checks depend on.
+(`--cite refs.bib`, `dv.bibtex(rig)`) holds 242 BibTeX entries: every source the project and the checks depend on.
 
 <!-- example: paper -->
 **Worked example: the paper kit of the SO-100.** "ready": 48 of 48 numbers traced. "All 48 numbers in the methods
@@ -535,15 +555,15 @@ dexvantage --self-test                                     # this installation
 ```
 
 <!-- example: reference -->
-The reference lists 106 options (with `--no-plugins`; installed plugins add their own study flags), every study's
-flag among them; its companion, the [Python API reference](reference/api.md), documents the 37 names `dv` exports.
+The reference lists 110 options (with `--no-plugins`; installed plugins add their own study flags), every study's
+flag among them; its companion, the [Python API reference](reference/api.md), documents the 38 names `dv` exports.
 
 ## 14. The Python API {#python-api}
 
 `import dexvantage as dv` gives DexVantage without the window and without Qt: open or make a rig, run any study,
 read the named metrics, sweep factors, check requirements, export, read datasets, track runs and compare. It runs the
 same code as the window and batch mode, so every figure is the study's own. The worked examples are in
-[guide/api.md](guide/api.md) and the notebooks in `examples/`; the docstrings of the 37 names `dv` exports are the
+[guide/api.md](guide/api.md) and the notebooks in `examples/`; the docstrings of the 38 names `dv` exports are the
 [Python API reference](reference/api.md).
 
 ```python
@@ -560,6 +580,7 @@ rig.check('requirements.yaml'); rig.export('out/', ['opencv_yaml', 'mjcf']); rig
 
 | What you see | Why, and what to do |
 |---|---|
+| You are on Windows or macOS | DexVantage supports Linux only: there is no Windows or macOS bundle, and nothing is tested there. Use a Linux machine (x86_64, or arm64 such as a Jetson). |
 | The import wizard refuses a `.xacro` file, or a `.urdf` with `$(…)` or `${…}` | xacro macros must be expanded first: `ros2 run xacro xacro in.urdf.xacro > out.urdf`. |
 | The wizard blocks a mesh over 10 m across | the meshes are in millimetres: set `scale="0.001 0.001 0.001"` on them in the model file. |
 | A COLLADA (`.dae`) mesh is not read | MuJoCo reads STL and OBJ: convert the mesh and point the model at the converted file. |
@@ -568,7 +589,7 @@ rig.check('requirements.yaml'); rig.export('out/', ['opencv_yaml', 'mjcf']); rig
 | A study refuses in one sentence (for example Action-chunk latency on the SO-100: SmolVLA's inference time is not stated by its source) | the input it needs is missing and the sentence says which; enter it where it says (the Policies page here). |
 | "no hosts" on the bandwidth page | the rig has no host topology: Apply adds an assumed host, or add your own from the library. |
 | "no task object" on the VLA page | add a task object (Workspace ▸ Add box object); every task object counts as critical by default. |
-| Studies are slow | the GPU path needs Linux EGL and OpenGL 3.3; elsewhere the exact numpy rasteriser runs (the same figures within the occlusion model's agreement, slower). |
+| Studies are slow | the GPU path needs EGL and OpenGL 3.3 (a GPU driver or Mesa); without them the exact numpy rasteriser runs (the same figures within the occlusion model's agreement, slower). |
 | The 3D view is blank or flickers | start with `--software-3d` (QPainter instead of OpenGL). It is slow, and slower the more triangles the robots have: 160 ms (SO-100) to 586 ms (UR5e) a frame in Phase 2 ([models/performance.md](models/performance.md)); on 2026-11-08, in a 1600 × 1000 window on a busy machine (load average about 30), 0.19 s (SO-100, 60 682 triangles), 0.73 s (UR5e), 0.91 s (UR5e + Shadow Hand), 0.93 s (G1), 1.1 s (two Pandas) and 1.4 s (ALOHA 2, 331 392 triangles) a median frame. The view lags while you drag; the studies still run on their own threads. |
 | The status bar says "OpenGL is not available here" | DexVantage could not create an OpenGL 2.1 context (a virtual machine, a remote X session, or a missing GPU driver), so it uses the QPainter renderer above. `dexvantage --self-test` says on its `opengl` line what it tried; install the GPU's OpenGL driver (or Mesa) to get the fast view back. |
 | A plugin breaks start-up | `dexvantage --no-plugins`, then Help ▸ Plugins… or `--list-plugins` shows which plugin failed and why. |

@@ -4,10 +4,9 @@
 # its release notes, take the commit its new tag points to (git ls-remote https://github.com/OWNER/REPO TAG) and
 # change the SHA and the comment together. tests/test_ci_workflows.py refuses a `uses:` that is not SHA-pinned.
 #
-# Runners: GitHub retired macos-14 on 2026-11-02 (github.com/actions/runner-images/issues/15226), so macOS runs on
-# macos-15, which is Apple silicon (arm64) like macos-14 was. Every runner is named by its version, never -latest
-# (which moves to a new image over one to two months, the runner-images README says): Windows is windows-2025
-# (Windows Server 2025, the image windows-latest pointed to when read on 2026-11-08, with Inno Setup 6.7.1).
+# Platforms: DexVantage supports Linux only (x86_64 here; the Linux arm64 bundle builds in bundles.yml), so every job
+# runs on Ubuntu. Runners are named by their version, never -latest (which moves to a new image over one to two
+# months, the runner-images README says).
 #
 # Rendering without a GPU: DexVantage renders MuJoCo scenes in a worker process that sets MUJOCO_GL=egl itself
 # (dexvantage/validation/mjrender.py worker_env); the test and validation processes run as a user's would, with
@@ -15,10 +14,8 @@
 # the rendered tests passed on llvmpipe with MUJOCO_GL unset and DEXVANTAGE_TEST_RENDER=require (2026-11-08, Mesa
 # alone through __EGL_VENDOR_LIBRARY_FILENAMES with LIBGL_ALWAYS_SOFTWARE=1: 213 tests, 21 minutes on a 12-core
 # desktop, docs/packaging.md). OSMesa is not used (MUJOCO_GL=osmesa without libOSMesa makes `import mujoco` itself
-# fail). Windows and macOS have no EGL: there the tests marked `mujoco_render` skip with that reason
-# (tests/render_support.py), and the validation run, whose rendered checks need EGL, runs on Linux only.
-# DEXVANTAGE_TEST_RENDER=require on Linux turns a missing renderer into a failure, so those tests are never skipped
-# there unnoticed.
+# fail). DEXVANTAGE_TEST_RENDER=require turns a missing renderer into a failure (tests/render_support.py), so the
+# tests marked `mujoco_render` are never skipped unnoticed.
 #
 # Memory: a runner has 7 GB. The whole suite in one process peaked at 6.4 GB (docs/BUILD_STATE.md), so it runs as six
 # shards of whole test files (scripts/ci_shards.py), each in a fresh process; test_validation, the heaviest by memory,
@@ -47,13 +44,14 @@ defaults:
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
   PYTHONUNBUFFERED: '1'
-  # Python's UTF-8 mode, as in the bundles (X utf8, packaging/dexvantage.spec); on Linux and macOS the locale's
-  # encoding is UTF-8 anyway. 77 opens in the tests (ruff --preview --select PLW1514 tests) read the UTF-8 files the
-  # app writes without naming an encoding, which on Windows would otherwise be its ANSI code page. The app's own code
-  # names its encodings (the same rule on dexvantage/ finds four opens without one, each writing ASCII only).
+  # Python's UTF-8 mode, as in the bundles (X utf8, packaging/dexvantage.spec): 77 opens in the tests (ruff --preview
+  # --select PLW1514 tests) read the UTF-8 files the app writes without naming an encoding, which under a C or POSIX
+  # locale would otherwise be ASCII. The app's own code names its encodings.
   PYTHONUTF8: '1'
   QT_QPA_PLATFORM: offscreen
-  EXTRAS: test,lerobot,bags,usd,assistant,rerun,step,research,tracking,dev
+  # the extras the tests use ("site" added after the first CI run skipped two site tests without it); not "pin"
+  # (Pinocchio) or "bundle" (PyInstaller)
+  EXTRAS: test,lerobot,bags,usd,assistant,rerun,step,research,tracking,dev,site
 
 jobs:
   lint:
@@ -92,11 +90,9 @@ jobs:
         target:
           - {os: ubuntu-24.04, python: '3.12'}
           - {os: ubuntu-24.04, python: '3.14'}
-          - {os: windows-2025, python: '3.12'}
-          - {os: macos-15, python: '3.12'}
         shard: [0, 1, 2, 3, 4, 5]
     env:
-      DEXVANTAGE_TEST_RENDER: ${{ startsWith(matrix.target.os, 'ubuntu') && 'require' || 'auto' }}
+      DEXVANTAGE_TEST_RENDER: require
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -110,8 +106,7 @@ jobs:
             pyproject.toml
             .github/ci-constraints.txt
 
-      - name: Qt, OpenGL and EGL libraries (Linux)
-        if: runner.os == 'Linux'
+      - name: Qt, OpenGL and EGL libraries
         run: bash .github/scripts/apt-gl-qt.sh
 
       - name: Python packages
@@ -144,8 +139,6 @@ jobs:
         target:
           - {os: ubuntu-24.04, python: '3.12'}
           - {os: ubuntu-24.04, python: '3.14'}
-          - {os: windows-2025, python: '3.12'}
-          - {os: macos-15, python: '3.12'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -159,8 +152,7 @@ jobs:
             pyproject.toml
             .github/ci-constraints.txt
 
-      - name: Qt, OpenGL and EGL libraries (Linux)
-        if: runner.os == 'Linux'
+      - name: Qt, OpenGL and EGL libraries
         run: bash .github/scripts/apt-gl-qt.sh
 
       - name: Python packages
@@ -171,12 +163,11 @@ jobs:
       - name: Self-test
         run: python -m dexvantage --self-test
 
-      - name: Validation suite, quick run (Linux; the rendered checks need EGL)
-        if: runner.os == 'Linux'
+      - name: Validation suite, quick run
         run: python -m dexvantage --validate out/validation --quick
 
       - name: Keep the validation report
-        if: always() && runner.os == 'Linux'
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: validation-${{ matrix.target.os }}-py${{ matrix.target.python }}

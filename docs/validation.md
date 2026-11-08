@@ -2,7 +2,7 @@
 
 <!-- Made by scripts/gen_validation_doc.py from out/validation/validation.json; do not edit by hand. -->
 
-Every model DexVantage computes is compared with an independent reference: a closed form written out again, another library, a published table, brute-force ray casting, Monte Carlo, or MuJoCo renders. This page is made from the report of a full run (`dexvantage --validate out/validation`, 2026-11-08 UTC, seed 20261027): **232 of 232 checks pass** over 37 models in 383 s. A check passes when its error is finite and at most its tolerance; each tolerance is stated with why it is that size.
+Every model DexVantage computes is compared with an independent reference: a closed form written out again, another library, a published table, brute-force ray casting, Monte Carlo, or MuJoCo renders. This page is made from the report of a full run (`dexvantage --validate out/validation`, 2026-11-08 UTC, seed 20261027): **239 of 239 checks pass** over 38 models in 425 s. A check passes when its error is finite and at most its tolerance; each tolerance is stated with why it is that size.
 
 The run: dexvantage 0.1.0rc1, python 3.14.4, numpy 2.5.4, scipy 1.18.1, opencv 5.0.0, mujoco 3.17.0, qt 6.12.0 on Linux x86_64; MuJoCo renders by NVIDIA GeForce RTX 5080/PCIe/SSE2 (EGL).
 
@@ -677,7 +677,7 @@ Model `assistant` (dexvantage.assistant, dexvantage.mcp): 3 of 3 checks pass.
 - **`assistant.figures_from_studies`** — Tool figures against the study results they come from. *Compared:* largest relative difference between a figure a reading tool returns and the same figure read off the study's result document here. *Reference:* the study result documents (core/jobs.run_study), read by an extraction written out again ([mcp_2025_11_25](#ref-mcp_2025_11_25)).
   *Tolerance and why:* 14 figures compared on the sample; the tools return the studies' own figures, rounded for reading.
 - **`assistant.mcp_conformance`** — MCP server replies against the 2025-11-25 specification. *Compared:* number of replies or tool definitions that do not conform (the spec's own example requests; every input schema against the JSON Schema 2020-12 meta-schema). *Reference:* MCP 2025-11-25 lifecycle, tools and transports pages; JSON-RPC 2.0; the jsonschema package ([mcp_2025_11_25](#ref-mcp_2025_11_25), [jsonrpc2](#ref-jsonrpc2), [json_schema](#ref-json_schema)).
-  *Tolerance and why:* 40 tool definitions and 8 request kinds checked against the specification.
+  *Tolerance and why:* 41 tool definitions and 8 request kinds checked against the specification.
 - **`assistant.edit_undo_identity`** — An edit and its undo give back the same project. *Compared:* mismatches of the project content hash after edit_project then undo_last_change, and after a refused change to a locked sensor. *Reference:* the project content hash (SHA-256 of its canonical JSON, core/provenance.py) ([mcp_2025_11_25](#ref-mcp_2025_11_25)).
   *Tolerance and why:* Each edit moves and turns one sensor of the sample; its undo must give back the content hash bit for bit.
 
@@ -945,6 +945,28 @@ Model `sim2real` (dexvantage.core.sim2real): 7 of 7 checks pass.
 - **`sim2real.shapley_brute_force`** — Shapley shares against every order of the corrections. *Compared:* largest |φ_i − mean marginal reduction over the 24 orders| for a random cost of four players. *Reference:* brute force over all orders ([shapley1953](#ref-shapley1953)).
 - **`sim2real.injected_recovery`** — Known gaps injected into synthetic recordings, recovered. *Compared:* largest recovery error / its tolerance over a brightness offset, a blur, a latency and a mount offset, each alone on the UR5e sample's overhead camera; each must also rank first among the camera's causes. *Reference:* the gaps injected (core/sim2real/inject.py through the synthetic episode generator) ([mujoco_todorov2012](#ref-mujoco_todorov2012), [lerobot_dataset_format](#ref-lerobot_dataset_format), [shapley1953](#ref-shapley1953)).
 
+### Robot-aligned 3D Gaussian Splatting (rasteriser, reprojection, re-posing, image scores)
+
+Model `splat` (dexvantage.core.splat_raster, dexvantage.core.splat_reproject, dexvantage.core.sim.splat_rig, dexvantage.core.sim.splat_views): 7 of 7 checks pass.
+
+| Check | Title | Measured | Tolerance | Unit | Result |
+|---|---|---|---|---|---|
+| `splat.footprint_closed_form` | One Gaussian's footprint against the closed form | 6.16 × 10⁻¹⁵ | 1 × 10⁻¹² | alpha | pass |
+| `splat.raster_torch_cpu` | Torch rasteriser (CPU, float64) against the numpy reference | 1.97 × 10⁻¹⁴ | 1 × 10⁻⁹ | colour (0–1) | pass |
+| `splat.raster_torch_cuda` | Torch rasteriser (CUDA, float32) against the numpy reference | 1.3 × 10⁻⁵ | 1 × 10⁻⁴ | colour (0–1) | pass |
+| `splat.reproject_disparity` | Reprojection between a rectified stereo pair | 1.78 × 10⁻¹³ | 1 × 10⁻⁹ | px | pass |
+| `splat.repose_rigid` | Re-posing a link's Gaussians with the joint state | 5.93 × 10⁻⁷ | 1 × 10⁻⁵ | colour (0–1) | pass |
+| `splat.ssim_closed_form` | SSIM and PSNR of constant images against their closed forms | 2.44 × 10⁻¹³ | 1 × 10⁻¹² | SSIM / dB | pass |
+| `splat.ssim_vs_skimage` | SSIM against scikit-image | 0 | 1 × 10⁻⁹ | SSIM | pass |
+
+- **`splat.footprint_closed_form`** — One Gaussian's footprint against the closed form. *Compared:* largest |α − o·exp(−½ d²/s²)| over the pixels of one Gaussian on the axis (numpy reference rasteriser). *Reference:* the EWA footprint of an isotropic Gaussian written out: s² = (fσ/z)² + 0.3 px² ([kerbl2023_3dgs](#ref-kerbl2023_3dgs), [zwicker2001_ewa](#ref-zwicker2001_ewa)).
+- **`splat.raster_torch_cpu`** — Torch rasteriser (CPU, float64) against the numpy reference. *Compared:* largest colour difference over 300 fixed Gaussians through three lens models. *Reference:* the numpy rasteriser written again without tiles (splat_raster.splat_numpy) ([kerbl2023_3dgs](#ref-kerbl2023_3dgs), [zwicker2001_ewa](#ref-zwicker2001_ewa)).
+- **`splat.raster_torch_cuda`** — Torch rasteriser (CUDA, float32) against the numpy reference. *Compared:* largest colour difference over 300 fixed Gaussians through three lens models. *Reference:* the numpy rasteriser written again without tiles, in float64 ([kerbl2023_3dgs](#ref-kerbl2023_3dgs), [zwicker2001_ewa](#ref-zwicker2001_ewa)).
+- **`splat.reproject_disparity`** — Reprojection between a rectified stereo pair. *Compared:* largest pixel difference of 500 reprojected points against the closed-form disparity. *Reference:* u_r = u_l − f b / z, v_r = v_l (rectified pinholes) ([kerbl2023_3dgs](#ref-kerbl2023_3dgs)).
+- **`splat.repose_rigid`** — Re-posing a link's Gaussians with the joint state. *Compared:* largest colour difference: the rig posed at q against the link-frame Gaussians through the camera moved into the link frame, 5 joint states. *Reference:* the rigid-motion identity render(T · G, C) = render(G, T⁻¹ · C), T from the robot model's link_pose ([qureshi2025_splatsim](#ref-qureshi2025_splatsim), [lou2025_robogs](#ref-lou2025_robogs)).
+- **`splat.ssim_closed_form`** — SSIM and PSNR of constant images against their closed forms. *Compared:* largest |SSIM − (2ab + C1)/(a² + b² + C1)| over 40 constant pairs, and |PSNR − (−20 log10 d)|. *Reference:* SSIM's luminance term for constant patches (contrast and structure terms are 1); PSNR's definition ([wang2004_ssim](#ref-wang2004_ssim)).
+- **`splat.ssim_vs_skimage`** — SSIM against scikit-image. *Compared:* largest |SSIM − scikit-image's| on the interior of 20 random image pairs. *Reference:* skimage.metrics.structural_similarity (gaussian_weights, σ 1.5, population covariance, data_range 1) ([wang2004_ssim](#ref-wang2004_ssim), [skimage_ssim](#ref-skimage_ssim)).
+
 ## References
 
 - <a id="ref-scipy_rotation"></a>**[scipy_rotation]** SciPy, scipy.spatial.transform.Rotation (an independent implementation of rotation conversions), https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html.
@@ -1173,6 +1195,12 @@ Model `sim2real` (dexvantage.core.sim2real): 7 of 7 checks pass.
 - <a id="ref-immerkaer1996"></a>**[immerkaer1996]** J. Immerkær, "Fast Noise Variance Estimation", Computer Vision and Image Understanding 64(2), 300–302, 1996, doi:10.1006/cviu.1996.0060 (bibliographic record and abstract read 2026-11-07; the full text is paywalled, the estimator's factors are derived again in core/sim2real/measures.py).
 - <a id="ref-tai_yang2008"></a>**[tai_yang2008]** S.-C. Tai and S.-M. Yang, "A fast method for image noise estimation using Laplacian operator and adaptive edge detection", 3rd International Symposium on Communications, Control and Signal Processing (ISCCSP 2008), 1077–1081, doi:10.1109/ISCCSP.2008.4537384 (abstract read 2026-11-07: Sobel edge pixels left out of Immerkær's estimate).
 - <a id="ref-shapley1953"></a>**[shapley1953]** L. S. Shapley, "A value for n-person games", in H. W. Kuhn and A. W. Tucker (eds.), Contributions to the Theory of Games II, Annals of Mathematics Studies 28, Princeton University Press, 307–317, 1953.
+- <a id="ref-kerbl2023_3dgs"></a>**[kerbl2023_3dgs]** B. Kerbl, G. Kopanas, T. Leimkühler and G. Drettakis, "3D Gaussian Splatting for real-time radiance field rendering", ACM Transactions on Graphics 42(4), 2023; reference code utils/camera_utils.py camera_to_JSON, https://github.com/graphdeco-inria/gaussian-splatting (main, commit 54c035f), read 2026-11-07.
+- <a id="ref-zwicker2001_ewa"></a>**[zwicker2001_ewa]** M. Zwicker, H. Pfister, J. van Baar and M. Gross, "EWA volume splatting", IEEE Visualization 2001, 29–36 (the local affine approximation of the projection of a Gaussian).
+- <a id="ref-qureshi2025_splatsim"></a>**[qureshi2025_splatsim]** M. N. Qureshi, S. Garg, F. Yandun, D. Held, G. Kantor and A. Silwal, "SplatSim: Zero-shot Sim2Real transfer of RGB manipulation policies using Gaussian Splatting", ICRA 2025, arXiv:2409.10161, https://splatsim.github.io (read 2026-11-08).
+- <a id="ref-lou2025_robogs"></a>**[lou2025_robogs]** H. Lou, Y. Liu, Y. Pan, Y. Geng, J. Chen, W. Ma, C. Li, L. Wang, H. Feng, L. Shi, L. Luo and Y. Shi, "Robo-GS: A physics consistent spatial-temporal model for robotic arm with hybrid representation", ICRA 2025, arXiv:2408.14873, https://arxiv.org/abs/2408.14873 (read 2026-11-08).
+- <a id="ref-wang2004_ssim"></a>**[wang2004_ssim]** Z. Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli, "Image quality assessment: from error visibility to structural similarity", IEEE Transactions on Image Processing 13(4), 600–612, 2004.
+- <a id="ref-skimage_ssim"></a>**[skimage_ssim]** scikit-image 0.26.0, skimage.metrics.structural_similarity (gaussian_weights, sigma 1.5, use_sample_covariance False and data_range to match Wang et al. 2004), https://scikit-image.org/docs/stable/api/skimage.metrics.html (read 2026-11-08).
 
 ## How to regenerate
 

@@ -9,7 +9,8 @@ __version__ = "0.1.0rc1"
 
 _API = ('Rig', 'Result', 'Records', 'Table', 'MetricTable', 'Recording', 'DexVantageError', 'open', 'sample', 'new',
         'samples', 'studies', 'metrics', 'exporters', 'plugins', 'load_plugins', 'datasets', 'runs', 'track',
-        'run_store', 'publication', 'campaign', 'cells', 'cluster', 'stats', 'robot_io', 'prices', 'price',
+        'run_store', 'publication', 'campaign', 'cells', 'cluster', 'stats', 'robot_io', 'splat', 'prices',
+        'price',
         'diff', 'merge', 'bibtex', 'figures', 'figure', 'export_runs', 'Diff', 'Merge', 'MergeConflict')
 
 

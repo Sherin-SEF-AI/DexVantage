@@ -8,7 +8,7 @@ optional extras the bundle carries; and the release itself (artefacts, checksums
     python packaging/release.py extras                  measures each optional extra's installed size (MB) on top of
                                                         the core requirements and the bundled extras
     python packaging/release.py [--dist DIR] [--out DIR] [--no-build] [--dry-run] [--publish]
-        builds this platform's artefacts with packaging/build.py --smoke (unless --no-build or --dry-run), then writes
+        builds this Linux machine's bundle with packaging/build.py --smoke (unless --no-build or --dry-run), then writes
         into --out (default: --dist) SHA256SUMS.txt over every artefact in --dist and RELEASE_NOTES.md from the
         CHANGELOG, and PRINTS the gh release command. Only --publish runs that command (never from an agent or CI
         without the maintainer's say-so). --dry-run builds nothing and takes the artefacts already in --dist; a
@@ -33,7 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HERE = os.path.join(ROOT, 'packaging')
 PKG = 'dexvantage'
 REPO = 'Sherin-SEF-AI/DexVantage'
-ARTEFACT_SUFFIXES = ('.tar.gz', '.zip', '-setup.exe', '.AppImage', '.dmg')
+ARTEFACT_SUFFIXES = ('.tar.gz',)                 # the Linux bundles (DexVantage supports Linux only)
 # files at the top of the source tree the bundle carries: the licence, the citation (core/cite.py reads CITATION.cff
 # from the folder above the package, which in a bundle is the bundle's _internal folder) and the third-party record
 TOP_FILES = ('LICENSE', 'CITATION.cff', 'THIRD_PARTY.md')

@@ -8,6 +8,8 @@
     dexvantage PROJECT.dexv --experiment DESIGN.json    a designed experiment (core/experiments.py)
     dexvantage PROJECT.dexv --campaign SPEC.json        a data-collection campaign plan (batch_campaign.py)
     dexvantage [PROJECT.dexv] --stats SPEC.json         statistics and power analysis (batch_stats.py)
+    dexvantage PROJECT.dexv --splat fit|replay|augment --splat-out OUT_DIR [--dataset PATH]   splat views
+                                                        (batch_splat.py; needs the splat extra)
     dexvantage PROJECT.dexv --check REQUIREMENTS.yaml   the readiness scorecard CI gate; --run-plan PLAN.json
                                                         (batch_gate.py)
     dexvantage PROJECT.dexv --export OUT_DIR --formats A,B   the exporters (core/exporters), with a manifest
@@ -32,7 +34,8 @@ import os
 import sys
 
 EXIT_OK, EXIT_FAIL, EXIT_ERROR = 0, 1, 2
-DATASET_STUDIES = ('audit', 'plan_vs_recording', 'silhouette_calib', 'sim2real')  # studies that read --dataset
+DATASET_STUDIES = ('audit', 'plan_vs_recording', 'silhouette_calib', 'sim2real',
+                   'splat_views')         # studies that read --dataset
 # the flag names of the specification (§11) where a study's own flag differs: both work
 OPTIMISE_STUDIES = ('optimise', 'design_agent')     # studies that take --optimise-settings
 BATCH_ALIASES = {'teleop': ('teleop-overlap',), 'time_sync': ('sync',), 'grasp_visibility': ('grasp-study',),
@@ -96,6 +99,8 @@ def add_arguments(ap):
     batch_cluster.add_arguments(g)                      # --jobs, --slurm, --run-shard, --gather (core/cluster)
     from . import batch_stats
     batch_stats.add_arguments(g)                        # --stats SPEC.json [--stats-out OUT.json] (batch_stats.py)
+    from . import batch_splat
+    batch_splat.add_arguments(g)                        # --splat fit|replay|augment --splat-out OUT_DIR
     from .core import jobs
     jobs.load_studies()
     s = ap.add_argument_group('studies (each writes its result as JSON with provenance; "-" for stdout; a folder '
@@ -126,7 +131,8 @@ def wanted(args) -> bool:
                 or __import__('dexvantage.batch_track', fromlist=['wanted']).wanted(args)
                 or __import__('dexvantage.batch_cells', fromlist=['wanted']).wanted(args)
                 or __import__('dexvantage.batch_cluster', fromlist=['wanted']).wanted(args)
-                or __import__('dexvantage.batch_stats', fromlist=['wanted']).wanted(args))
+                or __import__('dexvantage.batch_stats', fromlist=['wanted']).wanted(args)
+                or __import__('dexvantage.batch_splat', fromlist=['wanted']).wanted(args))
 
 
 def _load(args):
@@ -223,9 +229,10 @@ def run(args) -> int:
                 'audit' not in [sid for sid, _ in _study_flags(args)]:
             return _err('--audit-html and --fiftyone go with --audit OUT.json (and --dataset PATH)')
         if getattr(args, 'dataset', None) and not any(sid in DATASET_STUDIES for sid, _ in _study_flags(args)) \
-                and not getattr(args, 'run_plan', None) and 'fiftyone' not in _formats(args):
-            return _err('--dataset goes with --audit, --plan-vs-recording, --silhouette-calib or --sim2real OUT.json '
-                        '(or --export with the format fiftyone)')
+                and not getattr(args, 'run_plan', None) and 'fiftyone' not in _formats(args) \
+                and not getattr(args, 'splat', None):
+            return _err('--dataset goes with --audit, --plan-vs-recording, --silhouette-calib, --sim2real or '
+                        '--splat-views OUT.json (or --splat ACTION, or --export with the format fiftyone)')
         if (getattr(args, 'captures', None) or getattr(args, 'joints', None)) and \
                 'handeye_solve' not in [sid for sid, _ in _study_flags(args)]:
             return _err('--captures DIR (and --joints FILE) go with --handeye-solve OUT.json')
@@ -352,6 +359,9 @@ def run(args) -> int:
         from . import batch_stats
         if batch_stats.wanted(args):
             code = max(code, batch_stats.run(args, project))        # --stats SPEC.json (batch_stats.py)
+        from . import batch_splat
+        if batch_splat.wanted(args):
+            code = max(code, batch_splat.run(args, project))        # --splat ACTION (batch_splat.py)
         from . import batch_track                                   # last: it reports the runs logged above
         if batch_track.wanted(args) or batch_track._FAILED:
             code = max(code, batch_track.run(args, project))        # --runs-export, runs not logged

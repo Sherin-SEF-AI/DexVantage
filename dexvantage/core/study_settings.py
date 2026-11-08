@@ -30,6 +30,7 @@ EXTRA: dict = {
     'vla_tokens': ('policies', 'critical_objects', 'grasp_set', 'q', 'suggest'),
     'bandwidth': ('overhead', 'measured', 'extra', 'recorder', 'external_power'),
     'motion_blur': ('exposure_s', 'readout_s', 'shutter', 'trajectories'),
+    'splat_views': (),
 }
 
 

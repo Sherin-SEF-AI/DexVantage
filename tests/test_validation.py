@@ -47,9 +47,9 @@ def test_every_check_passes_and_names_its_reference():
     with ThreadPoolExecutor(WORKERS) as ex:
         checks += [c for cs in ex.map(_quick_run, [m for m in suite.MODEL_IDS if m not in HEAVY]) for c in cs]
     failed = [(c['id'], c['error'], c['exception'], c['unrendered']) for c in checks if not c['passed']]
-    # without an offscreen renderer (Windows, macOS, Linux without EGL: tests/render_support.py) the rendered checks
-    # fail with RenderUnavailable's sentence; every other check must still pass. DEXVANTAGE_TEST_RENDER=require (CI on
-    # Linux) accepts none of them.
+    # without an offscreen renderer (no EGL here: tests/render_support.py) the rendered checks fail with
+    # RenderUnavailable's sentence; every other check must still pass. DEXVANTAGE_TEST_RENDER=require (CI) accepts
+    # none of them.
     from render_support import check as render_check
     what, why = render_check()
     if what == 'fail':

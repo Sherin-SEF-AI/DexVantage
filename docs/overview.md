@@ -46,7 +46,7 @@ with its own XML reader and twist exponentials (`core/robot/kinematics.py`), and
 the closed-form DH tables of the UR5e and the Panda: see [models/kinematics.md](models/kinematics.md).
 
 **Validation:** 11 checks (`checks_kinematics.py`, `checks_ik.py`, `checks_obstacles.py`). Measured in the validation
-run of 2026-11-08 (232 of 232 checks pass): MuJoCo's forward kinematics against the product-of-exponentials chain 8.7 ×
+run of 2026-11-08 (239 of 239 checks pass): MuJoCo's forward kinematics against the product-of-exponentials chain 8.7 ×
 10⁻¹⁵ m (10⁻⁹ m); the UR5e and Panda DH tables 5.6 × 10⁻¹⁶ and 6.3 × 10⁻¹⁶ m (10⁻⁹ m); the analytic Jacobian against
 finite differences 4.4 × 10⁻¹⁰ m/rad (10⁻⁷) and against MuJoCo's `mj_jac` 8.8 × 10⁻¹⁵ m/rad (10⁻⁹); IK round trips 99.7
 µm and, position only, 93.0 µm (100 µm); the 2R manipulability closed form 1.1 × 10⁻¹⁶ m² (10⁻¹²); sphere and capsule
@@ -81,7 +81,7 @@ teleop devices in the new `teleop` kind) and 53 robots in the `robot` kind ([the
 **Equations:** the sensor geometry check uses w = p·W, h = p·H, d = p·√(W² + H²) (pixel pitch p, native resolution W ×
 H) and the pinhole FOV 2·atan(p·N / 2f) of a stated focal length f; a ViT policy input of w × h px with patch p and
 token merge s gives (w/p)(h/p)/s² tokens. **Validation:** 8 checks (`checks_library.py`, `checks_library_systems.py`,
-`checks_policies.py`, `checks_prices.py`). Measured in the validation run of 2026-11-08 (232 of 232 checks pass): pixel
+`checks_policies.py`, `checks_prices.py`). Measured in the validation run of 2026-11-08 (239 of 239 checks pass): pixel
 pitch × resolution against the stated active area 1.2 % (2 %: sizes are rounded to 0.1 mm); stated FOVs within the
 bounds of a radially symmetric lens, 2.92° at most (3°), and against the pinhole FOV of the stated focal length 0.48°
 (3°); stated totals against count × the per-port figure 0.09 % (0.5 %); token grids exact; teleop blocks, prices and the
@@ -104,7 +104,7 @@ b = A f |s − z| / (z (s − f)) [Ray 2002]. Ported from Vantage `core/lens.py`
 [models/optics.md](models/optics.md).
 
 **Validation:** 10 checks (`checks_optics.py`, `checks_optics_mujoco.py`). Measured in the validation run of 2026-11-08
-(232 of 232 checks pass): against OpenCV's `projectPoints` 1.8 × 10⁻¹² px and `fisheye.projectPoints` 5.7 × 10⁻¹³ px
+(239 of 239 checks pass): against OpenCV's `projectPoints` 1.8 × 10⁻¹² px and `fisheye.projectPoints` 5.7 × 10⁻¹³ px
 (10⁻⁶ px); project(unproject(pixel)) 4.7 × 10⁻¹³ px; FOV fits 2.3 × 10⁻¹² °; pixel density against √|det J| 8.2 × 10⁻⁹
 relative (10⁻⁶) and the coverage study's figure against `cv2.projectPoints` differences 0.0065 (0.01); depth of field
 and the blur disc 2.9 × 10⁻¹³ and 1.1 × 10⁻¹³ relative; MuJoCo-rendered fiducials 0.075 px for mask centroids (0.1 px)
@@ -129,7 +129,7 @@ cube-map idea and face basis). See [models/occlusion.md](models/occlusion.md).
 = 1 mm, a default), D the texel's stored distance; a texel ray d meets the triangle (a₀, a₁, a₂) (c at the origin) at t
 = (a₀ · n) / (n · d), n = (a₁ − a₀) × (a₂ − a₀), kept when t ≥ the 5 mm near plane [Möller and Trumbore 1997].
 **Validation:** 7 checks (`checks_occlusion.py`, `checks_occlusion_mujoco.py`, `checks_camview.py`,
-`checks_coverage.py`). Measured in the validation run of 2026-11-08 (232 of 232 checks pass): texels whose distance
+`checks_coverage.py`). Measured in the validation run of 2026-11-08 (239 of 239 checks pass): texels whose distance
 differs from the exact first hit by more than 1 mm 4.2 × 10⁻⁶ (10⁻³); against exact ray casting 2.5 × 10⁻⁵ of random
 points (10⁻³) and 0.18 % on the SO-100 and UR5e samples (1.45 %, the measured share of points within half a texel
 diagonal of a silhouette); MuJoCo segmentation of a box scene 0 and of the UR5e 2.5 × 10⁻⁵ of the target pixels away
@@ -162,7 +162,7 @@ surface tagged transparent, IR-absorbing or specular (a warning). The expected e
 [Hartley and Zisserman 2004], σ_d = 0.08 px by default (labelled), shown beside the maker's RMS statement. See
 [models/depth.md](models/depth.md).
 
-**Validation:** 4 checks (`checks_depth.py`). Measured in the validation run of 2026-11-08 (232 of 232 checks pass): σ_z
+**Validation:** 4 checks (`checks_depth.py`). Measured in the validation run of 2026-11-08 (239 of 239 checks pass): σ_z
 against a Monte Carlo of disparity noise 0.70 % relative (1.83 %, the Monte Carlo's band); the library's min-Z and FOV
 figures against Intel's D400 tables, 0 differ; the stereo-overlap formula against brute force 9.4 × 10⁻⁴ ° (0.01°);
 finger shadows against ray casting from both imagers 0 (10⁻³). **Known limits:** the voxel centre stands for the voxel;
@@ -649,7 +649,7 @@ simulate or apply as one undo step, plans, exports, the page on screen); errors 
 computed in the tool layer: figures come from study results, the project or a library entry. `python -m
 dexvantage.mcp` is a stdio MCP server (MCP specification 2025-11-25) on a project file, or attached to an open
 window. **Validation:** 14 tool figures against the study results read again, 3.65 × 10⁻⁵ relative (the briefs'
-4-digit rounding, 5 × 10⁻⁴); the server's replies and 40 tool schemas against MCP's examples and the JSON Schema
+4-digit rounding, 5 × 10⁻⁴); the server's replies and 41 tool schemas against MCP's examples and the JSON Schema
 2020-12 meta-schema, 0 nonconformities; edit then undo, content hash identical. **Known limits:** one request at a
 time (a long study blocks the next call); no progress notifications. See [models/mcp.md](models/mcp.md) (worked
 example: [guide/mcp.md](guide/mcp.md)).
@@ -816,6 +816,30 @@ example: [guide/sim2real.md](guide/sim2real.md)).
 
 **References (checks):** `gretton2012`, `immerkaer1996`, `lerobot_dataset_format`, `mujoco_todorov2012`, `pech_pacheco2000`, `rubner2000`, `scipy_stats`, `scipy_wasserstein`, `shapley1953`, `tai_yang2008` ([full entries](#references)).
 
+## Robot-aligned 3D Gaussian Splatting (splat views) {#splat}
+
+`core/sim/splat_rig.py` fits a 3D Gaussian Splatting scene [kerbl2023_3dgs] of the cell to posed images and attaches
+the robot's Gaussians to its links, so the scene re-poses with q (the approach of SplatSim [qureshi2025_splatsim] and
+Robo-GS [lou2025_robogs]; neither paper's code is used). `core/sim/splat_views.py` (the **Splat views** page, the
+`splat_views` study, `--splat`, `dv.splat`) fits it to a recorded LeRobot episode, each view posed at its mount at the
+logged q, or to a MuJoCo render of the project for demonstration; it previews what a proposed camera pose would see,
+replays the episode through it to a video, and writes perturbed copies (§8.5) as a LeRobot dataset. Every render is
+marked synthetic. Optional: the `splat` extra (PyTorch, lpips) and a CUDA device. **Equations:** a Gaussian's image
+footprint is Σ₂ = J R S Sᵀ Rᵀ Jᵀ + 0.3 I (J the lens projection's Jacobian, the EWA approximation [zwicker2001_ewa]),
+αᵢ = oᵢ exp(−½ dᵀ Σ₂⁻¹ d), C = Σ cᵢ αᵢ Πⱼ₍ⱼ<ᵢ₎ (1 − αⱼ); a robot Gaussian at μ_link is drawn at T_world_link(q) μ_link;
+the quality on held-out frames is PSNR = 10 log10(1 / MSE), SSIM [wang2004_ssim] and LPIPS [zhang2018_lpips].
+**Validation:** 7 checks: one Gaussian's footprint against its closed form (6.2 × 10⁻¹⁵), the torch rasteriser against
+the numpy reference on the CPU (2.0 × 10⁻¹⁴) and on CUDA (1.3 × 10⁻⁵, left out without a CUDA device), stereo
+reprojection against the closed-form disparity (1.8 × 10⁻¹³ px), re-posing against the camera moved the opposite way
+(5.9 × 10⁻⁷, float32 storage), SSIM and PSNR of constant images against their closed forms and SSIM against
+scikit-image. **Known limits:** every quality figure is from synthetic captures (no real recording is in the
+repository); no densification, view-dependent colour or lighting model; quality falls for camera poses far from the
+captured views (a wrist camera seen only from a sphere of views scores 17 dB) and for joint states far from the
+capture; the views' poses are the planned mounts at the logged q; LPIPS needs AlexNet's weights (a download, asked
+first). See [models/splat.md](models/splat.md) (worked example: [guide/splat.md](guide/splat.md)).
+
+**References (checks):** `kerbl2023_3dgs`, `lou2025_robogs`, `qureshi2025_splatsim`, `skimage_ssim`, `wang2004_ssim`, `zwicker2001_ewa` ([full entries](#references)).
+
 ## Publication kit {#paper_kit}
 
 `core/publication.py` (Export ▸ Paper kit…, the `paper_kit` export format, `dv.publication`): a methods paragraph,
@@ -925,7 +949,7 @@ DexVantage reads and writes (LeRobot v2.1 and v3.0, ROS 2 bags in MCAP and SQLit
 readers](#data)) and the export formats ([Exporters](#exporters)). A format is right or wrong, so most checks have
 tolerance 0; geometric round trips through another library carry that library's precision. **Validation:** 19 checks
 (`checks_formats.py`, `formats_bags.py`, `formats_exports.py`, `formats_isaac_lerobot.py`, `checks_rerun.py`,
-`checks_warp.py`). Measured in the validation run of 2026-11-08 (232 of 232 checks pass): a fully populated
+`checks_warp.py`). Measured in the validation run of 2026-11-08 (239 of 239 checks pass): a fully populated
 `project.json` against its schema through jsonschema, 0 violations; save and load, 0 sections differ; the LeRobot round
 trip, MCAP and TFRecord CRC-32C against the published vectors, 0 mismatches; the MuJoCo scene's cameras loaded by MuJoCo
 5.8 × 10⁻⁷ m (2 × 10⁻⁶ m, six-digit XML) and the snippets 3.1 × 10⁻¹⁷ m; URDF 1.1 × 10⁻¹⁵ m and tf2 2.8 × 10⁻¹⁷ m (10⁻⁹
@@ -962,8 +986,11 @@ Research tools part 2 and the review round's fixes: 55 more, 232 in all (the two
 Phases 9 and 10 reviews) — tracking 5, stats 13, campaign 6, sim2real 7, publication 4, cluster 4, cells 6,
 robot_io 5, library 2 (prices), experiments 1 (`experiments.censored_best`) (each summarised in its section above).
 With no project given, the project-dependent checks run on the bundled SO-100 and UR5e samples (the multi-finger
-checks on the dexhand sample). The self-test runs the quick run's cheap checks (`cheap_only`, 160 of them);
-`--validate` runs them all (232 checks, all passing: full run 384 s, peak 5.58 GB, 2026-11-08, [performance.md](performance.md)).
+checks on the dexhand sample). The self-test runs the quick run's cheap checks (`cheap_only`, 167 of them);
+`--validate` runs them all (239 checks with the splat model's 7, all passing: the Phase 12 gate's full run, alone on
+this machine, 425 s in the suite and 428 s for the process, peak 5.62 GB, 2026-11-08, timed in
+[performance.md](performance.md)). Without a CUDA device `splat.raster_torch_cuda` is left out, and without PyTorch
+both torch rasteriser checks are, naming the extra (the other five run on numpy).
 
 ## Model documents
 
@@ -1022,6 +1049,7 @@ checks on the dexhand sample). The self-test runs the quick run's cheap checks (
 | [models/stats.md](models/stats.md) | statistics and power analysis: intervals, permutation and rank tests, effect sizes, corrections, power and sample size (worked example: [guide/stats.md](guide/stats.md)) |
 | [models/campaign.md](models/campaign.md) | the data-collection campaign planner: conditions, demonstrations, Williams-square schedules, storage, calendar export (worked example: [guide/campaign.md](guide/campaign.md)) |
 | [models/sim2real.md](models/sim2real.md) | the sim-to-real gap: a recorded episode rendered again, per-camera measures, causes and their changes (worked example: [guide/sim2real.md](guide/sim2real.md)) |
+| [models/splat.md](models/splat.md) | robot-aligned 3D Gaussian Splatting: the rasteriser, the rig that re-poses with q, splat views (novel camera pose replay, perturbation augmentation) and the measured reconstruction quality (worked example: [guide/splat.md](guide/splat.md)) |
 | [models/paper_kit.md](models/paper_kit.md) | the publication kit: methods paragraph, tables, figures, BibTeX and appendix, every number traced (worked example: [guide/paper_kit.md](guide/paper_kit.md)) |
 | [models/cluster.md](models/cluster.md) | cluster sweeps: the process pool, Slurm job arrays, gather, the shared result cache (worked example: [guide/cluster.md](guide/cluster.md)) |
 | [models/cells.md](models/cells.md) | the multi-cell comparison: figures of merit, the geometric gap, dataset pooling, drift (worked example: [guide/cells.md](guide/cells.md)) |
@@ -1121,6 +1149,7 @@ Every source the validation checks cite, by key (`dexvantage/validation/referenc
 - `kannala_brandt2006`: J. Kannala and S. S. Brandt, "A generic camera model and calibration method for conventional, wide-angle, and fish-eye lenses", IEEE Transactions on Pattern Analysis and Machine Intelligence 28(8), 1335–1340, 2006.
 - `kass_raftery1995`: R. E. Kass and A. E. Raftery, "Bayes factors", Journal of the American Statistical Association 90(430), 773–795, 1995 (BIC differences over 6: strong evidence).
 - `kay_kajiya1986`: T. L. Kay and J. T. Kajiya, "Ray tracing complex scenes", SIGGRAPH '86, Computer Graphics 20(4), 269–278, 1986 (the slab test of a ray against a box).
+- `kerbl2023_3dgs`: B. Kerbl, G. Kopanas, T. Leimkühler and G. Drettakis, "3D Gaussian Splatting for real-time radiance field rendering", ACM Transactions on Graphics 42(4), 2023; reference code utils/camera_utils.py camera_to_JSON, https://github.com/graphdeco-inria/gaussian-splatting (main, commit 54c035f), read 2026-11-07.
 - `knapp_carter1976`: C. H. Knapp and G. C. Carter, "The generalized correlation method for estimation of time delay", IEEE Transactions on Acoustics, Speech, and Signal Processing 24(4), 320–327, 1976.
 - `kolmogorov1933`: A. N. Kolmogorov, "Sulla determinazione empirica di una legge di distribuzione", Giornale dell'Istituto Italiano degli Attuari 4, 83–91, 1933.
 - `kunsch1989`: H. R. Künsch, "The jackknife and the bootstrap for general stationary observations", The Annals of Statistics 17(3), 1217–1241, 1989 (the moving-block bootstrap).
@@ -1138,6 +1167,7 @@ Every source the validation checks cite, by key (`dexvantage/validation/referenc
 - `library_teleop_sources`: The makers' pages and the papers each teleop library entry cites in its sources (dexvantage/resources/library/teleop/*.json), with the date each was read.
 - `liegeois1977`: A. Liégeois, "Automatic supervisory control of the configuration and behavior of multibody mechanisms", IEEE Transactions on Systems, Man, and Cybernetics 7(12), 868–871, 1977.
 - `liu2010_fdcm`: M.-Y. Liu, O. Tuzel, A. Veeraraghavan and R. Chellappa, "Fast directional chamfer matching", IEEE CVPR 2010, 1696–1703 (edges matched within orientation channels).
+- `lou2025_robogs`: H. Lou, Y. Liu, Y. Pan, Y. Geng, J. Chen, W. Ma, C. Li, L. Wang, H. Feng, L. Shi, L. Luo and Y. Shi, "Robo-GS: A physics consistent spatial-temporal model for robotic arm with hybrid representation", ICRA 2025, arXiv:2408.14873, https://arxiv.org/abs/2408.14873 (read 2026-11-08).
 - `lucas_kanade1981`: B. D. Lucas and T. Kanade, "An iterative image registration technique with an application to stereo vision", IJCAI 1981, 674–679.
 - `lynch_park2017`: K. M. Lynch and F. C. Park, Modern Robotics: Mechanics, Planning, and Control, Cambridge University Press, 2017 (product of exponentials, chapter 4; space Jacobian, chapter 5).
 - `mcap_python`: Foxglove, mcap Python package (mcap.reader.make_reader with validate_crcs), MIT licence, https://github.com/foxglove/mcap/tree/main/python/mcap, version 1.6.0 used 2026-11-07.
@@ -1193,6 +1223,7 @@ Every source the validation checks cite, by key (`dexvantage/validation/referenc
 - `posix_rename_flock`: POSIX.1-2017 rename() ("a link named new shall remain visible to other threads throughout the renaming operation and refer either to the file referred to by new or old before the operation began"; RATIONALE: "the action of the function be atomic") and Linux flock(2) advisory locks, https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html, https://man7.org/linux/man-pages/man2/flock.2.html (read 2026-11-07).
 - `python_ast`: Python standard library, ast (parse, literal_eval) and xml.etree.ElementTree, https://docs.python.org/3/library/ast.html.
 - `pyyaml`: PyYAML (yaml.safe_load), https://pyyaml.org/wiki/PyYAMLDocumentation.
+- `qureshi2025_splatsim`: M. N. Qureshi, S. Garg, F. Yandun, D. Held, G. Kantor and A. Silwal, "SplatSim: Zero-shot Sim2Real transfer of RGB manipulation policies using Gaussian Splatting", ICRA 2025, arXiv:2409.10161, https://splatsim.github.io (read 2026-11-08).
 - `ray2002`: S. F. Ray, Applied Photographic Optics, 3rd ed., Focal Press, 2002 (depth of field and hyperfocal distance of a thin lens).
 - `rename2`: Linux man-pages, rename(2) ("If newpath already exists, it will be atomically replaced, so that there is no point at which another process attempting to access newpath will find it missing"; on NFS a failed rename may have been done), https://man7.org/linux/man-pages/man2/rename.2.html, read 2026-11-07.
 - `rep103`: ROS REP 103, Standard Units of Measure and Coordinate Conventions (T. Foote, M. Purvis, 2010), https://www.ros.org/reps/rep-0103.html.
@@ -1221,6 +1252,7 @@ Every source the validation checks cite, by key (`dexvantage/validation/referenc
 - `shepperd1978`: S. W. Shepperd, "Quaternion from rotation matrix", Journal of Guidance and Control 1(3), 223–224, 1978.
 - `shoemake1985`: K. Shoemake, "Animating rotation with quaternion curves", SIGGRAPH '85, Computer Graphics 19(3), 245–254, 1985.
 - `siunitx_wright2026`: J. Wright, "siunitx - A comprehensive (SI) units package", package manual, version 3.6.7, CTAN, 2026 (section 3.4: literal unit input such as \unit{kg.m/s^2}; \num, \qty, \percent, \degree), https://ctan.org/pkg/siunitx, read 2026-11-07.
+- `skimage_ssim`: scikit-image 0.26.0, skimage.metrics.structural_similarity (gaussian_weights, sigma 1.5, use_sample_covariance False and data_range to match Wang et al. 2004), https://scikit-image.org/docs/stable/api/skimage.metrics.html (read 2026-11-08).
 - `slurm_job_array`: SchedMD, Slurm Workload Manager, "Job Array Support", version 26.05 (--array ranges, comma lists and the % throttle; SLURM_ARRAY_TASK_ID; %A and %a; MaxArraySize default 1001), https://slurm.schedmd.com/job_array.html, read 2026-11-07.
 - `slurm_sbatch`: SchedMD, Slurm Workload Manager, "sbatch", version 26.05 (--cpus-per-task, --mem in mebibytes with K, M, G, T, --time formats, --parsable, --dependency=afterany, SLURM_SUBMIT_DIR; #SBATCH directives are read up to the first non-comment, non-whitespace line), https://slurm.schedmd.com/sbatch.html, read 2026-11-07.
 - `smirnov1948`: N. Smirnov, "Table for estimating the goodness of fit of empirical distributions", The Annals of Mathematical Statistics 19(2), 279–281, 1948.
@@ -1252,6 +1284,7 @@ Every source the validation checks cite, by key (`dexvantage/validation/referenc
 - `veach1997`: E. Veach, Robust Monte Carlo Methods for Light Transport Simulation, PhD thesis, Stanford University, 1997 (multiple importance sampling, chapter 9).
 - `walter2007`: B. Walter, S. R. Marschner, H. Li and K. E. Torrance, "Microfacet models for refraction through rough surfaces", Eurographics Symposium on Rendering 2007, 195–206 (the GGX distribution, eq. 33; Smith G1, eq. 34; the microfacet BRDF, eq. 20; sampling, eqs. 35–36).
 - `wampler1986`: C. W. Wampler, "Manipulator inverse kinematic solutions based on vector formulations and damped least-squares methods", IEEE Transactions on Systems, Man, and Cybernetics 16(1), 93–101, 1986.
+- `wang2004_ssim`: Z. Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli, "Image quality assessment: from error visibility to structural similarity", IEEE Transactions on Image Processing 13(4), 600–612, 2004.
 - `wang_olson2016`: J. Wang and E. Olson, "AprilTag 2: Efficient and robust fiducial detection", IEEE/RSJ IROS 2016, 4193–4198.
 - `williams1949`: E. J. Williams, "Experimental designs balanced for the estimation of residual effects of treatments", Australian Journal of Scientific Research, Series A 2(2), 149-168, 1949, https://doi.org/10.1071/CH9490149 (read 2026-11-07).
 - `williams1978`: L. Williams, "Casting curved shadows on curved surfaces", SIGGRAPH '78, Computer Graphics 12(3), 270–274, 1978 (shadow maps and their depth bias).
@@ -1260,3 +1293,4 @@ Every source the validation checks cite, by key (`dexvantage/validation/referenc
 - `zhao2023_act`: T. Z. Zhao, V. Kumar, S. Levine and C. Finn, "Learning fine-grained bimanual manipulation with low-cost hardware" (ACT, temporal ensembling w_i = exp(-m i)), RSS 2023, https://arxiv.org/abs/2304.13705.
 - `zip_appnote`: PKWARE, APPNOTE.TXT, .ZIP File Format Specification (read here through Python's zipfile).
 - `zitzler2000_zdt`: E. Zitzler, K. Deb and L. Thiele, "Comparison of multiobjective evolutionary algorithms: empirical results", Evolutionary Computation 8(2), 173–195, 2000 (ZDT1 and ZDT2 and their analytic fronts, g = 1).
+- `zwicker2001_ewa`: M. Zwicker, H. Pfister, J. van Baar and M. Gross, "EWA volume splatting", IEEE Visualization 2001, 29–36 (the local affine approximation of the projection of a Gaussian).

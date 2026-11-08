@@ -17,8 +17,8 @@ answers, before a lab builds or changes its rig and again after the rig has reco
 
 **Who it is for:** the people who design, build and run robot data-collection cells: robot-learning researchers, the
 lab engineers who mount the cameras and route the cables, and the teams who audit the datasets afterwards. It is
-built for a workstation (Windows, macOS, Linux) and for batch mode on a CI runner or a Jetson; so far it has run on
-Linux x86_64 only ([known limits](#known-limits)).
+built for a Linux workstation and for batch mode on a CI runner or a Jetson. **DexVantage supports Linux only**
+(x86_64, and arm64 such as NVIDIA Jetson); Windows and macOS are not supported ([known limits](#known-limits)).
 
 It is the sibling of Vantage, the sensor-rig planner for autonomous-driving data collection, with the same design
 language and engineering standards: every number comes from a model that a validation check compares with an
@@ -34,9 +34,9 @@ holds the user guide, the models and methods, the technical reference and the va
 *The grasp self-occlusion page on the UR5e + Robotiq 2F-85 sample: the Contact Visibility Score with its interval,
 what each camera sees of the fingertips, and the camera move that would raise the score.*
 
-> **Status: release candidate 0.1.0rc1, not yet released.** Phases 0–11 and research tools parts 1 and 2 are done.
-> At the final Phase 11 gate (2026-11-08) 3 991 tests passed, 232 of 232 validation checks
-> passed and 46 of 46 self-test lines were ok ([docs/BUILD_STATE.md](docs/BUILD_STATE.md)).
+> **Status: release candidate 0.1.0rc1, not yet released.** Phases 0–12 and research tools parts 1 and 2 are done;
+> DexVantage supports Linux only. At the Phase 12 gate (2026-11-08) 4 063 tests passed, 239 of 239 validation checks
+> passed and 47 of 47 self-test lines were ok ([docs/BUILD_STATE.md](docs/BUILD_STATE.md)).
 > Nothing has been tagged or released.
 
 ## Install
@@ -49,24 +49,21 @@ from source.
 
 | System | File | Needs |
 |---|---|---|
-| Windows | `DexVantage-<version>-windows-x64-setup.exe` (installs for the current user, no administrator rights) or `DexVantage-<version>-windows-x64.zip` | Windows 10 or 11, x64 |
-| macOS | `DexVantage-<version>-macos-arm64.zip` | Apple silicon |
 | Linux x86_64 | `DexVantage-<version>-linux-x86_64.tar.gz` (a folder with `install.sh`, which adds a menu entry for the current user) | x86_64, glibc 2.35 or later (Ubuntu 22.04 or later) |
 | Linux arm64 (NVIDIA Jetson) | `DexVantage-<version>-linux-arm64.tar.gz` | arm64 with glibc 2.35 or later, such as a Jetson Orin with JetPack 6 or 7 |
 
-Each release will also carry `SHA256SUMS.txt`. The bundles are not code-signed: Windows SmartScreen asks you to
-confirm (*More info ▸ Run anyway*), and on macOS the first start needs *System Settings ▸ Privacy & Security ▸ Open
-Anyway*. After installing, `dexvantage --self-test` checks the installation without opening a window.
+There are no Windows or macOS bundles: DexVantage supports Linux only. Each release will also carry
+`SHA256SUMS.txt`. After installing, `dexvantage --self-test` checks the installation without opening a window.
 
 ### From source (pip)
 
-Python 3.10 or newer, on any of the systems above.
+Python 3.10 or newer, on Linux (x86_64 or arm64).
 
 ```bash
 git clone https://github.com/Sherin-SEF-AI/DexVantage
 cd DexVantage
 python3 -m venv .venv
-.venv/bin/pip install -e .                 # Windows: py -m venv .venv, then .venv\Scripts\pip install -e .
+.venv/bin/pip install -e .
 .venv/bin/dexvantage --self-test
 ```
 
@@ -83,6 +80,7 @@ Optional extras add features; install the ones you need, for example `.venv/bin/
 | `assistant` | the Assistant dock's Claude provider, with keys in the system keyring |
 | `research` | `Result.to_frame()` of the Python API as a pandas DataFrame |
 | `tracking` | the experiment tracker's MLflow and W&B exports, read back by their own clients |
+| `splat` | splat views: a robot-aligned 3D Gaussian Splatting rig fitted to a recorded episode, novel camera replays and perturbed copies (PyTorch, torchvision, lpips; about 4.7 GB; a CUDA GPU; install with `--extra-index-url https://download.pytorch.org/whl/cu130`; not in the bundles) |
 | `test` | pytest, ruff and the test references |
 | `site` | `scripts/build_site.py`: the website's generated pages and images |
 
@@ -127,7 +125,7 @@ and are labelled sample placements otherwise. Each sample has a tour in [docs/gu
 ## Features and measured figures
 
 Every figure below was measured, and the last column says where. Validation figures are from the full run of
-`dexvantage --validate` at the final gate (232 of 232 checks; report dated 2026-11-08 UTC; Linux x86_64, Python
+`dexvantage --validate` at the Phase 12 gate (239 of 239 checks; report dated 2026-11-08 UTC; Linux x86_64, Python
 3.14.4, MuJoCo 3.17.0, OpenCV 5.0.0). Each check compares a model with an independent reference, and the figure is the
 largest difference it measured. The validation report (`site/validation.html`, on the website) lists every check with
 its tolerance and the reason for it.
@@ -170,6 +168,7 @@ its tolerance and the reason for it.
 | Experiment tracker (`--track`) | 0 fields read back otherwise by MLflow's client | check `tracking.mlflow_reader`; [tracking.md](docs/models/tracking.md) |
 | Cluster sweeps (`--jobs`, `--slurm`) | 0 values differ between the gathered shards and the serial run | check `cluster.gather_equals_serial`; [cluster.md](docs/models/cluster.md) |
 | Multi-cell comparison (`--cells`) | a known rotation recovered within 3.55 × 10⁻¹⁴ ° | check `cells.gap_rotation`; [cells.md](docs/models/cells.md) |
+| Splat views (`--splat-views`, `--splat fit`, `replay`, `augment`; the `splat` extra and a CUDA GPU) | the torch rasteriser against an independent numpy one: 1.97 × 10⁻¹⁴ (colours 0–1); held-out views of a fitted SO-100 episode rig 32.4 dB PSNR, SSIM 0.975, LPIPS 0.022, but 17.9 dB for the wrist camera moved 2 cm back (synthetic captures only; no real recording measured) | check `splat.raster_torch_cpu`; [splat.md](docs/models/splat.md) |
 | UI responsiveness (the budget: no UI-thread step over 100 ms) | the 18 studies each sample's pages run, on the six samples: 0 steps over 100 ms, slowest 79.6 ms (SO-100, motion blur); a UR5e frame after a joint change: 67.6 ms median, 95.5 ms worst (shader renderer, integrated GPU) | `scripts/benchmarks.py --only ui`, [docs/performance.md](docs/performance.md) (2026-11-08); `scripts/measure_ui.py`, [models/performance.md](docs/models/performance.md) (2026-11-06) |
 
 ## Screenshots
@@ -192,21 +191,21 @@ The main ones follow; each model's document has its own "Known limits" section, 
   Policy, OpenVLA, Kalibr and FiftyOne were not installed while building; the exports follow the cited formats and
   are read back by independent readers. No request was sent to a live Claude or Groq API (the tests use a fake
   provider).
-- **Platforms:** everything here was built and tested on Linux x86_64 with Python 3.14 only (the other versions from
-  3.10 that `pyproject.toml` allows have not been run; CI, set up for 3.12 and 3.14 on Linux, Windows and macOS, has
-  not run yet). The dependencies have lower bounds only: it was tested with MuJoCo 3.17.0, PyQt6 6.12, NumPy 2.5 and
+- **Platforms:** DexVantage supports Linux only (x86_64 and arm64); Windows and macOS are not supported. Everything
+  here was built and tested on Linux x86_64 with Python 3.14 (CI, set up for 3.12 and 3.14 on Ubuntu 24.04 and for
+  3.10 as the oldest, ran for the first time on 2026-11-08). The dependencies have lower bounds only: it was tested with MuJoCo 3.17.0, PyQt6 6.12, NumPy 2.5 and
   OpenCV 5.0. MuJoCo 4.0.0 (2026-11-06), which pip now installs, passed the 232 validation checks in one run at the
   final gate (24 errors changed from 3.17.0's, all at round-off); the tests have not been run with it.
-  Only the Linux x86_64 bundle has been built, on glibc 2.43, which it then needs; the Windows, macOS and Linux arm64
-  bundles, and the glibc 2.35 Linux builds the table above describes, are built by CI only and none has been built or
-  released ([docs/packaging.md](docs/packaging.md)).
-- **Speed off Linux:** the GPU cube maps need Linux EGL; elsewhere the occlusion studies use the NumPy rasteriser,
-  15–270 × slower per 512-texel cube map on the samples ([docs/performance.md](docs/performance.md)). On Linux the 2,000-grasp
-  study on ALOHA 2 took 182.1 s against this project's 180 s default.
-- **MuJoCo renders off Linux:** DexVantage renders MuJoCo scenes through EGL only, so on Windows and macOS the
-  ground-truth study, the synthetic episodes, the silhouette calibration, the sim-to-real gap and the rendered
+  Only the Linux x86_64 bundle has been built, on glibc 2.43, which it then needs; the Linux arm64 bundle and the
+  glibc 2.35 Linux builds the table above describes are built by CI only and none has been built or released
+  ([docs/packaging.md](docs/packaging.md)).
+- **Without EGL:** the GPU cube maps need EGL; without it the occlusion studies use the NumPy rasteriser,
+  15–270 × slower per 512-texel cube map on the samples ([docs/performance.md](docs/performance.md)). With EGL the
+  2,000-grasp study on ALOHA 2 took 182.1 s against this project's 180 s default.
+- **MuJoCo renders need EGL:** DexVantage renders MuJoCo scenes through EGL only, so on a machine with no EGL driver
+  the ground-truth study, the synthetic episodes, the silhouette calibration, the sim-to-real gap and the rendered
   validation checks stop with "MuJoCo cannot render offscreen through EGL on this machine" (the other studies do not
-  render MuJoCo scenes; nothing has been run on Windows or macOS yet).
+  render MuJoCo scenes).
 - **Window:** the QPainter 3D fallback (no OpenGL, or `--software-3d`) takes 0.16 s (SO-100) to about 1.4 s (ALOHA 2) a
   frame ([troubleshooting](docs/user-guide.md#troubleshooting)), over the 100 ms
   budget; there is no global exception hook, so an unexpected error inside a Qt slot (none seen) ends the window

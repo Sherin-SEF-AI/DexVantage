@@ -87,6 +87,9 @@ MODELS = (
     ('cluster', 'Cluster sweeps (process pool, Slurm shards, shared result cache)', 'dexvantage.core.cluster',
      'cluster'),
     ('sim2real', 'Sim-to-real gap (render against recording)', 'dexvantage.core.sim2real', 'sim2real'),
+    ('splat', 'Robot-aligned 3D Gaussian Splatting (rasteriser, reprojection, re-posing, image scores)',
+     'dexvantage.core.splat_raster, dexvantage.core.splat_reproject, dexvantage.core.sim.splat_rig, '
+     'dexvantage.core.sim.splat_views', 'splat'),
 )
 MODEL_IDS = tuple(m[0] for m in MODELS)
 PLUGIN_MODELS: list = []          # (id, title, modules, anchor) of the models plugins validate (PluginAPI.check)
@@ -223,6 +226,7 @@ class ValidationResult:
 CHECKS: list = []
 # what the LeRobot dataset checks need (the lerobot extra: Parquet and video)
 LEROBOT = (('pyarrow', 'lerobot'), ('av', 'lerobot'))
+CUDA_NEED = 'cuda'                # needs=(('torch', 'splat'), (CUDA_NEED, 'splat')): a CUDA device, not a package
 
 
 def check(cid, model, title, quantity, reference, tolerance, unit, refs=(), cost='cheap', tolerance_quick=None,
@@ -241,10 +245,23 @@ def check(cid, model, title, quantity, reference, tolerance, unit, refs=(), cost
     return deco
 
 
+def _cuda_here() -> bool:
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:                       # noqa: BLE001 — no torch, or a broken driver: no CUDA
+        return False
+
+
 def missing_need(spec: Spec) -> tuple | None:
-    """(module, extra) of the first optional package the check needs that is not installed here, or None."""
+    """(module, extra) of the first optional package the check needs that is not installed here, or None. The need
+    ('cuda', extra) is a CUDA device that PyTorch can use (CUDA_NEED)."""
     import importlib.util
     for mod, extra in spec.needs:
+        if mod == CUDA_NEED:
+            if not _cuda_here():
+                return mod, extra
+            continue
         try:
             if importlib.util.find_spec(mod) is None:
                 return mod, extra
@@ -271,13 +288,19 @@ def not_run_sentence(items: list) -> str:
     by = {}
     for d in items:
         by.setdefault((d['module'], d['extra']), []).append(d['id'])
-    parts = [f'{len(ids)} need{"s" if len(ids) == 1 else ""} {mod} (the {extra} extra)'
+    parts = [f'{len(ids)} need{"s" if len(ids) == 1 else ""} '
+             + ('a CUDA device' if mod == CUDA_NEED else f'{mod} (the {extra} extra)')
              for (mod, extra), ids in by.items()]
-    extras = ','.join(dict.fromkeys(extra for _, extra in by))
+    pkgs = [(m, e) for m, e in by if m != CUDA_NEED]
+    extras = ','.join(dict.fromkeys(extra for _, extra in pkgs))
     n = len(items)
-    return (f'{n} check{"s" if n != 1 else ""} not run because an optional package is not installed: '
-            f'{"; ".join(parts)}. Install {"them" if len(by) > 1 else "it"} with pip install "dexvantage[{extras}]" '
-            f'to run {"them" if n != 1 else "it"}.')
+    why = ('an optional package is not installed' if len(pkgs) == len(by) else
+           'there is no CUDA device here' if not pkgs else 'an optional package or a CUDA device is missing')
+    out = f'{n} check{"s" if n != 1 else ""} not run because {why}: {"; ".join(parts)}.'
+    if pkgs:
+        out += (f' Install {"them" if len(pkgs) > 1 else "it"} with pip install "dexvantage[{extras}]" to run '
+                f'{"them" if n != 1 else "it"}.')
+    return out
 
 
 def declared_tolerance(spec: Spec, quick: bool = False) -> float:

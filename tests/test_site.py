@@ -270,8 +270,11 @@ def test_home_page_figures_equal_the_validation_report():
 
 def test_readme_names_the_bundles_and_the_site():
     text = open(os.path.join(ROOT, 'README.md'), encoding='utf-8').read()
-    for name in ('-windows-x64-setup.exe', '-macos-arm64.zip', '-linux-x86_64.tar.gz', '-linux-arm64.tar.gz'):
+    for name in ('-linux-x86_64.tar.gz', '-linux-arm64.tar.gz'):
         assert f'DexVantage-<version>{name}' in text, name
+    assert 'supports Linux only' in text                                     # no Windows or macOS bundle
+    for name in ('-windows-x64-setup.exe', '-macos-arm64.zip'):
+        assert name not in text, name
     assert 'once released' in text and 'GPL-3.0-or-later' in text and 'CITATION.cff' in text
     for img in re.findall(r'\]\((docs/media/[^)]+)\)', text):
         assert os.path.isfile(os.path.join(ROOT, img)), img

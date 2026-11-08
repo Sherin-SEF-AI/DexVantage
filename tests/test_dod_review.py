@@ -76,10 +76,18 @@ def test_api_hints_name_only_what_the_modules_can_resolve():
 
 
 # ====================================================================== the Phase 11 demo script (spec §17, §18)
+# The phase demo scripts are the lead engineer's, kept out of git (.gitignore: scripts/demo-*.sh), so a clone (CI)
+# has none: the first GitHub CI run failed these four tests with "No such file or directory". They run where the
+# script is.
+_NO_DEMO = pytest.mark.skipif(not os.path.isfile(DEMO), reason='scripts/demo-phase11.sh is not here (the phase demo '
+                              'scripts are kept out of git: .gitignore scripts/demo-*.sh)')
+
+
 def _demo() -> str:
     return open(DEMO, encoding='utf-8').read()
 
 
+@_NO_DEMO
 def test_demo_script_is_valid_bash():
     bash = shutil.which('bash')
     if bash is None:
@@ -88,6 +96,7 @@ def test_demo_script_is_valid_bash():
     assert r.returncode == 0, r.stderr
 
 
+@_NO_DEMO
 def test_demo_script_walks_every_bullet_of_the_definition_of_done():
     s = _demo()
     # §18.1: ALOHA 2; grasps and why; a camera moved and the score again; depth validity, VLA tokens, bandwidth;
@@ -108,6 +117,7 @@ def test_demo_script_walks_every_bullet_of_the_definition_of_done():
     assert re.search(r'mkdir -p "\$OUT/tour" "\$OUT/audit"', s)
 
 
+@_NO_DEMO
 def test_demo_script_python_steps_compile():
     blocks = re.findall(r"<<'PYEOF'\n(.*?)\nPYEOF", _demo(), flags=re.S)
     assert len(blocks) == 3
@@ -115,6 +125,7 @@ def test_demo_script_python_steps_compile():
         compile(b, 'demo-phase11.sh', 'exec')
 
 
+@_NO_DEMO
 def test_demo_script_uses_only_flags_the_parser_knows():
     """Every --flag of the demo is one docs/reference/cli.md lists (generated from the real parser and kept current
     by tests/test_docs_reference.py), or --check of the generator and site scripts."""

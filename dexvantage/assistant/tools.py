@@ -55,7 +55,8 @@ from .session import NeedsWindow, SessionError
 LONG = ('grasp_visibility', 'groundtruth', 'audit', 'plan_vs_recording', 'silhouette_calib', 'teleop', 'handeye_plan',
         'handeye_solve', 'dex_occlusion', 'tolerance', 'experiments', 'optimise', 'design_agent',
         'cells',                       # the cell comparison: figures on every cell (core/cells.py)
-        'sim2real')                    # the sim-to-real gap: renders and a silhouette calibration (5-6 s on the UR5e)
+        'sim2real',                    # the sim-to-real gap: renders and a silhouette calibration (5-6 s on the UR5e)
+        'splat_views')                 # a 3D Gaussian Splatting fit: about a minute on a GPU (docs/models/splat.md)
 PLAN_KINDS = ('study', 'export', 'edit')
 
 
@@ -568,6 +569,11 @@ _STUDY_TOOLS = [
                                  'MMD), with the causes ranked and the change that closes each. Long work.'),
     ('get_campaign', 'campaign', 'Data-collection campaign plan: episodes, days, storage and the status against the '
                                  'budget, the counterbalanced schedule over operators and days, and the checklists.'),
+    ('get_splat_views', 'splat_views', 'Splat views: a robot-aligned 3D Gaussian Splatting rig fitted to a recorded '
+                                       'episode (or a MuJoCo render of the project, a synthetic demonstration), its '
+                                       'reconstruction quality on held-out frames (PSNR, SSIM, LPIPS) and the target '
+                                       'camera\'s current and proposed pose. Every splat render is synthetic. Needs '
+                                       'the splat extra and a CUDA device. Long work.'),
 ]
 
 TOOLS: dict = {}

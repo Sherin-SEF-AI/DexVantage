@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DexVantage · Camera, depth and teleop planning for robot-learning data collection</title>
-<meta name="description" content="DexVantage is a free desktop app for planning the cameras, depth sensors and teleoperation of robot manipulation and humanoid data-collection rigs: where the cameras go so fingertips, objects and contacts stay visible at the grasp, where depth is valid, what the teleoperator can reach, and whether the recorded datasets meet the plan. Windows, macOS and Linux; GPL-3.0-or-later.">
+<meta name="description" content="DexVantage is a free desktop app for planning the cameras, depth sensors and teleoperation of robot manipulation and humanoid data-collection rigs: where the cameras go so fingertips, objects and contacts stay visible at the grasp, where depth is valid, what the teleoperator can reach, and whether the recorded datasets meet the plan. Linux only (x86_64 and arm64); GPL-3.0-or-later.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="DexVantage · Camera, depth and teleop planning for robot-learning data collection">
 <meta property="og:description" content="Place the cameras of a robot data-collection rig, prove what they see at the grasp, check depth, bandwidth, cables and sync, then audit the recorded datasets against the plan. Every figure checked against an independent reference.">
@@ -65,7 +65,7 @@
         camera move that would raise it. A screenshot of the application.</p>
     </div>
     <div class="facts">
-      <div class="fact"><b>232 of 232</b><span>validation checks pass against independent references (final gate, 2026-11-08)</span></div>
+      <div class="fact"><b>239 of 239</b><span>validation checks pass against independent references (Phase 12 gate, 2026-11-08)</span></div>
       <div class="fact"><b>6 samples</b><span>SO-100, UR5e, UR5e + Shadow Hand, ALOHA 2, two Pandas, Unitree G1</span></div>
       <div class="fact"><b>114.2 s</b><span>for a 2 000-grasp study on the UR5e sample, RTX 5080 (2026-11-08)</span></div>
       <div class="fact"><b>92.8 %</b><span>of contact points agree with MuJoCo renders (UR5e sample)</span></div>
@@ -422,8 +422,8 @@
     <div class="head">
       <div class="eyebrow">Validation</div>
       <h2>Every model checked against a reference that shares none of its code.</h2>
-      <p>232 checks compare DexVantage's models with closed forms written out again, other libraries, published tables,
-        brute-force ray casting, Monte Carlo and MuJoCo renders. A selection of the full run at the final gate (report
+      <p>239 checks compare DexVantage's models with closed forms written out again, other libraries, published tables,
+        brute-force ray casting, Monte Carlo and MuJoCo renders. A selection of the full run at the Phase 12 gate (report
         dated 2026-11-08 UTC, Linux x86_64); the <a href="validation.html">validation report</a> has every check with
         its tolerance and the reason for it.</p>
     </div>
@@ -471,12 +471,12 @@
       <div class="card"><h4>Ground truth and calibration</h4><p>MuJoCo renders agree with the predictions on 92.8 %
         (UR5e) and 84.2 % (SO-100) of the contact points in view; distorted lenses render slowly. End to end from
         rendered images, the hand-eye error is about 2–2.5 × the predicted σ: treat σ as a lower bound.</p></div>
-      <div class="card"><h4>Speed off Linux</h4><p>The GPU cube maps need Linux EGL; elsewhere the occlusion studies
-        use the NumPy rasteriser, 15–270 × slower per cube map on the samples. The QPainter 3D fallback takes
-        160–586 ms a frame.</p></div>
+      <div class="card"><h4>Speed without EGL</h4><p>The GPU cube maps need EGL (a GPU driver or Mesa); without it the
+        occlusion studies use the NumPy rasteriser, 15–270 × slower per cube map on the samples. The QPainter 3D
+        fallback takes 160–586 ms a frame.</p></div>
       <div class="card"><h4>Release and platforms</h4><p>Version 0.1.0rc1 is the first release candidate; nothing has
-        been tagged or released. Built and tested on Linux x86_64 with Python 3.14 only: the Windows, macOS and arm64
-        bundles are built by CI, which has not run yet.</p></div>
+        been tagged or released. DexVantage supports Linux only (x86_64 and arm64); Windows and macOS are not
+        supported. Built and tested on Linux x86_64; the arm64 bundle is built by CI only.</p></div>
     </div>
   </div>
 </section>
@@ -487,26 +487,23 @@
     <div class="head">
       <div class="eyebrow">Install · release candidate 0.1.0rc1</div>
       <h2>Install DexVantage.</h2>
-      <p>DexVantage is free software under the GPL-3.0-or-later. The bundles below carry their own Python and need
-        nothing else; they will be available from the <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">release
+      <p>DexVantage is free software under the GPL-3.0-or-later, and it supports <strong>Linux only</strong>: there
+        are no Windows or macOS builds. The Linux bundles below carry their own Python and need nothing else; they
+        will be available from the <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">release
         page</a> once released, with SHA-256 checksums in <code>SHA256SUMS.txt</code>. Until then, install from source
-        with Python 3.10 or later. The bundles are not code-signed, so the first start asks you to confirm.</p>
+        with Python 3.10 or later.</p>
     </div>
     <div class="dl">
-      <div class="card"><span class="os">Windows</span><h4>Installer</h4>
-<pre>DexVantage-&lt;version&gt;-windows-x64-setup.exe
-DexVantage-&lt;version&gt;-windows-x64.zip</pre><p>Windows 10 or 11, x64. Installs for your user without administrator rights. SmartScreen: <em>More info ▸ Run anyway</em>.</p></div>
-      <div class="card"><span class="os">macOS</span><h4>App</h4>
-<pre>DexVantage-&lt;version&gt;-macos-arm64.zip</pre><p>Apple silicon. Not signed: the first time, choose <em>Open Anyway</em> in <em>System Settings ▸ Privacy &amp; Security</em>.</p></div>
-      <div class="card"><span class="os">Linux</span><h4>Bundle, no Python</h4>
-<pre>DexVantage-&lt;version&gt;-linux-x86_64.tar.gz
-DexVantage-&lt;version&gt;-linux-arm64.tar.gz</pre><p>x86_64, or arm64 for an NVIDIA Jetson (JetPack 6 or 7); glibc 2.35 or later (Ubuntu 22.04 or later). Check the installation with <code>dexvantage --self-test</code>.</p></div>
+      <div class="card"><span class="os">Linux x86_64</span><h4>Bundle, no Python</h4>
+<pre>DexVantage-&lt;version&gt;-linux-x86_64.tar.gz</pre><p>glibc 2.35 or later (Ubuntu 22.04 or later). <code>./install.sh</code> adds a menu entry for your user, no root. Check the installation with <code>dexvantage --self-test</code>.</p></div>
+      <div class="card"><span class="os">Linux arm64</span><h4>Bundle for Jetson</h4>
+<pre>DexVantage-&lt;version&gt;-linux-arm64.tar.gz</pre><p>arm64 with glibc 2.35 or later, such as an NVIDIA Jetson Orin with JetPack 6 or 7. Built by CI only so far.</p></div>
       <div class="card"><span class="os">Python</span><h4>From source</h4>
 <pre>git clone https://github.com/Sherin-SEF-AI/DexVantage
 cd DexVantage
 python3 -m venv .venv
 .venv/bin/pip install -e .
-.venv/bin/dexvantage --sample aloha</pre><p>Python 3.10 or later, any system. Extras: <code>[lerobot]</code> for LeRobot datasets, <code>[bags]</code> for compressed ROS 2 bags, <code>[usd]</code> for USD and Isaac, <code>[assistant]</code> for the Assistant's Claude provider.</p></div>
+.venv/bin/dexvantage --sample aloha</pre><p>Python 3.10 or later, on Linux. Extras: <code>[lerobot]</code> for LeRobot datasets, <code>[bags]</code> for compressed ROS 2 bags, <code>[usd]</code> for USD and Isaac, <code>[assistant]</code> for the Assistant's Claude provider, <code>[splat]</code> for splat views (PyTorch, a CUDA GPU; not in the bundles).</p></div>
     </div>
     <div class="head" id="cite" style="margin-top:56px;margin-bottom:0">
       <div class="eyebrow">Cite</div>

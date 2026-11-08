@@ -10,6 +10,7 @@ readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -43,10 +44,16 @@ tracking = ["mlflow-skinny==3.17.2", "wandb==0.30.0"]   # the experiment tracker
                                   # MLflow's client (a test), the W&B replay script (core/tracking)
 bundle = ["fast-simplification==0.2.0",  # scripts/bundle_samples.py: the G1 sample's mesh simplification
           "pyinstaller==6.22.3", "pyinstaller-hooks-contrib==2026.9"]  # packaging/: the downloadable app
-test = ["pytest", "jsonschema", "ruff", "mcap", "protobuf"]  # mcap, protobuf: test references (bags, RLDS)
+test = ["pytest", "jsonschema", "ruff", "mcap", "protobuf",  # mcap, protobuf: test references (bags, RLDS)
+        "scikit-image==0.26.0"]   # the SSIM reference of validation check splat.ssim_vs_skimage (BSD-3)
 dev = ["setuptools==84.2.1"]      # the plugin template's real pip install test (tests/test_plugins.py); MIT
 site = ["markdown-it-py==4.2.0", "pillow==13.0.0"]  # scripts/build_site.py: Markdown → the website's pages (MIT),
                                   # screenshots → JPEG (MIT-CMU); its --check needs neither
+splat = ["torch==2.14.1", "torchvision==0.29.1", "lpips==0.1.4"]  # robot-aligned 3DGS (core/sim/splat_rig.py,
+                                  # splat_views.py, spec §9.3); torch and torchvision BSD-3, lpips BSD-2 (LPIPS:
+                                  # AlexNet weights download at run time, asked first). The CUDA 13.0 build:
+                                  # --extra-index-url https://download.pytorch.org/whl/cu130 (+cu130, sm_75 to sm_120;
+                                  # 4,689 MB installed). gsplat is optional and not pinned (docs/models/splat.md)
 
 [project.urls]
 Source = "https://github.com/Sherin-SEF-AI/DexVantage"

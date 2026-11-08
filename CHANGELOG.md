@@ -5,12 +5,80 @@ the first release candidate of 0.1.0).
 
 ## [Unreleased]
 
-Nothing yet.
+### Added: splat views (Phase 12, spec §9.3)
+- **Splat views** (Simulate ▸ Splat views; the `splat_views` study, `--splat-views OUT.json`, `--splat
+  fit|replay|augment --splat-out DIR`, `dv.splat`, the assistant's and MCP's `get_splat_views`): a robot-aligned 3D
+  Gaussian Splatting rig (`core/sim/splat_rig.py`) fitted to a recorded LeRobot episode, each frame posed at its
+  camera's mount at the logged joint state, or to a MuJoCo render of the project for demonstration (labelled
+  synthetic). It reports PSNR, SSIM and LPIPS on held-out views and held-out joint states, previews a proposed camera
+  pose against the current one (Apply moves the mount, one undo step), replays the episode through the proposed
+  camera to a video (encoded and read back as the LeRobot writer does) and per-frame images, and writes perturbed
+  copies of the episode through the §8.5 mount tolerances as a LeRobot dataset. Every render is marked synthetic: a
+  badge on the page, `synthetic` in every output path, `info.json` and each video feature's info, and a manifest with
+  every file's SHA-256 and the provenance. Refuses in one sentence without the splat extra, without a CUDA device
+  (unless the device is cpu) or for an episode with too few distinct views (`core/sim/splat_views.py`).
+- The `splat` extra adds torchvision 0.29.1 and lpips 0.1.4 (LPIPS; AlexNet's weights download at run time only when
+  asked, into the cache folder); the `test` extra adds scikit-image 0.26.0 (an SSIM reference).
+- Validation model `splat`, 7 checks (`validation/checks_splat.py`): a Gaussian's footprint against its closed form,
+  the torch rasteriser against the numpy reference on the CPU and on CUDA (left out without a CUDA device: the
+  suite's `needs` now takes a CUDA device, `suite.CUDA_NEED`), stereo reprojection against the closed-form disparity,
+  rigid re-posing, SSIM and PSNR against closed forms and SSIM against scikit-image. A self-test line `splat`
+  ("splat extra not installed" without PyTorch; allowed to warn in the downloadable app, which leaves the extra out).
+- Measured on the SO-100 and UR5e samples (synthetic captures only): `docs/models/splat.md`, `docs/guide/splat.md`,
+  `docs/performance.md` (fit time, render rate, GPU memory), `scripts/splat_quality.py`.
+- `scripts/build_gsplat.sh`: builds gsplat 1.5.3 from its GitHub tag for the optional gsplat back end (no wheel
+  exists for Python 3.14 or torch 2.14; its `setup.py` asks for C++17 where torch 2.14 needs C++20), with a CUDA 13.2
+  compiler from NVIDIA's pip wheels in a throw-away folder. Measured against the torch path on the RTX 5080: mean
+  colour difference 8.7 × 10⁻⁴ on the fixed test scene; a 640 × 480 render of 100,000 Gaussians 2.4 ms against
+  41.6 ms. The fit and the splat views study keep the torch path.
+- The downloadable app leaves the splat extra out (PyTorch would add about 4.7 GB to an 851 MB bundle; gsplat and scikit-image's SSIM reference are excluded too): the splat
+  views' sentence there says to install DexVantage from source with the splat extra and PyTorch's CUDA index, and the
+  bundle's self-test may warn on its `splat` line.
+
+### Fixed
+- `core/sim/splat_rig.py` scored a fitted rig with its colours and background clamped back into [0.01, 0.99], which
+  turned a learnt black background into 0.01 grey and cost the reported held-out SSIM a third (0.812 against 0.937 on
+  the SO-100 sample, same PSNR). The fit report now scores the rig as fitted.
 
 ## 0.1.0rc1 — unreleased
 
 The first release candidate: everything built in Phases 0 to 11. Not tagged, released or uploaded; the release is
 the maintainer's decision (`packaging/release.py --publish`).
+
+### Changed: Linux only
+- **DexVantage supports Linux only** (x86_64, and arm64 such as NVIDIA Jetson), by the maintainer's decision.
+  Windows and macOS are no longer supported: CI (`ci.yml`) and the bundle workflow (`bundles.yml`) lost their
+  Windows and macOS jobs (Linux x86_64 tests, self-test and validation, the Python 3.10 install, and the Linux x86_64
+  and arm64 bundles remain); `packaging/windows/` (the Inno Setup script), `packaging/macos/` (Info.plist,
+  entitlements, the signing and notarisation script), `packaging/icons/` (.ico, .icns) and `packaging/make_icon.py`
+  are gone, and so are the Windows and macOS paths of `packaging/build.py`, `release.py` (only `.tar.gz` bundles),
+  `run_dexvantage.py`, the PyInstaller spec (no `BUNDLE`, no CGL/WGL modules), `scripts/get_actionlint.py`, the
+  app's macOS open-document event (`app.py`) and the Windows and macOS settings and data folders (`mcp/session.py`,
+  `core/library`: XDG folders only). `build.py` and the spec stop with a sentence on another system. README, the user
+  guide (install and troubleshooting), `docs/packaging.md`, CONTRIBUTING, the website and pyproject (classifier
+  `Operating System :: POSIX :: Linux`) say so; the Windows- and macOS-only tests went with them.
+
+### Fixed (the first CI run on GitHub)
+- Python 3.10: `parse_utc` (`core/tracking/store.py`) returned nothing for a time stamp with a one-digit fraction of
+  a second (`10:00:02.5Z`), which 3.10's `fromisoformat` refuses (3.11 reads it), so `tracking.store_round_trip`
+  failed in the oldest-Python job's self-test. The fraction is now written as six digits before parsing; a test reads
+  1 to 9 digits.
+- `formats.bracket_step` (and `test_step_through_gmsh_reads_back`) failed on Ubuntu 24.04 with Python 3.12 and 3.14,
+  in the quick validation run and in test shards 0 and 5: gmsh's `libgmsh.so` needs `libGLU.so.1`, which the runner image
+  lacks ("cannot open shared object file"). `.github/scripts/apt-gl-qt.sh` now installs it and the other libraries
+  gmsh links against (`libglu1-mesa`, `libxrender1`, `libxcursor1`,
+  `libxfixes3`, `libxext6`, `libxft2`, `libxinerama1`, `libgomp1`: the libraries `readelf -d` lists for the 4.15.2
+  wheel's `libgmsh.so.4.15`).
+- CI installs the `site` extra, so the two site-building tests that skipped without markdown-it-py run.
+- `tests/test_dod_review.py`'s four demo-script tests failed in a clone: the phase demo scripts are kept out of git
+  (`.gitignore`: `scripts/demo-*.sh`). They now skip, saying so, where the script is not there.
+- The guide's silhouette example (`scripts/guide_examples.py`) printed 4.28 mm on the runner's Mesa llvmpipe against
+  the guide's 4.21 mm (NVIDIA EGL; Mesa llvmpipe on the development machine gives 4.14 mm): the silhouettes' edge
+  pixels differ between renderers. The figure now matches within the estimate's own 1 σ (0.86 mm here), counting
+  only numbers followed by "mm" in the guide's span, so "4 episodes" cannot match it.
+- `test_camera_view_small_while_dragging_full_after_and_ui_not_blocked` compared the half-size drag renders with a
+  full render taken just after `show()`, before the runner's layout had settled (199 px, against 113 px at half
+  size from a 226 px view); it now compares them with the full render after the drag.
 
 ### Phase 11: samples, documentation, website, packaging and CI
 - The user guide as one book (`docs/user-guide.md`, 15 chapters: the ten-minute tour, every page and study,

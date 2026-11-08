@@ -24,6 +24,7 @@ The Python and notebook API: DexVantage without the window (no Qt is imported on
     ds = dv.datasets.open('path/to/lerobot_dataset')  # LeRobot v2.1 / v3.0, RLDS, ROS 2 bags, plugin formats
     dv.diff(rig, taller), dv.merge(base, ours, theirs)   # project diff and three-way merge (api_research.py)
     dv.bibtex(rig), dv.figure(res, 'fig.svg')        # BibTeX of every source; a vector figure of a result
+    dv.splat.fit(rig, dataset='episodes/')           # splat views: a 3DGS rig, its held-out quality (api_splat.py)
 
 What edits in place and what returns a new object:
 
@@ -686,6 +687,49 @@ No docstring.
 #### `dv.robot_io.write_usd(rig: Rig, path: str | os.PathLike, robot: str | None = None) -> dict`
 
 Write rig's robot (a name or uid; default the primary) as a UsdPhysics articulation at path.
+
+### `dv.splat`
+
+dv.splat: fit, replay, augment, rig, load, available, lpips_state, fetch_lpips_weights, settings.
+
+#### `dv.splat.augment(rig: Rig | Project, out_dir: str | os.PathLike, dataset: str | os.PathLike | None = None, progress: Callable[[float, str], None] | None = None, **settings: object) -> dict`
+
+augment_n copies of the episode through §8.5's perturbed extrinsics, as a LeRobot dataset in
+out_dir/splat_augment_synthetic/ (every render marked synthetic). Returns the manifest.
+
+#### `dv.splat.available() -> str | None`
+
+None when the splat extra is installed; else the sentence saying it is not.
+
+#### `dv.splat.fetch_lpips_weights() -> str`
+
+Download AlexNet's ImageNet weights for LPIPS into the cache (network, 244 MB); returns the path.
+
+#### `dv.splat.fit(rig: Rig | Project, dataset: str | os.PathLike | None = None, progress: Callable[[float, str], None] | None = None, **settings: object) -> Result`
+
+The splat_views study (fit the rig or reuse the cached fit; its quality on held-out frames; the
+before/after preview of the target camera) on rig with settings laid over the stored ones.
+
+#### `dv.splat.load(path: str | os.PathLike) -> SplatRig`
+
+A splat rig a fit saved (.npz and its .json sidecar).
+
+#### `dv.splat.lpips_state() -> str`
+
+'ready', 'no package' or 'no weights' (AlexNet's weights are not in the cache).
+
+#### `dv.splat.replay(rig: Rig | Project, out_dir: str | os.PathLike, dataset: str | os.PathLike | None = None, progress: Callable[[float, str], None] | None = None, **settings: object) -> dict`
+
+The episode re-rendered at its logged q(t) through the proposed camera: out_dir/splat_replay_synthetic/
+(a video read back after writing, per-frame images, the manifest). Returns the manifest.
+
+#### `dv.splat.rig(rig: Rig | Project, dataset: str | os.PathLike | None = None, progress: Callable[[float, str], None] | None = None, **settings: object) -> SplatRig`
+
+The fitted SplatRig itself (fitted now, or the cached fit for the same inputs).
+
+#### `dv.splat.settings() -> dict`
+
+The settings and their defaults (core/sim/splat_views.DEFAULTS).
 
 ## The plugin SDK (`dexvantage.plugin_sdk`)
 

@@ -45,7 +45,7 @@ EXTRAS: dict[str, Extra] = {
                  'large; the Isaac exporter writes cameras.usda as text without it, and a robot can be imported '
                  'as URDF or MJCF instead'),
     'rerun': Extra(('rerun',), 'the Rerun bridge', False, 554.4,
-                   'the largest (its viewer is in the wheel); the Rerun viewer is a separate install anyway'),
+                   'large (its viewer is in the wheel); the Rerun viewer is a separate install anyway'),
     'step': Extra(('gmsh',), 'bracket STEP export as a faceted solid', False, 109.4,
                   'large for one export option; STL brackets work without it'),
     'research': Extra(('pandas',), "the Python API's Result.to_frame() DataFrame", False, 75.1,
@@ -55,6 +55,10 @@ EXTRAS: dict[str, Extra] = {
                       "back by MLflow or W&B in the user's own Python"),
     'pin': Extra(('pinocchio',), 'pinocchio as a second IK backend', False, None,
                  'a validation reference and an alternative IK backend; the built-in backend is the default'),
+    'splat': Extra(('torch', 'torchvision', 'lpips'), 'PyTorch for fitting robot-aligned 3D Gaussian Splatting rigs '
+                   'and LPIPS', False, 4689.2,
+                   'by far the largest (PyTorch with its CUDA libraries), and only the optional splat rig fits with '
+                   'it; a fitted rig still renders through the numpy reference'),
 }
 
 # extras that are not features of the app (build and development tools): never in the downloadable app

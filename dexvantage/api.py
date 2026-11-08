@@ -16,6 +16,7 @@
     ds = dv.datasets.open('path/to/lerobot_dataset')  # LeRobot v2.1 / v3.0, RLDS, ROS 2 bags, plugin formats
     dv.diff(rig, taller), dv.merge(base, ours, theirs)   # project diff and three-way merge (api_research.py)
     dv.bibtex(rig), dv.figure(res, 'fig.svg')        # BibTeX of every source; a vector figure of a result
+    dv.splat.fit(rig, dataset='episodes/')           # splat views: a 3DGS rig, its held-out quality (api_splat.py)
 
 What edits in place and what returns a new object:
 
@@ -91,7 +92,7 @@ if TYPE_CHECKING:                                    # names for the type hints 
 __all__ = ['Rig', 'Result', 'Records', 'Table', 'MetricTable', 'Recording', 'DexVantageError', 'open', 'sample',
            'new', 'samples', 'studies', 'metrics', 'exporters', 'plugins', 'load_plugins', 'datasets', 'runs', 'track',
            'run_store', 'publication', 'campaign', 'cells',
-           'cluster', 'stats', 'robot_io', 'prices', 'price',
+           'cluster', 'stats', 'robot_io', 'splat', 'prices', 'price',
            'diff', 'merge', 'bibtex', 'figures', 'figure', 'export_runs', 'Diff', 'Merge', 'MergeConflict']
 
 _CACHE = jobs.ResultCache(32)
@@ -769,6 +770,7 @@ class _Datasets:
 
 datasets = _Datasets()
 from .api_cluster import cluster  # noqa: E402 — dv.cluster (api_cluster.py, core/cluster)
+from .api_splat import splat  # noqa: E402 — dv.splat (api_splat.py, core/sim/splat_views.py)
 from .api_research import (Diff, Merge, MergeConflict, bibtex, diff, export_runs, figure,  # noqa: E402, F401
                            figures, merge)                 # api_research.py
 

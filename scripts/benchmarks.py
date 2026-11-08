@@ -21,6 +21,9 @@ when it forked). The parts:
   cubemap      the occlusion cube-map build for every camera of every sample, both backends, 256 and 512 texels
   ui           the slowest UI-thread events while opening each sample and running its studies from their pages (the
                watchdog and timing helpers of scripts/measure_ui_phase3.py)
+  splat        splat views on the so100 and ur5e samples (core/sim/splat_views.py; needs the splat extra and CUDA):
+               the study's fit with its default settings on a MuJoCo render of the sample, the render rate through
+               the target camera at its stream size, and the GPU memory PyTorch allocated and reserved at its peak
   validate     a full 'dexvantage --validate out/validation' run; its report then makes docs/validation.md
                (scripts/gen_validation_doc.py)
 
@@ -44,7 +47,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, '..'))
 SAMPLES = ('so100', 'ur5e', 'dexhand', 'aloha', 'panda-bimanual', 'g1')
-PARTS = ('environment', 'import', 'startup', 'grasp', 'profile', 'studies', 'cubemap', 'ui', 'validate')
+PARTS = ('environment', 'import', 'startup', 'grasp', 'profile', 'studies', 'cubemap', 'ui', 'splat', 'validate')
 UI_BUDGET_MS = 100.0
 STALL_MS = 50.0                   # UI-thread stalls this long or longer are named with their stack (ui part)
 # The 2,000-grasp budget used here (a project default, not a figure from the specification, which asks only for a
@@ -65,6 +68,7 @@ UI_SKIP = {
     'handeye_solve': 'needs captured board images',
     'cells': 'needs a second cell', 'stats': 'needs success counts', 'campaign': 'needs a campaign spec',
     'tracking': 'needs a run store', 'variants_compare': 'needs a second variant',
+    'splat_views': 'fits a 3D Gaussian Splatting rig on the GPU (about a minute; timed by the splat part below)',
 }
 SECRET_ENV = ('ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GROQ_API_KEY', 'HF_TOKEN', 'GITHUB_TOKEN')
 
@@ -605,8 +609,56 @@ def watch_until(M, S, w, sid, timeout: float, label: str) -> tuple[float, float]
     return WD.worst, (t_done or time.perf_counter())
 
 
+def c_splat(a) -> dict:
+    import torch
+
+    from dexvantage.core.robot.samples import sample_project
+    from dexvantage.core.sim import splat_views as SV
+    p = sample_project(a.sample)
+    out = {'sample': a.sample, 'torch': torch.__version__, 'cuda': torch.version.cuda,
+           'gpu': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}
+    torch.cuda.reset_peak_memory_stats()
+    t0 = time.perf_counter()
+    doc = SV.analyse(p, {'source': 'demo', 'lpips': 'off'})
+    out['study_s'] = round(time.perf_counter() - t0, 2)
+    out['fit_s'] = doc['rig']['fit_seconds']
+    out['iterations'] = doc['rig']['iterations']
+    out['gaussians'] = doc['rig']['gaussians']
+    out['stopped_by'] = doc['rig']['stopped_by']
+    out['fit_ms_per_step'] = round(1000 * out['fit_s'] / max(out['iterations'], 1), 2)
+    out['capture'] = doc['capture']
+    out['held_out_psnr_db'] = doc['headline']['value']
+    out['fit_peak_allocated_mb'] = round(torch.cuda.max_memory_allocated() / 1e6, 1)
+    out['fit_peak_reserved_mb'] = round(torch.cuda.max_memory_reserved() / 1e6, 1)
+    st = SV.settings_of(p, {'source': 'demo'})
+    rig, info = SV.get_rig(p, st)
+    dev = SV._torch_device(info['device'])
+    s, im = SV.target_sensor(p, st)
+    cam = im.camera
+    fn = SV.target_pose_fn(p, st, s, im, False)
+    from dexvantage.core.sim import splat_rig as SRG
+    qs = SRG.random_qs(p, 40, 5, 0.4)
+    for q in qs[:3]:
+        rig.render(p, cam, fn(q), q, backend='torch', device=dev)
+    torch.cuda.synchronize()
+    torch.cuda.reset_peak_memory_stats()
+    t0 = time.perf_counter()
+    for q in qs:
+        rig.render(p, cam, fn(q), q, backend='torch', device=dev)
+    torch.cuda.synchronize()
+    dt = time.perf_counter() - t0
+    out['render'] = {'sensor': s.name, 'width': cam.width, 'height': cam.height, 'frames': len(qs),
+                     'fps': round(len(qs) / dt, 2), 'ms_per_frame': round(1000 * dt / len(qs), 2),
+                     'peak_allocated_mb': round(torch.cuda.max_memory_allocated() / 1e6, 1),
+                     'peak_reserved_mb': round(torch.cuda.max_memory_reserved() / 1e6, 1),
+                     'includes': 'posing the Gaussians by forward kinematics, the CUDA rasteriser and the copy of '
+                                 'the image back to the CPU'}
+    out['gpu_total_mb'] = round(torch.cuda.get_device_properties(0).total_memory / 1e6, 1)
+    return out
+
+
 CHILDREN = {'environment': c_environment, 'grasp': c_grasp, 'profile': c_profile, 'studies': c_studies,
-            'cubemap': c_cubemap, 'startup': c_startup, 'ui': c_ui}
+            'cubemap': c_cubemap, 'startup': c_startup, 'ui': c_ui, 'splat': c_splat}
 
 
 # ============================================================================ the parts (parent)
@@ -773,9 +825,20 @@ def p_validate(a, out_dir) -> dict:
     return {'command': 'dexvantage --validate out/validation', 'run': run, 'summary': summary}
 
 
+def p_splat(a, out_dir) -> dict:
+    rows = []
+    for name in ('so100', 'ur5e'):
+        run, doc = py_child('splat', ['--sample', name], out_dir, a.egl, 1800, name)
+        rows.append({**(doc or {'sample': name, 'error': 'did not finish (the splat extra and CUDA are needed)'}),
+                     'run': run})
+        print(f'splat {name}: fit {doc and doc.get("fit_s")} s, render {doc and doc["render"]["fps"]} fps',
+              flush=True)
+    return {'rows': rows}
+
+
 PART_FNS = {'environment': p_environment, 'import': p_import, 'startup': p_startup, 'grasp': p_grasp,
             'profile': p_profile,
-            'studies': p_studies, 'cubemap': p_cubemap, 'ui': p_ui, 'validate': p_validate}
+            'studies': p_studies, 'cubemap': p_cubemap, 'ui': p_ui, 'splat': p_splat, 'validate': p_validate}
 
 
 # ============================================================================ docs/performance.md
@@ -1128,6 +1191,39 @@ def render_doc(res: dict) -> str:  # noqa: C901 — one section per part, in the
             L += ['The slowest modules `dexvantage.api` imports directly (`python -X importtime`, cumulative): '
                   + ', '.join(f'{t["module"]} {_f(t["cumulative_ms"], 1, "ms")}' for t in im['slowest_api_imports'])
                   + '.', '']
+
+    # ---------------------------------------------------------------- splat views
+    sp = res.get('splat') or {}
+    srows = [r for r in sp.get('rows') or [] if r.get('fit_s') is not None]
+    if srows:
+        r0 = srows[0]
+        L += ['## Splat views: fit time, render rate and GPU memory', '',
+              'The splat views study (`core/sim/splat_views.py`) with its default settings on a MuJoCo render of each '
+              'sample (a synthetic demonstration capture), in a fresh process: the fit (1,500 steps at most, a '
+              '120 s budget, a 20,000-Gaussian budget, 48 views at 160 × 120 px, defaults), then 40 renders of the '
+              'fitted rig through the target camera (the wrist camera) at its stream size at 40 joint states, after '
+              f'3 warm-up renders. GPU: {r0.get("gpu")}, PyTorch {r0.get("torch")} (CUDA {r0.get("cuda")}), the '
+              'plain-torch rasteriser (the study fits and renders through it whether or not gsplat is installed: '
+              '[models/splat.md](models/splat.md)). GPU memory is '
+              'what PyTorch allocated and reserved at its peak (`torch.cuda.max_memory_allocated` and '
+              '`max_memory_reserved`), not what the driver reports for the process.', '',
+              '| Sample | Gaussians | Fit (s) | ms per step | Study (s) | Fit GPU peak, allocated / reserved (MB) | '
+              'Render size | Render fps | ms per frame | Render GPU peak, allocated / reserved (MB) | Process peak '
+              '(MB) | Load before → after |',
+              '|---|---|---|---|---|---|---|---|---|---|---|---|']
+        for r in srows:
+            rd = r.get('render') or {}
+            run = r.get('run') or {}
+            L.append(f'| {r["sample"]} | {_f(r.get("gaussians"))} | {_f(r.get("fit_s"), 1)} | '
+                     f'{_f(r.get("fit_ms_per_step"), 1)} | {_f(r.get("study_s"), 1)} | '
+                     f'{_f(r.get("fit_peak_allocated_mb"), 0)} / {_f(r.get("fit_peak_reserved_mb"), 0)} | '
+                     f'{rd.get("width")} × {rd.get("height")} | {_f(rd.get("fps"), 1)} | '
+                     f'{_f(rd.get("ms_per_frame"), 1)} | {_f(rd.get("peak_allocated_mb"), 0)} / '
+                     f'{_f(rd.get("peak_reserved_mb"), 0)} | {_f(run.get("peak_mb"), 0)} | '
+                     f'{_f(run.get("load_before"), 1)} → {_f(run.get("load_after"), 1)} |')
+        L += ['', 'The study\'s time includes the MuJoCo capture, the held-out scoring and the before/after preview '
+                  'besides the fit. A render includes posing the Gaussians by forward kinematics and copying the '
+                  'image back to the CPU; the replay and the augmentation also encode video.', '']
 
     # ---------------------------------------------------------------- validation
     va = res.get('validate') or {}

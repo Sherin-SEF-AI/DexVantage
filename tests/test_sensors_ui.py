@@ -425,9 +425,9 @@ def test_camera_view_small_while_dragging_full_after_and_ui_not_blocked(ur5e, ap
     s = _sensor(win, 'Wrist D405')
     win.store.select(('sensor', s.uid))
     win.camview.show()
-    full = win.camview.render_sync()['render'].rgb.shape
     uid, q = _robot_q(win)
     win.viewport.hide()             # the offscreen tests' software 3D view takes ~0.8 s a frame itself (not on test)
+    app.processEvents()
     win.store.dragging = True
     shapes, worst, t_end = set(), 0.0, time.time() + 1.5
     while time.time() < t_end:
@@ -441,8 +441,13 @@ def test_camera_view_small_while_dragging_full_after_and_ui_not_blocked(ur5e, ap
         time.sleep(0.01)
     assert worst < 0.1, worst
     small = [sh for k, sh in shapes if k == DRAG_SCALE]
-    assert small and all(sh[1] <= full[1] * DRAG_SCALE + 2 for sh in small), (shapes, full)
     win.store.dragging = False
     assert view.wait(20)
-    assert view.result['job']['scale'] == 1.0 and view.result['render'].rgb.shape[1] > small[0][1] * 1.5
+    # the half-size renders against the full render after the drag, at the view's size by then: a full size taken
+    # before the drag can be from a layout not yet settled (the first GitHub CI run rendered 199 px wide just after
+    # show() and 113 px at half size during the drag, from a 226 px wide view; 226 px here at both moments)
+    full = view.result['render'].rgb.shape
+    assert view.result['job']['scale'] == 1.0
+    assert small and all(sh[1] <= full[1] * DRAG_SCALE + 2 for sh in small), (shapes, full)
+    assert full[1] > small[0][1] * 1.5
     win.viewport.show()

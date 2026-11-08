@@ -32,6 +32,7 @@ import contextlib
 import datetime as _dt
 import json
 import os
+import re
 import secrets
 import shutil
 import time
@@ -57,6 +58,7 @@ RUN_FILE = 'run.json'
 RESULT_FILE = 'result.json'
 LOCK_TIMEOUT_S = 60.0
 INDEX_OMIT = ('samples',)                # kept in run.json only (they can be long)
+_FRACTION = re.compile(r'^(.*T\d{2}:\d{2}:\d{2})\.(\d+)(.*)$')
 
 
 class StoreError(StudyError):
@@ -84,6 +86,11 @@ def parse_utc(s) -> _dt.datetime | None:
     if not isinstance(s, str) or not s.strip():
         return None
     t = s.strip().replace('Z', '+00:00')
+    # Python 3.10's fromisoformat reads a fraction of a second only as 3 or 6 digits ('10:00:02.5' is refused):
+    # write it as 6 (truncated past microseconds, as 3.11 and later read it)
+    m = _FRACTION.match(t)
+    if m:
+        t = m.group(1) + '.' + (m.group(2) + '00000')[:6] + m.group(3)
     try:
         d = _dt.datetime.fromisoformat(t)
     except ValueError:

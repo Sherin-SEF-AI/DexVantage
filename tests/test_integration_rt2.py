@@ -17,8 +17,8 @@ CAM = 'sensor:Third-person camera (sample placement)'
 # the tools the assistant registry holds after research tools part 2 (the MCP server adds its own six)
 RT2_TOOLS = {'get_runs', 'get_statistics', 'get_campaign', 'get_sim2real', 'get_methods_paragraph', 'get_cells',
              'get_cluster_job', 'get_rig_cost', 'check_robot_file'}
-# Phase 11 added get_project_diff (what changed against another project file or variant)
-N_TOOLS = 34
+# Phase 11 added get_project_diff (what changed against another project file or variant); Phase 12 get_splat_views
+N_TOOLS = 35
 MCP_ONLY = {'dexvantage_status', 'get_history', 'open_project', 'redo_change', 'run_batch', 'save_project'}
 N_MCP_TOOLS = N_TOOLS + len(MCP_ONLY)
 

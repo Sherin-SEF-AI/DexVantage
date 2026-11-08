@@ -10,7 +10,7 @@ request.
     git clone https://github.com/Sherin-SEF-AI/DexVantage.git
     cd DexVantage
     python -m venv .venv
-    .venv/bin/pip install -e ".[test]"            # Windows: .venv\Scripts\pip install -e ".[test]"
+    .venv/bin/pip install -e ".[test]"            # Linux only: DexVantage supports no other system
 
 Add the extras your change touches (`lerobot`, `bags`, `usd`, `rerun`, `step`, `research`, `tracking`, `assistant`,
 `dev`; `pyproject.toml` says what each is for). Tests that need a missing extra skip and name it. CI installs the
@@ -68,8 +68,9 @@ dependencies go into an optional extra, imported lazily with a clear message whe
 
 - One change per pull request, with tests. Say what you measured and how, and paste the test and validation counts.
 - Update the docs (`docs/models/<area>.md`, `docs/guide/<area>.md`) and `CHANGELOG.md` under `[Unreleased]`.
-- CI must pass: ruff and actionlint, the test shards on Linux (Python 3.12 and 3.14), Windows and macOS, the
-  self-test on each, the quick validation run on Linux, and the Python 3.10 install check.
+- CI must pass: ruff and actionlint, the test shards on Ubuntu 24.04 (Python 3.12 and 3.14), the self-test and the
+  quick validation run on each, and the Python 3.10 install check. DexVantage supports Linux only, so CI runs no
+  Windows or macOS job.
 - Releases are made by the maintainer only. A version tag builds the bundles and a **draft** release
   (`.github/workflows/bundles.yml`); the maintainer decides whether to publish it.
 

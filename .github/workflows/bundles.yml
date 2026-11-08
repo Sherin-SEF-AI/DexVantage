@@ -1,6 +1,5 @@
-# Builds the downloadable DexVantage bundles with PyInstaller (packaging/build.py): Linux x86_64 and arm64 (tar.gz),
-# Windows x64 (zip, and the per-user installer when Inno Setup is there) and macOS Apple silicon (app zip). Each
-# bundle is smoke-tested on the machine that built it (build.py --smoke: --version, a batch run, the spawned process
+# Builds the downloadable DexVantage bundles with PyInstaller (packaging/build.py): Linux x86_64 and Linux arm64
+# (tar.gz). DexVantage supports Linux only. Each bundle is smoke-tested on the machine that built it (build.py --smoke: --version, a batch run, the spawned process
 # pools and the bundle's own --self-test, where every line must pass), and kept as a workflow artefact.
 #
 # Runs on a version tag (git tag v0.1.0 && git push origin v0.1.0) and by hand (Actions > Bundles > Run workflow).
@@ -10,8 +9,6 @@
 # tags or uploads anywhere else.
 #
 # Third-party actions are pinned by commit SHA (the release tag in the comment; read 2026-11-08); see ci.yml.
-# GitHub retired macos-14 on 2026-11-02 (github.com/actions/runner-images/issues/15226): macOS builds on macos-15,
-# Apple silicon (arm64) like macos-14 was.
 name: Bundles
 
 on:
@@ -41,7 +38,7 @@ jobs:
       matrix:
         # Linux bundles build on 22.04 (glibc 2.35): a PyInstaller bundle runs only on a glibc at least as new as
         # the build machine's, and NVIDIA Jetson with JetPack 6 is Ubuntu 22.04
-        os: [ubuntu-22.04, ubuntu-22.04-arm, windows-2025, macos-15]
+        os: [ubuntu-22.04, ubuntu-22.04-arm]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -60,15 +57,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: python packaging/release.py notes --tag "${GITHUB_REF_NAME}" > /dev/null
 
-      - name: Qt, OpenGL and EGL libraries (Linux)
-        if: runner.os == 'Linux'
+      - name: Qt, OpenGL and EGL libraries
         run: bash .github/scripts/apt-gl-qt.sh
-
-      - name: Inno Setup (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --no-progress -y }
 
       - name: Python packages
         run: |
@@ -87,25 +77,21 @@ jobs:
       - name: The bundle's self-test, on its own
         run: |
           # the console executable, where packaging/build.py put it
-          # with forward slashes (chr(92) is the backslash): on Windows os.path.join writes backslashes, and Git Bash
-          # reads forward slashes reliably
-          exe=$(python -c "import sys; sys.path.insert(0, 'packaging'); import build; print(build.cli_path('out/dist').replace(chr(92), '/'))")
+          exe=$(python -c "import sys; sys.path.insert(0, 'packaging'); import build; print(build.cli_path('out/dist'))")
           if [ ! -f "$exe" ]; then
             echo "The bundle has no console executable at $exe."
             ls -la out/dist
             exit 1
           fi
-          # throw-away folders as the system writes them (mktemp's /tmp/… is Git Bash's name, not Windows')
-          tmp=$(python -c "import tempfile; print(tempfile.mkdtemp(prefix='dexvantage-self-test-'))")
-          TMPDIR="$tmp" TMP="$tmp" TEMP="$tmp" XDG_CONFIG_HOME="$tmp/c" XDG_DATA_HOME="$tmp/d" XDG_CACHE_HOME="$tmp/k" "$exe" --self-test
+          # throw-away folders, so nothing of the runner's settings is read or written
+          tmp=$(mktemp -d -t dexvantage-self-test-XXXXXX)
+          TMPDIR="$tmp" XDG_CONFIG_HOME="$tmp/c" XDG_DATA_HOME="$tmp/d" XDG_CACHE_HOME="$tmp/k" "$exe" --self-test
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dexvantage-${{ runner.os }}-${{ runner.arch }}
           path: |
             out/dist/*.tar.gz
-            out/dist/*.zip
-            out/dist/*-setup.exe
             out/dist/smoke-report.json
           if-no-files-found: error
           retention-days: 30
@@ -136,8 +122,8 @@ jobs:
           rm -f dist/smoke-report.json
           ls -la dist
           n=$(find dist -maxdepth 1 -type f | wc -l)
-          if [ "$n" -lt 4 ]; then
-            echo "Expected the two Linux archives, the Windows zip and the macOS zip; found $n files."
+          if [ "$n" -lt 2 ]; then
+            echo "Expected the two Linux archives (x86_64 and arm64); found $n files."
             exit 1
           fi
           (cd dist && sha256sum -- * > ../SHA256SUMS.txt)

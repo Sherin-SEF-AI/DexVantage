@@ -173,8 +173,8 @@ the depth block, `library.min_z(sensor, w, h)` the stated minimum Z for a depth 
 
 ## Custom devices
 
-Sensors ▸ New custom device… (the spec's "Library ▸ New custom device…": the window has no Library menu; the Library panel's right-click menu has it too) writes `$XDG_DATA_HOME/DexVantage/library/<kind>/<id>.json` (on macOS and Windows the
-platform's data folder when `XDG_DATA_HOME` is not set) through `library.add_custom(dict)`, after the same schema
+Sensors ▸ New custom device… (the spec's "Library ▸ New custom device…": the window has no Library menu; the Library panel's right-click menu has it too) writes `$XDG_DATA_HOME/DexVantage/library/<kind>/<id>.json` (`~/.local/share` when
+`XDG_DATA_HOME` is not set) through `library.add_custom(dict)`, after the same schema
 check; a custom device cannot take a built-in id. `remove_custom(id)` deletes it. A file that does not parse or match
 the schema, or reuses an id, is skipped with a plain message (`library.problems()`, also logged); the app never stops
 on one.

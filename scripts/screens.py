@@ -22,8 +22,11 @@ diff) and each new sample in 3D.
 Research tools part 2 (rt2-*): the Runs page with a comparison, Statistics with a power curve, the campaign plan on
 ALOHA 2, the sim-to-real gap with recorded against rendered frames, the paper kit preview, the cells comparison of three
 samples, the Run on… dialog and the USD import wizard on the bundled UR5e.
+Phase 12 (p12-*, --only splat): the Splat views page on the SO-100 sample, fitted to a MuJoCo render (the
+demonstration) with a proposed wrist camera move and to a synthetic LeRobot episode, and its quality table.
 
-    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3 | phase458 | samples | phase910 | research2]
+    QT_QPA_PLATFORM=offscreen python scripts/screens.py [--only phase3 | phase458 | samples | phase910 | research2
+                                                         | splat]
 """
 import atexit
 import os
@@ -869,8 +872,60 @@ def research2():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+def splat():
+    """p12-*: the Splat views page on the SO-100 sample: fitted to a MuJoCo render of the project (the demonstration)
+    with a proposed wrist camera move, and to a synthetic LeRobot episode with the recorded frame beside the renders;
+    the quality table. Needs the splat extra and a CUDA device (the fits take about a minute each)."""
+    import time
+
+    from dexvantage.core.robot.samples import sample_project as sp
+    from dexvantage.core.sim import episodes as EPS
+
+    tmp = tempfile.mkdtemp(prefix='dexvantage-screens-p12-')
+    pw = MainWindow(sp('so100'), soft_3d=True, settings=settings)
+    pw.resize(1680, 1000)
+    pw.show()
+    pw.ctx.analysis.wait(5)
+    pw.resizeDocks([pw.docks['bottom']], [640], Qt.Orientation.Vertical)
+    pump()
+    pw.viewport.frame_box(*pw.scene.home_box(pw.viewport))
+
+    def wait(sid, timeout=600.0):
+        t0 = time.time()
+        while time.time() - t0 < 5 and not pw.ctx.analysis.busy(sid):
+            pump(5)
+        while time.time() - t0 < timeout and pw.ctx.analysis.busy(sid):
+            pump(5)
+            time.sleep(0.05)
+        pump(40)
+
+    pw.open_page('splat')
+    page = pw.pages['splat']
+    page.set_proposal((-0.03, 0.0, 0.02), (0.0, 8.0, 0.0))
+    page.src_box.setCurrentIndex(page.src_box.findData('demo'))
+    page.run()
+    wait('splat_views')
+    shot(pw, 'p12-so100-splat-demo.png')
+    root = os.path.join(tmp, 'so100_episode')
+    EPS.generate(pw.store.project, root, {'episodes': 1, 'faults': [], 'max_width': 320, 'codec': 'h264'})
+    page.choose_dataset(root)
+    page.src_box.setCurrentIndex(page.src_box.findData('episode'))
+    page.run()
+    wait('splat_views')
+    shot(pw, 'p12-so100-splat-episode.png')
+    pw.resizeDocks([pw.docks['bottom']], [960], Qt.Orientation.Vertical)
+    pump(20)
+    page.body.parentWidget().parentWidget().ensureWidgetVisible(page.qual)
+    pump(20)
+    shot(page, 'p12-so100-splat-quality.png')
+    pw.cancel_jobs()
+    pw.hide()
+    import shutil
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 ONLY = {'phase3': phase3, 'phase458': phase458, 'samples': new_samples, 'phase910': phase910,
-        'research2': research2}
+        'research2': research2, 'splat': splat}
 if '--only' in sys.argv and sys.argv[sys.argv.index('--only') + 1] in ONLY:
     w.hide()
     ONLY[sys.argv[sys.argv.index('--only') + 1]]()

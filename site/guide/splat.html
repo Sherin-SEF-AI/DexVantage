@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Splat views: a worked example · DexVantage</title>
+<meta name="description" content="What would a wrist camera see if its bracket held it 3 cm further back and tilted down 8°, before the bracket isprinted? And can a recorded episode be turned into extra training data seen through slightly knocked cameras? Thiswalk-through fits a robot-aligned 3D Gaussian Splatting rig to the SO-100 …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#a-what-it-needs">A. What it needs</a>
+    <a href="#b-a-demonstration-fit-no-recording">B. A demonstration fit (no recording)</a>
+    <a href="#c-a-fit-to-a-recorded-episode">C. A fit to a recorded episode</a>
+    <a href="#d-a-proposed-wrist-camera-pose">D. A proposed wrist camera pose</a>
+    <a href="#e-replay-the-episode-through-the-proposed-camera">E. Replay the episode through the proposed camera</a>
+    <a href="#f-perturbed-copies-for-training">F. Perturbed copies for training</a>
+    <a href="#g-from-python">G. From Python</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/splat.md"><code>docs/guide/splat.md</code></a></p>
+<h1 id="splat-views-a-worked-example">Splat views: a worked example</h1>
+<p>What would a wrist camera see if its bracket held it 3 cm further back and tilted down 8°, before the bracket is
+printed? And can a recorded episode be turned into extra training data seen through slightly knocked cameras? This
+walk-through fits a robot-aligned 3D Gaussian Splatting rig to the SO-100 sample, reads its quality on frames the fit
+did not use, previews a proposed wrist camera pose, and writes a replay video and an augmented LeRobot dataset. The
+method, its equations, its checks and its limits are in <a href="../models/splat.html">Robot-aligned 3D Gaussian Splatting (spec §9.3, Phase 12)</a>.</p>
+<p>Everything here is <strong>synthetic</strong>: the &quot;recording&quot; is one of DexVantage's own synthetic episodes (MuJoCo renders), and
+every splat image is a render. No real recording is in the repository; on a real rig the episode is your LeRobot
+recording, made with the rig the project describes (measure its mounts first with the silhouette calibration: the
+views are posed at the planned mounts).</p>
+<p>Every figure below was measured on 2026-11-08 on an NVIDIA GeForce RTX 5080 (PyTorch 2.14.1, CUDA 13.0, the
+plain-torch rasteriser); <code>scripts/splat_quality.py</code> wrote them to <code>out/splat/quality.json</code>. A CUDA fit does not repeat
+bit for bit: another run of the same fit differs by a few tenths of a dB (the page below read 32.0 dB where the
+measurement read 32.4).</p>
+<h2 id="a-what-it-needs">A. What it needs</h2>
+<p>The splat extra and a CUDA GPU:</p>
+<pre><code>pip install &quot;dexvantage[splat]&quot; --extra-index-url https://download.pytorch.org/whl/cu130
+</code></pre>
+<p>Without it the <strong>Splat views</strong> page (Simulate ▸ Splat views) says &quot;splat extra not installed&quot; and its buttons are off;
+<code>dexvantage --self-test</code> says the same on its <code>splat</code> line. Without a CUDA device the study refuses (&quot;There is no CUDA
+device here…&quot;) unless the device setting is <code>cpu</code>, which fits small scenes slowly.</p>
+<h2 id="b-a-demonstration-fit-no-recording">B. A demonstration fit (no recording)</h2>
+<ol>
+<li>Open the sample: File ▸ Open sample ▸ SO-100.</li>
+<li>Simulate ▸ Splat views. Set <strong>Fit from</strong> to <em>MuJoCo render of the project (demonstration)</em>.</li>
+<li>Click <strong>Run</strong>. The study renders 48 views of the cell at 160 × 120 px from a sphere round the robot at 3 joint
+states (home and two drawn within ±0.4 rad), fits 1,500 steps (60.3 s) and scores the result: 65.0 s in all.</li>
+</ol>
+<p>The headline reads <strong>23.1 dB, &quot;visible differences (synthetic capture)&quot;</strong>, with SSIM 0.936 and LPIPS 0.076 beside it:
+the rig's renders against the 6 views (every 8th) the fit did not use. The quality table adds the 6 held-out joint
+states, drawn with another seed from new poses: 24.4 dB, SSIM 0.951, LPIPS 0.062. Before the fit the same held-out
+views scored 15.9 dB. The UR5e sample reads 26.5 dB, SSIM 0.957, LPIPS 0.056.</p>
+<p>LPIPS needs AlexNet's ImageNet weights (244 MB from download.pytorch.org). They are not bundled: <strong>Get LPIPS
+weights…</strong> asks before downloading them into DexVantage's cache folder; until then the LPIPS column says why it is
+empty.</p>
+<h2 id="c-a-fit-to-a-recorded-episode">C. A fit to a recorded episode</h2>
+<p>Simulate ▸ Generate synthetic episodes… (or <code>core/sim/episodes.generate</code>) writes a LeRobot v3.0 recording; here one
+episode, no faults, at most 320 px wide (80 rows, 2.6 s, both of the sample's cameras). On the Splat views page click <strong>Dataset…</strong>, choose it, set <strong>Fit
+from</strong> to <em>Recorded episode</em> and <strong>Run</strong>. The study takes 24 frames per camera farthest apart in joint space, poses
+each at its camera's mount at the frame's logged joint state (the wrist camera moves with the arm), renders the
+model's depth and masks for them and fits (29.4 s).</p>
+<p>The headline reads <strong>32.4 dB, &quot;close to the held-out frames (synthetic capture)&quot;</strong>, SSIM 0.975, LPIPS 0.022, on the
+episode's held-out views; on the 12 frames farthest in joint space from every frame used (6 per camera) it is 33.3 dB.
+The UR5e's episode gives 31.7 dB on held-out views and 30.2 dB on its hardest frames.</p>
+<p>An episode fitted from its static camera alone is refused: &quot;The episode has too few distinct views to fit a splat
+rig: 1 camera pose at least 2 cm or 5° apart, where 8 are needed (DexVantage defaults)…&quot;. A static camera is one pose
+however long it records.</p>
+<h2 id="d-a-proposed-wrist-camera-pose">D. A proposed wrist camera pose</h2>
+<p>Choose the wrist camera, enter <strong>Move</strong> −30 mm along x (back) and 20 mm along z, <strong>Turn</strong> 8° in pitch, and Run. The
+before/after row shows, at three frames of the episode, the recorded frame, the splat render through the current
+mount and the render through the proposed pose; both renders carry a <em>synthetic</em> badge.</p>
+<p>Read the proposed image with its measured quality. Against MuJoCo's own renders through the moved camera (the
+episode's rig, at 4 of the episode's joint states, 160 px wide), the SO-100's wrist camera scores 26.2 dB where it is,
+17.9 dB moved 2 cm back, 15.8 dB at 5 cm and 13.4 dB at 10 cm; 2 cm sideways gives 19.2 dB. The UR5e's wrist D405:
+28.1, 17.5, 15.0 and 13.6 dB. A camera only a few centimetres from every captured view already sees surfaces no view
+saw, so the proposed image shows the layout (what enters and leaves the frame, where the gripper sits) more than the
+detail. At joint states the episode never reached (±0.4 rad about home) the same wrist camera scores 16.7 dB even
+where it is: the rig is good where the episode looked.</p>
+<p><img src="../docs-media/splat_page_so100.png" alt="The Splat views page on the SO-100 after a fit to a synthetic episode: the recorded wrist frame, the splat render
+through the current mount and through the proposed pose (both marked synthetic), and the quality table" /></p>
+<p><strong>Apply</strong> moves the camera's mount to the proposed pose (one undo step, refused for a locked sensor); <strong>Preview</strong> says
+where it would go.</p>
+<h2 id="e-replay-the-episode-through-the-proposed-camera">E. Replay the episode through the proposed camera</h2>
+<p><strong>Write replay…</strong> (or <code>dexvantage --sample so100 --splat replay --splat-out out/ --dataset &lt;episode&gt;</code>) renders every
+state row of the episode at its logged q(t) through the proposed camera at the camera's stream size and writes
+<code>out/splat_replay_synthetic/</code>:</p>
+<ul>
+<li><code>wrist-camera-sample-placement_replay_synthetic.mp4</code>: AV1 (or H.264), encoded as the LeRobot writer encodes and
+decoded again after writing (every frame must decode);</li>
+<li><code>frames/frame_000000_synthetic.png</code> … one image per row;</li>
+<li><code>dexvantage_splat_manifest.json</code>: the camera's proposed pose, the source episode, the rig's quality, the SHA-256 of
+every file and the provenance block, <code>&quot;synthetic&quot;: true</code>.</li>
+</ul>
+<p>The SO-100's 80 rows at 1280 × 720 took 5.7 s (17.1 frames a second with the PNGs).</p>
+<h2 id="f-perturbed-copies-for-training">F. Perturbed copies for training</h2>
+<p><strong>Write augmented…</strong> (or <code>--splat augment</code>) writes <code>out/splat_augment_synthetic/</code>: a LeRobot v3.0 dataset of
+<code>augment_n</code> copies of the episode (default 4), each with every recorded camera re-rendered through its mount
+perturbed by one draw of the mount tolerances (§8.5, the same draws <code>--export … --formats perturbations</code> writes for the
+same seed; here ±1 mm and ±0.5° per axis, uniform). Its <code>meta/info.json</code> carries <code>&quot;dexvantage&quot;: {&quot;synthetic&quot;: true, …}</code>
+and every video feature's info <code>&quot;dexvantage.synthetic&quot;: true</code>; the manifest lists each episode's draw and every file's
+SHA-256. The 4 copies of the SO-100 episode (320 rows, two cameras) took 9.1 s.</p>
+<h2 id="g-from-python">G. From Python</h2>
+<pre><code>import dexvantage as dv
+rig = dv.sample('so100')
+res = dv.splat.fit(rig, dataset='episodes/', source='episode')
+res.headline['text']
+dv.splat.replay(rig, 'out/', dataset='episodes/', target_offset_m=[-0.03, 0, 0.02], target_rpy_deg=[0, 8, 0])
+dv.splat.augment(rig, 'out/', dataset='episodes/', augment_n=8)
+</code></pre>
+<p>The fitted rig is kept in the cache folder (keyed by the project, its robots, the source and the settings), so replay
+and augment reuse it.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

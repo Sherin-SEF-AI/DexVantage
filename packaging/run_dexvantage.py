@@ -5,8 +5,8 @@ Two things a frozen DexVantage needs before dexvantage.app.main():
 1. multiprocessing.freeze_support(). The cluster's local pool (core/cluster/local.py) and the designed experiments'
    pool (core/experiments.py) use the spawn start method: in a bundle a worker is the bundle's own executable started
    with --multiprocessing-fork (and the resource tracker with -c "from multiprocessing.resource_tracker import
-   main..."). PyInstaller's multiprocessing runtime hook makes freeze_support() recognise both on every platform;
-   it must run first, before the argument parser sees those arguments.
+   main..."). PyInstaller's multiprocessing runtime hook makes freeze_support() recognise both; it must run first,
+   before the argument parser sees those arguments.
 
 2. "-m module [args]". DexVantage starts some of its own modules as worker processes with
    [sys.executable, '-m', 'dexvantage.…']: the MuJoCo render worker (validation/mjrender.py, MUJOCO_GL=egl), the
@@ -16,10 +16,9 @@ Two things a frozen DexVantage needs before dexvantage.app.main():
 
 DEXVANTAGE_STARTUP_PROBE=1 (packaging/build.py's start-up measurement): once the event loop runs with the main window
 shown, print "startup-probe <seconds since this script started>" (also into the file DEXVANTAGE_STARTUP_PROBE_OUT
-names, if set: the Windows window launcher is built without a console) and quit. The window then uses throw-away
-settings (make_app's settings_scope), as the self-test does: the smoke test's XDG folders redirect QSettings on Linux
-only, and on Windows (the registry) and macOS (~/Library/Preferences) the measurement would otherwise read and write
-the settings of whoever runs the build.
+names, if set, for a launcher started with its standard output closed) and quit. The window then uses throw-away
+settings (make_app's settings_scope), as the self-test does, so the measurement never reads or writes the settings of
+whoever runs the build, even without the smoke test's XDG folders.
 """
 import multiprocessing
 import os
@@ -54,7 +53,7 @@ def _startup_probe():
             if sys.stdout is not None:
                 print(line, flush=True)
             out = os.environ.get('DEXVANTAGE_STARTUP_PROBE_OUT')
-            if out:                         # the Windows window launcher may have no stdout (no console)
+            if out:                         # a launcher started with its stdout closed
                 with open(out, 'w', encoding='utf-8') as fh:
                     fh.write(line + '\n')
             app.quit()

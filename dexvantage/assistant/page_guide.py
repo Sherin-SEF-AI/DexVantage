@@ -127,6 +127,10 @@ GUIDES = {g.page: g for g in [
     Guide('cells', 'The open project against other robot cells: figures of merit side by side, the geometric gap '
           'of each camera to the reference, whether recordings pool, and drift of built copies.', (SENSOR,), (),
           ('publication',)),
+    Guide('splat', 'A robot-aligned 3D Gaussian Splatting rig fitted to a recorded episode (or a MuJoCo render of the '
+          'project, a synthetic demonstration): its quality on held-out frames (PSNR, SSIM, LPIPS), what a proposed '
+          'camera pose would see before the bracket is printed, a replay video and perturbed copies of the episode '
+          'as a LeRobot dataset. Every splat image is synthetic.', (ROBOT, SENSOR), ('sim2real',), ('audit',)),
 ]}
 
 

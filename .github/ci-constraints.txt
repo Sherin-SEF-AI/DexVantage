@@ -15,7 +15,7 @@ opencv-python==5.0.0.93
 mujoco==3.17.0                  # 4.0.0 (2026-11-06) is a new major version the suite has not run on
 glfw==2.11.0
 certifi==2026.10.23
-# extras: lerobot, bags, usd, assistant, rerun, step, research, tracking, dev
+# extras: lerobot, bags, usd, assistant, rerun, step, research, tracking, dev, site
 pyarrow==26.0.1
 av==19.0.2
 zstandard==0.25.0
@@ -29,6 +29,9 @@ pandas==2.3.3
 mlflow-skinny==3.17.2
 wandb==0.30.0
 setuptools==84.2.1
+markdown-it-py==4.2.0           # the extra "site" (tests/test_site.py builds the pages; skipped without it)
+mdurl==0.1.2
+pillow==13.0.0
 # test tools (the test extra)
 pytest==9.2.0
 ruff==0.17.4

@@ -302,8 +302,8 @@ shape is scaled (<code>CameraModel.scaled</code>).</li>
 <p><code>library.projector(sensor)</code> gives the projector's FOV and pose (<code>frames.Pose</code>), <code>library.depth_spec(sensor)</code> a copy of
 the depth block, <code>library.min_z(sensor, w, h)</code> the stated minimum Z for a depth stream (<code>None</code> when not stated).</p>
 <h2 id="custom-devices">Custom devices</h2>
-<p>Sensors ▸ New custom device… (the spec's &quot;Library ▸ New custom device…&quot;: the window has no Library menu; the Library panel's right-click menu has it too) writes <code>$XDG_DATA_HOME/DexVantage/library/&lt;kind&gt;/&lt;id&gt;.json</code> (on macOS and Windows the
-platform's data folder when <code>XDG_DATA_HOME</code> is not set) through <code>library.add_custom(dict)</code>, after the same schema
+<p>Sensors ▸ New custom device… (the spec's &quot;Library ▸ New custom device…&quot;: the window has no Library menu; the Library panel's right-click menu has it too) writes <code>$XDG_DATA_HOME/DexVantage/library/&lt;kind&gt;/&lt;id&gt;.json</code> (<code>~/.local/share</code> when
+<code>XDG_DATA_HOME</code> is not set) through <code>library.add_custom(dict)</code>, after the same schema
 check; a custom device cannot take a built-in id. <code>remove_custom(id)</code> deletes it. A file that does not parse or match
 the schema, or reuses an id, is skipped with a plain message (<code>library.problems()</code>, also logged); the app never stops
 on one.</p>

@@ -401,6 +401,18 @@
 <td><code>--stats-out OUT.json</code></td>
 <td>with --stats: the result file (default SPEC.results.json beside the spec; &quot;-&quot; for stdout)</td>
 </tr>
+<tr>
+<td><code>--splat ACTION</code></td>
+<td>splat views (core/sim/splat_views.py; needs the splat extra): fit (the rig and its quality on held-out frames), replay (the --dataset episode through a proposed camera pose, to a video) or augment (perturbed copies of the episode as a LeRobot dataset); with --splat-out OUT_DIR. Every render is marked synthetic (one of: fit, replay, augment)</td>
+</tr>
+<tr>
+<td><code>--splat-out OUT_DIR</code></td>
+<td>with --splat: the output folder</td>
+</tr>
+<tr>
+<td><code>--splat-settings JSON</code></td>
+<td>with --splat: settings as JSON text or a .json file, e.g. {&quot;target_offset_m&quot;: [0, 0, 0.02], &quot;augment_n&quot;: 8}</td>
+</tr>
 </tbody>
 </table>
 <h2 id="studies-each-writes-its-result-as-json-with-provenance---for-stdout-a-folder-gets-folderflagjson">Studies (each writes its result as JSON with provenance; &quot;-&quot; for stdout; a folder gets &lt;folder&gt;/&lt;flag&gt;.json)</h2>
@@ -517,6 +529,10 @@
 <td>Sim-to-real gap</td>
 </tr>
 <tr>
+<td><code>--splat-views OUT.json</code></td>
+<td>Splat views</td>
+</tr>
+<tr>
 <td><code>--stats-saved OUT.json</code></td>
 <td>Statistics</td>
 </tr>
@@ -542,7 +558,7 @@
 </tr>
 </tbody>
 </table>
-<p>106 options in all.</p>
+<p>110 options in all.</p>
 
   </main>
 </div>

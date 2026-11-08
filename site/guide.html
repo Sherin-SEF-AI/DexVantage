@@ -129,7 +129,8 @@ dexvantage --sample aloha --export out/aloha --formats mjcf,lerobot
 </code></pre>
 <h2 id="getting-started">2. Getting started</h2>
 <ol>
-<li><strong>Install.</strong> The <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/README.md#install">README</a> has the bundles and the source install
+<li><strong>Install.</strong> DexVantage supports Linux only (x86_64, and arm64 such as NVIDIA Jetson); Windows and macOS are not
+supported. The <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/README.md#install">README</a> has the Linux bundles and the source install
 (<code>pip install -e .</code>, Python 3.10 or newer) with the optional extras (<code>lerobot</code>, <code>bags</code>, <code>usd</code>, <code>pin</code>, <code>step</code>,
 <code>rerun</code>, <code>assistant</code>, <code>research</code>, <code>tracking</code>).</li>
 <li><strong>Check the installation.</strong> <code>dexvantage --self-test</code> checks, without a window, the project file, frames, MuJoCo,
@@ -366,6 +367,21 @@ matches)&quot;.</p>
 180 with the overhead D435 made 20 grey levels brighter than the render; the page (or <code>rig.sim2real</code>) reads:
 &quot;Sim-to-real image gap (worst camera): 18.6 DN (very large gap)&quot;, with the causes ranked and the change that closes
 the first one offered by Apply.</p>
+<h3 id="splat">Splat views</h3>
+<p>Model: <a href="docs.html#splat">overview</a>; longer example: <a href="guide/splat.html">Splat views: a worked example</a>. Needs the <code>splat</code> extra
+(PyTorch) and a CUDA GPU; without them the page says so.</p>
+<p><strong>Simulate ▸ Splat views</strong> opens the <strong>Splat views</strong> page: a 3D Gaussian Splatting scene of the cell fitted to a
+recorded episode (each frame posed at its camera's mount at the logged joint state; the episode needs a camera that
+moves, such as a wrist camera) or, for demonstration, to MuJoCo renders of the project, with the robot's Gaussians
+attached to its links so the scene follows the joint state. The headline is its PSNR on frames the fit did not use,
+with SSIM and LPIPS beside it; the quality table adds held-out joint states. Choose a camera, enter a move and a turn in
+its own frame, and the before/after row shows what the proposed pose would see. <strong>Write replay…</strong> renders the episode
+through it to a video and per-frame images; <strong>Write augmented…</strong> writes perturbed copies of the episode (the mount
+tolerances) as a LeRobot dataset. Every splat image is a render, marked synthetic on the page and in every file.</p>
+<p><strong>Worked example on the SO-100 (synthetic).</strong> A demonstration fit (48 MuJoCo views, 1,500 steps, 65 s on an RTX 5080)
+reads &quot;23.1 dB, visible differences (synthetic capture)&quot;, SSIM 0.936, LPIPS 0.076; a fit to a synthetic recorded
+episode reads 32.4 dB. Through the wrist camera moved 2 cm back the render scores 17.9 dB against MuJoCo's: read a
+proposed view for its layout, not its detail.</p>
 <h2 id="requirements">9. Optimisation and requirements</h2>
 <p>Models: <a href="docs.html#requirements">requirements</a>, <a href="docs.html#tolerance">tolerances</a>,
 <a href="docs.html#experiments">designed experiments</a>, <a href="docs.html#optimise">the optimiser</a>. Longer examples:
@@ -417,7 +433,7 @@ step; long studies run only from a plan you approve. <code>python -m dexvantage.
 over standard input and output: with a DexVantage window open it attaches to it, so changes show at once and can be
 undone; otherwise it works on <code>--project cell.dexv</code> or <code>--sample NAME</code>.</p>
 <p><strong>Worked example.</strong> <code>python -m dexvantage.mcp --sample aloha</code> (or in process, <code>dexvantage.mcp.server.Server</code>):
-<code>initialize</code> answers protocol 2025-11-25 and <code>tools/list</code> lists 40 tools.</p>
+<code>initialize</code> answers protocol 2025-11-25 and <code>tools/list</code> lists 41 tools.</p>
 <h2 id="research">12. Research workflows</h2>
 <p>A research team's day, from a notebook to a paper. Models: <a href="docs.html#tracking">tracker</a>,
 <a href="docs.html#stats">statistics</a>, <a href="docs.html#campaign">campaign</a>, <a href="docs.html#cells">cells</a>,
@@ -459,7 +475,7 @@ lighting presets, demonstrations from a 50 % against 70 % power analysis, 30 s e
 (large gap)&quot;.</p>
 <p><strong>Worked example: a diff and the citations.</strong> The UR5e sample against a copy with the overhead D435 raised 10 cm: 1
 change, &quot;Sensor Overhead D435: mount pose moved 100.0 mm (x +0.0, y +0.0, z +100.0 mm) and turned 0.00°&quot;. Its BibTeX
-(<code>--cite refs.bib</code>, <code>dv.bibtex(rig)</code>) holds 236 BibTeX entries: every source the project and the checks depend on.</p>
+(<code>--cite refs.bib</code>, <code>dv.bibtex(rig)</code>) holds 242 BibTeX entries: every source the project and the checks depend on.</p>
 <p><strong>Worked example: the paper kit of the SO-100.</strong> &quot;ready&quot;: 48 of 48 numbers traced. &quot;All 48 numbers in the methods
 paragraph and 52 in the tables trace to the project or a result; every citation has its BibTeX entry and the LaTeX is
 balanced.&quot;</p>
@@ -481,13 +497,13 @@ dexvantage a.dexv --diff b.dexv diff.json                  # what changed (exit 
 dexvantage --validate out/validation                       # the validation suite
 dexvantage --self-test                                     # this installation
 </code></pre>
-<p>The reference lists 106 options (with <code>--no-plugins</code>; installed plugins add their own study flags), every study's
-flag among them; its companion, the <a href="reference/api.html">Python API reference</a>, documents the 37 names <code>dv</code> exports.</p>
+<p>The reference lists 110 options (with <code>--no-plugins</code>; installed plugins add their own study flags), every study's
+flag among them; its companion, the <a href="reference/api.html">Python API reference</a>, documents the 38 names <code>dv</code> exports.</p>
 <h2 id="python-api">14. The Python API</h2>
 <p><code>import dexvantage as dv</code> gives DexVantage without the window and without Qt: open or make a rig, run any study,
 read the named metrics, sweep factors, check requirements, export, read datasets, track runs and compare. It runs the
 same code as the window and batch mode, so every figure is the study's own. The worked examples are in
-<a href="guide/api.html">The Python and notebook API</a> and the notebooks in <code>examples/</code>; the docstrings of the 37 names <code>dv</code> exports are the
+<a href="guide/api.html">The Python and notebook API</a> and the notebooks in <code>examples/</code>; the docstrings of the 38 names <code>dv</code> exports are the
 <a href="reference/api.html">Python API reference</a>.</p>
 <pre><code class="language-python">import dexvantage as dv
 rig = dv.sample('ur5e')                                   # or dv.open('cell.dexv'), dv.new('My cell')
@@ -506,6 +522,10 @@ rig.check('requirements.yaml'); rig.export('out/', ['opencv_yaml', 'mjcf']); rig
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>You are on Windows or macOS</td>
+<td>DexVantage supports Linux only: there is no Windows or macOS bundle, and nothing is tested there. Use a Linux machine (x86_64, or arm64 such as a Jetson).</td>
+</tr>
 <tr>
 <td>The import wizard refuses a <code>.xacro</code> file, or a <code>.urdf</code> with <code>$(…)</code> or <code>${…}</code></td>
 <td>xacro macros must be expanded first: <code>ros2 run xacro xacro in.urdf.xacro &gt; out.urdf</code>.</td>
@@ -540,7 +560,7 @@ rig.check('requirements.yaml'); rig.export('out/', ['opencv_yaml', 'mjcf']); rig
 </tr>
 <tr>
 <td>Studies are slow</td>
-<td>the GPU path needs Linux EGL and OpenGL 3.3; elsewhere the exact numpy rasteriser runs (the same figures within the occlusion model's agreement, slower).</td>
+<td>the GPU path needs EGL and OpenGL 3.3 (a GPU driver or Mesa); without them the exact numpy rasteriser runs (the same figures within the occlusion model's agreement, slower).</td>
 </tr>
 <tr>
 <td>The 3D view is blank or flickers</td>
@@ -608,6 +628,7 @@ rig.check('requirements.yaml'); rig.export('out/', ['opencv_yaml', 'mjcf']); rig
 <li><a href="guide/bags_rlds.html">Reading ROS 2 bags and RLDS datasets</a></li>
 <li><a href="guide/audit.html">Auditing a dataset and comparing it with the plan</a></li>
 <li><a href="guide/sim2real.html">The sim-to-real gap: a worked example</a></li>
+<li><a href="guide/splat.html">Splat views: a worked example</a></li>
 <li><a href="guide/requirements.html">Requirements, the readiness scorecard and the variants compare</a></li>
 <li><a href="guide/tolerance.html">Tolerances: a worked example on the SO-100 sample</a></li>
 <li><a href="guide/experiments.html">Designed experiments: a worked example on the UR5e sample</a></li>

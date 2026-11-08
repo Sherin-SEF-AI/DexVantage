@@ -7,10 +7,148 @@ the end of every phase.
 
 The user decides on the **0.1.0 release**: `packaging/release.py --publish` (after tagging and pushing `v0.1.0rc1`
 or `v0.1.0`; run only when the user asks; it publishes a release candidate as a GitHub pre-release), turning on
-GitHub Pages for `site/`, and whether to run the CI and bundle workflows first (none has run on GitHub yet). Then,
-optionally, **Phase 12**: robot-aligned 3D Gaussian Splatting view augmentation (spec §9.3), a CUDA-only extra with
-measured reconstruction quality. Carried over: the occlusion throughput (`core/occlusion.py`, the ALOHA 2 grasp
-budget), ground truth with distorted lenses, and the open issues below.
+GitHub Pages for `site/` (the Website workflow fails until it is), and the next CI run, the first after the Linux-only
+change, the fixes of the first run and Phase 12 (below); the bundle workflow has not run. Phase 12 needs, for its
+figures to describe more than synthetic captures, a real LeRobot recording with measured mounts (open issues).
+Carried over: the occlusion throughput (`core/occlusion.py`, the ALOHA 2 grasp budget), ground truth with distorted
+lenses, and the open issues below.
+
+## Phase 12: robot-aligned 3D Gaussian Splatting, splat views (done, 2026-11-08)
+
+Spec §9.3, built in parallel by two agents (the splat core: rasteriser, reprojection, the rig, the gsplat bridge; the
+product: the study, replay, augmentation, LPIPS, validation, the page, batch, API, MCP and the docs), then
+integrated together with the Linux-only change (section below). Nothing was tagged, released or uploaded. Version
+stays **0.1.0rc1**: the CHANGELOG gathers Phase 12 under `[Unreleased]`, above `0.1.0rc1 — unreleased`.
+
+**What was built**
+- `core/splat_raster.py`: a differentiable rasteriser of anisotropic 3D Gaussians through every DexVantage lens model
+  (pinhole, Brown-Conrady, Kannala-Brandt, equidistant, equisolid, stereographic), back ends torch (CUDA or CPU), a
+  numpy reference without tiles, and gsplat (pinhole only, optional); SSIM and PSNR. Ported from Vantage
+  `core/splat_raster.py`, with an explicit 1/255 footprint cut-off so the image does not depend on the tiling.
+- `core/splat_reproject.py` (Gaussian sets, reprojection, the 3DGS `.ply`), `core/gsplat_bridge.py` (Nerfstudio and
+  COLMAP export for outside trainers, `read_trained_ply`), `core/sim/splat_rig.py` (the rig: Gaussians attached to the
+  robot's links from MuJoCo masks, re-posed by forward kinematics at any q; `fit_splat_rig` with progress and cancel).
+- `core/sim/splat_views.py` and the `splat_views` study: a rig fitted to one LeRobot episode (each frame posed at its
+  camera's mount at the logged q, depth and masks from MuJoCo renders) or to a MuJoCo render of the project (labelled
+  synthetic); PSNR, SSIM and LPIPS on held-out views and held-out joint states; a proposed camera pose previewed
+  (Apply moves the mount, one undo step); novel camera pose replay to a video and frames; perturbation augmentation
+  through the §8.5 tolerances as a LeRobot dataset; everything marked synthetic (badge, paths, `info.json`, manifest
+  with SHA-256 and provenance). The **Splat views** page (Simulate menu), `--splat-views OUT.json`, `--splat
+  fit|replay|augment --splat-out DIR`, `dv.splat`, the assistant's and MCP's `get_splat_views` (35 assistant tools,
+  41 over MCP), a self-test line `splat`, validation model `splat` (7 checks).
+- Docs: `docs/models/splat.md`, `docs/guide/splat.md`, the user guide's Splat views section, the overview's section,
+  `docs/performance.md` (fit time, render rate, GPU memory), the site pages (rebuilt), README (an extras row and a
+  features row). `scripts/splat_measure.py`, `scripts/splat_quality.py`, `scripts/build_gsplat.sh`.
+
+**Decisions and spec corrections**
+- Spec §3 names the extra "gsplat (CUDA)". gsplat publishes no wheel for Python 3.14 or torch 2.14, so the extra
+  `splat` is `torch==2.14.1`, `torchvision==0.29.1`, `lpips==0.1.4` (the CUDA 13.0 builds:
+  `--extra-index-url https://download.pytorch.org/whl/cu130`; 4,689 MB installed, `packaging/release.py extras`), and
+  gsplat is an optional back end that `scripts/build_gsplat.sh` builds from source (v1.5.3, its `setup.py`'s C++17
+  changed to C++20, nvcc 13.2.86 from NVIDIA's pip wheels in a throw-away folder). It was built on this machine and
+  imports and runs on the RTX 5080. The fit and the splat views study always use the torch path; `auto` takes gsplat
+  only for other pinhole renders.
+- LPIPS: AlexNet's ImageNet weights (244 MB) are downloaded only when the user asks, into the cache folder, checked
+  against the SHA-256 prefix in the file name; never bundled.
+- `device` `auto` refuses without a CUDA device (one sentence); `cpu` is allowed and slow.
+- **The bundle leaves the splat extra out** (`extras.py` `bundled` False). Measured: PyTorch would add about 4,689 MB
+  to an 851 MB folder, and a CUDA build is useless on most machines that run the download. The spec also excludes
+  gsplat (its CUDA library links PyTorch's) and scikit-image (the SSIM reference check's; the first build took a
+  1.0 MB fragment of it). In the bundle the splat views' sentence says to install from source with the splat extra and
+  PyTorch's CUDA index (`extras.missing` with the index URL; `tests/test_splat_views.py`), and the self-test's `splat`
+  line warns (`selftest.BUNDLE_MAY_WARN`).
+- `core/sim/splat_rig.py` scored a fitted rig with its colours clamped to [0.01, 0.99], which cost the held-out SSIM
+  a third (0.812 against 0.937 on the SO-100); fixed (CHANGELOG).
+
+**Measured (all reconstruction figures from synthetic MuJoCo captures; no real recording measured)**
+- Rasteriser agreement on 300 fixed Gaussians at 64 × 48: torch CPU float64 against numpy 3.3 × 10⁻¹⁶ (pinhole) to
+  2.0 × 10⁻¹⁴ (Kannala-Brandt); torch CUDA float32 1.06 × 10⁻⁵ to 1.30 × 10⁻⁵. gsplat against torch on CUDA: mean
+  colour difference 8.7 × 10⁻⁴, largest 0.113 (their sort and footprint rules differ), 1.5 % of pixels over 0.01.
+- Render speed, 640 × 480 pinhole, measured while the test suite ran (upper bounds): 20,000 Gaussians 28.8 ms
+  (torch) against 1.1 ms (gsplat); 100,000 Gaussians 41.6 ms against 2.4 ms.
+- Splat views with the defaults (`scripts/splat_quality.py`, RTX 5080): held-out views PSNR / SSIM / LPIPS — SO-100
+  demo 23.1 dB / 0.936 / 0.076, UR5e demo 26.5 dB / 0.957 / 0.056, SO-100 episode 32.4 dB / 0.975 / 0.022, UR5e
+  episode 31.7 dB / 0.969 / 0.028. The wrist camera moved 2 cm back: 17.9 dB (SO-100 episode), 17.5 dB (UR5e). Fit
+  60.0 s and 62.2 s (demo, 1,500 steps, 40 to 41.5 ms per step), render 26.6 and 23.7 frames a second at
+  1280 × 720, process peak 2.7 and 2.9 GB (`docs/performance.md`).
+- Without the splat extra (a throw-away environment under `out/` with `pip install ".[test,lerobot]"`, no PyTorch,
+  deleted afterwards): `--self-test` passed, 47 lines, the one warning `splat` ("splat extra not installed: splat
+  views need PyTorch (pip install …)"), 165 of 165 cheap checks, 56 s, peak 3.66 GB; the six splat test files 39
+  passed, 34 skipped, each skip naming the missing extra; `--splat-views` and `--splat fit` print "Splat views need
+  PyTorch: the splat extra is not installed (pip install …)" and exit 2; `dv.splat.fit` raises StudyError with the
+  same sentence.
+
+**Phase 12 gate (2026-11-08)** — run alone on this machine, each memory-capped, `TMPDIR`, `--basetemp` and the XDG
+folders under `out/` (deleted afterwards).
+- Tests: **4 063 passed**, 0 failed, 3 skipped (the paper kit's LaTeX compile at both unit settings: no LaTeX engine
+  on PATH; the LPIPS test against the package's model: AlexNet's weights are not in the throw-away cache, and tests
+  never download them) (`python -m pytest -rs tests`, offscreen, 7 GB cap, 2 486 s). Peak memory: the largest process
+  6.04 GB (`/usr/bin/time -v` maximum resident set, 5 898 888 KiB). gsplat's agreement test ran (gsplat installed).
+  The first full run of the integrated tree (before the integration's own edits) also passed: 4 062 passed, 3 skipped,
+  2 470 s, peak 6.34 GB; the one test more is the bundle's splat sentence (`tests/test_splat_views.py`).
+- Validation: **239 of 239** (`--validate out/validation` through `scripts/benchmarks.py --only validate`, 425 s in
+  the suite, 428 s for the process, peak 5.62 GB, 38 models). Every error equals the previous run's (only the run
+  time differs); `docs/validation.md` and `docs/performance.md` were regenerated from it. A second full run (by hand,
+  `time -v`): 239 of 239, 453 s, peak 5.07 GB. Without CUDA `splat.raster_torch_cuda` is left out; without PyTorch the
+  two torch checks are; in the bundle 3 (the two torch checks and `splat.ssim_vs_skimage`), each naming its extra.
+- `dexvantage --self-test`: **47 of 47 ok** (50 s, peak 4.43 GB): 167 of 167 cheap checks, MCP 41 tools.
+- `ruff check dexvantage tests scripts examples packaging`: clean.
+- Generated docs: `gen_cli_reference.py`, `gen_api_reference.py`, `gen_overview_refs.py --check`: up to date;
+  `gen_validation_doc.py` and `benchmarks.py --doc-only` regenerated; `guide_examples.py --check`: 135 figures from
+  34 examples, 0 not shown as computed; `build_site.py --validation`, then `--check`: 122 pages, no problems (new:
+  `models/splat.html`, `guide/splat.html`, two media files).
+- Hand-written counts brought up to date: README (status, validation note, the splat rows), the home page (239 of
+  239, the splat extra), the overview (239 of 239 in its dated validation lines, 41 MCP tool schemas, the validation
+  paragraph).
+- Linux x86_64 bundle rebuilt (`packaging/build.py --smoke`, 2 min 32 s, peak 3.57 GB): folder 851.2 MB, download
+  316.9 MB (316 886 376 bytes, SHA-256 6df12a98…ca7364b26), start-up 1.70 s median of 3, cluster pool 14.5 s,
+  experiments pool 4.0 s, the bundle's `--self-test` passed (47 lines, the `splat` warning), the bundle's
+  `--validate --models splat` 4 of 4 with 3 left out, naming their extras (`docs/packaging.md`, "The Phase 12 build").
+
+## Linux only, and the first GitHub CI run (2026-11-08)
+
+**Decision (the user's, binding): DexVantage supports Linux only** (x86_64; Linux arm64 / Jetson stays a target,
+built by `bundles.yml`). Windows and macOS are no longer supported. Removed: the Windows and macOS CI matrix entries
+(`ci.yml` tests and checks, `bundles.yml`), `packaging/windows/`, `packaging/macos/`, `packaging/icons/`,
+`packaging/make_icon.py`, the Windows and macOS paths of `packaging/build.py`, `release.py` (`.tar.gz` only),
+`run_dexvantage.py` (comments), the spec (no `BUNDLE`, CGL or WGL; it and `build.py` refuse another system in one
+sentence), `scripts/get_actionlint.py` (Linux checksums only), `app.py`'s macOS open-document event, and the
+Windows/macOS folders of `mcp/session.py` and `core/library` (XDG folders only); the Windows- and macOS-only tests
+(the Inno Setup, Info.plist and icon tests, the Windows `resource` and POSIX-import tests, the `os.name == 'nt'`
+skips). Kept as harmless portable code: `core/cluster/shards.py`'s Windows peak-memory branch,
+`core/tracking/store.py`'s `msvcrt` lock fallback, `mlruns.py`'s path spelling. README, `docs/packaging.md`, the
+user guide (install, troubleshooting), CONTRIBUTING, the site (rebuilt: 120 pages, no problems), pyproject
+(`Operating System :: POSIX :: Linux`) and the CHANGELOG say so. CITATION.cff lists no platforms.
+
+**The first CI run** (workflow CI, run 42458839859, commit 3449cba, Windows and macOS jobs still in it), job by job,
+Linux only (the Windows and macOS jobs are gone from the workflows and are not reported):
+
+| Job | Result | Time | What failed |
+|---|---|---|---|
+| Lint (ruff, actionlint) | pass | 8 s | |
+| Oldest Python (3.10), install and self-test | fail | 1 min 55 s | `tracking.store_round_trip`: 3.10's `fromisoformat` refuses `10:00:02.5Z` |
+| Self-test and validation, 3.12 | fail | 8 min 52 s | self-test passed; validation 231 of 232: `formats.bracket_step` (gmsh: no `libGLU.so.1`) |
+| Self-test and validation, 3.14 | fail | 13 min 44 s | the same |
+| Tests 3.12 / 3.14 shard 0 | fail | 7 min 50 s / 11 min 31 s | `test_validation` (6 passed, 1 failed): `formats.bracket_step` |
+| Tests 3.12 / 3.14 shard 1 | fail | 22 min 18 s / 22 min 10 s | 395 passed, 1 failed: the guide's silhouette example, 4.28 mm on llvmpipe against the guide's 4.21 mm |
+| Tests 3.12 / 3.14 shard 2 | pass | 11 min 55 s / 13 min 55 s | 571 passed, 1 skipped (site extra not installed) |
+| Tests 3.12 / 3.14 shard 3 | pass | 22 min 30 s / 16 min 13 s | 1 009 passed |
+| Tests 3.12 shard 4 | pass | 10 min 36 s | 843 passed, 4 skipped (LaTeX, site extra, actionlint) |
+| Tests 3.14 shard 4 | fail | 17 min 23 s | 842 passed, 1 failed: the camera-view drag test (a full size taken before the layout settled) |
+| Tests 3.12 / 3.14 shard 5 | fail | 20 min 0 s / 19 min 36 s | 1 157 passed, 5 failed: the four demo-script tests (the script is gitignored) and `test_step_through_gmsh_reads_back` |
+
+Fixed here (CHANGELOG, "Fixed (the first CI run on GitHub)"): `parse_utc` pads the fraction of a second (the
+oldest-Python self-test passes in a Python 3.10.20 throw-away environment with a plain `pip install .`: 46 lines, 3
+warnings for the missing pyarrow, "self-test passed in 41 s"); `apt-gl-qt.sh` installs gmsh's libraries
+(`libglu1-mesa` and seven more, each checked on packages.ubuntu.com for noble and jammy); CI installs the `site`
+extra; the demo tests skip without the script; the silhouette figure matches within the estimate's 1 σ (measured
+here: 4.21 mm on NVIDIA EGL, 4.14 mm on Mesa llvmpipe, σ 0.86 and 1.01 mm); the camera-view test compares with the
+full render after the drag. No shard came near its 75-minute limit (the longest 22 min 30 s). The "Website" workflow
+(run 42458839756) fails at `actions/configure-pages` ("Get Pages site failed ... Not Found"): GitHub Pages is not
+turned on for the repository, which is the user's decision; `pages.yml` is left as it is.
+
+Not verified until the next CI run: the gmsh libraries on the runner (the package names exist; the check itself was
+not run on a runner), and the camera-view and silhouette fixes on the runner's llvmpipe.
 
 ## Phase 11: samples, documentation, website, packaging and CI; release candidate 0.1.0rc1 (done, 2026-11-08)
 
@@ -1700,6 +1838,31 @@ self-test's OpenGL line and `scripts/measure_ui.py` use the default display (rad
 must say which GPU it measured.
 
 ## Open issues
+
+Phase 12 (splat views) and the Linux-only change:
+- **No real recording measured.** Every reconstruction figure is from synthetic MuJoCo captures; none is in the
+  repository, and LeRobot stores no camera extrinsics, so a real episode's mounts need measuring first (the silhouette
+  calibration). Spec §9.3's PSNR/SSIM on held-out real frames is still to be measured.
+- **Proposed poses lose detail fast:** 26 to 28 dB through the unmoved wrist camera, 17.5 to 17.9 dB moved 2 cm back,
+  15 to 17 dB at joint states the episode never reached. The docs say to read a proposed view for its layout; a
+  capture with more varied wrist views is future work.
+- The CUDA fit is not bit-repeatable (atomic adds; re-runs differ by a few tenths of a dB, 32.0 against 32.4 dB on the
+  SO-100 episode); the CPU path is. No densification and no view-dependent colour.
+- gsplat is built from patched source (`scripts/build_gsplat.sh`, C++17 changed to C++20) because no release supports
+  Python 3.14 and torch 2.14; it is used only for pinhole renders outside the fit. The torch rasteriser is 17 to 26
+  times slower than gsplat per 640 × 480 render.
+- Fitted rigs are cached by project content and robot uids; `dv.sample()` makes new uids on every call, so API calls
+  on fresh samples refit.
+- With 10 % of the labels made wrong, re-segmenting by `masks` undoes 71 to 72 % of them, `both` and `meshes` 96 to
+  98 %.
+- In the downloadable app a `--validate` run that leaves out checks ends with "Install them with pip install …", as
+  for every left-out extra; pip cannot add to the download (the splat views' own sentence says so).
+- Not run on GitHub yet: the Linux-only CI and bundle workflows (the bundle workflow has never run; the PyQt6 6.7 pin
+  for Linux arm64 is untested), the gmsh libraries on the runner, the camera-view drag and silhouette fixes on the
+  runner's llvmpipe. CI installs no PyTorch, so the splat tests and checks that need it skip or are left out there.
+- The silhouette guide figure now passes anywhere within the estimate's own 1 σ (about 0.9 mm): honest but loose.
+- Older sections of this file and the Phase 11 packaging review in `docs/packaging.md` still mention Windows and
+  macOS as the record of that time.
 
 Phases 9 and 10, samples, catalogue, library, research tools part 1:
 - **Not run against the real programs:** Isaac Lab and Isaac Sim, LeRobot's loader and trainer, ACT, Diffusion

@@ -208,9 +208,20 @@ Qt is imported by the import: no; after the first use: Qt no, MuJoCo yes, OpenCV
 
 The slowest modules `dexvantage.api` imports directly (`python -X importtime`, cumulative): dexvantage.core.jobs 70.4 ms, dexvantage.api_research 2.3 ms, typing 1.3 ms, html 0.6 ms, json 0.6 ms, dexvantage.core 0.1 ms, dexvantage.api_cluster 0.1 ms, dexvantage 0.0 ms.
 
+## Splat views: fit time, render rate and GPU memory
+
+The splat views study (`core/sim/splat_views.py`) with its default settings on a MuJoCo render of each sample (a synthetic demonstration capture), in a fresh process: the fit (1,500 steps at most, a 120 s budget, a 20,000-Gaussian budget, 48 views at 160 × 120 px, defaults), then 40 renders of the fitted rig through the target camera (the wrist camera) at its stream size at 40 joint states, after 3 warm-up renders. GPU: NVIDIA GeForce RTX 5080, PyTorch 2.14.1+cu130 (CUDA 13.0), the plain-torch rasteriser (the study fits and renders through it whether or not gsplat is installed: [models/splat.md](models/splat.md)). GPU memory is what PyTorch allocated and reserved at its peak (`torch.cuda.max_memory_allocated` and `max_memory_reserved`), not what the driver reports for the process.
+
+| Sample | Gaussians | Fit (s) | ms per step | Study (s) | Fit GPU peak, allocated / reserved (MB) | Render size | Render fps | ms per frame | Render GPU peak, allocated / reserved (MB) | Process peak (MB) | Load before → after |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| so100 | 16 939 | 60.0 | 40.0 | 64.3 | 807 / 1 642 | 1280 × 720 | 26.6 | 37.5 | 748 / 1 776 | 2 683 | 3.8 → 3.2 |
+| ur5e | 18 670 | 62.2 | 41.5 | 66.8 | 807 / 1 562 | 1280 × 720 | 23.7 | 42.1 | 749 / 1 697 | 2 910 | 3.2 → 3.0 |
+
+The study's time includes the MuJoCo capture, the held-out scoring and the before/after preview besides the fit. A render includes posing the Gaussians by forward kinematics and copying the image back to the CPU; the replay and the augmentation also encode video.
+
 ## A full validation run
 
-`dexvantage --validate out/validation` in a fresh process: 384 s for the process, 383 s in the suite, 232 of 232 checks passed over 37 models, peak memory 5 578 MB (load 6.0 → 8.7). The checks and their measured agreement are in [validation.md](validation.md).
+`dexvantage --validate out/validation` in a fresh process: 428 s for the process, 425 s in the suite, 239 of 239 checks passed over 38 models, peak memory 5 622 MB (load 5.0 → 7.6). The checks and their measured agreement are in [validation.md](validation.md).
 
 ## How to reproduce
 

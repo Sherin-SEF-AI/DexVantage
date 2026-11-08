@@ -44,7 +44,6 @@ import logging
 import math
 import os
 import re
-import sys
 import tempfile
 import threading
 
@@ -86,16 +85,9 @@ class LibraryError(ValueError):
 
 # ====================================================================== folders
 def user_dir() -> str:
-    """The user's custom devices: $XDG_DATA_HOME/DexVantage/library (when XDG_DATA_HOME is set, on every platform),
-    else ~/.local/share (Linux), ~/Library/Application Support (macOS) or %LOCALAPPDATA% (Windows)."""
-    root = os.environ.get('XDG_DATA_HOME')
-    if not root:
-        if sys.platform.startswith('win'):
-            root = os.environ.get('LOCALAPPDATA') or os.environ.get('APPDATA') or os.path.expanduser('~')
-        elif sys.platform == 'darwin':
-            root = os.path.expanduser('~/Library/Application Support')
-        else:
-            root = os.path.join(os.path.expanduser('~'), '.local', 'share')
+    """The user's custom devices: $XDG_DATA_HOME/DexVantage/library, XDG_DATA_HOME defaulting to ~/.local/share
+    (the XDG Base Directory specification; DexVantage supports Linux only)."""
+    root = os.environ.get('XDG_DATA_HOME') or os.path.join(os.path.expanduser('~'), '.local', 'share')
     return os.path.join(root, 'DexVantage', 'library')
 
 

@@ -62,6 +62,7 @@ dv.studies(), dv.metrics(), dv.exporters(), dv.plugins()
 ds = dv.datasets.open('path/to/lerobot_dataset')  # LeRobot v2.1 / v3.0, RLDS, ROS 2 bags, plugin formats
 dv.diff(rig, taller), dv.merge(base, ours, theirs)   # project diff and three-way merge (api_research.py)
 dv.bibtex(rig), dv.figure(res, 'fig.svg')        # BibTeX of every source; a vector figure of a result
+dv.splat.fit(rig, dataset='episodes/')           # splat views: a 3DGS rig, its held-out quality (api_splat.py)
 </code></pre>
 <p>What edits in place and what returns a new object:</p>
 <ul>
@@ -463,6 +464,29 @@ Robot added. Edits rig.</p>
 <p>No docstring.</p>
 <h4 id="dvrobot_iowrite_usdrig-rig-path-str--ospathlike-robot-str--none--none---dict"><code>dv.robot_io.write_usd(rig: Rig, path: str | os.PathLike, robot: str | None = None) -&gt; dict</code></h4>
 <p>Write rig's robot (a name or uid; default the primary) as a UsdPhysics articulation at path.</p>
+<h3 id="dvsplat"><code>dv.splat</code></h3>
+<p>dv.splat: fit, replay, augment, rig, load, available, lpips_state, fetch_lpips_weights, settings.</p>
+<h4 id="dvsplataugmentrig-rig--project-out_dir-str--ospathlike-dataset-str--ospathlike--none--none-progress-callablefloat-str-none--none--none-settings-object---dict"><code>dv.splat.augment(rig: Rig | Project, out_dir: str | os.PathLike, dataset: str | os.PathLike | None = None, progress: Callable[[float, str], None] | None = None, **settings: object) -&gt; dict</code></h4>
+<p>augment_n copies of the episode through §8.5's perturbed extrinsics, as a LeRobot dataset in
+out_dir/splat_augment_synthetic/ (every render marked synthetic). Returns the manifest.</p>
+<h4 id="dvsplatavailable---str--none"><code>dv.splat.available() -&gt; str | None</code></h4>
+<p>None when the splat extra is installed; else the sentence saying it is not.</p>
+<h4 id="dvsplatfetch_lpips_weights---str"><code>dv.splat.fetch_lpips_weights() -&gt; str</code></h4>
+<p>Download AlexNet's ImageNet weights for LPIPS into the cache (network, 244 MB); returns the path.</p>
+<h4 id="dvsplatfitrig-rig--project-dataset-str--ospathlike--none--none-progress-callablefloat-str-none--none--none-settings-object---result"><code>dv.splat.fit(rig: Rig | Project, dataset: str | os.PathLike | None = None, progress: Callable[[float, str], None] | None = None, **settings: object) -&gt; Result</code></h4>
+<p>The splat_views study (fit the rig or reuse the cached fit; its quality on held-out frames; the
+before/after preview of the target camera) on rig with settings laid over the stored ones.</p>
+<h4 id="dvsplatloadpath-str--ospathlike---splatrig"><code>dv.splat.load(path: str | os.PathLike) -&gt; SplatRig</code></h4>
+<p>A splat rig a fit saved (.npz and its .json sidecar).</p>
+<h4 id="dvsplatlpips_state---str"><code>dv.splat.lpips_state() -&gt; str</code></h4>
+<p>'ready', 'no package' or 'no weights' (AlexNet's weights are not in the cache).</p>
+<h4 id="dvsplatreplayrig-rig--project-out_dir-str--ospathlike-dataset-str--ospathlike--none--none-progress-callablefloat-str-none--none--none-settings-object---dict"><code>dv.splat.replay(rig: Rig | Project, out_dir: str | os.PathLike, dataset: str | os.PathLike | None = None, progress: Callable[[float, str], None] | None = None, **settings: object) -&gt; dict</code></h4>
+<p>The episode re-rendered at its logged q(t) through the proposed camera: out_dir/splat_replay_synthetic/
+(a video read back after writing, per-frame images, the manifest). Returns the manifest.</p>
+<h4 id="dvsplatrigrig-rig--project-dataset-str--ospathlike--none--none-progress-callablefloat-str-none--none--none-settings-object---splatrig"><code>dv.splat.rig(rig: Rig | Project, dataset: str | os.PathLike | None = None, progress: Callable[[float, str], None] | None = None, **settings: object) -&gt; SplatRig</code></h4>
+<p>The fitted SplatRig itself (fitted now, or the cached fit for the same inputs).</p>
+<h4 id="dvsplatsettings---dict"><code>dv.splat.settings() -&gt; dict</code></h4>
+<p>The settings and their defaults (core/sim/splat_views.DEFAULTS).</p>
 <h2 id="the-plugin-sdk-dexvantageplugin_sdk">The plugin SDK (<code>dexvantage.plugin_sdk</code>)</h2>
 <p>Plugins: third-party packages that add studies, metrics, exporters, dataset readers, library folders, UI pages and
 the validation checks of their models to DexVantage without editing it.</p>

@@ -702,7 +702,31 @@ REFERENCES = {
                            'cy rule; without them cx = width / 2) and sim/spawners/sensors/sensors.py L162-165 '
                            '(aperture offsets ignored); v2.3.2 (commit 37ddf62) camera.py L589-599 (cx = width / 2), '
                            'https://github.com/isaac-sim/IsaacLab (read 2026-11-07).',
-    'iso4217': 'ISO 4217 Codes for the representation of currencies, list one (current currency and funds code '
+    # robot-aligned 3D Gaussian Splatting (core/splat_raster.py, core/sim/splat_rig.py; docs/models/splat.md)
+    'qureshi2025_splatsim': 'M. N. Qureshi, S. Garg, F. Yandun, D. Held, G. Kantor and A. Silwal, "SplatSim: '
+                            'Zero-shot Sim2Real transfer of RGB manipulation policies using Gaussian Splatting", ICRA '
+                            '2025, arXiv:2409.10161, https://splatsim.github.io (read 2026-11-08).',
+    'lou2025_robogs': 'H. Lou, Y. Liu, Y. Pan, Y. Geng, J. Chen, W. Ma, C. Li, L. Wang, H. Feng, L. Shi, L. Luo and '
+                      'Y. Shi, "Robo-GS: A physics consistent spatial-temporal model for robotic arm with hybrid '
+                      'representation", ICRA 2025, arXiv:2408.14873, https://arxiv.org/abs/2408.14873 (read '
+                      '2026-11-08).',
+    'ye2025_gsplat': 'V. Ye, R. Li, J. Kerr, M. Turkulainen, B. Yi, Z. Pan, O. Seiskari, J. Ye, J. Hu, M. Tancik and '
+                     'A. Kanazawa, "gsplat: An open-source library for Gaussian Splatting", Journal of Machine '
+                     'Learning Research 26(34), 1–17, 2025, https://www.jmlr.org/papers/v26/24-1476.html (read '
+                     '2026-11-08).',
+    'zwicker2001_ewa': 'M. Zwicker, H. Pfister, J. van Baar and M. Gross, "EWA volume splatting", IEEE Visualization '
+                       '2001, 29–36 (the local affine approximation of the projection of a Gaussian).',
+    'wang2004_ssim': 'Z. Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli, "Image quality assessment: from error '
+                     'visibility to structural similarity", IEEE Transactions on Image Processing 13(4), 600–612, '
+                     '2004.',
+    'zhang2018_lpips': 'R. Zhang, P. Isola, A. A. Efros, E. Shechtman and O. Wang, "The unreasonable effectiveness of '
+                       'deep features as a perceptual metric", CVPR 2018, arXiv:1801.03924, '
+                       'https://arxiv.org/abs/1801.03924; the lpips package 0.1.4 (BSD-2-Clause), '
+                       'https://github.com/richzhang/PerceptualSimilarity (both read 2026-11-08).',
+    'skimage_ssim': 'scikit-image 0.26.0, skimage.metrics.structural_similarity (gaussian_weights, sigma 1.5, '
+                    'use_sample_covariance False and data_range to match Wang et al. 2004), '
+                    'https://scikit-image.org/docs/stable/api/skimage.metrics.html (read 2026-11-08).',
+    'iso4217':'ISO 4217 Codes for the representation of currencies, list one (current currency and funds code '
                'list), SIX Financial Information as the maintenance agency, published 2026-09-17, '
                'https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/'
                'list-one.xml (read 2026-11-07).',
