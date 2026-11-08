@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DexVantage · Camera, depth and teleop planning for robot-learning data collection</title>
+<meta name="description" content="DexVantage is a free desktop app for planning the cameras, depth sensors and teleoperation of robot manipulation and humanoid data-collection rigs: where the cameras go so fingertips, objects and contacts stay visible at the grasp, where depth is valid, what the teleoperator can reach, and whether the recorded datasets meet the plan. Windows, macOS and Linux; GPL-3.0-or-later.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="DexVantage · Camera, depth and teleop planning for robot-learning data collection">
+<meta property="og:description" content="Place the cameras of a robot data-collection rig, prove what they see at the grasp, check depth, bandwidth, cables and sync, then audit the recorded datasets against the plan. Every figure checked against an independent reference.">
+<meta property="og:image" content="https://sherin-sef-ai.github.io/DexVantage/media/grasp.jpg">
+<meta property="og:url" content="https://sherin-sef-ai.github.io/DexVantage/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="#features">Features</a>
+      <a href="#samples">Samples</a>
+      <a href="#validation">Validation</a>
+      <a href="guide.html">Guide</a>
+      <a href="docs.html">Docs</a>
+      <a href="methods.html">Methods</a>
+      <a href="#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<main id="main">
+<!-- ============================================================ hero -->
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Camera, depth and teleop planning · robot-learning data collection</div>
+    <h1>See the grasp before you build the rig.</h1>
+    <p class="lede">DexVantage plans the cameras, depth sensors and teleoperation of robot data-collection rigs for
+      ACT, Diffusion Policy and VLA models such as OpenVLA, π0 and GR00T. Place the wrist, head, overhead and
+      third-person cameras on the robot and see, before anything is bought or drilled, whether the fingertips, the
+      object and the contact point are visible at the moment of grasp; whether depth is valid where the policy needs it;
+      whether the teleoperator reaches what the follower must; whether the cables, the USB host and the clocks keep up.
+      Then check the recorded datasets against the plan, and export the same cameras to MuJoCo, Isaac Lab, LeRobot and
+      ROS 2.</p>
+    <div class="cta">
+      <a class="btn primary" href="#download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Install</a>
+      <a class="btn" href="guide.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/></svg>How to use it</a>
+      <a class="btn" href="validation.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Validation report</a>
+      <a class="btn" href="https://github.com/Sherin-SEF-AI/DexVantage"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.25.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.08 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>Source on GitHub</a>
+    </div>
+    <div class="hero-media">
+      <div class="frame natural">
+        <img src="media/grasp.jpg" alt="The grasp self-occlusion page on the UR5e + Robotiq 2F-85 sample: the 3D view with the wrist and overhead cameras, the overhead camera's view of the grasps, the Contact Visibility Score and the per-camera table" width="1680" height="1000">
+        <span class="chip">Grasp self-occlusion · UR5e + Robotiq 2F-85 sample</span>
+      </div>
+      <p class="caption">The grasp self-occlusion page on the UR5e sample: for every reachable grasp of the set, which
+        fingertip each camera sees at the moment of contact, the Contact Visibility Score with its interval, and the
+        camera move that would raise it. A screenshot of the application.</p>
+    </div>
+    <div class="facts">
+      <div class="fact"><b>232 of 232</b><span>validation checks pass against independent references (final gate, 2026-11-08)</span></div>
+      <div class="fact"><b>6 samples</b><span>SO-100, UR5e, UR5e + Shadow Hand, ALOHA 2, two Pandas, Unitree G1</span></div>
+      <div class="fact"><b>114.2 s</b><span>for a 2 000-grasp study on the UR5e sample, RTX 5080 (2026-11-08)</span></div>
+      <div class="fact"><b>92.8 %</b><span>of contact points agree with MuJoCo renders (UR5e sample)</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ workflow -->
+<section class="alt" id="workflow">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">From the robot model to an audited dataset</div>
+      <h2>One tool from the first camera to the last episode.</h2>
+      <p>What a policy can learn is decided when the cameras are bolted on: a wrist camera that loses the far fingertip
+        at contact, an overhead camera inside the depth sensor's minimum range, a USB controller that drops frames at
+        30 fps. DexVantage answers those questions on the computer, then checks the recordings against the plan. The
+        <a href="guide.html">guide</a> walks through all of it on the samples.</p>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Import the robot</h3><p>URDF, MJCF, USD or a MuJoCo Menagerie model with its own licence
+        shown. Joint sliders, a pose scrubber over trajectories, IK drag and the gripper and fingertip taggers.</p></div>
+      <div class="step"><h3>Place the cameras</h3><p>Cameras, depth cameras and tactile sensors from a datasheet library
+        on any link, a tripod or the cage; each lens model posed with the robot, its image in the Camera view.</p></div>
+      <div class="step"><h3>Run the studies</h3><p>Coverage, depth validity, grasp self-occlusion, VLA tokens,
+        multi-finger occlusion, teleop reach, lighting, motion blur, sync, bandwidth, cables and brackets, checked
+        against your requirements and against MuJoCo renders.</p></div>
+      <div class="step"><h3>Calibrate and audit</h3><p>Plan the hand-eye calibration, solve it, check the mount from the
+        robot's silhouette, audit LeRobot, RLDS and ROS 2 recordings against the plan, and export the same cameras to
+        simulation and training.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ features -->
+<section id="features">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Features</div>
+      <h2>Know what the policy will see, before anything is drilled.</h2>
+      <p>The screenshots on this page were taken from the application on its bundled samples. Every figure named here
+        is measured; the <a href="#validation">validation</a> section says against what.</p>
+    </div>
+
+    <article class="feature" id="grasp">
+      <div class="text">
+        <div class="eyebrow">The hero study</div>
+        <h3>Which grasps lose a fingertip, and why</h3>
+        <p>A grasp set (sampled over the task volume, imported, or taken from a trajectory or a recorded dataset) is
+          solved by batched IK. For every reachable grasp, DexVantage renders cube maps from each camera against the
+          posed robot and asks whether each fingertip's contact patch, and the object's grasp region, is visible at the
+          moment of contact and just before it.</p>
+        <ul>
+          <li><b>Contact Visibility Score</b>: the share of reachable grasps that meet your requirement, with a
+            bootstrap interval and Wilson's interval.</li>
+          <li><b>Per camera</b>: fingertips seen, outside the image, behind the robot's own finger, hidden by the
+            scene.</li>
+          <li><b>What to move</b>: one camera at a time, the move or turn that raises the score, with Apply, Preview and
+            Explain.</li>
+          <li>2 000 grasps on the UR5e sample in 114.2 s on an RTX 5080 through EGL; on ALOHA 2 182.1 s, over this project's 180 s default (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/performance.md">performance</a>, 2026-11-08).</li>
+        </ul>
+        <a class="more" href="models/grasp.html">The model, its validation and its limits</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/grasp.jpg" alt="Grasp self-occlusion page on the UR5e sample" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature flip" id="depth">
+      <div class="text">
+        <div class="eyebrow">Coverage and depth</div>
+        <h3>Where depth is valid, and where it is not</h3>
+        <p>The task volume is sampled on sparse voxels. For each depth sensor DexVantage says, voxel by voxel, the first
+          condition that fails: outside a field of view, closer than the minimum range at the chosen resolution, beyond
+          the maximum range, occluded for one imager (finger shadows, stereo parallax), outside the projector cone, or a
+          material warning.</p>
+        <ul>
+          <li><b>Minimum range and field of view</b> from the maker's tables; Intel's D400 tables are reproduced with
+            0 figures off.</li>
+          <li><b>Depth noise σ_z</b> from the disparity error, checked against a Monte Carlo of triangulated matches.</li>
+          <li><b>Coverage and resolution</b>: cameras that see each voxel, px/mm, viewing angle, defocus, redundancy.</li>
+        </ul>
+        <a class="more" href="models/depth.html">Depth validity in detail</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/depth.jpg" alt="Depth validity page on the UR5e sample: the share of the task volume with valid depth and the first condition each voxel fails" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature" id="vla">
+      <div class="text">
+        <div class="eyebrow">VLA inputs</div>
+        <h3>How many ViT tokens land on the object and the fingertips</h3>
+        <p>A policy's crop and resize rule and its patch grid come from its model card or paper. DexVantage maps each
+          camera's image through that rule and counts the tokens each object and fingertip covers at each pose, and warns
+          when a crop cuts the task away. The patch grid is drawn in the Camera view.</p>
+        <ul>
+          <li><b>Token counts</b> per object and fingertip, the fewest over the grasp set, and what the crop leaves out.</li>
+          <li><b>Plücker ray maps</b> per input pixel in the robot base frame, exported as <code>.npy</code> or
+            <code>.safetensors</code>.</li>
+          <li>Inference times and input sizes are cited, never constants in the code.</li>
+        </ul>
+        <a class="more" href="models/vla.html">VLA token resolution</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/vla.jpg" alt="VLA token resolution page on the UR5e sample with the patch grid in the Camera view" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature flip" id="dexhand">
+      <div class="text">
+        <div class="eyebrow">Dexterous hands</div>
+        <h3>Which finger hides which contact patch from which camera</h3>
+        <p>For multi-finger hands, DexVantage sweeps grasp postures and builds the finger × camera matrix: the share of
+          each fingertip's contact patch a camera does not see, and what hides most of it (another finger, the palm,
+          the arm, or the image edge). It compares palm micro, dorsal wrist and head cameras and says what to move.</p>
+        <ul>
+          <li><b>Visual-to-tactile handoff</b>: the sensory blind gap, the distance before contact over which a
+            fingertip's contact is neither seen by a camera nor touched by a tactile pad.</li>
+          <li><b>Palm and dorsal micro-camera mounts</b> as printable sleeves.</li>
+        </ul>
+        <a class="more" href="models/dexhand.html">Multi-finger occlusion</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/dexhand.jpg" alt="Multi-finger occlusion page on the UR5e + Shadow Hand sample: the finger by camera matrix" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature" id="hardware">
+      <div class="text">
+        <div class="eyebrow">Hardware engineering</div>
+        <h3>Bandwidth, power, cables and brackets, checked on the model</h3>
+        <p>Every stream's data rate on the wire, each USB controller's and GMSL link's load against its capacity, the
+          disk budget and bus power. Cables are routed along the links and checked for slack, bend radius and snags over
+          the joint range. Brackets come out as watertight STL ready to print.</p>
+        <ul>
+          <li><b>Host topology</b>: hosts, controllers, hubs and capture cards from the library, every figure with its
+            source.</li>
+          <li><b>Cable flex</b> across joints, with a harness sheet.</li>
+          <li><b>Brackets</b>: ISO 9409-1 flange adapters, T-slot clamps, pan-tilt mounts, palm and dorsal sleeves, with
+            a clearance check against the robot.</li>
+        </ul>
+        <a class="more" href="models/bandwidth.html">Bandwidth, hosts and power</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/bandwidth.jpg" alt="Bandwidth page on the UR5e sample: load against capacity and the host topology" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature flip" id="teleop">
+      <div class="text">
+        <div class="eyebrow">Teleop, light and time</div>
+        <h3>What the operator can reach, what the light does, and when the frames were taken</h3>
+        <p>Leader arms, GELLO, VR and space-mouse devices are mapped onto the follower: where the task volume can be
+          teleoperated, where the follower meets a singularity, a joint limit or a self-collision, and the bimanual
+          handover. Lights and materials give glare and IR wash-out per camera; motion blur, rolling shutter, time sync
+          and action-chunk latency follow the robot's own motion.</p>
+        <ul>
+          <li><b>Dead zones</b> named with their pose; Apply moves the base.</li>
+          <li><b>Lighting</b>: GGX materials, area lights, a glare map in the Camera view.</li>
+          <li><b>Timing</b>: smear in pixels, rolling-shutter skew, camera-to-joint offsets, the air-grasp of a late
+            action chunk.</li>
+        </ul>
+        <a class="more" href="models/teleop.html">Teleop overlap and dead zones</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/teleop.jpg" alt="Teleop overlap page on the SO-100 sample with the leader arm" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature" id="calibration">
+      <div class="text">
+        <div class="eyebrow">Calibration</div>
+        <h3>A hand-eye calibration you can plan, and check without a board</h3>
+        <p>ChArUco and AprilGrid detection, AX = XB and AX = ZB solvers with a joint bundle adjustment, and a pose
+          planner that predicts each axis's 1σ before you move the robot. A coach suggests the next pose. Later, the
+          robot's own silhouette checks whether a camera has slipped on its mount.</p>
+        <ul>
+          <li><b>Predicted σ</b> per axis at the planned poses, against your requirement.</li>
+          <li><b>Targetless silhouette check</b> from recorded episodes.</li>
+          <li>Captures from recorded datasets as well as live.</li>
+        </ul>
+        <a class="more" href="models/handeye.html">Hand-eye calibration</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/handeye.jpg" alt="Hand-eye pose plan page on the UR5e sample: predicted 1σ and the board placement" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature flip" id="groundtruth">
+      <div class="text">
+        <div class="eyebrow">Simulation</div>
+        <h3>MuJoCo renders against every prediction</h3>
+        <p>The project becomes a MuJoCo scene; every camera renders through its own lens model; the rendered visibility
+          and depth are compared with the studies' predictions, point by point, and each disagreement is explained (a
+          segmentation edge, a rule, the occlusion test). Synthetic LeRobot v2.1 and v3.0 episodes with known faults
+          test the auditor.</p>
+        <ul>
+          <li>On the UR5e sample the render agrees with the grasp study on 92.8 % of the contact points in view, and
+            with the depth study on 99.8 % of the voxels.</li>
+          <li><b>Save the MuJoCo scene</b> to run it yourself.</li>
+        </ul>
+        <a class="more" href="models/groundtruth.html">Ground truth, measured</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/groundtruth.jpg" alt="Rendered against predicted page on the UR5e sample: the confusion table of contact points" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature" id="data">
+      <div class="text">
+        <div class="eyebrow">Data</div>
+        <h3>Recorded datasets, audited against the plan</h3>
+        <p>LeRobot (v2.1 and v3.0, local or streamed from the Hub), RLDS / Open X-Embodiment and ROS 2 bags (MCAP and
+          SQLite) are read with their cameras and joint states. The auditor checks every episode for dropped and
+          duplicated frames, jitter, USB resets, camera-to-joint offsets, clock drift, exposure steps and motion blur,
+          and says which episodes to drop or record again.</p>
+        <ul>
+          <li><b>Plan against recording</b>: does the recorded rig match the planned one, and has a camera slipped?</li>
+          <li><b>FiftyOne tags</b> for the episodes and frames that fail.</li>
+        </ul>
+        <a class="more" href="models/audit.html">The dataset auditor</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/audit.jpg" alt="Dataset audit page on a synthetic SO-100 campaign with injected faults" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature flip" id="optimise">
+      <div class="text">
+        <div class="eyebrow">Requirements and design</div>
+        <h3>Signed off against requirements, robust to the mount</h3>
+        <p>Requirements name figures the studies compute; the readiness scorecard runs them as a CI gate (exit 0, 1 or
+          2). Monte Carlo tolerances say how far a mount may be off; designed experiments and Sobol indices say what
+          drives each figure; an NSGA-II optimiser and a design agent propose better rigs on a Pareto front.</p>
+        <ul>
+          <li><b>Variants</b> side by side, diff and merge of projects, a Git-friendly folder form.</li>
+          <li><b>Perturbation export</b> for augmentation and Isaac randomisation.</li>
+        </ul>
+        <a class="more" href="models/optimise.html">The optimiser and design agent</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/optimise.jpg" alt="Optimise page on the UR5e sample: designs on the Pareto front" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feature" id="research">
+      <div class="text">
+        <div class="eyebrow">Research tools</div>
+        <h3>From a rig to a paper: runs, statistics, campaigns and the sim-to-real gap</h3>
+        <p>An experiment tracker keeps every run with its settings, figures and provenance (CSV, Parquet, MLflow and W&amp;B
+          exports). Statistics and power analysis compare policies' success rates; the campaign planner schedules
+          operators and sessions in Williams squares with storage and a calendar; the sim-to-real gap ranks what explains
+          the difference between recorded and rendered frames; the publication kit writes methods, tables, figures and
+          BibTeX with every number traced.</p>
+        <ul>
+          <li><b>Cluster sweeps</b> on a process pool or Slurm, gathered to the same result as a serial run.</li>
+          <li><b>Multi-cell comparison</b> of several robot cells side by side.</li>
+        </ul>
+        <a class="more" href="models/stats.html">Statistics and power analysis</a>
+      </div>
+      <div class="media">
+        <div class="frame natural"><img src="media/campaign.jpg" alt="Campaign page on the ALOHA 2 sample: 216 episodes over 2 days, within budget" width="1680" height="1000" loading="lazy"></div>
+      </div>
+    </article>
+    <div class="tiles">
+      <figure><div class="frame natural"><img src="media/statistics.jpg" alt="Statistics page: success rates of three policies compared with Fisher's exact test" width="1680" height="1000" loading="lazy"></div>
+        <figcaption>Statistics: success counts of three policies compared, with the interval of the difference and a
+          corrected p.</figcaption></figure>
+      <figure><div class="frame natural"><img src="media/sim2real.jpg" alt="Sim-to-real gap page: recorded, rendered and difference frames and the ranked causes" width="1680" height="1000" loading="lazy"></div>
+        <figcaption>Sim-to-real gap: recorded, rendered and difference frames, and the causes ranked by the share of
+          the gap each explains.</figcaption></figure>
+    </div>
+
+    <article class="feature flip" id="export">
+      <div class="text">
+        <div class="eyebrow">Export and automation</div>
+        <h3>The same cameras in simulation, training and the robot</h3>
+        <p>Exports to MJCF, URDF and tf, OpenCV and Kalibr, Isaac Lab and USD, LeRobot and policy configs, masks,
+          Plücker maps, brackets, perturbations, the canonical view warp, the Rerun viewer and an HTML or PDF report.
+          Each export carries a provenance block and is read back by an independent reader in the validation suite.</p>
+        <ul>
+          <li><b>Batch mode</b>: every study has a flag, JSON out, exit codes for CI.</li>
+          <li><b>Python API</b> (<code>import dexvantage as dv</code>) and a plugin SDK.</li>
+          <li><b>Assistant and MCP</b>: an Assistant dock (Claude or Groq, with your own key) and an MCP server for MCP
+            clients; proposals run only once you approve them.</li>
+        </ul>
+        <a class="more" href="reference/cli.html">The command-line reference</a>
+      </div>
+      <div class="media">
+        <div class="term" role="img" aria-label="A terminal running DexVantage in batch mode on the samples">
+          <div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c"># a sample's summary, then two studies</span>
+<span class="p">$</span> dexvantage --sample aloha --analyse -
+<span class="p">$</span> dexvantage --sample ur5e --grasp grasp.json
+<span class="p">$</span> dexvantage --sample ur5e --groundtruth gt.json
+
+<span class="c"># the cameras for simulation and training</span>
+<span class="p">$</span> dexvantage --sample ur5e --export out/ \
+    --formats mjcf,urdf,opencv_yaml,isaac,lerobot,report
+
+<span class="c"># a CI gate: exit 0 pass, 1 fail, 2 error</span>
+<span class="p">$</span> dexvantage cell.dexv --check defaults sc.json
+
+<span class="c"># the validation suite and its report</span>
+<span class="p">$</span> dexvantage --validate out/validation</pre>
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============================================================ samples -->
+<section class="alt" id="samples">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Samples</div>
+      <h2>Six robot cells to start from.</h2>
+      <p>Each opens with <code>dexvantage --sample &lt;id&gt;</code> or File ▸ Open sample. The robots are MuJoCo
+        Menagerie models bundled after their licences were read; cameras sit where a project publishes them and are
+        labelled sample placements otherwise. Each has a tour in the <a href="guide/samples.html">guide</a>.</p>
+    </div>
+    <div class="grid3">
+      <div class="card"><h4>ALOHA 2 · <code>aloha</code></h4><p>Two ViperX 300 arms (BSD-3-Clause), the published
+        <code>cam_high</code>, <code>cam_low</code> and wrist cameras, tabletop and handover volumes, ACT and two
+        leader arms.</p></div>
+      <div class="card"><h4>SO-100 · <code>so100</code></h4><p>The LeRobot SO-ARM100 (Apache-2.0) with a wrist and a
+        third-person camera, top-down pinches, SmolVLA and its leader arm.</p></div>
+      <div class="card"><h4>UR5e + Robotiq 2F-85 · <code>ur5e</code></h4><p>A wrist RealSense D405 and an overhead D435,
+        200 tabletop grasps, π0 and a scripted pick trajectory.</p></div>
+      <div class="card"><h4>UR5e + Shadow Hand · <code>dexhand</code></h4><p>The right Shadow Hand on the flange with a
+        palm micro camera, a dorsal wrist camera and a head camera, for the multi-finger study.</p></div>
+      <div class="card"><h4>Bimanual Panda · <code>panda-bimanual</code></h4><p>Two Franka Pandas (Apache-2.0) in one
+        cell with wrist D405s and a front D435. There is no official bimanual Franka model: this is two instances of the
+        single-arm one.</p></div>
+      <div class="card"><h4>Unitree G1 upper body · <code>g1</code></h4><p>Arms and three-finger hands (BSD-3-Clause,
+        meshes simplified to within 0.5 mm), the head D435 where Unitree's URDF puts it, GR00T N1.5.</p></div>
+    </div>
+    <div class="tiles">
+      <figure><div class="frame natural"><img src="media/aloha.jpg" alt="The ALOHA 2 sample in the main window" width="1680" height="1000" loading="lazy"></div>
+        <figcaption>ALOHA 2: two arms, four cameras, the tabletop and handover volumes.</figcaption></figure>
+      <figure><div class="frame natural"><img src="media/panda.jpg" alt="The bimanual Panda sample in the main window" width="1680" height="1000" loading="lazy"></div>
+        <figcaption>Two Franka Pandas in one cell, with wrist and front cameras.</figcaption></figure>
+      <figure><div class="frame natural"><img src="media/g1.jpg" alt="The Unitree G1 upper-body sample in the main window" width="1680" height="1000" loading="lazy"></div>
+        <figcaption>The Unitree G1 upper body with its head camera.</figcaption></figure>
+      <figure><div class="frame natural"><img src="media/so100.jpg" alt="The SO-100 sample in the main window" width="1680" height="1000" loading="lazy"></div>
+        <figcaption>The SO-100 arm with its wrist and third-person cameras.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ validation -->
+<section id="validation">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Validation</div>
+      <h2>Every model checked against a reference that shares none of its code.</h2>
+      <p>232 checks compare DexVantage's models with closed forms written out again, other libraries, published tables,
+        brute-force ray casting, Monte Carlo and MuJoCo renders. A selection of the full run at the final gate (report
+        dated 2026-11-08 UTC, Linux x86_64); the <a href="validation.html">validation report</a> has every check with
+        its tolerance and the reason for it.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="figures">
+        <thead><tr><th>Model</th><th>Independent reference</th><th>Largest error measured</th><th>Check</th></tr></thead>
+        <tbody>
+          <tr><td>Forward kinematics</td><td>a product-of-exponentials chain with its own XML reader</td><td class="num">8.74 × 10⁻¹⁵ m</td><td><a href="validation.html#c-kinematics.fk_poe_mujoco"><code>kinematics.fk_poe_mujoco</code></a></td></tr>
+          <tr><td>Lens models</td><td>OpenCV <code>projectPoints</code></td><td class="num">1.82 × 10⁻¹² px</td><td><a href="validation.html#c-optics.opencv_pinhole_brown"><code>optics.opencv_pinhole_brown</code></a></td></tr>
+          <tr><td>Occlusion (cube maps)</td><td>exact ray casting (Möller–Trumbore)</td><td class="num">0.001835 of points</td><td><a href="validation.html#c-occlusion.samples_vs_raycast"><code>occlusion.samples_vs_raycast</code></a></td></tr>
+          <tr><td>Grasp visibility</td><td>exact ray casting of the scene built again</td><td class="num">0 of the locations</td><td><a href="validation.html#c-grasp.visibility_vs_raycast"><code>grasp.visibility_vs_raycast</code></a></td></tr>
+          <tr><td>Contact points in view</td><td>MuJoCo segmentation and depth renders</td><td class="num">92.8 % agree</td><td><a href="validation.html#c-groundtruth.ur5e_contacts"><code>groundtruth.ur5e_contacts</code></a></td></tr>
+          <tr><td>Depth noise σ_z</td><td>Monte Carlo of triangulated matches</td><td class="num">0.006978 relative</td><td><a href="validation.html#c-depth.sigma_z_monte_carlo"><code>depth.sigma_z_monte_carlo</code></a></td></tr>
+          <tr><td>VLA tokens</td><td>per-pixel ray casting through the crop</td><td class="num">0 tokens</td><td><a href="validation.html#c-vla.patch_counts_raycast"><code>vla.patch_counts_raycast</code></a></td></tr>
+          <tr><td>Hand-eye planner σ</td><td>the bundle adjustment's covariance</td><td class="num">0.008734 ln ratio</td><td><a href="validation.html#c-handeye.planner_vs_ba"><code>handeye.planner_vs_ba</code></a></td></tr>
+          <tr><td>Action-chunk latency</td><td>an event-by-event simulation</td><td class="num">2.91 × 10⁻⁵ m</td><td><a href="validation.html#c-chunk.loop_vs_simulation"><code>chunk.loop_vs_simulation</code></a></td></tr>
+          <tr><td>URDF export</td><td>urdfdom's rules and MuJoCo's URDF loader</td><td class="num">1.07 × 10⁻¹⁵ m</td><td><a href="validation.html#c-formats.urdf_roundtrip"><code>formats.urdf_roundtrip</code></a></td></tr>
+          <tr><td>Power analysis</td><td>the G*Power 3.1 manual's examples</td><td class="num">4.62 × 10⁻⁷</td><td><a href="validation.html#c-stats.power_gpower"><code>stats.power_gpower</code></a></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Every result also carries a provenance block (the version, the inputs' hashes, the settings and the
+      seeds), so a figure can be reproduced with <code>--reproduce</code> and traced to its model in the
+      <a href="docs.html">models and methods</a>.</p>
+  </div>
+</section>
+
+<!-- ============================================================ limits -->
+<section class="alt" id="limits">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Known limits</div>
+      <h2>What it does not do yet.</h2>
+      <p>Each model's document has its own known limits. The main ones:</p>
+    </div>
+    <div class="grid3">
+      <div class="card"><h4>Not run against the real programs</h4><p>Isaac Lab and Isaac Sim, LeRobot's own loader and
+        trainer, ACT, Diffusion Policy, OpenVLA, Kalibr and FiftyOne were not installed while building: the exports follow
+        the cited formats and are read back by independent readers.</p></div>
+      <div class="card"><h4>Hardware figures</h4><p>Most makers state no lens distortion, readout time, sensitivity or
+        processing latency, so those figures are bounds until you enter measured values. A figure the maker does not
+        state shows as "not stated".</p></div>
+      <div class="card"><h4>Grasps and hands</h4><p>The fingers stay at their home opening, obstacles are not checked
+        along the approach, and dexterous-hand postures are sample sweeps, not measured synergies.</p></div>
+      <div class="card"><h4>Ground truth and calibration</h4><p>MuJoCo renders agree with the predictions on 92.8 %
+        (UR5e) and 84.2 % (SO-100) of the contact points in view; distorted lenses render slowly. End to end from
+        rendered images, the hand-eye error is about 2–2.5 × the predicted σ: treat σ as a lower bound.</p></div>
+      <div class="card"><h4>Speed off Linux</h4><p>The GPU cube maps need Linux EGL; elsewhere the occlusion studies
+        use the NumPy rasteriser, 15–270 × slower per cube map on the samples. The QPainter 3D fallback takes
+        160–586 ms a frame.</p></div>
+      <div class="card"><h4>Release and platforms</h4><p>Version 0.1.0rc1 is the first release candidate; nothing has
+        been tagged or released. Built and tested on Linux x86_64 with Python 3.14 only: the Windows, macOS and arm64
+        bundles are built by CI, which has not run yet.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ download -->
+<section id="download">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Install · release candidate 0.1.0rc1</div>
+      <h2>Install DexVantage.</h2>
+      <p>DexVantage is free software under the GPL-3.0-or-later. The bundles below carry their own Python and need
+        nothing else; they will be available from the <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">release
+        page</a> once released, with SHA-256 checksums in <code>SHA256SUMS.txt</code>. Until then, install from source
+        with Python 3.10 or later. The bundles are not code-signed, so the first start asks you to confirm.</p>
+    </div>
+    <div class="dl">
+      <div class="card"><span class="os">Windows</span><h4>Installer</h4>
+<pre>DexVantage-&lt;version&gt;-windows-x64-setup.exe
+DexVantage-&lt;version&gt;-windows-x64.zip</pre><p>Windows 10 or 11, x64. Installs for your user without administrator rights. SmartScreen: <em>More info ▸ Run anyway</em>.</p></div>
+      <div class="card"><span class="os">macOS</span><h4>App</h4>
+<pre>DexVantage-&lt;version&gt;-macos-arm64.zip</pre><p>Apple silicon. Not signed: the first time, choose <em>Open Anyway</em> in <em>System Settings ▸ Privacy &amp; Security</em>.</p></div>
+      <div class="card"><span class="os">Linux</span><h4>Bundle, no Python</h4>
+<pre>DexVantage-&lt;version&gt;-linux-x86_64.tar.gz
+DexVantage-&lt;version&gt;-linux-arm64.tar.gz</pre><p>x86_64, or arm64 for an NVIDIA Jetson (JetPack 6 or 7); glibc 2.35 or later (Ubuntu 22.04 or later). Check the installation with <code>dexvantage --self-test</code>.</p></div>
+      <div class="card"><span class="os">Python</span><h4>From source</h4>
+<pre>git clone https://github.com/Sherin-SEF-AI/DexVantage
+cd DexVantage
+python3 -m venv .venv
+.venv/bin/pip install -e .
+.venv/bin/dexvantage --sample aloha</pre><p>Python 3.10 or later, any system. Extras: <code>[lerobot]</code> for LeRobot datasets, <code>[bags]</code> for compressed ROS 2 bags, <code>[usd]</code> for USD and Isaac, <code>[assistant]</code> for the Assistant's Claude provider.</p></div>
+    </div>
+    <div class="head" id="cite" style="margin-top:56px;margin-bottom:0">
+      <div class="eyebrow">Cite</div>
+      <h2>Citing DexVantage.</h2>
+      <p>If you use DexVantage in your research, cite it with the metadata in
+        <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">CITATION.cff</a>; GitHub's "Cite
+        this repository" gives APA and BibTeX from it.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="" width="22" height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots
+        were taken from the application by <code>scripts/screens.py</code>. Robot, camera and policy names describe the
+        bundled samples and the hardware library and belong to their owners; no affiliation is implied. This site loads
+        nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="guide.html">User guide</a>
+      <a href="docs.html">Models and methods</a>
+      <a href="methods.html">Technical reference</a>
+      <a href="validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="assets/js/site.js"></script>
+</body>
+</html>

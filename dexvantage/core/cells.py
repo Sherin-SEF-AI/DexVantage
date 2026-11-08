@@ -80,6 +80,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .jobs import Ctx, StudyError
+from .metrics import delta_unit
 
 SCHEMA = 'dexvantage.cells/1'
 SID = 'cells'
@@ -1050,7 +1051,7 @@ def to_html(doc: dict, provenance: dict | None = None) -> str:
             b = {'at_least': '≥ ', 'at_most': '≤ '}.get(r['bounds'][k] or '', '')
             tip = e(r['reasons'][k] or '')
             tds.append(f'<td class="m {cls}" title="{tip}">{e(b + _fmt(v, r["unit"]))}</td>')
-        diffs = '; '.join(f'{e(names[d["cell"]])}: {e(_fmt(d["delta"], r["unit"]))}'
+        diffs = '; '.join(f'{e(names[d["cell"]])}: {e(_fmt(d["delta"], delta_unit(r["unit"])))}'
                           + (' meaningful' if d['meaningful'] else ' within the spread' if d['meaningful'] is False
                              else '') for d in r['differences'] if d['delta'] is not None)
         out.append(f'<tr><td>{e(r["title"])}</td>{"".join(tds)}<td>{diffs or "—"}</td></tr>')

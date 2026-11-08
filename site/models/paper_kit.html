@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publication kit (paper kit) · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/publication.py (the kit), dexvantage/core/exporters/paper_kit.py (the paper_kitexport format), dexvantage/ui/pages/publication.py (Export ▸ Paper kit…), dv.publication indexvantage/api.py, the assistant tool get_methods_paragraph (dexvantage/assistant/tools.py). …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-the-kit-holds">What the kit holds</a>
+    <a href="#every-number-traced">Every number traced</a>
+    <a href="#settings">Settings</a>
+    <a href="#validation-model-publication">Validation (model publication)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/paper_kit.md"><code>docs/models/paper_kit.md</code></a></p>
+<h1 id="publication-kit-paper-kit">Publication kit (paper kit)</h1>
+<p>Modules: <code>dexvantage/core/publication.py</code> (the kit), <code>dexvantage/core/exporters/paper_kit.py</code> (the <code>paper_kit</code>
+export format), <code>dexvantage/ui/pages/publication.py</code> (Export ▸ Paper kit…), <code>dv.publication</code> in
+<code>dexvantage/api.py</code>, the assistant tool <code>get_methods_paragraph</code> (<code>dexvantage/assistant/tools.py</code>). Validation:
+<code>dexvantage/validation/checks_publication.py</code> (model <code>publication</code>). Built on <code>core/cite.py</code> (BibTeX entries),
+<code>core/figures.py</code> (SVG and PDF figures) and the report exporter (<code>core/exporters/report.py</code>: the results gathered,
+the named figures read), described in <a href="publication.html">Citations and publication figures</a>.</p>
+<h2 id="what-the-kit-holds">What the kit holds</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>methods.tex</code></td>
+<td>the methods paragraph: the software (DexVantage version and commit, MuJoCo, Python), each robot with its model source, commit and licence, each enabled sensor (maker and model, stream size and frame rate, field of view, mount site and pose), the studies with the settings the project stores for them and the validation status of each study's model, with <code>\cite{}</code> keys</td>
+</tr>
+<tr>
+<td><code>tables/sensors.tex</code></td>
+<td>the sensors: device, kind, stream, rate, FOV, mount, position</td>
+</tr>
+<tr>
+<td><code>tables/results.tex</code></td>
+<td>every named figure (core/metric_defs.py) of every result, with its unit and, where the result states one, its interval (the grasp study's bootstrap interval; P5 to P95 of a tolerance Monte Carlo)</td>
+</tr>
+<tr>
+<td><code>tables/scorecard.tex</code></td>
+<td>the requirements scorecard (value, threshold, margin, status)</td>
+</tr>
+<tr>
+<td><code>tables/experiments.tex</code></td>
+<td>an experiment's factors, its responses (runs, mean, SD, min, max) and its Sobol indices with their intervals</td>
+</tr>
+<tr>
+<td><code>tables/variants.tex</code></td>
+<td>the variants against the requirements (a Variants compare result), else each variant's sensors</td>
+</tr>
+<tr>
+<td><code>tables/statistics.tex</code></td>
+<td>the Statistics study's comparisons (when its result is present): the test, each side's figure (a rate in per cent, else the mean), B − A with its interval (percentage points for rates), the corrected p-value, the unit and the verdict word</td>
+</tr>
+<tr>
+<td><code>tables/cells.tex</code></td>
+<td>the multi-cell comparison (when present): each figure of merit per cell (a bound written ≥ or ≤, &quot;not stated&quot; where a cell does not state it) and the geometric gap index of each cell to the reference</td>
+</tr>
+<tr>
+<td><code>tables/runs.tex</code></td>
+<td>the experiment tracker's runs (when the 'tracking' result is present, or the project's tracking is on and its store holds runs): the newest 20 (a default), each with its start, study, status and headline figure</td>
+</tr>
+<tr>
+<td><code>figures/&lt;id&gt;-single.pdf/.svg</code>, <code>-double</code></td>
+<td>each result's per-item chart (the report's rule) and an experiment's Sobol indices, at 88.9 mm and 182 mm</td>
+</tr>
+<tr>
+<td><code>refs.bib</code></td>
+<td>exactly the entries the <code>.tex</code> files cite (core/cite.py, references <code>all</code>, filtered)</td>
+</tr>
+<tr>
+<td><code>appendix.tex</code></td>
+<td>the run plan's steps and the figures each regenerates, the seeds, the software versions, each result's SHA-256</td>
+</tr>
+<tr>
+<td><code>reproduce/run_plan.json</code></td>
+<td>a <code>--run-plan</code> file: one study step per result (with its stored settings), the scorecard check, then this export again</td>
+</tr>
+<tr>
+<td><code>main.tex</code></td>
+<td><code>\input</code>s the parts and includes the figures; <code>pdflatex main; bibtex main; pdflatex main</code> twice</td>
+</tr>
+<tr>
+<td><code>provenance.json</code></td>
+<td>the kit's contents, the trace of every number of the paragraph, the checks and their outcome, the provenance block</td>
+</tr>
+</tbody>
+</table>
+<h2 id="every-number-traced">Every number traced</h2>
+<p>The paragraph is written through a <code>Writer</code> that records, for each number, where it is read from: a path into the
+project's JSON (<code>project.variants[0].sensors[1].mount.pose.position[2]</code>), a library entry
+(<code>library.intel-realsense-d405.streams[0].fps[2]</code>), a result, the software environment, the validation report, the
+check registry (<code>registry.timing</code>: the number of registered checks), or a count (the length of a list there).
+<code>verify_numbers</code> resolves every recorded place again and accepts a written number only when the source value
+rounded to the digits shown equals it, <code>|v − t| ≤ ½·10^−d</code>, and requires every number of the paragraph to have such
+an entry. Units are never converted in the prose: positions are metres and orientations unit quaternions (x, y, z,
+w), as the project stores them, rounded to 3 and 4 decimals (DexVantage defaults); stated device figures are written
+as the library states them (4 significant digits at most). Table rows end with <code>% dv-src: [...]</code>, one source per
+number cell, and <code>verify_tables</code> checks each cell the same way (a named figure through <code>core.metrics.read</code>).</p>
+<p>Frame rates and stream sizes are those the bandwidth model takes for the sensor: the rig's link when it names
+streams, else its labelled default selection (the largest stream of the chosen imager at the listed rate nearest the
+default 30 fps), and the paragraph says which. A field of view is the one the maker states for the first stream's imager (the sentence names that stream when it
+lists several, so a depth camera's depth FOV is not read as its RGB stream's):
+the stated mode of the stream's aspect when the stream is not the native image, else the imager's own for its native
+image (said with the native size). A sensor with no library device is described by DexVantage's default camera, with
+&quot;DexVantage defaults, not a device's figures&quot;.</p>
+<p><strong>Validation status.</strong> Each study maps to the validation models that check it (<code>STUDY_MODELS</code>, e.g. coverage →
+occlusion and optics). Given a validation report (<code>validation.json</code> of Help ▸ Validate or <code>--validate</code>), the
+paragraph says how many of each model's checks passed; without one it says how many checks are registered and cites
+up to two of their references. A check module that fails to import is named instead of a count.</p>
+<p><strong>Tables</strong> follow booktabs' guidelines: no vertical rules, no double rules, units in the column heading where a
+column has one unit (Fear, booktabs v1.61803398 documentation, §2, read 2026-11-07). With the setting <code>siunitx</code>
+(default off, a DexVantage default) numbers are <code>\num{…}</code>, quantities <code>\qty{…}{…}</code> and units <code>\unit{…}</code> with
+siunitx's macros for %, °, m, mm, s, ms, g, W and its literal input for the rest (Mbit/s, px/mm; Wright, siunitx 3.6.7
+manual §3.4, read 2026-11-07); without it <code>\dvnum{…}</code>, which each file defines as <code>\ensuremath{#1}</code>, so only booktabs
+and graphicx are needed.</p>
+<h2 id="settings">Settings</h2>
+<p><code>project.analysis.studies['publication']</code> (the page's Apply keeps them; options override): <code>sections</code> (methods,
+sensors, results, scorecard, experiments, variants, figures, appendix; default all), <code>siunitx</code> (False), <code>widths</code>
+(single and double), <code>pdf_figures</code> (True), <code>bibliography</code> (<code>bibtex</code> with the plain style, or <code>biblatex</code> with biber),
+<code>title</code>. Export options besides: <code>results</code>, <code>results_dir</code>, <code>studies</code> (as the report: without results every study but
+the meta-studies runs first), <code>validation</code>, <code>figure_specs</code> (more core/figures specs, such as a page chart's).</p>
+<h2 id="validation-model-publication">Validation (model <code>publication</code>)</h2>
+<p>Measured 2026-11-07 on the SO-100 sample with the results of rig inventory, bandwidth, coverage, time sync and
+motion blur run in the check, and a grasp result written in the check (so the interval column is exercised):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference (independent)</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>publication.methods_numbers</code></td>
+<td>every number of <code>methods.tex</code>, found with a pattern written in the check, looked for in the source data read there: <code>Project.to_dict</code>, the library JSON files on disk, the results, <code>importlib.metadata</code> versions, the check registry, list lengths</td>
+<td>0 numbers not found (≥ 20 numbers)</td>
+<td>0 of 37 (a membership test over a large pool: it catches a number with no source anywhere, not one read from the wrong place, which <code>verify_numbers</code>' per-number trace and the tests' planted numbers cover)</td>
+</tr>
+<tr>
+<td><code>publication.bibtex_keys</code></td>
+<td><code>\cite{}</code> keys read in the check against refs.bib read with checks_versioning's brace-counting parser</td>
+<td>0</td>
+<td>0 (12 cited, 12 defined)</td>
+</tr>
+<tr>
+<td><code>publication.latex_structure</code></td>
+<td>a character scan written in the check: braces, <code>\begin</code>/<code>\end</code> order (verbatim skipped), <code>\input</code> and <code>\includegraphics</code> targets, no `</td>
+<td><code>column rule and no</code>\hline`</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>publication.table_numbers</code></td>
+<td>each <code>\num</code>/<code>\dvnum</code> cell against <code>core.metrics.read</code> on the result or the value at its path read in the check</td>
+<td>0 cells beyond ½ unit of the last digit (or 5 × 10⁻⁴ of the value)</td>
+<td>0 of 60 cells in 30 rows</td>
+</tr>
+</tbody>
+</table>
+<p>The tests (<code>tests/test_publication.py</code>) do the same on the SO-100 and UR5e samples, with a number planted in the
+paragraph and a table value changed to show that both are caught. <strong>Compile:</strong> no LaTeX engine (pdflatex, lualatex,
+tectonic) was on PATH on the build machine, so the compile test skipped and only the structural check ran; where one
+is installed the test runs <code>pdflatex</code>, <code>bibtex</code> and <code>pdflatex</code> twice on the kit of both unit settings and requires
+<code>main.pdf</code>.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The paragraph describes what the project and the results state and nothing else: no task description, no claim about
+the data the rig will record, no interpretation of a figure. Stream rates and sizes are the bandwidth model's
+selection, not a recording's. A field of view is the maker's for the native image or the stated mode of that aspect,
+not re-derived for a cropped stream (the studies' camera models do that). Only each result's per-item chart (chosen
+by the report's naming rule, so not necessarily its most important figure) and an experiment's Sobol indices are
+drawn, plus specs passed in. Characters outside Latin-1 with no TeX equivalent in <code>TEX_UNICODE</code> become <code>?</code>. The
+LaTeX check is structural; the kit is compiled only where an engine is installed. Classic BibTeX styles do not know
+<code>@software</code> and <code>urldate</code> (the date is also in <code>note</code>); choose biblatex for them. The headless API reads the Qt
+version from the package metadata rather than importing Qt; the PDF figures need Qt's PDF writer (offscreen is
+enough), without it only the SVGs are written and <code>main.tex</code> says so in a box.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

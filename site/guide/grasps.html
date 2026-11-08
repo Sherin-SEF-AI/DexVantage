@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grasp sets: a worked example on the UR5e and SO-100 samples · DexVantage</title>
+<meta name="description" content="The grasp self-occlusion study asks, for many grasps, whether the cameras see the fingertips and the object atcontact. Its input is a grasp set: gripper poses at contact with their approach direction. The Tasks page makes,imports, lists and deletes them. The model, the rules and their validation …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-sample-a-set-on-the-ur5e">1. Sample a set on the UR5e</a>
+    <a href="#2-grasp-an-object">2. Grasp an object</a>
+    <a href="#3-the-so-100">3. The SO-100</a>
+    <a href="#4-import-a-file">4. Import a file</a>
+    <a href="#5-from-a-trajectory">5. From a trajectory</a>
+    <a href="#5a-from-a-recorded-dataset">5a. From a recorded dataset</a>
+    <a href="#6-export-and-delete">6. Export and delete</a>
+    <a href="#in-scripts">In scripts</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/grasps.md"><code>docs/guide/grasps.md</code></a></p>
+<h1 id="grasp-sets-a-worked-example-on-the-ur5e-and-so-100-samples">Grasp sets: a worked example on the UR5e and SO-100 samples</h1>
+<p>The grasp self-occlusion study asks, for many grasps, whether the cameras see the fingertips and the object at
+contact. Its input is a grasp set: gripper poses at contact with their approach direction. The Tasks page makes,
+imports, lists and deletes them. The model, the rules and their validation are in
+<a href="../models/grasps.html">Grasp sets</a>.</p>
+<h2 id="1-sample-a-set-on-the-ur5e">1. Sample a set on the UR5e</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ UR5e and Robotiq 2F-85 with a wrist D405 and an overhead D435.</strong></li>
+<li>Open <strong>Tasks</strong> (Tasks ▸ Tasks). The sample comes with one set, &quot;Tabletop grasps (sample)&quot; (200 grasps: top-down,
+side and angled, seed 0), so the headline reads <code>200 grasps in 1 set</code>. To follow these steps from an empty list,
+select it and press <strong>Delete set</strong>; the headline then reads <code>0 grasps · none yet</code>.</li>
+<li>Under <strong>Sample a grasp set</strong>: robot &quot;UR5e + Robotiq 2F-85&quot;, task volume &quot;Tabletop (sample)&quot;, tick <strong>Top-down
+pinch</strong>, <strong>Side grasp</strong> and <strong>Angled</strong>, 90 grasps, seed 1.</li>
+<li>Press <strong>Preview</strong>: the grasps are drawn in the 3D view as dashed glyphs (a stem along the approach, a palm, two
+fingers ending at the grasp centre; blue top-down, orange side, green angled) and in the Camera view. Nothing is
+added yet.</li>
+<li>Press <strong>Add set</strong>. The headline reads <code>90 grasps in 1 set · ready</code>; the table lists
+&quot;Sampled: top-down pinch, side grasp, angled (90)&quot;, source <code>sampled</code>, 90 poses, 30 of each kind. <strong>Edit ▸ Undo</strong>
+removes it in one step. A set of 1 000 grasps or more is sampled on a worker thread (the status bar shows
+&quot;Sampling … grasps&quot;); the preview or the new set appears when it is done.</li>
+</ol>
+<p>The status bar says why the grasps sit where they do: &quot;No task object is in Tabletop (sample): grasp points are on
+its support surface, 30 mm up.&quot; The sample's volume holds no objects, so the grasp centres are 30 mm (a default)
+above the table, spread over the volume's footprint. The selected set's note gives the gripper geometry used: the
+grasp centre (TCP) 130.7 mm out along <code>gripper_base</code>'s z axis, between the 2F-85's pads, measured from their inner
+faces at home.</p>
+<p>What the UR5e can reach (IK with 8 seeds, self-collision checked, <code>ik.solve_batch(..., tcp=…)</code> through
+<code>grasps.ik_targets</code>): top-down 30 of 30, side 28 of 30 (2 &quot;no convergence&quot;), angled 29 of 30 (1 &quot;self-collision&quot;).</p>
+<h2 id="2-grasp-an-object">2. Grasp an object</h2>
+<p>Add a box with <strong>Workspace ▸ Add object</strong> inside the task volume and sample again. The table's note now reads
+&quot;Grasp points on 1 task object in Tabletop (sample)&quot;: top-down grasps close across the box's narrower side, their
+centre half the pads' length (18.5 mm) below its top; side and angled grasps centre on the box; each pose records
+the object's uid and <code>width_m</code>, the box's extent along the closing axis.</p>
+<h2 id="3-the-so-100">3. The SO-100</h2>
+<p>Open the SO-100 sample and sample the same three kinds. The gripper frame is <code>Fixed_Jaw</code>; the TCP sits between the
+jaws' inner faces, 82.9 mm along the jaw, with the jaws 21.8 mm apart at home. The arm has five joints, so IK reaches
+the grasp centre first and turns the jaw as far as it can: top-down 26 of 30 reached (orientation exact for 1), side
+5 of 30 (14 &quot;joint limit&quot;, 11 &quot;out of reach&quot;), angled 24 of 30. A side grasp needs a sixth joint, which the SO-100
+does not have; keep to top-down and angled sets for it.</p>
+<h2 id="4-import-a-file">4. Import a file</h2>
+<p><strong>Import file…</strong> reads CSV or JSON for the robot chosen in the form. A minimal CSV:</p>
+<pre><code>id,x,y,z,qx,qy,qz,qw,ax,ay,az,kind,object
+a,-0.10,0.50,0.03,1,0,0,0,0,0,-1,top_down,
+b,-0.20,0.45,0.05,0.7071068,0,0,0.7071068,,,,,cup
+</code></pre>
+<p>Positions are metres, the quaternion is the gripper frame's (x, y, z, w) in the world; a row without ax, ay, az gets
+the gripper's approach axis turned by its orientation. A mistake is named with its line and column, for example
+&quot;Could not import grasps.csv: Line 3, column y: &quot;abc&quot; is not a number. Write positions in metres and the quaternion
+as four numbers (x, y, z, w).&quot; A file in millimetres is imported with the note &quot;1 position is more than 5 m from the
+origin: the file must be in metres, not millimetres.&quot;</p>
+<h2 id="5-from-a-trajectory">5. From a trajectory</h2>
+<p>With a trajectory in the project (<strong>Robot ▸ Import trajectory…</strong>), pick it next to <strong>Add from trajectory</strong>.</p>
+<ul>
+<li><strong>Where it closes</strong> (the default) adds the grasps the trajectory performs: one each time the opening between the
+contact pads falls by 5 mm or more (a default), at the moment the fingers start to close, approaching the way the
+tool centre came in over its last 20 mm. On the UR5e sample with the scripted pick of the validation check
+(<code>validation/checks_grasps.scripted_pick</code>: lower, close, lift, open, move, close) the set holds two grasps, at
+1.25 s and 3.50 s, and the message says &quot;the gripper closes 2 times in the trajectory&quot;. Run the grasp study on it to
+see whether the cameras see the fingertips at those moments.</li>
+<li><strong>Every N samples</strong> adds the gripper frame at samples 0, N, 2N, …, each with its time.</li>
+</ul>
+<p>Tick <strong>Swept volume</strong> to see where the arm goes along the chosen trajectory: the robot drawn see-through at 8 evenly
+spaced times (a default), fainter early and stronger late (<code>core/robot/swept.py</code>; the first time for a robot its
+meshes are simplified as a background job, a few hundred milliseconds).</p>
+<h2 id="5a-from-a-recorded-dataset">5a. From a recorded dataset</h2>
+<p><strong>From a dataset…</strong> (next to <strong>Import file…</strong>) reads the grasps a recording performs: each episode's joint states are
+read like a trajectory and one grasp is added each time the gripper closes by 5 mm or more (a default), exactly as
+<strong>Where it closes</strong> above. The dialog asks for the dataset (<strong>Folder…</strong> for a LeRobot v2.1 or v3.0 dataset, a ROS 2
+bag folder or an RLDS folder; <strong>File…</strong> for a single <code>.mcap</code> or <code>.db3</code> bag, or a LeRobot <code>meta/info.json</code>, which
+stands for its dataset), the episodes (<code>all</code>, or <code>0, 2-4</code>), <strong>Where it closes</strong> or <strong>Every N rows</strong>, and the unit of
+the recorded joints (rad, or deg for recordings that store degrees). The set is for the robot chosen in the form
+above. The episodes are read on a worker thread (the status bar shows the progress); the set is added in one undo
+step.</p>
+<p>Worked example on the UR5e sample (measured 2026-11-07):</p>
+<ol>
+<li><strong>Simulate ▸ Generate synthetic episodes…</strong> with 2 episodes, the faults unticked, writes a LeRobot v3.0 dataset of
+the sample's scripted pick (2 × 136 rows at 30 fps, both cameras rendered in MuJoCo on the RTX 5080, 8.4 s).</li>
+<li><strong>Tasks ▸ From a dataset…</strong>, <strong>Folder…</strong> that dataset, <strong>Read</strong>. The message says &quot;Added 2 grasps from 2
+episode(s) of synth: the gripper closes 2 times&quot;, and the set's poses are named <code>e0c1</code> and <code>e1c1</code> (episode 0, its
+first closing), each at 1.50 s: the row before the 2F-85's fingers start to move. Reading the two episodes took
+24 ms; 200 episodes of the same pick, 27 200 rows, took 0.87 s (31 000 rows/s, on this machine's CPU).</li>
+<li>Run the grasp study on the set to see whether the cameras saw the fingertips at those moments.</li>
+</ol>
+<p>Joint names are matched to the robot's by name; LeRobot's <code>shoulder_pan.pos</code> or <code>main_shoulder_pan</code> style names are
+also matched (the set's settings say which rule matched). A recording whose joints are not the robot's is refused in
+words (&quot;it looks like another robot's recording&quot;); one whose joints are degrees read as radians is said in the notes
+(&quot;the values look like degrees&quot;). A gripper stored as a percentage of its stroke, as some LeRobot SO-100 recordings
+do, is not a joint angle: convert it first.</p>
+<h2 id="6-export-and-delete">6. Export and delete</h2>
+<p><strong>Export…</strong> writes the selected set as JSON with the provenance block. <strong>Delete set</strong> removes it in one undo step.</p>
+<h2 id="in-scripts">In scripts</h2>
+<pre><code>from dexvantage.core import grasps
+from dexvantage.core.robot.samples import sample_project
+p = sample_project('ur5e')
+gs = grasps.sample(p, p.robots[0].uid, ['top_down', 'angled'], 500, rng_seed=1)
+grasps.add_set(p, gs)
+tips = grasps.contact_points(p, p.robots[0].uid, q)        # {'gripper_right_pad': (128, 3), ...}
+approach = grasps.pre_contact_poses(gs['poses'][0], [0.02, 0.04, 0.06])
+picks = grasps.from_trajectory(p, traj_uid, mode='closures')  # one grasp per closing of the gripper
+rec = grasps.from_dataset(p, 'path/to/lerobot_dataset', p.robots[0].uid, episodes=[0, 1], unit='rad')
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

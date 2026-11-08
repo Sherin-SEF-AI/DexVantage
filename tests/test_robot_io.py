@@ -267,5 +267,5 @@ def test_usd_without_pxr_says_what_to_install(tmp_path, monkeypatch):
     monkeypatch.setattr(U, 'have_pxr', lambda: False)
     p = tmp_path / 'arm.usda'
     p.write_text('#usda 1.0\n')
-    with pytest.raises(ProjectFormatError, match='optional: install usd-core'):
+    with pytest.raises(ProjectFormatError, match='install the usd extra'):
         import_robot(str(p))

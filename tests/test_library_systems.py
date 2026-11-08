@@ -65,7 +65,7 @@ def test_entry_valid_named_sourced_and_clean(kind, i):
     d = _load(kind, i)
     assert d['id'] == i and d['kind'] == kind
     assert L.validate(d) == [] and L.validate_minimal(d) == []
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     jsonschema.Draft202012Validator(L.schema()).validate(d)
     assert d['sources']
     for s in d['sources']:

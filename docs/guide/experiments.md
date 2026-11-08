@@ -60,9 +60,9 @@ with Welch intervals) gives, for task volume seen:
 
 | Factor | Effect (low to high) | 95 % interval |
 |---|---|---|
-| Overhead D435 dpitch | −1.10 % | −5.23 to 3.03 |
-| Overhead D435 dz | +3.59 % | 0.02 to 7.15 |
-| Wrist D405 dpitch | −2.50 % | −3.13 to −1.87 |
+| Overhead D435 dpitch | −1.10 pp | −5.23 to 3.03 |
+| Overhead D435 dz | +3.59 pp | 0.02 to 7.15 |
+| Wrist D405 dpitch | −2.50 pp | −3.13 to −1.87 |
 
 With 16 runs only the wrist tilt's effect is clearly away from zero. The overhead camera's height comes close; its
 tilt's interval spans zero. The 3D view draws each run's position of the overhead D435 as a small cross, darker where

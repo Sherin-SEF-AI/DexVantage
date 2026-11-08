@@ -10,8 +10,8 @@ import sys
 import numpy as np
 import pytest
 
-pytest.importorskip('pyarrow')
-pytest.importorskip('av')
+pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
+pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
 
 from conftest import pump  # noqa: E402
 from dexvantage.core.datasets import open_dataset  # noqa: E402
@@ -35,6 +35,8 @@ def ur5e():
 
 @pytest.fixture(scope='module', params=['v2.1', 'v3.0'])
 def made(request, so100, tmp_path_factory):
+    from render_support import require
+    require()                               # renders MuJoCo scenes
     root = str(tmp_path_factory.mktemp('synth') / f'so100_{request.param}')
     return SE.generate(so100, root, dict(SMALL, version=request.param), keep_frames=True)
 
@@ -42,6 +44,8 @@ def made(request, so100, tmp_path_factory):
 @pytest.fixture(scope='module')
 def clean(so100, tmp_path_factory):
     """No pixel noise, so the faults can be compared with fresh renders exactly."""
+    from render_support import require
+    require()                               # renders MuJoCo scenes
     root = str(tmp_path_factory.mktemp('synth') / 'so100_clean')
     return SE.generate(so100, root, dict(SMALL, noise_dn=0.0), keep_frames=True)
 
@@ -263,6 +267,7 @@ def test_same_seed_same_dataset(so100, tmp_path, clean):
 
 
 # ---------------------------------------------------------------------- refusals
+@pytest.mark.mujoco_render
 def test_refusals_are_sentences(so100, tmp_path):
     from dexvantage.core.project import blank_project
     full = tmp_path / 'full'
@@ -291,6 +296,7 @@ def test_refusals_are_sentences(so100, tmp_path):
 
 
 # ---------------------------------------------------------------------- batch, the command, the check
+@pytest.mark.mujoco_render
 def test_batch_flag(tmp_path):
     out = str(tmp_path / 'b')
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen')
@@ -307,6 +313,7 @@ def test_batch_flag(tmp_path):
     assert r.returncode == 2 and 'whole number' in r.stderr
 
 
+@pytest.mark.mujoco_render
 def test_simulate_command_and_dialog(win, app, tmp_path):
     from dexvantage.ui.dialogs import synth_episodes as D
     a = win.actions_by_id['synth_episodes']
@@ -340,6 +347,7 @@ def test_simulate_command_and_dialog(win, app, tmp_path):
     dlg.close()
 
 
+@pytest.mark.mujoco_render
 def test_validation_check_registers_and_passes(tmp_path):
     from dexvantage.validation import suite
     suite.load_checks()

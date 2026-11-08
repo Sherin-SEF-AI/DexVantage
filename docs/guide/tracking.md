@@ -43,9 +43,9 @@ see what you tried, compare it and run it again. The model and its validation ar
 
 | Figure | Run 1 (z 0.36 m) | Run 2 (z 0.50 m) | Δ | Best |
 |---|---|---|---|---|
-| Task volume seen | 94.52 % | 94.34 % | −0.18 % | run 1 |
-| Seen by two or more cameras | 47.30 % | 45.27 % | −2.03 % | run 1 |
-| Task volume blind | 5.48 % | 5.66 % | +0.18 % | run 1 |
+| Task volume seen | 94.52 % | 94.34 % | −0.18 pp | run 1 |
+| Seen by two or more cameras | 47.30 % | 45.27 % | −2.03 pp | run 1 |
+| Task volume blind | 5.48 % | 5.66 % | +0.18 pp | run 1 |
 | Resolution, 5th percentile | 1.044 px/mm | 0.931 px/mm | −0.113 px/mm | run 1 |
 
 What differs: `project.sha256` (the camera's height). Raising the third-person camera loses a little coverage and

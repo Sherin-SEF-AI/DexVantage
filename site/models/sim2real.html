@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The sim-to-real gap (research tools part 2) · DexVantage</title>
+<meta name="description" content="dexvantage/core/sim2real/ (gap.py the analysis and Apply, measures.py the image, depth and distributionmeasures, inject.py recordings with known gaps), dexvantage/core/studies/sim2real.py (the study, --sim2real),dexvantage/ui/pages/sim2real.py (Data ▸ Sim-to-real gap) …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#api">API</a>
+    <a href="#method-per-camera">Method (per camera)</a>
+    <a href="#validation-measured-2026-11-07---validate---models-sim2real">Validation (measured 2026-11-07, --validate --models sim2real)</a>
+    <a href="#measured-on-the-ur5e-sample">Measured on the UR5e sample</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/sim2real.md"><code>docs/models/sim2real.md</code></a></p>
+<h1 id="the-sim-to-real-gap-research-tools-part-2">The sim-to-real gap (research tools part 2)</h1>
+<p><code>dexvantage/core/sim2real/</code> (<code>gap.py</code> the analysis and Apply, <code>measures.py</code> the image, depth and distribution
+measures, <code>inject.py</code> recordings with known gaps), <code>dexvantage/core/studies/sim2real.py</code> (the study, <code>--sim2real</code>),
+<code>dexvantage/ui/pages/sim2real.py</code> (Data ▸ Sim-to-real gap), <code>dexvantage/validation/checks_sim2real.py</code> (seven checks,
+model <code>sim2real</code>), <code>tests/test_sim2real.py</code>.</p>
+<p>A recorded episode is rendered again in MuJoCo through the project's rig: each camera's lens model and mount, the
+robot at the recorded joint states (<code>core/sim/render.Renderer</code>, the same renderer the ground truth, the synthetic
+episodes and the silhouette calibration use). The renders are compared with the recorded frames camera by camera. The
+result says how large the gap is, which corrections explain how much of it, and which change closes each part.</p>
+<h2 id="api">API</h2>
+<pre><code>gap.analyse(project, dataset, settings=None, *, progress=None, cancel=None) -&gt; dict   (dataset: a path or a Dataset)
+gap.settings_of(project, given=None) -&gt; dict
+gap.apply_change(project, change) -&gt; [store sections]      gap.describe_change(project, change) -&gt; str
+inject.make_gap_dataset(project, folder, gaps, settings=None, *, progress=None) -&gt; dict
+measures.*                                                  (no rendering; listed in measures.py's docstring)
+
+import dexvantage as dv
+rig = dv.sample('ur5e')
+res = rig.sim2real('path/to/dataset')            # a Result; res['causes'], res['apply'], res.headline
+rig2 = rig.apply_sim2real(res['apply'])           # a NEW Rig with the top suggestion made
+rig.gap_dataset('out/gaps', {'brightness_dn': 20, 'latency_s': 0.04})   # a recording with known gaps
+</code></pre>
+<p>Batch: <code>dexvantage project.dexv --sim2real OUT.json --dataset PATH</code> (the specification's <code>--sim2real dataset_path</code>;
+the study registry's flags take the output file, and <code>--dataset</code> names the recording, as for the other data studies).
+Without <code>--dataset</code> the study reads its setting <code>dataset</code>, else the audit's, else the project's first dataset entry.
+The assistant reads it with <code>get_sim2real</code> (a long study: it is proposed as a plan step in the app).</p>
+<h2 id="method-per-camera">Method (per camera)</h2>
+<p>Cameras are matched by <code>render_calib.match_stream</code> (the stream's <code>sensor_uid</code>, else its name). Frames are compared at
+a working width (default 320 px), resized with area averaging; the render is made at the recording's size (up to
+640 px) and resized the same way, so both images carry the same resampling.</p>
+<ol>
+<li>
+<p><strong>Latency</strong> τ (content time − stamp). At the 8 frames where the joints move fastest the robot is rendered at
+stamp + τ for τ in [−150, 150] ms in 10 ms steps. The score at τ is the mean zero-mean normalised
+cross-correlation of the gradient magnitudes (Sobel of the image smoothed with σ = 1 px). It is taken over the
+pixels the robot covers at some τ, dilated 5 px, for a static camera, and over the whole image for a camera on the
+robot. A normalised correlation of gradients does not depend on gain or offset, so an exposure gap does not move
+the peak. A parabola through the peak gives the sub-step value; σ_τ is the spread of the peak over 200 bootstrap
+resamples of the frames. A latency the time-sync settings already hold (<code>latency_s</code>, stamp minus exposure) is the
+plan's: frames are rendered at stamp − e, and the search finds what is left.</p>
+</li>
+<li>
+<p><strong>Mount offset</strong> (static cameras): the silhouette calibration (<code>render_calib.estimate</code>: chamfer and IoU alignment,
+docs/models/render_calib.md) on the episode with the stamps moved by τ. A desync otherwise reads as a mount error,
+which is render_calib's own known limit. When the mount is observable, the latency search runs again through the
+recovered mount, because a mount offset biases it (measured −8.9 ms on a 3 mm, 1° offset, 0.0 ms after).</p>
+</li>
+<li>
+<p><strong>The gap and its causes.</strong> The frames (8, farthest apart in joint space) are rendered with every combination of
+the geometric corrections found (latency, mount). For each combination S of all corrections the image difference is</p>
+<pre><code>d(S) = mean over frames, pixels and channels of |recorded − f_S(render_S)|      (grey levels, DN)
+</code></pre>
+<p>where f_S applies the photometric corrections in S: a Gaussian blur σ_b (only when the recording's sharpness is
+under 0.9 of the render's), then a per-channel gain and offset. Each correction's share is its Shapley value
+(Shapley 1953):</p>
+<pre><code>φ_i = Σ_{S ⊆ P∖{i}} |S|! (n − |S| − 1)! / n! · (d(S) − d(S ∪ {i})),    Σ φ_i = d(∅) − d(P)
+</code></pre>
+<p>This is what correction i removes, averaged over every order of applying the corrections. With four corrections
+it takes 4 render sets (latency × mount) and 16 image evaluations.</p>
+</li>
+<li>
+<p><strong>Photometric figures</strong> (recording against the geometry-corrected render): the mean per channel, RMS contrast,
+the Earth mover's distance of each channel's 256-bin histogram (W₁ = Σ_k |F_a(k) − F_b(k)| in DN; Rubner et al.
+2000) and sharpness. Sharpness is var(∇²I) − 20 σ_n²: the 4-neighbour Laplacian (Pech-Pacheco et al. 2000), less
+the share 20 σ² that white noise adds to it. Noise is σ_n = √(π/2) · mean|I ∗ N| / 6 with N = [[1, −2, 1],
+[−2, 4, −2], [1, −2, 1]] (Immerkær 1996), over the pixels below the 90th percentile of the Sobel magnitude
+(Tai and Yang 2008's edge exclusion). The factors come from the operator: on white noise of σ the response is
+Gaussian with σ√36 = 6σ, and E|r| = 6σ √(2/π).
+The blur σ_b is found by bisection, so the render's summed sharpness after blurring equals the recording's.
+The gain and offset are a least-squares line through the two images' quantile pairs (2nd to 98th percentile),
+leaving out pairs where either quantile is clipped. The fit is repeated three times on the corrected and clipped
+render. A pixel-wise fit is biased towards gain 0 when the images are not aligned or not equally sharp
+(regression dilution: measured gain 0.86 against a true 1.0 on a blurred recording). The quantile fit is not:
+1.00 there, and the offset +20.0, +20.0, +20.1 DN for an injected +20. The brightness change is reported at mid
+grey, g·128 + o − 128 DN, and in stops, log₂((g·128 + o)/128).</p>
+</li>
+<li>
+<p><strong>Silhouette IoU</strong> (static cameras). No DexVantage reader exposes segmentation masks, so the robot is segmented
+by background difference: pixels more than 25 DN from the median of the compared frames, opened 3 × 3
+(<code>render_calib.foreground</code>). The same rule is applied to the recorded frames and to the rendered frames, so both
+masks hold the robot where it moves, and they are compared like for like. The figure is the mean IoU before (as
+planned) and after every correction. A camera on the robot has no static background, so it gets no IoU.</p>
+</li>
+<li>
+<p><strong>Depth</strong> (depth sensors). The predicted valid-pixel share is the rendered depth within the device's stated
+minimum Z at the stream and its maximum range, each only when the library states it (else &quot;not stated by the
+maker&quot;). When the episode carries a decoded depth stream for the camera (a <code>CameraStream</code> with meta
+<code>{'depth_of': &lt;colour key&gt;, 'depth_scale_m': s}</code>, which a plugin reader can provide), the study reports the
+measured share and, on the robot's pixels where both are valid, the error measured − predicted (median, RMS, P95).
+DexVantage's own readers list depth streams in <code>meta['depth_streams']</code> but do not decode them, so this side reads
+&quot;not measured&quot; and names the streams.</p>
+</li>
+<li>
+<p><strong>Timing</strong>: the stamps' jitter (<code>audit.episode.timing</code>: 1.4826 × MAD of the residuals about a fitted regular
+grid) and the latency, both against the time-sync study's prediction for the stream
+(<code>plan_vs_recording.sync_prediction</code>: the predicted offset is the negated skew interval; an incomplete budget is
+a lower bound and gets no verdict).</p>
+</li>
+<li>
+<p><strong>Distribution distance</strong>: the unbiased kernel MMD² (Gretton et al. 2012, eq. 3) with
+k(x, y) = exp(−‖x − y‖²/(2σ²)) on 32 × 24 RGB thumbnails in [0, 1]. σ comes from the median heuristic, and the
+permutation p-value from 200 permutations (seeded). It is reported as planned and with every correction. It is
+<strong>not FID</strong>. FID needs a trained Inception network's features over thousands of images; torch and those weights
+are not part of DexVantage, so no <code>fid</code> extra was added and the result says FID is not computed.</p>
+</li>
+</ol>
+<h3 id="causes-and-the-changes-that-close-them">Causes and the changes that close them</h3>
+<p>Ranked over the cameras by the DN each removes. A cause under 5 % of its camera's gap, or removing under 1 DN, gets
+no action (both are defaults).</p>
+<table>
+<thead>
+<tr>
+<th>cause</th>
+<th>Apply (one undo step)</th>
+<th>the page that owns it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>latency</td>
+<td><code>analysis.studies.time_sync.latency_s[uid] = −(planned + τ)</code> with its source (stamp minus exposure, relative to joint_states)</td>
+<td>Time sync</td>
+</tr>
+<tr>
+<td>mount</td>
+<td>the sensor's mount pose from the silhouette calibration (a locked sensor is refused)</td>
+<td>Silhouette calibration</td>
+</tr>
+<tr>
+<td>exposure</td>
+<td>the render's per-channel gain and offset for the camera (<code>analysis.studies.sim2real.appearance[uid]</code>)</td>
+<td>Sim-to-real gap</td>
+</tr>
+<tr>
+<td>lighting</td>
+<td>the same gain (within 10 %) in every camera with an exposure cause: the scene's light. The project's lights' <code>dim</code> is scaled when it has lights, the scale fits (dim ≤ 1) and the cameras share no offset of <code>min_reduction_dn</code> (1 DN) or more (a scale of the lights gives a gain, not a constant offset); otherwise each camera's render gain and offset are set</td>
+<td>Lighting</td>
+</tr>
+<tr>
+<td>blur</td>
+<td>the render's blur σ (composed in quadrature)</td>
+<td>Motion blur (focus, exposure time)</td>
+</tr>
+<tr>
+<td>noise</td>
+<td>the render's noise σ, √(σ_rec² − σ_ren²); listed, not ranked: noise adds to d rather than closing it</td>
+<td>Sim-to-real gap</td>
+</tr>
+</tbody>
+</table>
+<p><code>appearance</code> is the render's camera response, applied before every comparison: blur, then gain and offset, then
+seeded Gaussian noise. After an Apply, the part of the gap that the change closes is gone on the next run. A latency
+entered in the time-sync settings is likewise rendered as planned. Status: close to real up to 4 DN, a small gap up to
+8 DN, a large gap up to 16 DN, a very large gap beyond (DexVantage defaults, not standards).</p>
+<h2 id="validation-measured-2026-11-07---validate---models-sim2real">Validation (measured 2026-11-07, <code>--validate --models sim2real</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>check</th>
+<th>reference</th>
+<th>tolerance</th>
+<th>measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sim2real.emd_vs_scipy</code></td>
+<td><code>scipy.stats.wasserstein_distance</code>, 200 random pairs</td>
+<td>1e-9 DN</td>
+<td>1.7e-13 DN</td>
+</tr>
+<tr>
+<td><code>sim2real.mmd_hand_case</code></td>
+<td>X = {0, 1}, Y = {2, 4}, σ = 1 written out</td>
+<td>1e-12</td>
+<td>1.1e-16</td>
+</tr>
+<tr>
+<td><code>sim2real.mmd_gaussians</code></td>
+<td>the closed form for two 4-D Gaussians by eigenvalues; 400 unbiased estimates (m = n = 40)</td>
+<td>4 standard errors (0.0068)</td>
+<td>0.00063 (the module's own closed form agrees to 1e-10)</td>
+</tr>
+<tr>
+<td><code>sim2real.noise_known</code></td>
+<td>σ = 0.5–8 DN added to a structured image</td>
+<td>5 %</td>
+<td>1.2 %</td>
+</tr>
+<tr>
+<td><code>sim2real.blur_known</code></td>
+<td><code>scipy.ndimage.gaussian_filter</code> σ = 0.8, 1.5, 3 px</td>
+<td>0.1 px</td>
+<td>0.0005 px</td>
+</tr>
+<tr>
+<td><code>sim2real.shapley_brute_force</code></td>
+<td>the mean marginal over all 24 orders</td>
+<td>1e-12 DN</td>
+<td>8.9e-16 DN</td>
+</tr>
+<tr>
+<td><code>sim2real.injected_recovery</code></td>
+<td>four UR5e recordings, one gap each on the overhead D435 (LeRobot v3.0, AV1 codec)</td>
+<td>error ÷ tolerance ≤ 1, each ranked first</td>
+<td>0.68</td>
+</tr>
+</tbody>
+</table>
+<p>The injected-recovery tolerances and what was measured:</p>
+<ul>
+<li><strong>Brightness +20 DN.</strong> Within 3 DN at mid grey, because clipping at 255 and the codec move the fit. Measured
++20.03, +19.97, +20.12 DN per channel, gain 0.99. Exposure ranks first.</li>
+<li><strong>Blur σ 1.5 px.</strong> Within 0.3 px, because the codec blurs too. Measured 1.42 px; the clean recording reads
+sharpness ratio 0.96, under the 0.9 threshold for no blur. Blur ranks first.</li>
+<li><strong>Latency 40 ms.</strong> Within 5 ms (half the grid step). Measured 39.97 ms, σ 0.4 ms. Latency ranks first.</li>
+<li><strong>Mount 3 mm along x, 1° about y.</strong> Within 0.3° and 3 mm: the silhouette calibration's accuracy on this camera
+(3 mm is about 2 px of the 320 × 180 image at the robot's depth; <code>render_calib.md</code> gives 1.1–1.8 mm per 2 px at
+640 × 360). Measured 0.13° and 2.0 mm off (recovered 1.08°). Mount ranks first. The 3 mm allowance equals the
+injected 3 mm, so the position part alone would pass with no offset found: it is the angle (0.13° off an
+injected 1°) that shows the mount was recovered. The 3 mm translation is not resolved at this image size.</li>
+</ul>
+<p>The checks take 14 s together (the recovery check renders and encodes four recordings), and the self-test line runs
+the five cheap ones in under 1 s.</p>
+<h2 id="measured-on-the-ur5e-sample">Measured on the UR5e sample</h2>
+<p>All measurements are on synthetic recordings, so they test the method, not a real camera.</p>
+<p><strong>Clean recording</strong> (<code>inject.make_gap_dataset</code> with no gap; 40 rows, 320 × 180, AV1). The gap is 1.8 DN on the
+overhead D435 and 1.1 DN on the wrist D405 (&quot;close to real&quot;). This is what the renderer, the generator's 1 DN pixel
+noise and the video codec leave. Latency reads +0.15 and −0.26 ms, the overhead silhouette IoU 0.94, and MMD² −0.105
+(p 0.99). Nothing is suggested. The analysis takes 2.1–2.9 s (about 330 renders and two cameras).</p>
+<p><strong>All four gaps on the overhead camera at once</strong> (+20 DN, blur 1.5 px, 40 ms, 3 mm and 1°). The gap is 24.4 DN.
+The Shapley shares are exposure 14.6, mount 3.2, blur 2.4 and latency 2.1 DN, with 2.1 DN left after every
+correction (91 % explained). The latency reads 39.3 ms ± 0.5, the blur 1.43 px and the offset +18.7 DN. The mount
+reads 6.7 mm and 1.31° against a true 3 mm and 1°: the blur and the offset degrade the silhouette edges. The IoU goes
+from 0.53 to 0.89, and MMD² from 0.142 (p 0.015) to −0.084. The run takes 7–8 s with the silhouette calibration,
+and its largest process uses 1.27 GB.</p>
+<p>Applying the top suggestion five times (the API's <code>apply_sim2real</code>, each a new rig) took the gap from 24.4 DN to
+10.0, 7.6, 4.6 and 2.1 DN. The changes, in order, were exposure, mount, latency (entered in the time-sync settings)
+and blur, and then nothing was left to suggest.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The render is MuJoCo's OpenGL shading of the project's model of the cell, so a real recording differs by much that
+no correction here models: textures, shadows, cables, the background, objects the project does not have. The
+corrections explain the part they can, and the rest is reported as left.</li>
+<li>One episode per run, and a constant latency over it (no drift). The latency needs the robot to move.</li>
+<li>The mount is the silhouette calibration's, with its limits: static cameras only, a robot that looks like its model,
+degraded by blur.</li>
+<li>A static camera's observed silhouette is only the moving part of the robot. There is no IoU for cameras on the
+robot.</li>
+<li>The exposure fit is global per channel (no vignetting or tone curve), and the blur is one isotropic Gaussian (no
+motion-blur direction).</li>
+<li>Noise is measured after the codec, which removes some of it.</li>
+<li>Depth is compared only where a reader decodes it, which DexVantage's own readers do not yet.</li>
+<li>Shapley shares are exact attributions over the corrections tried, but corrections interact (a mount fitted under a
+wrong exposure), so a share is not a measurement of a physical cause.</li>
+<li>MMD on eight frames per side has little power (its p-value says so), and it is not FID.</li>
+</ul>
+<h2 id="references">References</h2>
+<p>Immerkær 1996 (<code>immerkaer1996</code>); Tai and Yang 2008 (<code>tai_yang2008</code>); Gretton et al. 2012 (<code>gretton2012</code>); Rubner et
+al. 2000 (<code>rubner2000</code>); Shapley 1953 (<code>shapley1953</code>); Pech-Pacheco et al. 2000 (<code>pech_pacheco2000</code>); SciPy's
+<code>wasserstein_distance</code> (<code>scipy_wasserstein</code>). The full entries are in <code>dexvantage/validation/references.py</code>. The
+Immerkær paper's full text is paywalled: its bibliographic record and abstract were read on 2026-11-07, and the
+estimator's constants are derived again in <code>measures.py</code> and checked on images of known noise.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

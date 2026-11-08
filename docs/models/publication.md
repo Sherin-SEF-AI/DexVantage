@@ -13,7 +13,11 @@ Modules: `dexvantage/core/cite.py` (BibTeX), `dexvantage/core/figures.py` (SVG a
 2. **Library sources**: every source of every library entry the project names (the sensors of all rig variants,
    policies, the rig's hosts, cables, lights) as `@misc` with `title`, `author` (the maker, kept whole in braces; not
    for policies, whose titles carry the paper's authors), `url`, `urldate` (the date the source was read, from the
-   entry) and a note naming the entries it backs. A datasheet several entries cite is one item.
+   entry) and a note naming the entries it backs. A datasheet several entries cite is one item, keyed by the
+   document rather than by one device: the first device's maker, a colon and the document's file or page name
+   (`intel:realsense-d400-series-datasheet-mar-2026` backs the D405 and the D435 on the UR5e sample; before Phase 11
+   it was keyed `intel-realsense-d405`, so the D435 was cited under the D405's name). A source one entry cites keeps
+   the entry's id as its key.
 3. **Robot models**: a MuJoCo Menagerie model as `@misc` with the tree URL at the commit its files came from and its
    folder's licence, read from the robot's source record; Menagerie's own citation as its README gives it
    (`menagerie2022github`, README.md of google-deepmind/mujoco_menagerie, read 2026-11-07); other robots with their

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The workspace check · DexVantage</title>
+<meta name="description" content="dexvantage/core/workspace_check.py (no Qt), shown on the Workspace page (dexvantage/ui/pages/workspace.py,Workspace ▸ Workspace). Validation model workspace.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-it-answers">What it answers</a>
+    <a href="#the-model">The model</a>
+    <a href="#validation-measured-2026-11-07">Validation (measured, 2026-11-07)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/workspace.md"><code>docs/models/workspace.md</code></a></p>
+<h1 id="the-workspace-check">The workspace check</h1>
+<p><code>dexvantage/core/workspace_check.py</code> (no Qt), shown on the Workspace page (<code>dexvantage/ui/pages/workspace.py</code>,
+Workspace ▸ Workspace). Validation model <code>workspace</code>.</p>
+<h2 id="what-it-answers">What it answers</h2>
+<p>The coverage, depth-validity, grasp and VLA-token studies measure inside the project's <strong>task volumes</strong>
+(<code>project.workspace.volumes</code>: axis-aligned boxes in the world frame). A task object outside every task volume is
+therefore not measured by them. The check asks one question: does every task object lie inside a task volume? If
+not, it suggests the smallest change that makes it true.</p>
+<h2 id="the-model">The model</h2>
+<p>For each task object the world triangles come from <code>core/scenegeom.object_triangles</code> (a box's 12 triangles, a
+cylinder's and a sphere's tessellation of 24 segments around and 12 rings pole to pole, a mesh object's own mesh).
+Its axis-aligned world bounding box is</p>
+<pre><code>lo = min over vertices v of v,    hi = max over vertices v of v.
+</code></pre>
+<p>The object is <strong>inside</strong> volume V (centre c, size s) when</p>
+<pre><code>lo ≥ c − s/2 − τ   and   hi ≤ c + s/2 + τ   (each axis),
+</code></pre>
+<p>with τ = <code>INSIDE_TOL_M</code> = 1 mm (a DexVantage default: rounding of typed positions). The headline is the number of
+task volumes with a status word:</p>
+<table>
+<thead>
+<tr>
+<th>Word</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ready</td>
+<td>at least one volume, and every object (with geometry) inside one</td>
+</tr>
+<tr>
+<td>objects outside</td>
+<td>some object lies outside every volume</td>
+</tr>
+<tr>
+<td>no task volume</td>
+<td>the project has none</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The suggestion (Apply, one undo step).</strong> With objects outside, let B be the union of their boxes grown by
+<code>MARGIN_M</code> = 20 mm (a DexVantage default); the volume whose centre is nearest B's centre grows to the union of its
+own box and B. With no volume, a new tabletop volume is B around every object, or the default volume of
+<code>core/project.Volume</code> (500 × 600 × 300 mm centred at (0.45, 0, 0.15) m, a default to move to your table) when there
+are no objects. When the objects stand on or above the floor (z = 0), the margin stops at the floor.</p>
+<h2 id="validation-measured-2026-11-07">Validation (measured, 2026-11-07)</h2>
+<p><code>dexvantage --validate out --models workspace</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance and why</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>workspace.object_extent</code></td>
+<td>the exact box of the true shape: a turned box's half-extents |R| h (Arvo 1990); a cylinder's r √(1 − a_i²) + (h/2)|a_i| per world axis i, with a the cylinder's axis in the world; a sphere's r; rotations drawn by SciPy, not <code>core/frames</code></td>
+<td>1.0 of the tessellation bound: a box is exact to rounding (10⁻¹² m); a tessellated cylinder or sphere lies inside the true shape, so its box may fall short by up to r (1 − cos²(π/24)) = 1.70 % of the radius and never stick out</td>
+<td>0.861 of the bound over 300 random objects (largest shortfall 0.66 mm, a sphere; cylinders 0.49 mm; boxes 1.1 × 10⁻¹³ mm); quick run 0.861 over 30</td>
+</tr>
+<tr>
+<td><code>workspace.inside_classification</code></td>
+<td>the exact classification of the true shapes' boxes in three random volumes</td>
+<td>0 objects: every object is clear of each face by at least 3 mm, more than τ plus the 1.7 % shortfall of a 60 mm radius, so any disagreement is a fault</td>
+<td>0 of 240 (132 inside, 108 outside); quick run 0 of 30</td>
+</tr>
+</tbody>
+</table>
+<p>The self-test line <code>workspace</code> runs both quick checks.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>Volumes are axis-aligned boxes, so a suggested volume around a turned object is larger than the object.</li>
+<li>The inside test uses the object's axis-aligned bounding box: a long thin object turned 45° can be called outside
+although its own surface lies inside.</li>
+<li>An object whose geometry cannot be read (an empty or missing mesh) is not checked; the advice names it.</li>
+<li>The cylinder's and sphere's tessellation makes their boxes up to 1.7 % of the radius small (measured above).</li>
+</ul>
+<h2 id="references">References</h2>
+<ul>
+<li>J. Arvo, &quot;Transforming axis-aligned bounding boxes&quot;, in A. S. Glassner (ed.), <em>Graphics Gems</em>, Academic Press,
+548–550, 1990 (<code>arvo1990</code>).</li>
+<li>SciPy <code>scipy.spatial.transform.Rotation</code> (<code>scipy_rotation</code>).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

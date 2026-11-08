@@ -44,6 +44,8 @@ class SensorsPage(StudyPage):
     frame, its stream mode and whether it is in use. Every change is one undo step."""
     STUDY = None
     TITLE = 'Sensors and mounts'
+    MODEL = ('Model: none is run; the count is of the active variant\'s sensors and their datasheet devices '
+             '(core/library).')
     HEADLINE = 'Sensors in the rig'
 
     def __init__(self, ctx):

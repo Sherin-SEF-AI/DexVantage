@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statistics: a worked example · DexVantage</title>
+<meta name="description" content="Three questions a research team asks, answered on the SO-100 sample and on success counts. The model is indocs/models/stats.md. Figures below are from runs on 2026-11-07 at the default settings (alpha 0.05, power 0.80,Holm&#x27;s correction, seed 0).">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-is-diffusion-policy-better-than-act-on-our-task">1. Is Diffusion Policy better than ACT on our task?</a>
+    <a href="#2-how-many-episodes-would-settle-it">2. How many episodes would settle it?</a>
+    <a href="#3-does-raising-the-third-person-camera-by-6-cm-change-coverage">3. Does raising the third-person camera by 6 cm change coverage?</a>
+    <a href="#experiment-and-tracker-runs">Experiment and tracker runs</a>
+    <a href="#what-it-will-not-do">What it will not do</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/stats.md"><code>docs/guide/stats.md</code></a></p>
+<h1 id="statistics-a-worked-example">Statistics: a worked example</h1>
+<p>Three questions a research team asks, answered on the SO-100 sample and on success counts. The model is in
+<code>docs/models/stats.md</code>. Figures below are from runs on 2026-11-07 at the default settings (alpha 0.05, power 0.80,
+Holm's correction, seed 0).</p>
+<h2 id="1-is-diffusion-policy-better-than-act-on-our-task">1. Is Diffusion Policy better than ACT on our task?</h2>
+<p>Twenty evaluation episodes each: ACT succeeded 14 times, Diffusion Policy 19 times. Open Analysis ▸ Statistics, keep
+<strong>Success counts</strong>, and enter the two rows (condition, successes, trials). The page runs as you type:</p>
+<ul>
+<li>the headline: <strong>+25.0 pp</strong>, status <strong>no clear difference</strong>:
+<blockquote>
+<p>Diffusion against ACT: no clear difference (Diffusion − ACT = +25.0 pp [+0.8, +47.3]; adjusted p = 0.0915).
+This does not show they are equal. With these episodes, only a true rate below 22 % (against 70 %) would be
+detected 80 % of the time.</p>
+</blockquote>
+</li>
+<li>the table: 14/20 (70 %) against 19/20 (95 %), the odds ratio 8.14 [0.878, 75.5] (Woolf), Fisher's exact test,
+p = 0.091; Wilson intervals 48–85 % and 76–99 % in the tooltip;</li>
+<li>the note that the difference's interval (Newcombe) excludes zero while Fisher's test does not reject: the evidence
+is borderline, which twenty episodes cannot settle.</li>
+</ul>
+<p>The assumptions are spelled out under the table: each episode an independent trial, one success probability per
+condition, the conditions' episodes independent of each other.</p>
+<h2 id="2-how-many-episodes-would-settle-it">2. How many episodes would settle it?</h2>
+<p>The suggestion under the headline says: about 43 episodes per condition would tell 70 % from 95 % apart 80 % of the
+time (normal approximation). <strong>Apply</strong> writes this plan into the power calculator (one undo step); <strong>Preview</strong> shows
+it there without storing it. The calculator, method <strong>Exact (Fisher, every outcome)</strong>, then answers <strong>39 episodes per
+condition (78 in all) give 80.7 % power</strong>, and draws power against n with the target line, the n needed and the n
+planned. The other methods give 43 (normal approximation with the continuity correction) and 32 (arcsine): near a
+rate of 1 the arcsine formula is optimistic, which is why the exact enumeration is the default here.</p>
+<p>From the command line, with a spec file:</p>
+<pre><code>{&quot;schema&quot;: &quot;dexvantage.stats/1&quot;, &quot;source&quot;: &quot;rates&quot;,
+ &quot;rates&quot;: [{&quot;condition&quot;: &quot;ACT&quot;, &quot;successes&quot;: 14, &quot;trials&quot;: 20},
+           {&quot;condition&quot;: &quot;Diffusion&quot;, &quot;successes&quot;: 19, &quot;trials&quot;: 20}],
+ &quot;power&quot;: {&quot;kind&quot;: &quot;rates&quot;, &quot;p1&quot;: 0.7, &quot;p2&quot;: 0.95}}
+
+dexvantage --stats spec.json            # → spec.results.json with provenance, exit 0
+</code></pre>
+<p>or in a notebook:</p>
+<pre><code>import dexvantage as dv
+dv.stats.compare_rates([('ACT', 14, 20), ('Diffusion', 19, 20)]).headline['word']   # 'no clear difference'
+dv.stats.episodes_needed(0.7, 0.95)['n_per_group']                                    # 39
+</code></pre>
+<p>Demonstrations instead of evaluation episodes: choose <strong>Demonstrations</strong>, a pass rate of 70 % against 90 %, 25
+demonstrations per operator with an intra-class correlation of 0.05 and 10 % discarded by the audit: 176
+demonstrations per condition (72 before the clustering and the discards). The calculator says what it does not
+model: how many demonstrations a policy needs to learn the task.</p>
+<h2 id="3-does-raising-the-third-person-camera-by-6-cm-change-coverage">3. Does raising the third-person camera by 6 cm change coverage?</h2>
+<p>On the SO-100 sample, add a variant (Variants ▸ Add variant, a copy) and raise its third-person camera by 6 cm. On the
+Statistics page choose <strong>Variants</strong>, A the default (the active variant), B the copy, and figures
+<code>coverage.covered, coverage.seen_twice</code>; set 16 draws and press <strong>Run</strong> (about 4 s). Each variant's mounts are drawn
+within their tolerances with the same seed, so the draws are paired by seed:</p>
+<table>
+<thead>
+<tr>
+<th>Figure</th>
+<th>A</th>
+<th>B</th>
+<th>B − A [95 % BCa]</th>
+<th>p (permutation, 9 999 sign flips)</th>
+<th>Holm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Task volume seen</td>
+<td>94.56 %</td>
+<td>94.38 %</td>
+<td>−0.179 pp [−0.187, −0.172]</td>
+<td>0.0002</td>
+<td>0.0004</td>
+</tr>
+<tr>
+<td>Seen by two or more cameras</td>
+<td>47.21 %</td>
+<td>46.32 %</td>
+<td>−0.890 pp [−0.896, −0.883]</td>
+<td>0.0002</td>
+<td>0.0004</td>
+</tr>
+</tbody>
+</table>
+<p>Both differences are <strong>clear</strong> (A is better), because the paired draws cancel the mount noise: the raised camera
+loses 0.18 points of the task volume and 0.89 points of the two-camera share. Whether a 0.2-point loss matters is the
+team's call; the statistics say only that it is not chance. The same comparison with <code>--stats</code> and
+<code>&quot;source&quot;: &quot;variants&quot;</code> in the spec, or <code>dv.stats.compare_variants(rig, b='Rig B', metrics=[...], n=16)</code>.</p>
+<h2 id="experiment-and-tracker-runs">Experiment and tracker runs</h2>
+<p><strong>Experiment runs</strong> compares the last designed experiment's runs at a factor's two levels: a full factorial pairs the
+runs that share the other factors (with three pairs the smallest two-sided p is 2/8 = 0.25, so even a constant
+difference is not clear: the page says so through the p-value). <strong>Tracker runs</strong> compares two logged tolerance runs
+draw by draw (paired when they used the same seed) or two groups of runs (by ids or <code>tag:NAME</code>), one value per run.</p>
+<h2 id="what-it-will-not-do">What it will not do</h2>
+<p>It does not stop early: decide the episodes first, test once (sequential designs are out of scope). It does not call
+two conditions equal when the difference is not clear; it gives the smallest difference the data could have detected.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -54,7 +54,7 @@ run as a script, the example uses one worker.
     d = dv.diff(rig, raised, metrics=['coverage.covered'])
     print(d.text)
     # sensors  changed  Sensor Third-person camera (sample placement): mount pose moved 100.0 mm (x +0.0, y +0.0, z +100.0 mm) ...
-    #   Task volume seen  94.52 % → 94.32 %  -0.2014 % (worse)
+    #   Task volume seen  94.52 % → 94.32 %  -0.2014 pp (worse)
     d.save('out/diff.json'); open('out/diff.html', 'w').write(d.html)
     m = dv.merge(base, ours, theirs)                  # m.rig, or dv.MergeConflict listing each conflict
     raised.save('out/so100_raised.dexv.d')            # the Git-friendly folder form

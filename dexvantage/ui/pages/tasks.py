@@ -75,6 +75,7 @@ class TasksPage(StudyPage):
     set. Sets can also be imported from CSV or JSON or taken from a trajectory."""
     STUDY = None
     TITLE = 'Tasks'
+    MODEL = 'Model: none is run; the count is of the grasp sets the project holds (core/grasps.py).'
     HEADLINE = 'Grasps in the project'
 
     # ---------------------------------------------------------------- body

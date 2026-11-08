@@ -42,7 +42,7 @@ import tempfile
 
 import numpy as np
 
-from .suite import Outcome, check
+from .suite import LEROBOT, Outcome, check
 
 SETTINGS = {'episodes': 6, 'frames': 240, 'size': [320, 240], 'seed': 7,
             'faults': {'drop': {'episodes': [0, 3]}, 'duplicate': {'episodes': [1, 4]},
@@ -239,7 +239,7 @@ def settings_for(ctx=None) -> dict:
        'per fault kind, recall and false-positive rate over (episode, camera) pairs; error = the largest shortfall '
        'against the stated floors and ceilings',
        'the ground-truth sidecar of a seeded synthetic campaign (core/sim/episodes.py), read only after the audit',
-       0.0, 'share', refs=('lerobot_dataset_format', 'pech_pacheco2000', 'huber1964'), cost='study')
+       0.0, 'share', refs=('lerobot_dataset_format', 'pech_pacheco2000', 'huber1964'), cost='study', needs=LEROBOT)
 def fault_recall(ctx):
     res, truth, _root, _p = campaign(ctx)
     sc = score(res, truth)
@@ -262,7 +262,7 @@ def fault_recall(ctx):
 @check('audit.desync_offset', 'data', 'Auditor: camera-joint offset against the injected offset',
        'largest |estimated − true mean offset| over the static cameras of the campaign (ms)',
        'the sidecar\'s per-frame content time minus stamp (the injected desync, drift and jitter combined)',
-       DESYNC_TOL_MS, 'ms', refs=('knapp_carter1976', 'spearman1904', 'kunsch1989'), cost='study')
+       DESYNC_TOL_MS, 'ms', refs=('knapp_carter1976', 'spearman1904', 'kunsch1989'), cost='study', needs=LEROBOT)
 def desync_offset(ctx):
     res, truth, _root, _p = campaign(ctx)
     rows = desync_errors(res, truth)
@@ -314,7 +314,7 @@ def slip_vs_vantage(ctx):
        'vectors in the sensor\'s body frame, with every camera matched',
        'the sidecar\'s cameras (sensor uid, size) and its mount_slip delta', PLAN_TOL_DEG, '°',
        refs=('lucas_kanade1981', 'baker_matthews2004'),
-       cost='study')
+       cost='study', needs=LEROBOT)
 def plan_vs_recording(ctx):
     from ..core.studies import plan_vs_recording as PR
     res, truth, root, project = campaign(ctx)

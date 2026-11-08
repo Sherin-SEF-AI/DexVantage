@@ -192,7 +192,7 @@ def test_wizard_usd_says_what_to_install(win, tmp_path, monkeypatch):
     p.write_text('#usda 1.0\n')
     w = wizard(win)
     w.load(str(p), background=False)
-    assert w.robot is None and 'optional: install usd-core' in w.f_status.text.text()
+    assert w.robot is None and 'install the usd extra' in w.f_status.text.text()
     w.deleteLater()
 
 

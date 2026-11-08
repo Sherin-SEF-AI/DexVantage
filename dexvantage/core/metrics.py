@@ -21,7 +21,11 @@ own with @metric.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:                                    # names for the type hints only
+    from .jobs import Ctx, ResultCache
+    from .project import Project
 
 BETTER = ('higher', 'lower')
 
@@ -42,18 +46,19 @@ METRICS: dict = {}
 _LOADED = False
 
 
-def metric(mid: str, title: str, unit: str, better: str, study: str, note: str = '', tags=()):
+def metric(mid: str, title: str, unit: str, better: str, study: str, note: str = '',
+           tags: tuple | list = ()) -> Callable[[Callable], Callable]:
     """Register a metric; the decorated function reads the value from the study's result doc (None when absent)."""
     if better not in BETTER:
         raise ValueError(f'better must be one of {BETTER}')
 
-    def deco(fn):
+    def deco(fn: Callable) -> Callable:
         METRICS[mid] = Metric(mid, title, unit, better, study, fn, note, list(tags))
         return fn
     return deco
 
 
-def load_metrics():
+def load_metrics() -> None:
     """Import core/metric_defs.py once (it registers the metrics of every study)."""
     global _LOADED
     if _LOADED:
@@ -73,7 +78,7 @@ def get(mid: str) -> Metric:
     return METRICS[mid]
 
 
-def evaluate(project, ids, cache=None, ctx=None) -> dict:
+def evaluate(project: Project, ids: list | tuple, cache: ResultCache | None = None, ctx: Ctx | None = None) -> dict:
     """{metric id: {'value', 'unit', 'better', 'study', 'title', 'status', 'reason'?, 'bound'?, 'note'?}} for the
     project (read() says what bound and note mean)."""
     from .jobs import StudyError, run_study
@@ -127,3 +132,11 @@ def better_of(mid: str, a: float, b: float) -> bool:
     """True when a is better than b for this metric."""
     m = get(mid)
     return a > b if m.better == 'higher' else a < b
+
+
+def delta_unit(unit: str | None) -> str:
+    """The unit of a difference of two figures given in unit. A difference of two percentages is in percentage
+    points: 94.52 % against 94.32 % is a change of −0.20 pp (a change of −0.21 % would be relative). Every other unit
+    is its own difference's unit ('' stays '')."""
+    u = (unit or '').strip()
+    return 'pp' if u == '%' else u

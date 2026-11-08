@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Optimiser and design agent · DexVantage</title>
+<meta name="description" content="Spec §7.11. Code: dexvantage/core/optimise/ (nsga2.py, objectives.py, search.py, rig.py, designer.py),the studies optimise and design_agent (core/studies/optimise.py), the page Analysis ▸ Optimise(ui/pages/optimise.py), the checks validation/checks_optimise.py (model id optimise).">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-search-nsga-ii">The search: NSGA-II</a>
+    <a href="#objectives-and-constraints">Objectives and constraints</a>
+    <a href="#scoring-a-design">Scoring a design</a>
+    <a href="#the-optimiser-improve-this-rig">The optimiser (Improve this rig)</a>
+    <a href="#the-design-agent-design-new-rigs">The design agent (Design new rigs)</a>
+    <a href="#options-and-explanations">Options and explanations</a>
+    <a href="#validation-measured-2026-11-07">Validation (measured 2026-11-07)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/optimise.md"><code>docs/models/optimise.md</code></a></p>
+<h1 id="optimiser-and-design-agent">Optimiser and design agent</h1>
+<p>Spec §7.11. Code: <code>dexvantage/core/optimise/</code> (<code>nsga2.py</code>, <code>objectives.py</code>, <code>search.py</code>, <code>rig.py</code>, <code>designer.py</code>),
+the studies <code>optimise</code> and <code>design_agent</code> (<code>core/studies/optimise.py</code>), the page Analysis ▸ Optimise
+(<code>ui/pages/optimise.py</code>), the checks <code>validation/checks_optimise.py</code> (model id <code>optimise</code>).</p>
+<p>Ported from Vantage <code>core/optimiser.py</code> (the current layout as the first candidate, the Pareto front of the feasible
+candidates else of those closest to feasible, the changes said per camera, locked cameras kept) and
+<code>core/rig_designer.py</code> (requirements as constraints, cost from stated prices only, a seeded search budgeted in
+evaluations, options spread along the front and each explained, the current rig as the reference, accepting adds a
+variant and records the decision). Vantage's single-objective evolution is replaced by NSGA-II; its automotive
+objectives (blind ground, pixel density, perception range), reference vehicle rigs, lidars, radars and LLM brief are
+not ported.</p>
+<h2 id="the-search-nsga-ii">The search: NSGA-II</h2>
+<p>Deb, Pratap, Agarwal and Meyarivan (2002), in NumPy, over mixed genes:</p>
+<ul>
+<li><strong>Continuous genes</strong> (mount shifts in metres, turns in degrees, the design agent's placement numbers in [0, 1]):
+simulated binary crossover (SBX, Deb and Agrawal 1995) in its bounded form, probability <code>pc</code> = 0.9 per pair and 0.5
+per gene, distribution index η_c = 15; polynomial mutation (Deb and Goyal 1996), bounded, probability 1/n per gene,
+η_m = 20. These are the values of the NSGA-II paper's experiments and are labelled defaults (settings <code>pc</code>, <code>eta_c</code>,
+<code>eta_m</code>).</li>
+<li><strong>Categorical genes</strong> (a camera kept or not, its device, its mount site): uniform crossover (each gene swapped with
+probability 0.5 when the pair crosses) and mutation to another choice drawn uniformly, probability 1/n.</li>
+<li><strong>Selection</strong>: binary tournament on the crowded comparison (lower front, then larger crowding distance); the next
+population is parents and offspring sorted into fronts, filled front by front, the last front cut by crowding
+distance.</li>
+<li><strong>Constraints</strong> by constrained domination (Deb 2002, §VI): feasible beats infeasible, the smaller total violation
+beats the larger, Pareto dominance between feasible designs.</li>
+<li><strong>Budget</strong> in evaluations (the last generation is cut to fit); <strong>seed</strong>: one <code>numpy</code> generator, so a run is
+reproducible exactly; <strong>cancel</strong> between evaluations (the designs scored so far are kept and the result says
+&quot;cancelled&quot;); <strong>progress</strong> per evaluation.</li>
+</ul>
+<p>Every objective is minimised internally (a higher-is-better metric is negated). A figure a study does not state for a
+design is +∞ for sorting only (the design ranks below every design that states it); it is shown as &quot;not stated&quot; and
+never replaced by a number. Along an objective it does not state, a design takes no part in the crowding distance (the
+extremes are those of the stated values), so the crowded comparison never prefers it to a stated design.</p>
+<h2 id="objectives-and-constraints">Objectives and constraints</h2>
+<p>Objectives are metric ids of <code>core/metric_defs.py</code> (the vocabulary the requirements scorecard, tolerance and experiments
+share). The default list is the specification's:</p>
+<table>
+<thead>
+<tr>
+<th>Objective</th>
+<th>Metric</th>
+<th>Unit</th>
+<th>Better</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Contact visibility</td>
+<td><code>grasp.contact_visibility</code></td>
+<td>%</td>
+<td>higher</td>
+</tr>
+<tr>
+<td>Depth-valid coverage</td>
+<td><code>depth.valid</code></td>
+<td>%</td>
+<td>higher</td>
+</tr>
+<tr>
+<td>Camera count</td>
+<td><code>rig.camera_count</code></td>
+<td>count</td>
+<td>lower</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td><code>rig.cost</code></td>
+<td>USD</td>
+<td>lower</td>
+</tr>
+<tr>
+<td>Bandwidth margin</td>
+<td><code>bandwidth.margin</code></td>
+<td>Mbit/s</td>
+<td>higher</td>
+</tr>
+<tr>
+<td>Bracket printability</td>
+<td><code>brackets.not_ready</code></td>
+<td>count</td>
+<td>lower</td>
+</tr>
+<tr>
+<td>VLA token coverage</td>
+<td><code>vla.min_tokens</code></td>
+<td>tokens</td>
+<td>higher</td>
+</tr>
+</tbody>
+</table>
+<p>An objective is left out, with its reason in the result, when the current rig's study does not state it (the
+optimiser; a rig with no host has no bandwidth margin), when no design states it (the design agent), or, for the
+cost, when any device the search can choose has no price in its library entry (no built-in entry states one, so the
+cost is left out on every sample; a custom entry with a <code>price</code> block brings it in). Nothing is guessed.</p>
+<p>Constraints are the project's requirements (<code>project.requirements</code>: metric, <code>&gt;=</code>/<code>&gt;</code>/<code>&lt;=</code>/<code>&lt;</code>/<code>==</code>, threshold) plus
+settings <code>constraints</code>. The violation of one is its shortfall divided by max(|threshold|, a unit floor: 1 % for
+percentages, 1 for counts, 0.1 ms, 1 mm…), so requirements in different units weigh alike; a figure not stated
+counts as a violation of 1 (it cannot be shown to hold), and so does a figure stated only as a bound that does not
+settle the test (the scorecard's &quot;not evaluated&quot;). A requirement whose metric is unknown is listed and not used.
+A rig without a camera is infeasible.</p>
+<h2 id="scoring-a-design">Scoring a design</h2>
+<p>Each design is a project (<code>core.factors.apply</code> returns a new one; the design agent adds a variant) scored by
+<code>core.metrics.evaluate</code>, one study at a time (a study that stops with an unexpected error leaves its metrics
+&quot;refused&quot; with a sentence instead of stopping the search). The studies run at <strong>screening settings</strong> (labelled
+defaults, settings <code>screen</code>; <code>{}</code> uses the project's own): the grasp study on 40 grasps without sensitivity,
+gallery or pre-contact steps and with 200 bootstrap resamples (0.5–1 s instead of about 40 s on the UR5e sample), the
+brackets study on 12 joint samples without meshing. <code>confirm</code> scores the options shown again at the project's own
+settings. Identical designs are scored once (a memo), and study results are kept between runs in a shared result
+cache (256 results).</p>
+<h2 id="the-optimiser-improve-this-rig">The optimiser (Improve this rig)</h2>
+<p>Factors (<code>core.factors</code> paths; settings <code>factors</code> replaces them): for every enabled, unlocked camera, depth or tactile
+sensor, <code>dx</code>, <code>dy</code>, <code>dz</code> within ±<code>move_m</code> (default 0.05 m) along its parent frame and <code>dpitch</code>, <code>dyaw</code> within
+±<code>turn_deg</code> (default 15°) about its own axes; with <code>allow_remove</code> (default on) <code>enabled</code>; with <code>swap_models</code> (default
+off) <code>model</code> among the library's devices of its kind. Locked sensors have no factor; a factor in the settings that
+names one is refused with a note, and every design built is checked to leave the locked sensors' fields unchanged (an
+assertion in the search, a validation check). The current rig is the first design. Accept sets the design's factors on
+the active variant (one undo step) and refuses when the rig changed since the search ran.</p>
+<h2 id="the-design-agent-design-new-rigs">The design agent (Design new rigs)</h2>
+<p>A rig is up to <code>max_cameras</code> (default 3) slots; each slot's genes are: on or off, the device (settings <code>models</code>,
+default every camera and depth entry of the library), the mount site, and three numbers in [0, 1] placing it there.</p>
+<ul>
+<li><strong>Static site</strong> (settings <code>static_frames</code>, default the cage): looking at the first task volume's centre from
+azimuth −180° to 180°, elevation 20° to 85° and distance 0.45 to 1.2 m (defaults <code>elevation_deg</code>, <code>distance_m</code>).</li>
+<li><strong>Link site</strong> (settings <code>links</code>, default each robot's gripper frame): riding on the link, looking at a point 3 cm
+beyond the fingertips (the mean of the fingertip frames at home, in the link frame; the approach axis runs from the
+link origin to it) from 2 to 15 cm behind the fingertips and 4 to 12 cm off the axis, at any angle around it
+(defaults <code>wrist_back_m</code>, <code>wrist_radial_m</code>).</li>
+</ul>
+<p>Locked sensors are in every rig unchanged; the other current sensors are left out (each design is a complete rig)
+unless <code>keep_unlocked</code>. Each new sensor whose device states its size gets the bracket type
+<code>core/brackets.suggest_kind</code> gives. Accept adds the design as a new variant, makes it active and records the decision
+in the settings and the design log (one undo step).</p>
+<h2 id="options-and-explanations">Options and explanations</h2>
+<p>The options are up to <code>options</code> (default 5) designs of the first front of every design scored, with the current rig
+taking part in the dominance comparison (a design the current rig dominates is not offered), the same figures counted
+once, the best design on each objective first and then by crowding distance. Each option's explanation is built from
+its figures only: what it changes or what the rig is, what it gains and gives up against the current rig (with the
+differences), on which objectives it is the only best of the set, what it trades against its nearest neighbour on the
+front (objectives scaled by their range over the options), which requirements it meets or misses and which figures
+are not stated.</p>
+<p>The headline is the number of designs offered with a status word: <strong>better rig found</strong> (a feasible design at least as
+good as the current rig on every objective and better on one), <strong>trade-offs only</strong>, <strong>current rig is best</strong>, <strong>misses
+the requirements</strong> (none feasible), with &quot;(cancelled)&quot; when stopped.</p>
+<h2 id="validation-measured-2026-11-07">Validation (measured 2026-11-07)</h2>
+<p><code>dexvantage --validate OUT --models optimise</code>, 6 of 6 pass, 40.7 s:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Measured</th>
+<th>Tolerance and why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>optimise.zdt1_igd</code></td>
+<td>analytic ZDT1 front f2 = 1 − √f1 (Zitzler, Deb and Thiele 2000)</td>
+<td>IGD 0.00511 worst of 3 seeds (0.00511, 0.00475, 0.00488); even 100-point floor 0.00372</td>
+<td>0.01: 1 % of the front's extent; about 2.7 times the best a 100-point set can do</td>
+</tr>
+<tr>
+<td><code>optimise.zdt2_igd</code></td>
+<td>analytic ZDT2 front f2 = 1 − f1²</td>
+<td>IGD 0.00531 (0.00492, 0.00496, 0.00531); floor 0.00373</td>
+<td>0.01, as above</td>
+</tr>
+<tr>
+<td><code>optimise.constrained</code></td>
+<td>CONSTR's front worked out from its constraints (f2 = 1/f1 for f1 ≥ 2/3, (7 − 9 f1)/f1 for 7/18 ≤ f1 &lt; 2/3)</td>
+<td>IGD 0.0212 (0.0210, 0.0212, 0.0209); floor 0.0203; largest constraint violation of the front 0, re-evaluated from the genes</td>
+<td>0.05: 0.6 % of f2's range (1 to 9)</td>
+</tr>
+<tr>
+<td><code>optimise.locks</code></td>
+<td>the locked sensors' own fields</td>
+<td>0 of 480 designs on 20 random rigs changed a locked sensor</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>optimise.seed_reproducible</code></td>
+<td>the first run</td>
+<td>0 difference (NSGA-II archive of 600 evaluations; the rig optimiser's options); another seed differs</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>optimise.figures_reproduce</code></td>
+<td>the studies run again without the cache on each option applied (UR5e sample)</td>
+<td>0</td>
+<td>10⁻⁹</td>
+</tr>
+</tbody>
+</table>
+<p>IGD is the inverted generational distance (Coello Coello and Reyes Sierra 2004): the mean distance from 1 000 points
+of the analytic front to the nearest point found. NSGA-II ran with population 100, 25 000 evaluations (10 000 for
+CONSTR) and the default operators. The self-test line <code>optimiser</code> runs ZDT1 at 6 000 evaluations (IGD 0.0316 against
+0.05, 0.2 s) and checks the seed.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The front is an approximation from a seeded evolutionary search within a budget of evaluations, not a proof of
+optimality; with the page's default budgets (96 and 120 designs) it is a coarse one. NSGA-II's crowding distance
+spreads well for two or three objectives and less well beyond (many-objective problems want reference directions,
+NSGA-III).</li>
+<li>Each design is scored by the studies themselves, so the search inherits their modelling limits; at the screening
+settings the grasp study's figure carries the sampling error of 40 grasps (use <code>confirm</code>, or <code>screen: {}</code>).</li>
+<li>A figure a study does not state ranks a design last on that objective, and a requirement it does not state counts
+as missed.</li>
+<li>The cost is the sum of stated device prices only (no cables, hosts, brackets, lenses sold separately, taxes); no
+built-in library entry states a price.</li>
+<li>The optimiser moves mounts within a box and turns within a cone of the current pose; it does not move a camera to
+another link. The design agent's mount sites are a sphere around the task volume and a cone around the gripper's
+approach axis, not every surface of the cell or the robot; the camera's roll about its view axis is not searched;
+the stream mode is the device's largest.</li>
+<li>The budget is in evaluations, not seconds: about 0.8 s per design on the UR5e sample for the optimiser and 2 s for
+the design agent (whose designs carry more studies' work, e.g. new brackets).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

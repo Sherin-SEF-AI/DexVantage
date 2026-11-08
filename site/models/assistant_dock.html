@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Assistant dock: providers, the tool loop, the number check and the Copilot · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/assistant/ — agent.py (the tool loop, the system prompt, the context note), toolbox.py (thetools the dock offers and the session they see), providers.py (models, usage, prices), claude.py (Claude throughAnthropic&#x27;s SDK), client.py (Groq over plain HTTPS, and ApiError), fake.py …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-loop">The loop</a>
+    <a href="#three-rules-the-loop-enforces">Three rules the loop enforces</a>
+    <a href="#providers">Providers</a>
+    <a href="#kept-per-project">Kept per project</a>
+    <a href="#validation-measured-2026-11-07-quick-and-full-runs-alike">Validation (measured 2026-11-07, quick and full runs alike)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/assistant_dock.md"><code>docs/models/assistant_dock.md</code></a></p>
+<h1 id="copilot">The Assistant dock: providers, the tool loop, the number check and the Copilot</h1>
+<p>Modules: <code>dexvantage/assistant/</code> — <code>agent.py</code> (the tool loop, the system prompt, the context note), <code>toolbox.py</code> (the
+tools the dock offers and the session they see), <code>providers.py</code> (models, usage, prices), <code>claude.py</code> (Claude through
+Anthropic's SDK), <code>client.py</code> (Groq over plain HTTPS, and <code>ApiError</code>), <code>fake.py</code> (the fake provider every test uses),
+<code>numcheck.py</code> (the number post-check), <code>edits.py</code> (edit proposals), <code>copilot.py</code> (plans, approval records, the gate),
+<code>chats.py</code>, <code>memory.py</code>, <code>store.py</code> (what is kept per project), <code>secrets.py</code> (keys, system keyring only),
+<code>routing.py</code> (automatic model choice, off by default); the dock is <code>dexvantage/ui/assistant.py</code>. Checks:
+<code>dexvantage/validation/checks_copilot.py</code> (model <code>copilot</code>). Tests: <code>tests/test_assistant_loop.py</code>,
+<code>tests/test_assistant_dock.py</code>. Spec §12, part 2 (the tools and the MCP server are part 1: <code>docs/models/mcp.md</code>).</p>
+<p>Ported from Vantage <code>assistant/agent.py</code>, <code>providers.py</code>, <code>claude.py</code>, <code>client.py</code>, <code>chats.py</code>, <code>memory.py</code>,
+<code>copilot.py</code>, <code>routing.py</code>, <code>secrets.py</code> and <code>ui/assistant.py</code>. Stripped: the vehicle plan kinds (CARLA drives,
+campaigns, detection), agent (goal) mode, pictures, slash commands, Vantage's environment-variable and private-file key
+fallbacks. Added: the number post-check, edits from changing tools turned into proposals, Claude Haiku 5.5.</p>
+<h2 id="the-loop">The loop</h2>
+<p>A question is one <em>turn</em>. On the UI thread the dock reads the page on screen (<code>page_guide.current_page_state</code>: its
+headline, status word and the study's figures), the selection, the memory notes and the plan on screen, and builds a
+<code>ToolContext</code>; the turn then runs on a worker thread:</p>
+<ol>
+<li>The question goes to the model with a context note (on the SO-100 sample: <code>[DexVantage context: project &quot;SO-100 sample&quot;; variant &quot;Wrist + third-person (sample)&quot;; open page: Coverage and resolution (Shows 47.3 % of the task volume: gaps.)]</code>) and the memory notes (Claude: as a mid-conversation system message, sent only when they
+changed, so the cached prefix stays the same).</li>
+<li>The model answers or calls tools. Each call's input is checked against the tool's schema first
+(<code>tools.validate_args</code> for the shared tools), then run by <code>toolbox.run</code>, and its JSON result goes back. At most
+12 rounds; the last is told to answer without tools.</li>
+<li>After the answer, <code>numcheck.unsupported(answer, sources)</code> lists the figures not found in the sources (every tool
+result of the conversation, the context note, the page context, the user's words, the memory notes). The dock
+shows them under the answer.</li>
+</ol>
+<p>A failed or stopped turn is rolled back from the end of the history, so the conversation is as before it. Errors are
+<code>ApiError(kind, sentence)</code>: <code>no_key</code>, <code>auth</code>, <code>rate</code> (retried once when the provider says to wait 20 s or less),
+<code>overloaded</code>, <code>network</code> (&quot;you may be offline&quot;), <code>refusal</code>, <code>truncated</code>, <code>rounds</code>, ...; the dock shows the sentence,
+never a traceback.</p>
+<h2 id="three-rules-the-loop-enforces">Three rules the loop enforces</h2>
+<p><strong>No invented numbers.</strong> The system prompt says to take every number from the tools and to say &quot;not stated&quot; for a
+figure the maker does not state; the post-check catches what the prompt does not. A number in the answer is
+<em>supported</em> when some source value v gives |a − k·v| ≤ ½·10^(−d), with d the decimals the answer writes and
+k ∈ {1, 100, 1/100, 1000, 1/1000, 10⁶, 10⁻⁶, 180/π, π/180} (as written, as a percentage, in milli or kilo units, in
+degrees from radians), sign ignored. Not checked: integers 0 to 10 written without a decimal point and without a unit, % or ° after them (counts,
+steps; <code>NUMBER_FLOOR</code>, a default; &quot;5 mm&quot; or &quot;8 ms&quot; is checked), numbers joined to a word (UR5e, SO-100, claude-opus-5-5, §7.3, 3D), versions, ISO dates,
+clock times, inline code and URLs, numbered list markers.</p>
+<p><strong>No direct edits.</strong> The tools see a <code>Proposing</code> session: its <code>edit(keys, fn, text)</code> runs <code>fn</code> on a copy and
+records the difference as an <code>edits.Proposal</code> (the section keys and a before/after row per quantity); <code>undo</code> and
+<code>redo</code> refuse. <code>propose_changes</code> (factor paths of <code>core/factors.py</code> and the structural ops of <code>mcp/edits.py</code>) checks
+the change on a copy (a locked sensor or a bad value is a sentence back to the model) and applies it again to the
+project as it is when the user clicks Accept. A proposal from a changing tool (<code>edit_project</code>) carries its
+prediction from <code>simulate_changes</code> and is refused at Accept if the project changed since (it would overwrite).
+Accept is <code>ProjectStore.edit(keys, …, 'Assistant · &lt;title&gt;')</code>: one undo step. Discard writes a <code>rejected</code> memory note.</p>
+<p><strong>No long study without an approved plan.</strong> The session has <code>allow_long=False</code> (the shared tools refuse the studies
+in <code>tools.LONG</code>, measured at tens of seconds on the samples), <code>toolbox.run</code> refuses <code>run_study</code> of such a study
+before the tool sees it and refuses <code>export_files</code> (exports run from a plan). <code>propose_plan</code> builds a
+<code>copilot.Plan</code>: steps of kind <code>study</code> (a study id and the settings for that run), <code>export</code> (format ids) or <code>edit</code>
+(changes and ops); each value records its source (your request, chosen by the Copilot, the page's default); each step
+is checked (the study exists, it has its robot, the formats exist, the edit applies to a copy) and carries an
+estimate only when this session has measured one (the last run's seconds, labelled as a measurement with other
+settings, never a prediction).</p>
+<p>Approve re-checks the plan and writes an approval record into <code>&lt;data&gt;/assistant/&lt;project&gt;/copilot.json</code>: the steps,
+their settings, <code>settings_sha256</code> per step and for the plan (SHA-256 of canonical JSON: sorted keys, no spaces), the
+request, provider and model, the UTC time. The runner then runs each step only after <code>gate(records, ticket, kind, settings)</code> passes: an approved record of that plan version, <code>verify</code> true (every hash recomputes), a step of that kind
+with exactly those settings. A study step runs through the window's analysis controller with its settings for that
+run only; an export into <code>&lt;working folder&gt;/&lt;project&gt;/exports/plan-&lt;id&gt;-v&lt;n&gt;</code>; an edit as one undo step
+&quot;Copilot · …&quot;. Edit on the card makes a new version (the diff against the previous one is shown; it needs approval
+again); an approved plan is never changed.</p>
+<h2 id="providers">Providers</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Claude (<code>claude.py</code>)</th>
+<th>Groq (<code>client.py</code>)</th>
+<th>Fake (<code>fake.py</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>package</td>
+<td><code>anthropic==2.6.0</code> (extra <code>assistant</code>)</td>
+<td>none (stdlib HTTPS)</td>
+<td>none</td>
+</tr>
+<tr>
+<td>models</td>
+<td><code>claude-opus-5-5</code> (default), <code>claude-sonnet-5-5</code>, <code>claude-haiku-5-5</code></td>
+<td><code>openai/gpt-oss-120b</code> (default), <code>openai/gpt-oss-20b</code>, <code>llama-3.3-70b-versatile</code></td>
+<td><code>fake-model</code></td>
+</tr>
+<tr>
+<td>request</td>
+<td><code>beta.messages.stream</code>, adaptive thinking, <code>output_config.effort</code> medium (high on a plan turn), <code>tool_choice</code> auto, every tool <code>eager_input_streaming</code>, the system prompt cached, compaction <code>compact-2026-01-12</code>, <code>fallbacks: &quot;default&quot;</code> on Opus and Sonnet</td>
+<td>chat completions, streamed</td>
+<td>scripted replies and calls</td>
+</tr>
+<tr>
+<td>key</td>
+<td>the system keyring (<code>DexVantage</code> / <code>anthropic-api-key</code>)</td>
+<td>the system keyring (<code>groq-api-key</code>)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The Claude request shape follows Anthropic's documentation for these models as the Claude API reference states it
+(read 2026-11-07): <code>budget_tokens</code>, <code>temperature</code>, <code>top_p</code>, <code>top_k</code> are never sent; forced tool choice is not used;
+Haiku 5.5 has no server-side refusal fallback. Prices (<code>providers.PRICES</code>, USD per million tokens, the same source):
+Opus 5.5 $4 in / $20 out / $0.20 cache read, Sonnet 5.5 $2 / $10 / $0.20, Haiku 5.5 $0.10 / $0.50 (up to 100K-token
+prompts); cache writes, and Haiku's cache prices, are not stated there and are <code>None</code>, so a conversation that used
+them shows tokens without a cost. Groq's prices are not bundled.</p>
+<p>Keys are kept only in the system keyring (<code>secrets.py</code>, the optional <code>keyring</code> package): no environment variable,
+file or setting. Without a keyring the settings dialog says why (no package, no Secret Service, or
+<code>DEXVANTAGE_NO_KEYRING</code> set as the tests set it). The key is passed to the SDK explicitly, so the SDK never looks for
+one of its own. What leaves the machine is masked (<code>agent.mask</code>: the home folder as <code>~</code>, other absolute paths cut to
+their last part, anything shaped like an API key removed).</p>
+<h2 id="kept-per-project">Kept per project</h2>
+<p>Under <code>XDG_DATA_HOME/DexVantage/assistant/&lt;project key&gt;/</code> (else <code>~/.local/share/...</code>), files 0600, folders 0700: the
+chats (<code>chats/&lt;id&gt;.json</code>, the transcript as the dock showed it, masked), the memory notes (<code>memory.json</code>: decision,
+constraint, rejected, note; the user adds and deletes them in the Memory view; the assistant only offers one with
+<code>remember</code>) and the Copilot records (<code>copilot.json</code>). The project key is the file's stem and a hash of its path (an
+unsaved project: of its name and creation time).</p>
+<h2 id="validation-measured-2026-11-07-quick-and-full-runs-alike">Validation (measured 2026-11-07, quick and full runs alike)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Result</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>copilot.number_check</code></td>
+<td>25 answers labelled by hand (7 flags)</td>
+<td>0 mismatches (3 ms)</td>
+<td>0: the rule is deterministic</td>
+</tr>
+<tr>
+<td><code>copilot.plan_gate</code></td>
+<td>the decision each of 12 records must get; SHA-256 by <code>hashlib</code> (FIPS 180-4)</td>
+<td>0 wrong, 0 hash mismatches (82 ms)</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>copilot.proposal_roundtrip</code></td>
+<td><code>core.factors.apply</code>; <code>Project.to_dict</code></td>
+<td>0 sections differ after applying, 0 fields after restoring (75 ms)</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>The checks found one bug while being written: a number that opened an answer was never checked (an empty
+&quot;character before&quot; counted as a name character); fixed, and the corpus keeps the case. The self-test line <code>assistant</code>
+runs one scripted turn on the SO-100 sample (three tools, a proposal, a refused long study, one invented figure
+flagged) in about 0.2 s.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The post-check matches values, not meanings: a right number cited for the wrong quantity passes, and a number the
+model derived correctly (a sum, a difference) is flagged. It reads digits only (&quot;twelve&quot; is not read). It says
+&quot;check these figures&quot;, not &quot;these are wrong&quot;.</li>
+<li>The gate proves what was approved, not who approved it: anyone who can write the user's data folder can write a
+record. <code>verify</code> catches a record changed after approval, not a forged one.</li>
+<li>A proposal from a changing tool is refused at Accept when anything in the project changed since it was made, even
+an unrelated section; <code>propose_changes</code> proposals are applied again to the current project instead.</li>
+<li>Plan steps carry no time estimate until the study has run in the session; there is no model of a study's run time.</li>
+<li>The Claude request shape (betas, fallbacks, compaction) follows the documentation; no request was sent to the API
+while building this (the tests use the fake provider only), so a change on Anthropic's side shows as a plain error.</li>
+<li>Groq's model list is the one Vantage took from Groq's documentation (October 2026); none of them takes images.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

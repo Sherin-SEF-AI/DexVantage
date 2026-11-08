@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hand-eye calibration: a worked example · DexVantage</title>
+<meta name="description" content="Where exactly is the wrist camera on the flange? This walk-through calibrates the UR5e sample&#x27;s wrist camera (theD405&#x27;s RGB imager on wrist_3_link) against a printed ChArUco board on the table, eye-in-hand: plan the poses, recordthem, solve, apply, with the coach saying what to take next. The …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#a-plan-the-poses-calibrate--plan-hand-eye-poses">A. Plan the poses (Calibrate ▸ Plan hand-eye poses…)</a>
+    <a href="#b-record">B. Record</a>
+    <a href="#c-solve-calibrate--solve-hand-eye">C. Solve (Calibrate ▸ Solve hand-eye…)</a>
+    <a href="#d-the-same-with-the-python-api">D. The same with the Python API</a>
+    <a href="#e-check-the-installation">E. Check the installation</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/handeye.md"><code>docs/guide/handeye.md</code></a></p>
+<h1 id="hand-eye-calibration-a-worked-example">Hand-eye calibration: a worked example</h1>
+<p>Where exactly is the wrist camera on the flange? This walk-through calibrates the UR5e sample's wrist camera (the
+D405's RGB imager on <code>wrist_3_link</code>) against a printed ChArUco board on the table, eye-in-hand: plan the poses, record
+them, solve, apply, with the coach saying what to take next. The model, its equations and its checks are in
+<code>docs/models/handeye.md</code> (the planner, the recording and the coach under &quot;Pose planning, recording and the coach&quot;).</p>
+<p>The images in the numbers below are rendered (<code>core/calib/synthetic.py</code>) so that the true answer is known; on a real
+rig they come from the camera and the joint vectors from the robot at the moment each image is taken.</p>
+<h2 id="a-plan-the-poses-calibrate--plan-hand-eye-poses">A. Plan the poses (Calibrate ▸ Plan hand-eye poses…)</h2>
+<p>Open the sample (File ▸ Open sample ▸ &quot;UR5e and Robotiq 2F-85 with a wrist D405 and an overhead D435&quot;) and switch
+to the Calibration workspace (Window ▸ Calibration workspace): the Analysis dock opens on <strong>Hand-eye pose plan</strong>.</p>
+<ol>
+<li>
+<p><strong>Camera</strong>: &quot;Wrist D405 (on wrist_3_link)&quot;, eye-in-hand. (Choosing the fixed &quot;Overhead D435&quot; plans eye-to-hand,
+with the board held on the gripper.)</p>
+</li>
+<li>
+<p><strong>Board and where it is</strong>: until you save one, the page uses DexVantage's default and says so: a ChArUco board of
+9 × 7 squares of 30 mm (22 mm markers, <code>DICT_5X5_100</code>) flat on the table at the task volume's centre, printed face up.
+Enter the board you print and where you lay it (the fields are the board frame's origin, a corner of the pattern,
+and its roll, pitch and yaw), then <strong>Save board</strong> (one undo step). <strong>Print board…</strong> writes a PDF at true size: print
+it at 100 % (&quot;actual size&quot;), glue it flat, measure a square with a ruler and enter what you measured.</p>
+</li>
+<li>
+<p><strong>Poses</strong> (default 20), <strong>Corner noise</strong> (default 0.3 px) and the <strong>Requirement</strong> (default 0.5 mm and 0.05°) are
+yours to set; each field says &quot;default&quot; until you change it.</p>
+</li>
+<li>
+<p><strong>Run</strong>. On the sample (default board and settings), 304 of the 375 candidate poses are feasible (63 come within
+10 mm of the table, 5 are out of reach, 2 make the arm touch itself, 1 did not converge), and the plan of 20 poses
+predicts for the camera</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>σ x</th>
+<th>σ y</th>
+<th>σ z</th>
+<th>σ rx</th>
+<th>σ ry</th>
+<th>σ rz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>X: wrist camera in <code>wrist_3_link</code></td>
+<td>0.0117 mm</td>
+<td>0.0100 mm</td>
+<td>0.0099 mm</td>
+<td>0.0028°</td>
+<td>0.0029°</td>
+<td>0.0088°</td>
+</tr>
+<tr>
+<td>Z: board in the world</td>
+<td>0.0173 mm</td>
+<td>0.0212 mm</td>
+<td>0.0165 mm</td>
+<td>0.0060°</td>
+<td>0.0049°</td>
+<td>0.0088°</td>
+</tr>
+</tbody>
+</table>
+<p>The headline reads 0.00882° (the rotation about the optical axis, the loosest) and &quot;meets the requirement&quot;. The
+pose table lists the 20 poses in the order to take them (each &quot;0.19 m from the board, tilted 50° (towards 90°)&quot; and
+so on), how many corners each sees, how many the gripper's fingers hide, and how much the loosest σ grows without
+it (0.5–5.9 %); one more pose would cut the loosest axis by 3.5 %. The 3D view draws the planned gripper frames,
+the path between them and a line from each camera position to the board; the Camera view outlines the board.</p>
+</li>
+<li>
+<p><strong>Next pose</strong> moves the robot in the view through the poses (view only). <strong>Save as session</strong> stores the plan as a
+calibration session (one undo step) so you can record it pose by pose.</p>
+</li>
+</ol>
+<p>These σ are predictions at 0.3 px of independent corner noise: real detected corners are somewhat correlated, so treat
+them as a lower bound (2 to 2.5 times lower than the error measured on rendered images).</p>
+<h2 id="b-record">B. Record</h2>
+<p>Drive the robot to each planned pose (the session's joint vectors, or the pose table), let it settle, and take an
+image. Save the images in one folder and the robot's joint states as a CSV with a time column <code>t</code> (seconds) and one
+column per joint (radians; the first row of the example below, with the gripper's joints at 0 after the dots):</p>
+<pre><code>t,shoulder_pan_joint,shoulder_lift_joint,elbow_joint,wrist_1_joint,wrist_2_joint,wrist_3_joint,...
+100.004,-1.5707874644,-1.0634923917,1.6950665100,-1.8402133477,-1.5707808154,0.0000013386,...
+</code></pre>
+<p>The image times come from an <code>images.csv</code> next to the images (columns <code>file</code>, <code>t</code>), or from the file names
+(<code>pose_00_100.000.png</code>: the last decimal number, in seconds).</p>
+<p><strong>From a recording.</strong> If the calibration was recorded as a LeRobot dataset (v2.1 or v3.0) or a ROS 2 bag (MCAP or
+SQLite), use <strong>From a LeRobot dataset or ROS 2 bag…</strong> on the Hand-eye solve page instead. Hold the robot still at each
+pose for a second or so while recording. The dialog asks for the dataset, the camera to calibrate, its stream
+(empty: the stream named like the camera, <code>observation.images.wrist_d405</code> or <code>/wrist_d405/image_raw</code> for &quot;Wrist
+D405&quot;), the episodes, every Nth frame, the joint time offset (default 0 ms: the camera and the joints on one clock)
+and the joints' unit. On a worker thread it then</p>
+<ul>
+<li>reads each frame's joint state by interpolating the recorded rows linearly at the frame's time (+ the offset);</li>
+<li>leaves out frames taken while the joints moved faster than 0.5°/s (a default; tick <strong>Use frames taken while the
+robot moves</strong> to keep them, marked) and frames outside the joint rows' time span;</li>
+<li>looks for the board in the remaining frames; a stream recorded at a smaller size than the sensor's (the same lens,
+resampled) is handled by scaling the camera model and carrying the corners back to the sensor's pixels;</li>
+<li>makes one view of each held pose (still frames whose joints agree within 0.05°, a default; the frame with the most
+corners), and adds the session in one undo step.
+The note under the buttons says how many frames were looked at, in how many the board was found and how many views
+that gave, then the timing: &quot;Joint states interpolated linearly at each frame's time. The camera and joint times are
+taken as one clock (offset 0.0 ms, a default). The nearest joint row is 7.0 ms from a frame (median).&quot;</li>
+</ul>
+<p>Worked example on the UR5e sample (the test <code>tests/test_dataset_links.py</code>, measured 2026-11-07): 10 planned poses held
+1 s each and joined by 0.8 s moves, recorded at 5 fps through the wrist D405 moved 2.69 mm and 0.62° from its mount,
+at 640 × 360 px (half the stream), as a LeRobot v3.0 episode with AV1 video: 90 frames looked at, the board found in
+the 52 still ones, 10 views (0.19 s on the CPU). The solve finds the camera 0.05 mm and 0.011° from where the frames
+were rendered (the solve's own 1σ: 0.014 mm and 0.007°; the same frames uncoded give 0.049 mm, and full-size frames 0.020 mm:
+rendered corners err alike within a view, which the σ does not assume). The same
+capture as an MCAP bag (joint states at 50 Hz, images stamped 7 ms after a joint row) gives the same 10 views, and
+says the 7 ms.</p>
+<p><strong>No rig yet?</strong> On the Hand-eye solve page, <strong>Simulate a capture…</strong> renders the board at the plan's poses with the
+camera moved a known 2.69 mm and 0.62° from its mount (defaults), saves the images, <code>joint_states.csv</code> and <code>truth.json</code>
+in a new <code>simulated-capture-&lt;time&gt;</code> folder inside the folder you choose, and imports them as a session named
+&quot;(simulated)&quot;. Solve it as below: on the UR5e sample the headline says the camera moves 2.69 mm and 0.619°, and the
+notes say the session is simulated and how far the solve is from the truth. It is a test of the pipeline, not a
+measurement: Apply on it moves the camera in the project to the simulated mount (Edit ▸ Undo takes it back). The
+SO-100 (five arm joints) plans and simulates the same way; its plan notes that each pose is reached position first.</p>
+<h2 id="c-solve-calibrate--solve-hand-eye">C. Solve (Calibrate ▸ Solve hand-eye…)</h2>
+<ol>
+<li>
+<p><strong>Images folder…</strong> and <strong>Joint states…</strong>, <strong>Match within</strong> (default 50 ms), <strong>Joints in</strong> rad or deg, then
+<strong>Import</strong>: each image takes the nearest joint sample, the board is detected, and the session is saved (one undo
+step). The note says how many images were matched and detected; an image with no joint sample within the tolerance,
+or taken while the robot moved, is listed with the reason.</p>
+</li>
+<li>
+<p><strong>Run</strong> solves the session. On the 20 rendered views of the plan above: 20 of 20 views used, RMS 0.127 px (per view
+0.04–0.19 px), corner σ̂ 0.090 px; the camera's σ 0.0032–0.0038 mm and 0.0008–0.0021°, and its error against the
+truth 0.0077 mm and 0.0020°. (The solve used every corner of the rendered boards, while the plan had left out the
+corners the fingers would hide, so its σ is a little below the plan's prediction at the same corner noise.)</p>
+</li>
+<li>
+<p>The <strong>Coach</strong> names the next pose and why: &quot;Enough: every axis of the camera is within 0.5 mm and 0.05°. The loosest
+axis now is the camera's rotation about its z axis at 0.0021° …&quot;. With fewer poses taken it names the pose that
+most reduces the loosest σ, and <strong>Show next pose</strong> moves the robot there in the view.</p>
+</li>
+<li>
+<p><strong>Apply</strong> writes the calibrated mount to the sensor (its body pose on <code>wrist_3_link</code>; the change, here 0.008 mm, is
+in the status line) and marks the session applied: one undo step. With <strong>Refine the intrinsics</strong> ticked the refined
+lens model is written as the sensor's calibration too.</p>
+</li>
+<li>
+<p><strong>Two cameras at once.</strong> Import a second session for the other camera (choose it on the plan page first, or as
+the session's sensor) and tick <strong>Every session together</strong>, then <strong>Run</strong>: one bundle adjustment over both. On the
+UR5e sample, with the wrist D405 seeing the table board at 10 planned poses and the overhead D435 seeing the same
+board at the same poses (<code>validation/checks_handeye.joint_sessions_project</code>, the overhead mount moved 10 mm on
+purpose), the covariance table lists both cameras and the board; the overhead camera, which alone is refused (&quot;every
+camera and board is fixed in the world&quot;), comes back about 0.8 mm from its true mount (its σ about 1 mm across the
+image), and <strong>Apply</strong> writes both mounts in one undo step. The notes say why the coach cannot help the overhead
+camera.</p>
+</li>
+</ol>
+<p>Batch: <code>dexvantage --sample ur5e --handeye-plan plan.json</code> writes the plan; <code>--handeye-solve out.json</code> solves the
+project's newest session (or, with the study settings <code>folder</code> and <code>joints</code>, captures a folder at run time).</p>
+<h2 id="d-the-same-with-the-python-api">D. The same with the Python API</h2>
+<p>The steps below are what the pages do, with <code>dexvantage.core.calib</code>.</p>
+<h3 id="1-make-and-print-a-board">1. Make and print a board</h3>
+<pre><code class="language-python">from dexvantage.core.calib import boards
+board = boards.CharucoBoard(9, 7, square_m=0.030, marker_m=0.022)     # DICT_5X5_100, a default
+boards.save_board(board, 'charuco-9x7-30mm.pdf')                       # true scale, one-square margin
+boards.save_board(board, 'charuco-9x7-30mm.png', dpi=300)
+</code></pre>
+<p>Print the PDF at 100 % (&quot;actual size&quot;), glue it to something flat, and measure a square: if it is 29.8 mm, define
+the board with <code>square_m=0.0298</code> (and the marker scaled alike). An AprilGrid in Kalibr's layout is
+<code>boards.AprilGrid(6, 6, tag_m=0.088, spacing=0.3)</code>; keep its corner squares (the default) for the best corners.</p>
+<h3 id="2-detect-the-board-in-each-image">2. Detect the board in each image</h3>
+<pre><code class="language-python">from dexvantage.core.calib import detect
+det = detect.detect(image, board, camera)          # camera: the core.optics.CameraModel of the unit
+pnp = detect.solve_pnp(det.points, det.corners, camera)
+print(det.n, pnp.rms_px)
+</code></pre>
+<p>On the 20 rendered views of this example (640 × 480, f = 480 px, 1 grey level of noise) the board was found in
+every view, with 8 to 48 of its 48 corners (in some poses part of the board is out of the image; ChArUco corners
+count one by one, so a partial board still gives a pose).</p>
+<p>From a recorded dataset, <code>capture.capture_dataset</code> does the detection and the joint reading for every frame and
+returns a session; <code>capture.session_problem</code> turns it into the problem below:</p>
+<pre><code class="language-python">from dexvantage.core.calib import capture
+sess = capture.capture_dataset(project, 'path/to/lerobot_dataset', sensor_uid, episodes=None, every_n=1)
+problem, info = capture.session_problem(project, sess)
+</code></pre>
+<h3 id="3-solve">3. Solve</h3>
+<pre><code class="language-python">from dexvantage.core.calib import handeye as HE
+problem = HE.Problem(
+    cameras=[HE.CameraSpec('wrist', camera, robot='ur5e', link='wrist_3_link')],
+    boards=[HE.BoardSpec('board', board.points(), board=board)],          # static: in the world
+    robots={'ur5e': model},                 # core.robot.model.get_model(project, robot_uid)
+    joints=[{'ur5e': q} for q in joint_readings],
+    observations=[HE.Observation('wrist', 'board', p, det.ids, det.corners) for p, det in enumerate(dets)])
+result = HE.solve(problem)
+print(result.message)
+print(result.to_dict()['cameras']['wrist'])
+</code></pre>
+<p><code>synthetic.scene('eye_in_hand', ...)</code> builds the same problem with corners projected from the truth instead of
+detected; the numbers below are from rendered and detected images (scene seed 7, the sample's home pose ± 0.35 rad
+on the six arm joints):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Result</th>
+<th>σ</th>
+<th>Error against the truth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Views used</td>
+<td>20 of 20, RMS 0.078 px (per view 0.04–0.12 px), corner σ̂ 0.055 px</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Wrist camera in <code>wrist_3_link</code></td>
+<td>(0.0, 130.8, 70.0) mm</td>
+<td>0.009–0.011 mm, 0.001°</td>
+<td>0.023 mm, 0.0013°</td>
+</tr>
+<tr>
+<td>Board in the world</td>
+<td>(−266.7, 461.5, 65.0) mm</td>
+<td>0.007–0.014 mm, 0.001–0.004°</td>
+<td>0.025 mm, 0.0083°</td>
+</tr>
+</tbody>
+</table>
+<p>The closed-form initialisers on the same views (pixel RMS of each start): Tsai-Lenz 0.247 px (chosen), Park-Martin
+0.256, Horaud-Dornaika 0.255, Andreff 0.255, Daniilidis 0.412, Shah 0.338, Li 0.336. The adjustment brings the RMS to
+0.078 px.</p>
+<p>The errors are about 2.5 times the predicted σ: corners detected in rendered images are not perfectly independent
+from one corner to the next, while the covariance assumes they are. With real images, treat σ as a lower bound and
+look at the per-view RMS (<code>result.views</code>) for views to drop or retake.</p>
+<h3 id="4-options">4. Options</h3>
+<ul>
+<li><strong>Eye-to-hand:</strong> mount the camera in the world (<code>robot=''</code>) and the board on the link that holds it
+(<code>BoardSpec(..., robot='ur5e', link='wrist_3_link')</code>); X is then the camera in the world, Z the board on the link.</li>
+<li><strong>Several cameras, several arms:</strong> list them all in one problem; each view names its camera, board and pose.</li>
+<li><strong>Intrinsics:</strong> <code>CameraSpec(..., intrinsics=True)</code> refines fx, fy, cx, cy and the distortion terms of the camera's
+lens model; give 20 or more views spread over the image.</li>
+<li><strong>Joint offsets:</strong> <code>Settings(joint_offsets=('ur5e',))</code>. The result marks each offset &quot;determined&quot; or not; with a
+board on the table and a camera on the last link, the first and last joints' offsets cannot be told from the
+board's yaw and the camera's roll and stay at their prior (1°, a default).</li>
+<li><strong>Encoder noise:</strong> <code>Settings(encoder_sigma_deg=0.02)</code> treats the joint readings as measurements with that σ.</li>
+<li><strong>Outliers:</strong> views over max(3 × the median view RMS, 1 px) are dropped and the problem solved again (defaults;
+<code>Settings.outlier_k</code>, <code>outlier_floor_px</code>).</li>
+</ul>
+<h2 id="e-check-the-installation">E. Check the installation</h2>
+<pre><code>dexvantage --validate out/validation
+</code></pre>
+<p>runs the hand-eye checks with the rest (<code>handeye.*</code>, among them <code>handeye.planner_vs_ba</code>, the planner's predicted
+covariance against the bundle adjustment's); the report gives each check's measured error and tolerance.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

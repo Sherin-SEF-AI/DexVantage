@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teleop overlap: a worked example on the SO-100 sample · DexVantage</title>
+<meta name="description" content="The model, its equations and its validation are in docs/models/teleop.md.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample-and-the-page">1. Open the sample and the page</a>
+    <a href="#2-read-the-headline">2. Read the headline</a>
+    <a href="#3-apply-the-suggestion">3. Apply the suggestion</a>
+    <a href="#4-add-a-vr-device">4. Add a VR device</a>
+    <a href="#5-two-arms">5. Two arms</a>
+    <a href="#6-batch-and-export">6. Batch and export</a>
+    <a href="#settings">Settings</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/teleop.md"><code>docs/guide/teleop.md</code></a></p>
+<h1 id="teleop-overlap-a-worked-example-on-the-so-100-sample">Teleop overlap: a worked example on the SO-100 sample</h1>
+<p>The model, its equations and its validation are in <code>docs/models/teleop.md</code>.</p>
+<h2 id="1-open-the-sample-and-the-page">1. Open the sample and the page</h2>
+<pre><code>dexvantage --sample so100
+</code></pre>
+<p>Choose the Teleop workspace (Window ▸ Teleop workspace) or Analysis ▸ Teleop overlap. The sample carries one device,
+<strong>SO-100 leader arm (sample)</strong>: a leader arm whose leader is the follower's own model, mapped joint to joint. That is
+how the SO-100 kit is built and calibrated (LeRobot's SO-100 guide, read 2026-11-07; the device's source says so).</p>
+<p>Press <strong>Run</strong>. The study runs in the background (about 7 s).</p>
+<h2 id="2-read-the-headline">2. Read the headline</h2>
+<pre><code>96.7 %   clear
+96.7 % of the task volume can be teleoperated without a dead zone. 3.3 % is outside the leader's comfortable
+workspace. Move SO-ARM100's base +25 mm in y, +25 mm in z: teleoperable 96.7 % → 100.0 % …
+</code></pre>
+<ul>
+<li><strong>Comfortable</strong> is the part of the task volume the follower reaches with every joint inside 0.8 of its range (the
+comfortable share is a default, under Settings). Here 96.7 %: the lowest corner of the tabletop volume needs the
+shoulder or wrist beyond that share.</li>
+<li><strong>Teleoperable</strong> removes the dead zones. The sample has none at the defaults: at the comfortable poses no voxel
+crosses the singularity or self-collision thresholds, and the comfortable box itself keeps every joint 10 % of its
+range from its stops.</li>
+<li>The follower line says what the follower alone does: it reaches 100 % of the volume, and with its own IK
+(nearest home) Wrist_Pitch sits within 2.5 % of its stop in 19.4 % of it, because the file's home already has the
+wrist pitched to 1.57 rad against a 1.66 rad stop. A leader arm avoids this; a cartesian device does not (step 4).</li>
+</ul>
+<h2 id="3-apply-the-suggestion">3. Apply the suggestion</h2>
+<p><strong>Preview</strong> draws the move from the arm's base; <strong>Apply</strong> makes it in one undo step. The SO-100 is the primary robot,
+whose base is the world frame, so the move is applied as the opposite move of the task volume, the table, the tripod
+camera and anything else fixed in the world (the wrist camera rides on the arm and stays). Run again: 100 %. Undo
+(Ctrl+Z) puts everything back.</p>
+<h2 id="4-add-a-vr-device">4. Add a VR device</h2>
+<p>Under Teleop devices choose <strong>VR tracking</strong> and <strong>Add</strong>. Its volume reads <em>Not stated</em>: no headset maker publishes a
+tracking volume, and DexVantage does not guess one. Run now and the device is listed as &quot;not stated&quot; with a note
+saying what to enter.</p>
+<p>Enter the box you measured for your operator (here 0.30 × 0.20 × 0.12 m centred on 0, −0.24, 0.06 m, the sample's task
+volume, scale 1, no offset) and write where it comes from in <strong>Source</strong> (&quot;measured, 2026-11-07&quot;). Each field is one
+undo step. Run:</p>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>Comfortable</th>
+<th>Teleoperable</th>
+<th>Dead zones</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SO-100 leader arm (sample)</td>
+<td>96.7 %</td>
+<td>96.7 %</td>
+<td>0</td>
+</tr>
+<tr>
+<td>VR tracking 1</td>
+<td>100 %</td>
+<td>80.6 %</td>
+<td>19.4 %, 1 zone</td>
+</tr>
+</tbody>
+</table>
+<p>The headline (through either device) reads 98.1 %. The dead zone is <strong>joint limit</strong>, 1 453 cm³: &quot;Wrist_Pitch is at
+its stop&quot;. Click it in the Dead zones list and the arm takes the pose at its worst voxel; the 3D view shows the zone's
+voxels in the joint-limit colour, the Camera view its box. A cartesian retargeting solves the follower's own IK, which
+here pins the wrist; the leader arm's joint mapping does not.</p>
+<p>The suggestion now moves the base +50 mm in y and z: teleoperable 98.1 % → 100 %, dead zones 1 453 → 63 cm³. Applied
+and run again it measures 100 %, and the VR device's dead zones 63 cm³, as predicted (the VR volume is placed in the
+follower's base frame, so it moves with the base; the leader arm covers the rest).</p>
+<h2 id="5-two-arms">5. Two arms</h2>
+<p>With a second robot and a device for it (Robot ▸ Import, then Add with that robot as the follower), the page adds the
+bimanual figures. Two SO-100s facing each other across the sample's volume (bases 0.48 m apart) both reach all of it
+and both are teleoperable over 93.3 %; at 60 sampled handover voxels with the grippers 100 mm apart, the handover
+quality is 15 % and the smallest arm-to-arm margin 0.1 mm (median 28.5 mm): the wrists meet. <strong>Pose the worst
+handover</strong> shows both arms there.</p>
+<h2 id="6-batch-and-export">6. Batch and export</h2>
+<pre><code>dexvantage --sample so100 --teleop teleop.json
+</code></pre>
+<p>writes the same result (exit 0; a project the study cannot work with exits 2 with one plain sentence). On the page,
+<strong>Export…</strong> writes it with its provenance block. Per voxel, <code>devices[i].state</code> holds 0 teleoperable, 1 outside the
+comfortable workspace, 2–5 a dead zone (unreachable, self-collision, singularity, joint limit) and 9 not stated, in
+the order of <code>grid.centers</code>.</p>
+<h2 id="settings">Settings</h2>
+<p>All are your settings with labelled defaults: voxel size 25 mm, comfortable share 0.8, singular below 1/κ = 0.1, near
+a limit below 0.05 of the half-range, self-collision margin 10 mm, suggestion search 2 voxels each way (more in the
+project file: <code>jacobian</code>, <code>ik_rule</code>, <code>seeds</code>, <code>handover_gap_mm</code>, <code>arm_margin_mm</code>, <code>handover_samples</code>,
+<code>min_column_mm</code>).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

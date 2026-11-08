@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing the paper kit · DexVantage</title>
+<meta name="description" content="A worked example on the UR5e sample. The rules are in Publication kit (paper kit).">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-in-the-window">1. In the window</a>
+    <a href="#2-in-batch-mode">2. In batch mode</a>
+    <a href="#3-what-comes-out">3. What comes out</a>
+    <a href="#4-reproducing-it">4. Reproducing it</a>
+    <a href="#5-from-python">5. From Python</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/paper_kit.md"><code>docs/guide/paper_kit.md</code></a></p>
+<h1 id="writing-the-paper-kit">Writing the paper kit</h1>
+<p>A worked example on the UR5e sample. The rules are in <a href="../models/paper_kit.html">Publication kit (paper kit)</a>.</p>
+<h2 id="1-in-the-window">1. In the window</h2>
+<p>Open the UR5e sample (File ▸ Open sample), run the studies you want to report (Coverage, Depth validity, Time sync,
+Bandwidth…), then Export ▸ Paper kit…. The Publication page opens in the Analysis dock:</p>
+<ul>
+<li><strong>Sections</strong>: tick what the kit holds (methods paragraph, sensor table, results table, scorecard, experiment
+results, variant comparison, statistics, cell comparison, tracked runs, figures, reproducibility appendix). The
+statistics, cells and runs tables are written when their results are present (run the Statistics or Cells page, or
+turn tracking on for the runs).</li>
+<li><strong>Options</strong>: siunitx (<code>\num</code>, <code>\qty</code>, <code>\unit</code>) or plain numbers, one and/or two column figures, PDF figures beside
+the SVGs, BibTeX or biblatex, a title, and a validation report (<code>validation.json</code> from Help ▸ Validate) for the
+number of checks each model passed.</li>
+<li><strong>Refresh preview</strong> builds the kit in the background from the results on screen (no study runs). The headline
+reads, for example, <code>48 / 48 numbers</code>, <strong>ready</strong>: every number of the methods paragraph traces to the project, a
+library entry, a result or the software versions, every citation has its BibTeX entry, the TeX is balanced. A
+problem turns it to <strong>check</strong> with the first problem named.</li>
+<li><strong>Preview</strong> rebuilds it with the choices without keeping them; <strong>Apply</strong> keeps them in the project (one undo step),
+so a batch export writes the same kit; <strong>Export…</strong> writes it into a folder (tick &quot;Run the studies not computed
+yet&quot; to fill the gaps first).</li>
+</ul>
+<h2 id="2-in-batch-mode">2. In batch mode</h2>
+<pre><code>dexvantage --sample ur5e --export out/ --formats paper_kit \
+    --export-options '{&quot;paper_kit&quot;: {&quot;studies&quot;: [&quot;rig&quot;, &quot;bandwidth&quot;, &quot;coverage&quot;, &quot;depth_validity&quot;, &quot;time_sync&quot;]}}'
+paper_kit: 24 files
+  · 4 TeX part(s), 4 figure(s) at single and double column width, 16 BibTeX entries; ready: All 48 numbers in the
+    methods paragraph and 30 in the tables trace to the project or a result; every citation has its BibTeX entry
+    and the LaTeX is balanced.
+</code></pre>
+<p>(measured 2026-11-07; the studies took about 2 s). Give <code>&quot;results_dir&quot;: &quot;results/&quot;</code> instead of <code>studies</code> to report
+batch result files you already have, and <code>&quot;siunitx&quot;: true</code>, <code>&quot;widths&quot;: [&quot;single&quot;]</code> or <code>&quot;sections&quot;: [...]</code> to choose.</p>
+<h2 id="3-what-comes-out">3. What comes out</h2>
+<p><code>out/paper_kit/methods.tex</code> starts:</p>
+<blockquote>
+<p>We planned the sensing rig with DexVantage~\cite{dexvantage} version \texttt{0.1.0rc1} (commit …), which loads
+the robot models with MuJoCo~\cite{mujoco_todorov2012} version 3.17.0 under Python 3.14.4.</p>
+<p>UR5e + Robotiq 2F-85 is the primary robot, whose base is the world frame (x forward, y left, z up), modelled from
+the MuJoCo Menagerie models <code>universal_robots_ur5e</code>, <code>robotiq_2f85</code> at commit <code>98a70c569c4c</code>~\cite{…} (licence:
+BSD-3-Clause … and BSD-2-Clause …).</p>
+<p>The rig &quot;Wrist D405 + overhead D435 (sample)&quot; holds 2 sensors (depth); … Wrist D405 is an Intel RealSense Depth
+Camera D405~\cite{intel-realsense-d405,intel-realsense-d405-2} passive stereo depth camera with a stereo baseline of
+0.018 m; the studies take its depth stream at 1280 × 720 px and 30 fps (Z16), its RGB stream at 1280 × 720 px and 30
+fps (YUY2) (the stream DexVantage selects by default when the rig names none), with a field of view of 84° × 58° for
+its depth stream (horizontal by vertical, as the maker states for streams of this aspect). It is mounted on link <code>wrist_3_link</code> of
+UR5e + Robotiq 2F-85 at position (0.000, 0.131, 0.070) m and orientation (x, y, z, w) = (−0.1785, 0.1785, 0.6842,
+0.6842) in that link's frame. …</p>
+</blockquote>
+<p>then one sentence per study, e.g. &quot;Coverage and resolution (study <code>coverage</code>) ran with the DexVantage defaults
+otherwise; the model &quot;Occlusion by the posed robot&quot; has 7 registered checks; the model &quot;Lens projection and defocus&quot;
+has 10 registered checks~\cite{…}&quot; (with a validation report: &quot;passed 7 of 7 checks&quot;).</p>
+<p>Every number there is in <code>provenance.json</code>'s <code>trace</code> with the place it was read from, for example
+<code>{&quot;text&quot;: &quot;0.018&quot;, &quot;kind&quot;: &quot;number&quot;, &quot;path&quot;: [&quot;library&quot;, &quot;intel-realsense-d405&quot;, &quot;depth&quot;, &quot;baseline_m&quot;]}</code>.</p>
+<p><code>tables/results.tex</code> is a booktabs table of every named figure (Task volume seen 91.9 %, Depth-valid task volume
+84.61 %, Worst camera to joint-state skew ≥ 54.43 ms …), each row ending with the source of its numbers:</p>
+<pre><code>Coverage and resolution &amp; Task volume seen &amp; \dvnum{91.9} &amp; \% &amp; --- &amp;  \\ % dv-src: [[&quot;metric&quot;, &quot;coverage&quot;, &quot;coverage.covered&quot;]]
+</code></pre>
+<p>Compile with <code>pdflatex main</code>, <code>bibtex main</code>, <code>pdflatex main</code> twice (or choose biblatex and run biber). Copy what you
+need into your paper: each table file defines <code>\dvnum</code> itself, so it compiles on its own with booktabs (and siunitx
+when you chose it).</p>
+<h2 id="4-reproducing-it">4. Reproducing it</h2>
+<p><code>out/paper_kit/reproduce/run_plan.json</code> runs every study the kit reports with its stored settings, the scorecard,
+and then this export again:</p>
+<pre><code>dexvantage cell.dexv --run-plan out/paper_kit/reproduce/run_plan.json again/
+</code></pre>
+<p>The appendix lists the plan's steps with the figures each regenerates, the seeds, the software versions and each
+result's SHA-256.</p>
+<h2 id="5-from-python">5. From Python</h2>
+<pre><code>import dexvantage as dv
+rig = dv.sample('ur5e')
+res = {s: rig.run(s) for s in ('rig', 'bandwidth', 'coverage')}
+print(dv.publication.methods(rig, res))          # the paragraph (TeX)
+dv.publication.tables(rig, res)['results']       # a table
+dv.publication.kit(rig, res)['status']           # {'word': 'ready', 'numbers': …, 'traced': …}
+dv.publication.export(rig, 'out/', res, siunitx=True)
+</code></pre>
+<p>The assistant's <code>get_methods_paragraph</code> tool returns the same paragraph from the results the window holds.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

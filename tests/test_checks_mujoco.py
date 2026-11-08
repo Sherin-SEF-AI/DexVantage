@@ -16,6 +16,8 @@ def _scene_xml(cam_attrs='fovy="60"', W=320, H=240, extra=''):
 
 @pytest.fixture(scope='module')
 def rendered():
+    from render_support import require
+    require()
     import mujoco
     from dexvantage.validation import mjrender as MR
     m = mujoco.MjModel.from_xml_string(_scene_xml())
@@ -144,6 +146,7 @@ def test_checks_are_registered_with_their_models():
         assert all(k in REFERENCES for k in cat[cid]['references'])
 
 
+@pytest.mark.mujoco_render
 def test_optics_checks_pass(quick_results):
     m = quick_results['optics.mujoco_fiducial_masks']
     assert m.passed, (m.error, m.exception)
@@ -155,6 +158,7 @@ def test_optics_checks_pass(quick_results):
     assert c.detail['perspective_bias_max_px'] > c.detail['median_px']
 
 
+@pytest.mark.mujoco_render
 def test_occlusion_mujoco_checks_pass(quick_results):
     for cid in ('occlusion.mujoco_box_spheres', 'occlusion.mujoco_ur5e'):
         c = quick_results[cid]

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Action-chunk latency: a worked example · DexVantage</title>
+<meta name="description" content="The Action-chunk latency page (Analysis ▸ Action-chunk latency) says how late or early each of youraction-chunked policies closes the gripper on the contact point, and what delay offset and ensemble weight to writeinto the training config. The model is in docs/models/action_chunk.md.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-start-from-the-ur5e-sample">1. Start from the UR5e sample</a>
+    <a href="#2-run-it">2. Run it</a>
+    <a href="#3-apply">3. Apply</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/action_chunk.md"><code>docs/guide/action_chunk.md</code></a></p>
+<h1 id="action-chunk-latency-a-worked-example">Action-chunk latency: a worked example</h1>
+<p>The Action-chunk latency page (<strong>Analysis ▸ Action-chunk latency</strong>) says how late or early each of your
+action-chunked policies closes the gripper on the contact point, and what delay offset and ensemble weight to write
+into the training config. The model is in <code>docs/models/action_chunk.md</code>.</p>
+<h2 id="1-start-from-the-ur5e-sample">1. Start from the UR5e sample</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ UR5e</strong>. It carries the π0 policy (sample choice) and a scripted pick.</li>
+<li><strong>Tasks ▸ Policies</strong>: add <strong>ACT</strong> and <strong>Diffusion Policy (CNN, real-world setting)</strong>. Their horizons, executed
+steps, ensemble weights, inference times and control rates come from the library entries (each figure cited; the
+ACT entry's m = 0.01 from the official code).</li>
+<li><strong>Analysis ▸ Bandwidth</strong>: add a host with one USB 3 controller and plug both cameras into it. The transfer time of
+each camera's frame then comes from that budget (9.5 ms for the D405's 1280 × 720 YUY2 frame, 15.8 ms for the
+D435's 1920 × 1080).</li>
+<li>For this example, remove the scripted pick (<strong>Tasks</strong>), so the study uses the default approach speed of 0.10 m/s
+(labelled a default on the page; with the pick in place the hand is still when it closes, and the error at contact
+is 0 mm).</li>
+</ol>
+<h2 id="2-run-it">2. Run it</h2>
+<p>Open <strong>Analysis ▸ Action-chunk latency</strong> and press <strong>Run</strong> (the study is quick and also re-runs after edits).</p>
+<ul>
+<li>Headline: <strong>28.3 mm, critical, &quot;closes late&quot;</strong>: Diffusion Policy closes 50 to 283 ms after contact (nominal 167 ms):
+100 ms inference, a 10 Hz control step to land on (±50 ms) and the tick wait. At 0.10 m/s that is 28.3 mm past the
+contact point.</li>
+<li>ACT: 0 to 73 ms late, 7.3 mm. π0: 63 to 136 ms, 13.6 mm.</li>
+<li>The loop bars show each camera's terms. Exposure and readout are listed as <strong>not stated</strong> (no maker in the library
+states them); the loop says &quot;at least&quot;. Enter measured figures in the study settings (<code>figures</code>) to complete it;
+with the default host timestamps they do not change the timing error, only the reaction.</li>
+<li>For ACT the chart shows the reaction distance against m. With m = 0.01 (ACT's code; i = 0 is the oldest prediction,
+so a positive m weights old predictions more) the executed action rests on predictions 57.7 steps old on average:
+the hand travels 122.6 mm before a change at the contact is acted on.</li>
+</ul>
+<h2 id="3-apply">3. Apply</h2>
+<p>The recommendations:</p>
+<ul>
+<li>Diffusion Policy: delay offset <strong>200 ms</strong> (2 control steps): worst error 28.3 → 15.0 mm (the 10 Hz step limits it).</li>
+<li>ACT: delay offset <strong>40 ms</strong> (2 steps): 7.3 → 4.0 mm; ensemble weight <strong>m = −0.55</strong>: reaction 122.6 → 10.0 mm, the
+ensemble then averages 3.7 predictions in effect instead of 92.4.</li>
+<li>π0: delay offset <strong>100 ms</strong> (5 steps): 13.6 → 3.7 mm.</li>
+</ul>
+<p><strong>Preview</strong> draws the overshoot map as it would be after the offset. <strong>Apply</strong> stores the offsets and m on the three
+policies (one undo step; <strong>Edit ▸ Undo</strong> takes it back). The study runs again and reads them as the policies'
+configured values: the headline drops to 15.0 mm (Diffusion Policy, now &quot;closes early&quot; by up to 15 mm, &quot;serious&quot;).
+<strong>Export…</strong> writes the result with provenance.</p>
+<p>In batch:</p>
+<pre><code>dexvantage --sample ur5e --action-chunk chunk.json
+</code></pre>
+<p>A policy whose inference time or control rate no source states is left out with a sentence (the SO-100 sample's
+SmolVLA: &quot;its inference time is not stated by its source&quot;); with no usable policy the run exits 2 with that sentence.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

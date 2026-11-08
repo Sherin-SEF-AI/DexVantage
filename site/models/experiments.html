@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Designed experiments · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/experiments.py (the designs, the runs, the estimators, design.json, the batch run). Study:dexvantage/core/studies/experiments.py (study id experiments; batch flag --experiment-saved OUT.json for theexperiment saved in the project; --experiment DESIGN.json [--experiment-out …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-is-computed">What is computed</a>
+    <a href="#designs">Designs</a>
+    <a href="#analysis">Analysis</a>
+    <a href="#designjson-schema-dexvantageexperiment1">design.json (schema dexvantage.experiment/1)</a>
+    <a href="#execution">Execution</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/experiments.md"><code>docs/models/experiments.md</code></a></p>
+<h1 id="experiments">Designed experiments</h1>
+<p>Module: <code>dexvantage/core/experiments.py</code> (the designs, the runs, the estimators, design.json, the batch run). Study:
+<code>dexvantage/core/studies/experiments.py</code> (study id <code>experiments</code>; batch flag <code>--experiment-saved OUT.json</code> for the
+experiment saved in the project; <code>--experiment DESIGN.json [--experiment-out OUT.json]</code> runs a design file). Page:
+<code>dexvantage/ui/pages/experiments.py</code> (Analysis ▸ Designed experiments). Checks: <code>dexvantage/validation/checks_experiments.py</code>
+(model <code>experiments</code>). Tests: <code>tests/test_experiments.py</code>. Spec §7.11. Ported from Vantage <code>core/experiments.py</code>: the
+designs, the bootstrap of the Sobol indices, the main effects and the result layout. The automotive factors (cameras
+on a vehicle body, load cases, weather, the ROI) are replaced by DexVantage's factor paths (<code>core/factors.py</code>). The
+responses are the named metrics of <code>core/metrics.py</code>.</p>
+<h2 id="what-is-computed">What is computed</h2>
+<p>An experiment evaluates the rig at many settings of a few of its quantities (the <em>factors</em>). It reads one or more
+figures at each setting (the <em>responses</em>). It reports:</p>
+<ul>
+<li>each run's values;</li>
+<li>what drives each figure: main effects and, for a Saltelli design, Sobol indices;</li>
+<li>the best run, against the rig as it is.</li>
+</ul>
+<p><strong>Factors</strong> are <code>core/factors</code> paths, in three kinds:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>design.json</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>continuous</td>
+<td><code>&quot;lo&quot;</code>, <code>&quot;hi&quot;</code>; optional <code>&quot;n_levels&quot;</code> (full factorial), <code>&quot;integer&quot;: true</code></td>
+<td><code>lo + u·(hi − lo)</code> (rounded when integer)</td>
+</tr>
+<tr>
+<td>categorical</td>
+<td><code>&quot;levels&quot;: [...]</code> (any JSON values, in order)</td>
+<td>level <code>⌊u·L⌋</code> of <code>L</code></td>
+</tr>
+<tr>
+<td>bool</td>
+<td><code>&quot;kind&quot;: &quot;bool&quot;</code> (or the path's own kind, e.g. <code>.enabled</code>)</td>
+<td><code>false</code>, <code>true</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>u ∈ [0, 1]</code> is the run's unit coordinate. The kind comes from <code>&quot;kind&quot;</code>, else from <code>&quot;levels&quot;</code>, else from
+<code>core.factors.describe</code>. Typical paths are:</p>
+<ul>
+<li><code>sensor:&lt;name or uid&gt;.x|y|z|roll|pitch|yaw</code>: absolute values in the mount's parent frame, metres and degrees;</li>
+<li><code>.dx|dy|dz</code> and <code>.droll|dpitch|dyaw</code>: a shift of the mount, or a small turn about the sensor body's own axes,
+relative to the design;</li>
+<li><code>.model</code>, <code>.enabled</code>;</li>
+<li><code>setting:&lt;study&gt;.&lt;key&gt;</code>, a study setting;</li>
+<li><code>json:/pointer</code>, for anything else.</li>
+</ul>
+<p>Use the relative paths to explore around a placement. An absolute <code>pitch</code> range of ±5° turns a camera that looks
+60° down to the horizontal. Locked sensors are not varied: a design with one is refused, with the sentence
+<code>core.factors</code> gives.</p>
+<p><strong>Responses</strong> are metric ids of <code>core/metrics.py</code> (<code>core/metric_defs.py</code> defines those of the studies, such as
+<code>coverage.covered</code> or <code>grasp.contact_visibility</code>). Each run sets the factors on a copy of the project
+(<code>core.factors.apply</code>, a new project; the project itself is never changed). It then reads the responses with
+<code>core.metrics.evaluate</code>, which runs each study once per run through <code>core.jobs.run_study</code> and the study
+<code>ResultCache</code>. A study that refuses gives the run no value for its responses. The run records the status
+(<code>refused</code>, <code>not stated</code>, <code>error</code>) and the study's sentence. The analyses leave that run out of that response and
+count it. The rig as it is (the <em>baseline</em>) is evaluated first.</p>
+<h2 id="designs">Designs</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Runs</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>full_factorial</code></td>
+<td>Π Lᵢ</td>
+<td>every combination of the levels. A continuous factor takes <code>n_levels</code> evenly spaced levels (the design's <code>levels</code>, default 2); the first factor varies fastest</td>
+</tr>
+<tr>
+<td><code>fractional</code></td>
+<td>2^m</td>
+<td>a two-level fraction at resolution III or IV (below)</td>
+</tr>
+<tr>
+<td><code>lhs</code></td>
+<td>n</td>
+<td>Latin hypercube (McKay, Beckman and Conover 1979). Column j is <code>(πⱼ(i) + Uᵢⱼ)/n</code>, with a random permutation <code>πⱼ</code> and <code>U ~ U(0, 1)</code>, seeded</td>
+</tr>
+<tr>
+<td><code>sobol</code></td>
+<td>n</td>
+<td>the first n points of a scrambled Sobol sequence (<code>scipy.stats.qmc.Sobol</code>, Owen scrambling, seeded). Its balance holds for n a power of two; another n is allowed and said</td>
+</tr>
+<tr>
+<td><code>saltelli</code></td>
+<td>N(k + 2)</td>
+<td>the A, B and AB_i matrices of Saltelli (2002). A and B are the two halves of a 2k-dimensional scrambled Sobol sequence of N points; AB_i is A with column i taken from B</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fractional factorials</strong> (Box, Hunter and Hunter 2005). Every factor must have two levels: a continuous factor's
+<code>lo</code> and <code>hi</code>, a bool, or a categorical with two levels. A factor with more levels is refused. The m base factors form
+a full 2^m factorial in standard order. Each added factor is the elementwise product of some base columns (its
+<em>generator</em>, e.g. <code>E=ABC</code>):</p>
+<ul>
+<li><strong>Resolution III</strong>: m is the smallest with 2^m ≥ k + 1. The generators are the two-factor interactions of the base
+factors, then the three-factor ones, and so on (<code>D=AB, E=AC, F=BC, G=ABC</code> for 2^(7−4)). Main effects are free of
+each other, but aliased with two-factor interactions.</li>
+<li><strong>Resolution IV</strong>: m is the smallest with 2^(m−1) ≥ k. Every generator is a product of an odd number (≥ 3) of base
+factors, largest first. Each word of the defining relation is then a generator times its base factors (even
+length), or a product of such words (still even). So the shortest word has length ≥ 4. Main effects are free of
+two-factor interactions.</li>
+</ul>
+<p>When m = k there is no fraction to take, and the design is the full 2^k factorial (said). <code>resolution_of</code> finds the
+resolution reached again by brute force: the length of the shortest set of columns whose product is constant. The
+result reports it with the generators.</p>
+<h2 id="analysis">Analysis</h2>
+<p><strong>Main effects.</strong> For each factor, the mean response at each level, with a t interval and its count. The <em>effect</em> is
+the mean at the factor's last level minus the mean at its first. For a two-level design this is the classical main
+effect; for a continuous factor it runs from <code>lo</code> to <code>hi</code>. Its interval is Welch's t interval:</p>
+<pre><code>d = ȳ_last − ȳ_first,   se² = s²_last/n_last + s²_first/n_first,
+ν = se⁴ / ((s²_last/n_last)²/(n_last − 1) + (s²_first/n_first)²/(n_first − 1)),   d ± t_{ν, 1−α/2} · se
+</code></pre>
+<p>It treats the other factors' variation as noise. The sampled designs (the Latin hypercube, the Sobol sequence, and
+the A and B rows of a Saltelli design) are handled differently. There, a continuous factor's values are cut into
+quantile bins: <code>bins</code>, six by default, with at most one bin per two runs. The effect is then the last bin's mean minus
+the first's. Categorical and bool factors always use their levels.</p>
+<p><strong>Sobol indices</strong> (Sobol 1993). These come from a Saltelli design. They use Jansen's (1999) estimators as Saltelli et
+al. (2010, Table 2, (f)) give them, with <code>f(·)</code> the response at each row:</p>
+<pre><code>V    = Var(f(A) ∪ f(B))            (the 2N values together, ddof 1)
+S_i  = (V − ½ · mean_j (f(B)_j − f(AB_i)_j)²) / V          first order
+S_Ti = ½ · mean_j (f(A)_j − f(AB_i)_j)² / V                 total
+</code></pre>
+<p>The intervals are percentile bootstrap intervals (Efron and Tibshirani 1993): the N rows are resampled with
+replacement (<code>bootstrap</code>, 500 by default; 95 % by default). Rows with a missing value anywhere are left out, and
+<code>dropped</code> counts them. A response that does not vary gets no index, and the result says so.</p>
+<p><strong>The best run.</strong> This is the run with the best value of the objective response (<code>objective</code>, default the first
+response) in its metric's better direction. It is compared with the baseline. The headline's status word is:</p>
+<ul>
+<li><strong>better than now</strong> (good);</li>
+<li><strong>no run beats the rig</strong> or <strong>same as now</strong> (warning);</li>
+<li><strong>not evaluated</strong>, when no run gave a value (critical).</li>
+</ul>
+<h2 id="designjson-schema-dexvantageexperiment1">design.json (schema <code>dexvantage.experiment/1</code>)</h2>
+<pre><code class="language-json">{
+  &quot;schema&quot;: &quot;dexvantage.experiment/1&quot;,
+  &quot;name&quot;: &quot;Overhead and wrist camera tilt&quot;,
+  &quot;variant&quot;: &quot;&quot;,
+  &quot;factors&quot;: [
+    {&quot;path&quot;: &quot;sensor:Overhead D435.dpitch&quot;, &quot;lo&quot;: -5, &quot;hi&quot;: 5},
+    {&quot;path&quot;: &quot;sensor:Overhead D435.dz&quot;, &quot;lo&quot;: -0.05, &quot;hi&quot;: 0.05},
+    {&quot;path&quot;: &quot;sensor:Wrist D405.model&quot;, &quot;levels&quot;: [&quot;intel-realsense-d405&quot;, &quot;intel-realsense-d435&quot;]},
+    {&quot;path&quot;: &quot;sensor:Overhead D435.enabled&quot;, &quot;kind&quot;: &quot;bool&quot;},
+    {&quot;path&quot;: &quot;setting:grasp_visibility.n_grasps&quot;, &quot;lo&quot;: 100, &quot;hi&quot;: 400, &quot;integer&quot;: true}
+  ],
+  &quot;responses&quot;: [&quot;coverage.covered&quot;, &quot;depth.valid&quot;],
+  &quot;objective&quot;: &quot;coverage.covered&quot;,
+  &quot;design&quot;: {&quot;method&quot;: &quot;lhs&quot;, &quot;n&quot;: 32, &quot;levels&quot;: 2, &quot;resolution&quot;: &quot;IV&quot;, &quot;seed&quot;: 0},
+  &quot;analysis&quot;: {&quot;bootstrap&quot;: 500, &quot;confidence&quot;: 0.95, &quot;bins&quot;: 6},
+  &quot;execution&quot;: {&quot;workers&quot;: 0}
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema</code></td>
+<td>—</td>
+<td><code>dexvantage.experiment/1</code>; another value is refused</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>&quot;&quot;</code></td>
+<td>a name for the experiment</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>&quot;&quot;</code> (active)</td>
+<td>the uid of the variant the runs change and evaluate</td>
+</tr>
+<tr>
+<td><code>factors</code></td>
+<td>—</td>
+<td>up to 32, each <code>{&quot;path&quot;, &quot;kind&quot;?, &quot;lo&quot;/&quot;hi&quot; or &quot;levels&quot;, &quot;n_levels&quot;?, &quot;integer&quot;?, &quot;name&quot;?}</code>; a path at most once</td>
+</tr>
+<tr>
+<td><code>responses</code></td>
+<td>—</td>
+<td>metric ids, in order (or <code>{&quot;metric&quot;: id}</code>)</td>
+</tr>
+<tr>
+<td><code>objective</code></td>
+<td>first response</td>
+<td>the response that picks the best run</td>
+</tr>
+<tr>
+<td><code>design.method</code></td>
+<td><code>lhs</code></td>
+<td><code>full_factorial</code>, <code>fractional</code>, <code>lhs</code>, <code>sobol</code>, <code>saltelli</code></td>
+</tr>
+<tr>
+<td><code>design.n</code></td>
+<td>32</td>
+<td>points (<code>lhs</code>, <code>sobol</code>); base samples N (<code>saltelli</code>); 2–100 000</td>
+</tr>
+<tr>
+<td><code>design.levels</code></td>
+<td>2</td>
+<td>full factorial: levels of a continuous factor without <code>n_levels</code> (2–11)</td>
+</tr>
+<tr>
+<td><code>design.resolution</code></td>
+<td><code>IV</code></td>
+<td>fractional: <code>III</code> or <code>IV</code></td>
+</tr>
+<tr>
+<td><code>design.seed</code></td>
+<td>0</td>
+<td>the sampled designs and the bootstrap</td>
+</tr>
+<tr>
+<td><code>analysis.bootstrap</code></td>
+<td>500</td>
+<td>bootstrap resamples (0–5000)</td>
+</tr>
+<tr>
+<td><code>analysis.confidence</code></td>
+<td>0.95</td>
+<td>interval level (0.5–0.999)</td>
+</tr>
+<tr>
+<td><code>analysis.bins</code></td>
+<td>6</td>
+<td>quantile bins of the sampled designs' main effects (2–12)</td>
+</tr>
+<tr>
+<td><code>execution.workers</code></td>
+<td>0</td>
+<td>0 or 1: serial (the default); n &gt; 1: a pool of n processes</td>
+</tr>
+</tbody>
+</table>
+<p>These are DexVantage defaults, not standards. A flat layout (<code>&quot;method&quot;: &quot;lhs&quot;</code> at the top level) is read too.
+Numbers out of range are clamped. A missing setting takes its default. The same document is what the page saves in
+<code>project.analysis.studies[&quot;experiments&quot;]</code>.</p>
+<p>The result (<code>dexvantage.experiments/1</code>) holds:</p>
+<ul>
+<li><code>design</code>, as read;</li>
+<li><code>plan</code>: the generators and resolution of a fraction;</li>
+<li><code>factors</code>: title, unit, range or levels, current value;</li>
+<li><code>responses</code>: title, unit, better, study;</li>
+<li><code>baseline</code>;</li>
+<li><code>runs</code>: each run's <code>values</code>, <code>responses</code>, <code>status</code> and <code>reason</code>, and its Saltelli <code>block</code> (<code>A</code>, <code>B</code>, <code>AB&lt;i&gt;</code>);</li>
+<li><code>analysis</code> per response: count, missing, mean, sd, min, max, <code>main_effects</code> and <code>sobol</code>;</li>
+<li><code>best</code>, <code>headline</code>, <code>execution</code>, <code>notes</code>, <code>known_limits</code>, <code>references</code> and the provenance block.</li>
+</ul>
+<p><code>--experiment</code> also writes the runs as CSV beside the JSON (same name, <code>.csv</code>). It has columns <code>run</code>, <code>block</code>, one
+per factor path, one per response (with its unit), and one status per response. The JSON records the CSV's name and
+SHA-256 under <code>files</code>.</p>
+<p><code>--reproduce RESULT.json</code> re-runs the <code>experiments</code> study, which reads the experiment saved in the project. So a
+result of <code>--experiment-saved</code> (or of the page) reproduces. A result of <code>--experiment DESIGN.json</code> from a project
+without that design saved is refused with a sentence (&quot;The experiment has no factor yet …&quot;). Run the design again
+instead: the result carries it under <code>design</code>.</p>
+<h2 id="execution">Execution</h2>
+<p>Runs are serial by default. With <code>workers</code> &gt; 1 they are evaluated in a <code>concurrent.futures.ProcessPoolExecutor</code> of
+that many <em>spawned</em> processes. Each process:</p>
+<ol>
+<li>receives the project once;</li>
+<li>imports the modules that register the responses' metrics and studies;</li>
+<li>keeps its own <code>ResultCache</code>.</li>
+</ol>
+<p>The results are identical to a serial run (tested); only the order of evaluation differs. A cancel (the page's
+<strong>Cancel run</strong>, or the study's cancel) stops between runs; pooled runs already queued, at most two per process,
+finish first. A run during which the cancel came is discarded, because a study stopped part-way gives no value to
+keep. The runs done are analysed.</p>
+<p>Two caches serve the runs:</p>
+<ul>
+<li>The study result cache (<code>core.jobs.ResultCache</code>) holds 8 whole results. A coverage result of the UR5e sample is
+about 1.7 MB of JSON, so it keeps few.</li>
+<li>The experiment study also keeps the response values of up to 20 000 runs (<code>RowCache</code>). They are keyed by the
+ResultCache keys of each run's project: its content hash, the study settings, the library entries and a dataset's
+fingerprint.</li>
+</ul>
+<p>Runs are evaluated on a copy of the project without the experiment's own settings. So <strong>Run</strong> after a cancel, or
+after an edit to the design that keeps some of its runs, evaluates only the runs not done (tested). A process pool
+does not use the run cache.</p>
+<p>Timings were measured on the development machine (2026-11-07):</p>
+<ul>
+<li>the overhead is about 12 ms per run on the UR5e sample (copying the project and hashing it for the cache);</li>
+<li>a coverage and depth-validity run of that sample takes about 1 s;</li>
+<li>16 Latin hypercube runs took 16.2 s serially;</li>
+<li>320 Saltelli runs took 194.9 s in a pool of three processes, about 1.6 times quicker than serial at that rate.</li>
+</ul>
+<h2 id="validation">Validation</h2>
+<p><code>dexvantage --validate out/ --models experiments</code> (measured 2026-11-07, seed 20261027):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance (why)</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>experiments.sobol_ishigami</code></td>
+<td>the Ishigami function's analytic indices (a = 7, b = 0.1), derived again in the check: V1 = ½(1 + bπ⁴/5)², V2 = a²/8, V13 = ½b²(π⁸/9 − π⁸/25)</td>
+<td>2/√N: 0.031 at N = 4096, 0.0625 at the quick run's 1024. About 0.6 of the bootstrap 95 % half-width at those N (0.045–0.053; 0.088–0.095). Every analytic index must also lie in its interval</td>
+<td>0.0008 (N = 4096), 0.012 (N = 1024); all inside</td>
+</tr>
+<tr>
+<td><code>experiments.lhs_strata</code></td>
+<td>the Latin hypercube's definition: one point per stratum</td>
+<td>0 (counts are exact)</td>
+<td>0 (n = 7, 50, 256; five factors, on the factor values)</td>
+</tr>
+<tr>
+<td><code>experiments.sobol_discrepancy</code></td>
+<td><code>scipy.stats.qmc.discrepancy</code> (CD) on the Sobol design and the Latin hypercube; <code>scipy.stats.qmc.Sobol</code> points with the same seed</td>
+<td>1e-9 relative (floating point)</td>
+<td>3.4e-11</td>
+</tr>
+<tr>
+<td><code>experiments.sobol_vs_random</code></td>
+<td>E[CD²] of n independent uniform points, ((5/4)^d − (13/12)^d)/n, itself checked against 40 random sets (within 15 %)</td>
+<td>0.5 ratio (a low-discrepancy set sits far below random; a loose bound)</td>
+<td>0.027 (n = 256, d = 4); the 40-set mean is 3.6 % from the expectation</td>
+</tr>
+<tr>
+<td><code>experiments.main_effects_linear</code></td>
+<td>the coefficients × ranges of y = 2 + 3a − 1.5b + 0.5c + 4[d = B] (3 × 3 × 3 × 2 factorial), and a linear model plus 2·x1·x2 − x3·x5 on a resolution IV fraction (7 factors, 16 runs)</td>
+<td>1e-9 (exact)</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>experiments.fractional_resolution</code></td>
+<td>the definition of resolution, by brute force; the smallest run count; SᵀS = nI</td>
+<td>0 designs failing</td>
+<td>0 of 20 (3–12 factors, III and IV)</td>
+</tr>
+</tbody>
+</table>
+<p>The tests add the following:</p>
+<ul>
+<li>interval coverage: over 12 seeds at N = 256, the analytic Ishigami indices lie inside their 95 % intervals at least
+85 % of the time;</li>
+<li>interval width shrinks by 1.5–2.7× from N = 256 to 1024 (√4 = 2 expected);</li>
+<li>Welch's interval against <code>scipy.stats.ttest_ind(equal_var=False)</code>;</li>
+<li>a resolution III fraction biases an aliased main effect by exactly the interaction (and resolution IV does not);</li>
+<li>a project experiment's every run against a direct evaluation of the toy study.</li>
+</ul>
+<p>Self-test line <code>experiments</code>: Ishigami at N = 1024 within 2/√N, and a 16-run resolution IV fraction's exact main
+effects: 31 ms in a full self-test, about 0.4 s alone (importing scipy.stats).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>Every response is the study's own figure, with that study's assumptions and limits.</li>
+<li>Sobol indices assume independent factors and settle slowly. Read them with their intervals: they should be a few
+hundredths wide before small differences mean anything. Percentile bootstrap intervals over quasi-random rows are
+conservative.</li>
+<li>Main-effect intervals treat the other factors as noise. They say nothing about interactions. A resolution III
+fraction aliases main effects with two-factor interactions.</li>
+<li>The binned main effects of a sampled design are coarse with few runs. Eight runs give four bins of two.</li>
+<li>A run a study refuses has no value. It is left out of that response's analysis and counted in the notes.</li>
+<li>Locked sensors are not varied.</li>
+<li>The best run is the best <em>sampled</em> point, not an optimum. The optimiser (§7.11) searches.</li>
+<li>A process pool pays DexVantage's import and each robot model's build once per process. It pays only for studies
+slower than about a second per run. It needs multiprocessing's freeze support in a frozen bundle, which has not
+been tested.</li>
+<li>The Camera view has no overlay for this page: a run is a mount pose and settings, not an image feature.</li>
+</ul>
+<h2 id="references">References</h2>
+<ul>
+<li>I. M. Sobol', &quot;Sensitivity estimates for nonlinear mathematical models&quot;, Mathematical Modelling and Computational
+Experiments 1(4), 407–414, 1993.</li>
+<li>A. Saltelli, &quot;Making best use of model evaluations to compute sensitivity indices&quot;, Computer Physics Communications
+145(2), 280–297, 2002.</li>
+<li>A. Saltelli, P. Annoni, I. Azzini, F. Campolongo, M. Ratto and S. Tarantola, &quot;Variance based sensitivity analysis
+of model output. Design and estimator for the total sensitivity index&quot;, Computer Physics Communications 181(2),
+259–270, 2010.</li>
+<li>M. J. W. Jansen, &quot;Analysis of variance designs for model output&quot;, Computer Physics Communications 117(1–2), 35–43,
+1999.</li>
+<li>T. Ishigami and T. Homma, &quot;An importance quantification technique in uncertainty analysis for computer models&quot;,
+ISUMA '90, 398–403, 1990.</li>
+<li>M. D. McKay, R. J. Beckman and W. J. Conover, &quot;A comparison of three methods for selecting values of input
+variables in the analysis of output from a computer code&quot;, Technometrics 21(2), 239–245, 1979.</li>
+<li>F. J. Hickernell, &quot;A generalized discrepancy and quadrature error bound&quot;, Mathematics of Computation 67(221),
+299–322, 1998.</li>
+<li>G. E. P. Box, J. S. Hunter and W. G. Hunter, Statistics for Experimenters, 2nd ed., Wiley, 2005.</li>
+<li>B. Efron and R. J. Tibshirani, An Introduction to the Bootstrap, Chapman &amp; Hall, 1993.</li>
+<li>SciPy <code>scipy.stats.qmc</code>, https://docs.scipy.org/doc/scipy/reference/stats.qmc.html.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

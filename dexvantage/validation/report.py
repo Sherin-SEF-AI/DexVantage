@@ -298,6 +298,7 @@ def _badge(ok):
 
 def to_html(result, project=None) -> str:
     """The standalone report page."""
+    from .suite import not_run_sentence
     env = result.environment
     n, ok = len(result.checks), result.passed
     groups = result.by_model()
@@ -311,6 +312,8 @@ def to_html(result, project=None) -> str:
              f'{result.settings.seed}{" · quick run" if result.settings.quick else ""}'
              f'{" · cheap checks only" if getattr(result.settings, "cheap_only", False) else ""}'
              f'{" · cancelled" if result.cancelled else ""}</p>'
+             + (f'<p class="meta">{e(not_run_sentence(result.not_run))}</p>' if getattr(result, 'not_run', None)
+                else '') +
              f'<p>Every check compares a quantity one of DexVantage\'s models computes with an independent reference '
              f'(a closed form written out again, another library, a published table, worked example or measurement, '
              f'brute force or Monte Carlo) and passes when the error is at most the tolerance. The methods behind '

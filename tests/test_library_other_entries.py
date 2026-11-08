@@ -121,7 +121,7 @@ def test_parses_id_matches_filename_and_folder(kind, name):
 
 @pytest.mark.parametrize('kind,name', FILES)
 def test_matches_the_schema(kind, name):
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     with open(os.path.join(RES, 'library.schema.json'), encoding='utf-8') as f:
         schema = json.load(f)
     errors = [f'{list(e.absolute_path)}: {e.message}'

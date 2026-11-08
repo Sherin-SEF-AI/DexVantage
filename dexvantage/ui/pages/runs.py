@@ -451,7 +451,7 @@ class RunsPage(StudyPage):
             sig = (r.get('significance') or {}).get('text', '') if r.get('significance') else ''
             best = '' if r['best'] is None else f'run {r["best"] + 1}'
             vals = [fmt(v, '') for v in r['values']]
-            deltas = [TR.delta_text(d) for d in r['deltas'][1:]]
+            deltas = [TR.delta_text(d, r['unit']) for d in r['deltas'][1:]]
             it = QTreeWidgetItem([r['title'], r['unit']] + vals + deltas + [best, 'same' if r['same'] else sig])
             for c in range(2, 2 + 2 * n - 1):
                 it.setFont(c, mono(10))

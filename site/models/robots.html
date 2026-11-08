@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robots: import, the MuJoCo model and the samples · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/robot/importer.py, model.py, filecheck.py, trajectory.py, samples.py,menagerie.py, catalogue.py (the robot catalogue). Tests: tests/test_robot_core.py,test_samples.py, test_menagerie.py, test_robot_ui.py, test_phase1_integration.py, test_robot_catalogue.py. Forward …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#import">Import</a>
+    <a href="#the-kinematics-model">The kinematics model</a>
+    <a href="#robot-records-the-ui-writes">Robot records the UI writes</a>
+    <a href="#bundled-models-and-samples">Bundled models and samples</a>
+    <a href="#catalogue">The robot catalogue</a>
+    <a href="#validation-1">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/robots.md"><code>docs/models/robots.md</code></a></p>
+<h1 id="robots">Robots: import, the MuJoCo model and the samples</h1>
+<p>Modules: <code>dexvantage/core/robot/importer.py</code>, <code>model.py</code>, <code>filecheck.py</code>, <code>trajectory.py</code>, <code>samples.py</code>,
+<code>menagerie.py</code>, <code>catalogue.py</code> (<a href="#catalogue">the robot catalogue</a>). Tests: <code>tests/test_robot_core.py</code>,
+<code>test_samples.py</code>, <code>test_menagerie.py</code>, <code>test_robot_ui.py</code>, <code>test_phase1_integration.py</code>, <code>test_robot_catalogue.py</code>. Forward kinematics is checked in <a href="kinematics.html">Robot kinematics: forward kinematics and Jacobians</a>; IK, manipulability and
+collision distances in <a href="ik.html">Inverse kinematics, manipulability and collision distances</a>.</p>
+<h2 id="import">Import</h2>
+<p><code>import_robot(path)</code> reads a URDF or MJCF file and every file it names (meshes, included XML, textures) into memory.
+The project keeps them byte for byte (the <code>.dexv</code> archive's <code>sources/</code>), so a robot opens on any machine.</p>
+<ul>
+<li><strong>Where the files go.</strong> Under <code>&lt;robot uid&gt;/&lt;path relative to the robot's folder&gt;</code>; a file outside that folder under
+<code>&lt;uid&gt;/_ext/&lt;name&gt;</code>. A manifest <code>&lt;uid&gt;/.dexvantage/refs.json</code> records which stored file each reference means, so the
+model compiles again from memory exactly as imported. It holds no uid, so the content hash is stable.</li>
+<li><strong>How references resolve.</strong> URDF <code>package://pkg/…</code> is looked for by walking up from the URDF to a folder named
+<code>pkg</code>; <code>file://</code> and absolute paths are used as written; anything else is relative to the URDF. MJCF includes and
+<code>meshdir</code>, <code>texturedir</code> and <code>assetdir</code> are resolved as MuJoCo does: the list of files comes from MuJoCo's own parser
+(<code>mujoco.MjSpec</code>), not a hand-written scan.</li>
+<li><strong>Figures.</strong> Joint limits, velocities and efforts are the file's own (radians, metres, rad/s or m/s, N·m or N); a
+figure the file does not state is <code>None</code> and shows as &quot;—&quot;. The home pose is the MJCF keyframe <code>home</code>, else zero
+clipped to the limits.</li>
+<li><strong>Units check.</strong> A mesh more than 10 m across (<code>MESH_MAX_EXTENT</code>, a plausibility default of this build) is almost
+certainly in millimetres: the import stops and says to set <code>scale=&quot;0.001 0.001 0.001&quot;</code>. The import wizard also
+flags a robot under 20 mm or over 5 m across (a plausibility default, labelled as one).</li>
+<li><strong>Errors</strong> are sentences that name the file and what to pick; a missing MJCF texture is not fatal and is recorded in
+<code>Robot.source.note</code>.</li>
+</ul>
+<h2 id="the-kinematics-model">The kinematics model</h2>
+<p><code>RobotModel(robot, sources)</code> compiles the stored files with MuJoCo from an in-memory asset dictionary (nothing is read
+from disk). URDF is compiled with <code>discardvisual=&quot;false&quot;</code> and <code>fusestatic=&quot;false&quot;</code> so visual meshes and links joined by
+fixed joints keep their own bodies and names. Visual and collision geoms are told apart by MuJoCo's collision masks
+(<code>contype = conaffinity = 0</code> is visual only).</p>
+<ul>
+<li><code>fk(q)</code>, <code>link_pose(q, link)</code>, <code>fk_batch(Q)</code>: 4 × 4 world transforms, world = <code>Robot.base</code> applied to MuJoCo's frame.</li>
+<li><code>jacobian(q, link, point)</code>: the (6, nq) world-frame [linear; angular] Jacobian from <code>mj_jac</code>.</li>
+<li><code>posed_triangles(q)</code>: the visual meshes at q, for drawing and (Phase 3) occlusion.</li>
+<li>q holds the one-degree-of-freedom joints (hinge, slide) in MuJoCo's tree order. Fixed joints are not in q; the
+project summary, the Outliner and the 3D view's caption count the joints in q.</li>
+</ul>
+<p>When MuJoCo refuses a model only because a moving link has no mass (common in kinematics-only URDFs), it is compiled
+again with mass and inertia bounds of 10⁻⁶ kg and 10⁻⁹ kg·m², and the model's notes say so. Kinematics does not
+depend on mass.</p>
+<p><code>get_model(project, uid)</code> is a thread-safe cache shared by the UI and the studies, keyed by the SHA-256 of the
+robot's files, its records and its base pose.</p>
+<h2 id="robot-records-the-ui-writes">Robot records the UI writes</h2>
+<ul>
+<li>A gripper joint has <code>&quot;gripper&quot;: true</code> on its record in <code>Robot.joints</code> (the wizard's joint tagger; the samples tag
+theirs). IK leaves joints that do not move the target link alone either way (<code>manipulability.chain_mask</code>).</li>
+<li><code>Robot.gripper_frame</code> and <code>Robot.fingertip_frames</code> name links. The wizard guesses the gripper frame by name (tcp,
+tool0, ee, gripper, hand, flange, …) and never guesses a link that a gripper joint moves.</li>
+<li>A contact pad is <code>{&quot;link&quot;, &quot;name&quot;, &quot;box&quot;: {&quot;center&quot;: [m], &quot;size&quot;: [m]}}</code>, an axis-aligned box in the link frame.</li>
+<li>A trajectory is <code>{&quot;uid&quot;, &quot;name&quot;, &quot;robot_uid&quot;, &quot;joints&quot;: [names], &quot;t&quot;: [s], &quot;q&quot;: [[per joint] per sample]}</code> in
+<code>project.tasks.trajectories</code>, interpolated linearly by the pose scrubber.</li>
+</ul>
+<h2 id="bundled-models-and-samples">Bundled models and samples</h2>
+<p>Three MuJoCo Menagerie models are bundled after their own licences were read (<code>THIRD_PARTY.md</code>): <code>trs_so_arm100</code>
+(Apache-2.0), <code>universal_robots_ur5e</code> (BSD-3-Clause) and <code>robotiq_2f85</code> (BSD-2-Clause), from Menagerie commit
+<code>98a70c569c4c</code>. The UR5e's OBJ meshes are stored as binary STL (the same triangles as MuJoCo compiles them, a
+difference of 0 m; 31.0 MB of text became 6.1 MB). <code>ur5e_robotiq_2f85.xml</code> is the arm with the gripper attached at
+its <code>attachment_site</code>, written by MuJoCo's <code>MjSpec.attach</code> (<code>scripts/bundle_menagerie.py</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Sample</th>
+<th>Robot</th>
+<th>Joints in q</th>
+<th>Gripper frame</th>
+<th>Sensors (sample placements)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>so100</code></td>
+<td>SO-ARM100</td>
+<td>6 (5 arm, 1 jaw)</td>
+<td><code>Fixed_Jaw</code></td>
+<td>wrist camera on <code>Fixed_Jaw</code>, third-person camera on a tripod</td>
+</tr>
+<tr>
+<td><code>ur5e</code></td>
+<td>UR5e + Robotiq 2F-85</td>
+<td>14 (6 arm, 8 linkage hinges)</td>
+<td><code>gripper_base</code></td>
+<td>&quot;Wrist D405&quot; on <code>wrist_3_link</code>, &quot;Overhead D435&quot; 0.85 m above the volume</td>
+</tr>
+</tbody>
+</table>
+<p>The camera placements are chosen for the samples, not published figures, and say so in their names or notes. The
+sensors get their datasheet models in Phase 2. Robot ▸ Import from MuJoCo Menagerie downloads any other Menagerie
+model, shows its own LICENSE and imports it only after the user accepts it (<a href="../guide.html#robots">guide</a>).</p>
+<h2 id="catalogue">The robot catalogue</h2>
+<p>Module: <code>dexvantage/core/robot/catalogue.py</code>; entries <code>dexvantage/resources/library/robot/&lt;id&gt;.json</code> (library kind
+<code>robot</code>, the <code>robot</code> block of <code>library.schema.json</code>); UI: the Library dock's Robots group and
+<code>ui/dialogs/robot_catalogue.py</code>; check <code>validation/checks_robots.py</code>; tests <code>tests/test_robot_catalogue.py</code>.</p>
+<p>One entry per robot: arms, a bimanual rig, hands, grippers, humanoids and mobile manipulators. Each entry holds</p>
+<ul>
+<li><strong>the maker's figures</strong>: <code>dof</code>, <code>reach_mm</code>, <code>payload_kg</code>, <code>repeatability_mm</code> (the ± half-width), <code>mass_kg</code>,
+<code>control_hz</code>, <code>interfaces</code> and <code>joint_ranges</code> (per joint min and max, in the <code>unit</code> the maker uses). Each is
+<code>{value, source, quote}</code>: <code>source</code> indexes the entry's <code>sources</code> (URL, title, the date read, what it covers) and
+<code>quote</code> is the source's words. A figure no source read states is null and shows as &quot;—&quot; (&quot;not stated by the
+maker&quot;). <code>dof</code> is an integer, or <code>[low, high]</code> where the maker states a range for configurable versions (Unitree
+G1 EDU: &quot;23 - 43&quot;). Nothing is filled in from memory or from the model file; joint limits used for kinematics
+always come from the imported file (§6), the catalogue's <code>joint_ranges</code> are the datasheet's, for comparison.</li>
+<li><strong><code>model</code></strong>: the MuJoCo Menagerie folder (one of <code>menagerie.OFFLINE_MODELS</code>), the MJCF file the catalogue imports,
+the commit (<code>98a70c569c4c1b6da467a20012f766ee1f8dc521</code>) and the licence <code>menagerie.license_name()</code> recognised in that
+folder's own LICENSE, read on 2026-11-07. Every model the catalogue names carries Apache-2.0, BSD-3-Clause,
+BSD-2-Clause, BSD-3-Clause-Clear or MIT, and none restricts commercial use. Nothing new is bundled: Import downloads
+the folder and shows its LICENSE again.</li>
+<li><strong><code>verified</code></strong>: what DexVantage measured when the folder was downloaded once at that commit (a partial clone into
+a throw-away folder) and imported through <code>core/robot/importer.py</code> and <code>RobotModel</code>: joints in q (hinge and slide
+joints), actuators (MuJoCo <code>nu</code>), links, free joints, the joint names, the import time, and the DoF under a stated
+rule. <code>dof_rule = joints</code> counts joints in q minus <code>excluded_joints</code> (the finger or linkage joints of an arm file
+that includes its gripper: Panda, xArm 7, ViperX, WidowX, PiPER, ALOHA, ...); <code>dof_rule = actuators</code> counts
+actuators (the Robotiq 2F-85, whose eight linkage hinges are driven by one actuator). A model that does not import
+says so in plain words; all 53 imported. <code>dof_differs</code> explains a model DoF that differs from the maker's; no entry
+needs one at this commit.</li>
+</ul>
+<h3 id="import-from-the-library">Import from the Library</h3>
+<p>The Library dock's Robots group lists the catalogue under its two import commands, with type, DoF, reach and payload
+as stated; hovering shows every figure with its source and date, the model and what was verified. Double-click (or
+right-click ▸ Import from MuJoCo Menagerie…) opens the Menagerie dialog narrowed to the robot's folder, starts the
+download, picks the catalogue's file and shows the folder's own LICENSE. Import stays disabled until &quot;I accept the
+licence of this model&quot; is ticked; the import is one undo step and records the licence on the robot
+(<code>Robot.source.license</code>) with the LICENSE text in the project. <code>catalogue.import_entry(entry, opener=...)</code> is the same
+flow without the UI (the caller shows the licence).</p>
+<h3 id="entries">Entries</h3>
+<p>DoF (maker) is the stated figure; &quot;joints / actuators / links&quot; and DoF (model) are the verified record at
+<code>98a70c569c4c</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Robot</th>
+<th>Type</th>
+<th>Menagerie folder</th>
+<th>Licence</th>
+<th>DoF (maker)</th>
+<th>Joints / actuators / links</th>
+<th>DoF (model)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AgileX Robotics PiPER</td>
+<td>Arm</td>
+<td><code>agilex_piper</code></td>
+<td>MIT</td>
+<td>6</td>
+<td>8 / 7 / 9</td>
+<td>6 (−2 gripper)</td>
+</tr>
+<tr>
+<td>Alexander Koch v1.1 (Low-Cost Robot Arm, LeRobot update by Jess Moss)</td>
+<td>Arm</td>
+<td><code>low_cost_robot_arm</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>6 / 6 / 7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Apptronik Apollo</td>
+<td>Humanoid</td>
+<td><code>apptronik_apollo</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>32 / 32 / 36</td>
+<td>32</td>
+</tr>
+<tr>
+<td>ARX L5</td>
+<td>Arm</td>
+<td><code>arx_l5</code></td>
+<td>BSD-3-Clause</td>
+<td>—</td>
+<td>8 / 7 / 9</td>
+<td>6 (−2 gripper)</td>
+</tr>
+<tr>
+<td>Booster Robotics T1</td>
+<td>Humanoid</td>
+<td><code>booster_t1</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>23 / 23 / 24</td>
+<td>23</td>
+</tr>
+<tr>
+<td>Carnegie Mellon University LEAP Hand</td>
+<td>Hand</td>
+<td><code>leap_hand</code></td>
+<td>MIT</td>
+<td>16</td>
+<td>16 / 16 / 17</td>
+<td>16</td>
+</tr>
+<tr>
+<td>FANUC CRX-5iA</td>
+<td>Arm</td>
+<td><code>fanuc_crx5ia</code></td>
+<td>Apache-2.0</td>
+<td>6</td>
+<td>6 / 6 / 7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Flexiv Rizon 4</td>
+<td>Arm</td>
+<td><code>flexiv_rizon4</code></td>
+<td>Apache-2.0 AND BSD-3-Clause (one LICENSE file, both texts)</td>
+<td>—</td>
+<td>7 / 7 / 8</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Flexiv Rizon 4s</td>
+<td>Arm</td>
+<td><code>flexiv_rizon4s</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>7 / 7 / 8</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Fourier N1</td>
+<td>Humanoid</td>
+<td><code>fourier_n1</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>23 / 23 / 29</td>
+<td>23</td>
+</tr>
+<tr>
+<td>Franka Emika Panda</td>
+<td>Arm</td>
+<td><code>franka_emika_panda</code></td>
+<td>Apache-2.0</td>
+<td>7</td>
+<td>9 / 8 / 11</td>
+<td>7 (−2 gripper)</td>
+</tr>
+<tr>
+<td>Franka Robotics Franka Research 3</td>
+<td>Arm</td>
+<td><code>franka_fr3</code></td>
+<td>Apache-2.0 AND BSD-3-Clause (one LICENSE file, both texts)</td>
+<td>7</td>
+<td>7 / 7 / 9</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Franka Robotics Franka Research 3 (Menagerie fr3_v2 model)</td>
+<td>Arm</td>
+<td><code>franka_fr3_v2</code></td>
+<td>Apache-2.0 AND BSD-3-Clause (one LICENSE file, both texts)</td>
+<td>7</td>
+<td>7 / 7 / 10</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Google Robot (Everyday Robots, RT-1)</td>
+<td>Mobile manipulator</td>
+<td><code>google_robot</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>9 / 9 / 12</td>
+<td>9</td>
+</tr>
+<tr>
+<td>Google DeepMind ALOHA 2</td>
+<td>Bimanual</td>
+<td><code>aloha</code></td>
+<td>BSD-3-Clause</td>
+<td>—</td>
+<td>16 / 14 / 20</td>
+<td>12 (−4 gripper)</td>
+</tr>
+<tr>
+<td>Hello Robot Stretch 2</td>
+<td>Mobile manipulator</td>
+<td><code>hello_robot_stretch</code></td>
+<td>BSD-3-Clause-Clear</td>
+<td>—</td>
+<td>17 / 8 / 26</td>
+<td>17</td>
+</tr>
+<tr>
+<td>Hello Robot Stretch 3</td>
+<td>Mobile manipulator</td>
+<td><code>hello_robot_stretch_3</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>20 / 10 / 37</td>
+<td>20</td>
+</tr>
+<tr>
+<td>I2RT Robotics YAM</td>
+<td>Arm</td>
+<td><code>i2rt_yam</code></td>
+<td>MIT</td>
+<td>—</td>
+<td>8 / 7 / 13</td>
+<td>6 (−2 gripper)</td>
+</tr>
+<tr>
+<td>Kinova Gen3 (7 DoF)</td>
+<td>Arm</td>
+<td><code>kinova_gen3</code></td>
+<td>BSD-3-Clause</td>
+<td>7</td>
+<td>7 / 7 / 8</td>
+<td>7</td>
+</tr>
+<tr>
+<td>KUKA LBR iiwa 14 R820</td>
+<td>Arm</td>
+<td><code>kuka_iiwa_14</code></td>
+<td>BSD-3-Clause</td>
+<td>7</td>
+<td>7 / 7 / 8</td>
+<td>7</td>
+</tr>
+<tr>
+<td>PAL Robotics TALOS</td>
+<td>Humanoid</td>
+<td><code>pal_talos</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>44 / 0 / 45</td>
+<td>44</td>
+</tr>
+<tr>
+<td>PAL Robotics TIAGo</td>
+<td>Mobile manipulator</td>
+<td><code>pal_tiago</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>22 / 0 / 23</td>
+<td>22</td>
+</tr>
+<tr>
+<td>PAL Robotics TIAGo (dual arm)</td>
+<td>Mobile manipulator</td>
+<td><code>pal_tiago_dual</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>25 / 0 / 26</td>
+<td>25</td>
+</tr>
+<tr>
+<td>PNDbotics Adam Lite</td>
+<td>Humanoid</td>
+<td><code>pndbotics_adam_lite</code></td>
+<td>MIT</td>
+<td>—</td>
+<td>25 / 25 / 26</td>
+<td>25</td>
+</tr>
+<tr>
+<td>Rainbow Robotics RB-Y1</td>
+<td>Mobile manipulator</td>
+<td><code>rainbow_robotics_rby1</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>28 / 26 / 32</td>
+<td>28</td>
+</tr>
+<tr>
+<td>Rethink Robotics Sawyer</td>
+<td>Arm</td>
+<td><code>rethink_robotics_sawyer</code></td>
+<td>Apache-2.0</td>
+<td>7</td>
+<td>7 / 7 / 9</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Robotiq 2F-85</td>
+<td>Gripper</td>
+<td><code>robotiq_2f85</code></td>
+<td>BSD-2-Clause</td>
+<td>—</td>
+<td>8 / 1 / 14</td>
+<td>1 (actuators)</td>
+</tr>
+<tr>
+<td>Robotiq 2F-85 (Menagerie v4 model)</td>
+<td>Gripper</td>
+<td><code>robotiq_2f85_v4</code></td>
+<td>BSD-2-Clause</td>
+<td>—</td>
+<td>6 / 1 / 11</td>
+<td>1 (actuators)</td>
+</tr>
+<tr>
+<td>ROBOTIS OMY-F3M</td>
+<td>Arm</td>
+<td><code>robotis_omy_3m</code></td>
+<td>Apache-2.0</td>
+<td>6</td>
+<td>6 / 6 / 7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>ROBOTIS OP3</td>
+<td>Humanoid</td>
+<td><code>robotis_op3</code></td>
+<td>Apache-2.0</td>
+<td>20</td>
+<td>20 / 20 / 21</td>
+<td>20</td>
+</tr>
+<tr>
+<td>Seeed Studio reBot DevArm</td>
+<td>Arm</td>
+<td><code>seeed_rebot_devarm</code></td>
+<td>MIT</td>
+<td>—</td>
+<td>8 / 8 / 10</td>
+<td>6 (−2 gripper)</td>
+</tr>
+<tr>
+<td>Shadow Robot Company DEX-EE</td>
+<td>Hand</td>
+<td><code>shadow_dexee</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>12 / 12 / 19</td>
+<td>12</td>
+</tr>
+<tr>
+<td>Shadow Robot Company Shadow Dexterous Hand (E3M5)</td>
+<td>Hand</td>
+<td><code>shadow_hand</code></td>
+<td>Apache-2.0</td>
+<td>24</td>
+<td>24 / 20 / 25</td>
+<td>24</td>
+</tr>
+<tr>
+<td>SharpaWave</td>
+<td>Hand</td>
+<td><code>sharpa_wave</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>22 / 22 / 23</td>
+<td>22</td>
+</tr>
+<tr>
+<td>Stanford University TidyBot++</td>
+<td>Mobile manipulator</td>
+<td><code>stanford_tidybot</code></td>
+<td>MIT</td>
+<td>—</td>
+<td>18 / 11 / 22</td>
+<td>18</td>
+</tr>
+<tr>
+<td>Stanford University ToddlerBot 2.0 (2xc)</td>
+<td>Humanoid</td>
+<td><code>toddlerbot_2xc</code></td>
+<td>MIT</td>
+<td>—</td>
+<td>44 / 30 / 45</td>
+<td>44</td>
+</tr>
+<tr>
+<td>Stanford University ToddlerBot 2.0 (2xm)</td>
+<td>Humanoid</td>
+<td><code>toddlerbot_2xm</code></td>
+<td>MIT</td>
+<td>—</td>
+<td>44 / 30 / 45</td>
+<td>44</td>
+</tr>
+<tr>
+<td>Stanford, Columbia and TRI UMI gripper (Universal Manipulation Interface)</td>
+<td>Gripper</td>
+<td><code>umi_gripper</code></td>
+<td>MIT</td>
+<td>—</td>
+<td>8 / 7 / 3</td>
+<td>8</td>
+</tr>
+<tr>
+<td>TetherIA Aero Hand Open</td>
+<td>Hand</td>
+<td><code>tetheria_aero_hand_open</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>16 / 7 / 22</td>
+<td>16</td>
+</tr>
+<tr>
+<td>The Robot Studio SO-101</td>
+<td>Arm</td>
+<td><code>robotstudio_so101</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>6 / 6 / 8</td>
+<td>6</td>
+</tr>
+<tr>
+<td>The Robot Studio SO-ARM100</td>
+<td>Arm</td>
+<td><code>trs_so_arm100</code></td>
+<td>Apache-2.0</td>
+<td>—</td>
+<td>6 / 6 / 7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Trossen Robotics ViperX-300 6DOF</td>
+<td>Arm</td>
+<td><code>trossen_vx300s</code></td>
+<td>BSD-3-Clause</td>
+<td>6</td>
+<td>8 / 7 / 10</td>
+<td>6 (−2 gripper)</td>
+</tr>
+<tr>
+<td>Trossen Robotics WidowX AI</td>
+<td>Arm</td>
+<td><code>trossen_wxai</code></td>
+<td>BSD-3-Clause</td>
+<td>—</td>
+<td>8 / 7 / 13</td>
+<td>6 (−2 gripper)</td>
+</tr>
+<tr>
+<td>Trossen Robotics WidowX-250 6DOF</td>
+<td>Arm</td>
+<td><code>trossen_wx250s</code></td>
+<td>BSD-3-Clause</td>
+<td>6</td>
+<td>8 / 7 / 9</td>
+<td>6 (−2 gripper)</td>
+</tr>
+<tr>
+<td>UC Berkeley Humanoid</td>
+<td>Humanoid</td>
+<td><code>berkeley_humanoid</code></td>
+<td>BSD-3-Clause</td>
+<td>—</td>
+<td>12 / 12 / 13</td>
+<td>12</td>
+</tr>
+<tr>
+<td>UFACTORY Lite 6</td>
+<td>Arm</td>
+<td><code>ufactory_lite6</code></td>
+<td>BSD-3-Clause</td>
+<td>6</td>
+<td>6 / 6 / 7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>UFACTORY xArm 7</td>
+<td>Arm</td>
+<td><code>ufactory_xarm7</code></td>
+<td>BSD-3-Clause</td>
+<td>7</td>
+<td>13 / 8 / 15</td>
+<td>7 (−6 gripper)</td>
+</tr>
+<tr>
+<td>Unitree G1</td>
+<td>Humanoid</td>
+<td><code>unitree_g1</code></td>
+<td>BSD-3-Clause</td>
+<td>23–43</td>
+<td>29 / 29 / 30</td>
+<td>29</td>
+</tr>
+<tr>
+<td>Unitree H1</td>
+<td>Humanoid</td>
+<td><code>unitree_h1</code></td>
+<td>BSD-3-Clause</td>
+<td>—</td>
+<td>19 / 19 / 20</td>
+<td>19</td>
+</tr>
+<tr>
+<td>Unitree Z1</td>
+<td>Arm</td>
+<td><code>unitree_z1</code></td>
+<td>BSD-3-Clause</td>
+<td>6</td>
+<td>6 / 6 / 7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Universal Robots UR10e</td>
+<td>Arm</td>
+<td><code>universal_robots_ur10e</code></td>
+<td>BSD-3-Clause</td>
+<td>6</td>
+<td>6 / 6 / 7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Universal Robots UR5e</td>
+<td>Arm</td>
+<td><code>universal_robots_ur5e</code></td>
+<td>BSD-3-Clause</td>
+<td>6</td>
+<td>6 / 6 / 7</td>
+<td>6</td>
+</tr>
+<tr>
+<td>Wonik Robotics Allegro Hand V4</td>
+<td>Hand</td>
+<td><code>wonik_allegro</code></td>
+<td>BSD-2-Clause</td>
+<td>16</td>
+<td>16 / 16 / 21</td>
+<td>16</td>
+</tr>
+</tbody>
+</table>
+<p>Where the figures come from: the makers' current datasheets or product pages (Franka FR3 datasheet R02212 2.4,
+Universal Robots' UR5e and UR10e datasheets, Kinova's Gen3 one-pager 2024, KUKA's LBR iiwa page, UFACTORY's xArm and
+Lite 6 pages, Unitree's Z1, G1 and H1 pages, Trossen's Interbotix specification pages, Wonik's Allegro Hand V4 page,
+Shadow's Dexterous Hand series table, Robotiq's adaptive-gripper product sheet, ROBOTIS's OMY and OP3 e-Manual pages,
+AgileX's PiPER page, FANUC America's CRX-5iA page, PAL Robotics' TALOS and TIAGo pages); for products no longer sold,
+the maker's last datasheet (the Panda's May 2019 datasheet through the Internet Archive's copy of Franka's download,
+Rethink's 2015 Sawyer datasheet through a distributor's copy, each named in its source); for research hardware, the
+paper (LEAP Hand, UMI). Twenty-two entries have no maker figure at all: their maker's page could not be read (scripts,
+404, no answer) or was not read for this build, and the entry note says which. Their figures stay null; the entry
+still carries its model, licence and verified record.</p>
+<h3 id="validation">Validation</h3>
+<p><code>robots.catalogue_dof</code> (model <code>robots</code>, <strong>a data-consistency check, labelled as one</strong>): for every entry, the verified
+DoF must follow from its own counts under its rule, the model and verified commits and files must agree, and the
+verified DoF must equal the maker's stated DoF (inside a stated range) unless <code>dof_differs</code> explains it. Independently,
+the Menagerie models bundled with DexVantage (<code>core/robot/samples.py</code> BUNDLED, copied from the same commit) whose
+folder and file the catalogue names are imported again now and their joints in q, actuators and links are counted
+with MuJoCo and compared with the catalogue's records; a bundled file the catalogue does not name (the combined
+<code>unitree_g1/g1_with_hands.xml</code>) is listed, not compared. Tolerance 0 entries: every quantity is a count, so a
+difference of one is a data error, not a numerical one.</p>
+<p>Measured (2026-11-07): 0 disagreements over 53 entries; 21 entries state a DoF and all 21 agree with the imported
+model (the G1's 29 inside the EDU's 23–43); the six bundled models counted again give exactly the recorded counts
+(SO-ARM100 6 / 6 / 7, UR5e 6 / 6 / 7, 2F-85 8 / 1 / 14, Shadow Hand 24 / 20 / 25, ALOHA 16 / 14 / 20, Panda
+9 / 8 / 11). The self-test line &quot;robot
+catalogue&quot; repeats the per-entry part (0.7 s).</p>
+<h3 id="known-limits-catalogue">Known limits (catalogue)</h3>
+<p>The figures describe the product, not the Menagerie file, which its own README calls a &quot;simplified&quot; description;
+makers state payload, reach and repeatability under their own conditions (full or mid reach, ISO 9283 or not), which
+the quotes keep. A DoF is the maker's count: the Shadow Hand's 24 joints include 4 under-actuated ones (20 actuated);
+the LEAP Hand's 16 is the paper's count of motor joint angles. Unitree's Z1 page gives AIR and PRO figures and the
+Menagerie README does not say which the model is; the entry uses the AIR's. Two entries describe the same product
+through two Menagerie models (FR3 and FR3 v2; 2F-85 and 2F-85 v4). <code>verified</code> records one download at one commit; a
+later Menagerie commit may differ until the catalogue is checked again (the Import dialog always shows the licence of
+the version actually downloaded). Robots without a Menagerie model (no maker URDF was needed for the list the
+specification names) would carry <code>model.source = &quot;urdf&quot;</code>; none does yet.</p>
+<h2 id="validation-1">Validation</h2>
+<p>The kinematics checks run on the bundled samples as well as on the robots written in the checks: with no project
+given, the validation suite's built-in project holds both sample robots. Measured with the default seed (full run):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Robots</th>
+<th>Error</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kinematics.fk_poe_mujoco</code></td>
+<td>both samples and five robots written in the check, 200 random q each, every link</td>
+<td>8.7 × 10⁻¹⁵ m</td>
+<td>10⁻⁹ m</td>
+</tr>
+<tr>
+<td><code>kinematics.jacobian_mujoco</code></td>
+<td>the same robots, 40 random q each, at each link's origin and a random point fixed in the link</td>
+<td>8.8 × 10⁻¹⁵</td>
+<td>10⁻⁹</td>
+</tr>
+</tbody>
+</table>
+<p><code>dexvantage --self-test</code> repeats the comparison quickly (&quot;robots&quot;: both samples import, MuJoCo and the
+product-of-exponentials chain agree within 10⁻⁹ m at five random poses each).</p>
+<h2 id="known-limits">Known limits</h2>
+<p>xacro must be expanded to plain URDF first; USD (a UsdPhysics articulation, with the optional usd-core) is converted
+to MJCF before the import (<a href="robot_io.html">Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point</a>), so its loops, drives and mimic couplings are not imported.
+URDF mimic joints and the 2F-85's linkage move independently: MuJoCo's equality constraints are not applied by
+kinematics, so moving one finger joint alone poses the linkage in a way the real gripper cannot. Free and ball
+joints are held at the home keyframe and are not part of q. Planes and height fields are not drawn. MJCF <code>&lt;model&gt;</code>
+(attach) assets and plugins are not collected, and the independent reader stops with a plain error on <code>replicate</code>,
+<code>composite</code> and <code>flexcomp</code>. Frames are links: MJCF sites
+cannot be the gripper frame yet. The SO-101 is not bundled (18 MB of meshes); import it from Menagerie.</p>
+<p>What the bundled files are, by Menagerie's own READMEs (read 2026-11-06): &quot;simplified&quot; MJCF descriptions derived
+from public URDFs. The SO-ARM100's joint limits are ones Menagerie added as &quot;approximate joint limits&quot; (its derivation
+step 7), not The Robot Studio's figures; the robot's source note says so. The UR5e's link offsets are rounded to the
+millimetre (d1 = 0.163 m against Universal Robots' 0.1625 m, d5 = d6 = 0.100 m against 0.0997 m and 0.0996 m): after
+the best rigid alignment its flange is up to 1.3 mm (0.9 mm RMS over 500 random poses) from the flange of Universal
+Robots' DH table (<code>tests/test_samples.py</code>). Plan with the maker's figures where a millimetre matters.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

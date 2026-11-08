@@ -54,9 +54,12 @@ set) names a robot and gripper-frame poses at contact. For every grasp:
    triangles that can lie between the centre and the points are drawn: those whose bounding sphere meets the cone
    from the centre around the points (widened by 2° and 2 cm); a triangle outside it cannot hide any of the
    points, so the answer is the full scene's (the validation check compares with exact ray casting against the
-   full scene). A camera with no point in its image builds no map. The diagnostics split the points that are not
-   seen into outside the image, behind their own finger (their face turned away, n · (o − P) ≤ 0) and hidden by the
-   scene.
+   full scene). A link of many triangles is tested in runs of CULL_CHUNK consecutive triangles first, each run's
+   sphere holding its triangles' spheres: the test's distance is 1-Lipschitz in the sphere's centre, so a run
+   whose sphere misses the cone holds no triangle that meets it, and the triangles kept are those of the
+   per-triangle test (fewer are tested). A camera with no point in its image builds no map. The diagnostics split
+   the points that are not seen into outside the image, behind their own finger (their face turned away,
+   n · (o − P) ≤ 0) and hidden by the scene.
 4. The q-bucket cache. Maps are cached by camera and q-bucket: the grasp robot's joint vector divided by
    q_bucket_deg (default 0.1°, prismatic joints by q_bucket_mm, default 0.5 mm) and rounded: the joint state is
    quantised. Every grasp (or pre-contact pose) in a bucket is evaluated at the bucket's first joint vector: its
@@ -186,6 +189,8 @@ BACKGROUND_GRASPS = 2000
 CONE_MARGIN_DEG = 2.0
 CONE_MARGIN_M = 0.02
 CONE_MAX_DEG = 75.0               # a wider cone culls nothing (every triangle is drawn)
+CULL_CHUNK = 256                  # triangles per run in the two-level cone test (a speed setting; the triangles kept
+                                  # are the per-triangle test's)
 MIN_REGION_POINTS = 8
 CACHE_BYTES = 256 * 2 ** 20
 MAX_GALLERY_CAMERAS = 4
@@ -413,6 +418,35 @@ class _RobotGeom:
                 self.radius[k] = float(np.linalg.norm(v - c, axis=1).max())
         self.links = [k for k in range(L) if len(self.local[k])]
         self.digest = hashlib.blake2b(tl.astype(np.float32).tobytes(), digest_size=16).hexdigest()
+        # runs of CULL_CHUNK consecutive triangles per link (link frame), each with a sphere holding its triangles'
+        self.run_centre, self.run_radius = [], []
+        for c, r in zip(self.tri_centre, self.tri_radius):
+            nr = -(-len(c) // CULL_CHUNK)
+            cc, rr = np.zeros((nr, 3)), np.zeros(nr)
+            for i in range(nr):
+                cs, rs = c[i * CULL_CHUNK:(i + 1) * CULL_CHUNK], r[i * CULL_CHUNK:(i + 1) * CULL_CHUNK]
+                cc[i] = (cs.min(axis=0) + cs.max(axis=0)) / 2
+                # widened by a micrometre and a part in 10⁹, so rounding never drops a run holding a kept triangle
+                rr[i] = float((np.linalg.norm(cs - cc[i], axis=1) + rs).max()) * (1 + 1e-9) + 1e-6
+            self.run_centre.append(cc)
+            self.run_radius.append(rr)
+
+    def cone_mask(self, k: int, T: np.ndarray, cone) -> np.ndarray:
+        """(K,) True for link k's triangles whose bounding sphere may meet cone with the link at T (4 × 4): the
+        per-triangle _in_cone test, made only for the triangles of the runs whose sphere meets the cone."""
+        R, p = T[:3, :3], T[:3, 3]
+        K = len(self.local[k])
+        out = np.zeros(K, bool)
+        runs = np.flatnonzero(_in_cone(self.run_centre[k] @ R.T + p, self.run_radius[k], cone))
+        if not len(runs):
+            return out
+        if len(runs) == len(self.run_radius[k]):
+            idx = np.arange(K)
+        else:
+            idx = (runs[:, None] * CULL_CHUNK + np.arange(CULL_CHUNK)).ravel()
+            idx = idx[idx < K]
+        out[idx[_in_cone(self.tri_centre[k][idx] @ R.T + p, self.tri_radius[k][idx], cone)]] = True
+        return out
 
 
 class _Cam:
@@ -475,7 +509,7 @@ class Evaluator:
         self.cos_view = None if mva is None else math.cos(math.radians(mva))
         self.lift = st['lift_mm'] / 1000.0
         self.eps = st['eps_mm'] / 1000.0
-        self._posed_for, self._posed_links = None, {}
+        self._seats: OrderedDict = OrderedDict()      # (camera, optical pose bytes) -> seat mask (seat_for)
         self.maps: OrderedDict = OrderedDict()
         self.hits = self.misses = self.builds = self.reuse_refused = 0
         self.build_s = 0.0
@@ -529,20 +563,21 @@ class Evaluator:
             return None
         return (np.linalg.norm(t.astype(float) - T_po[:3, 3], axis=2) <= OWN_RADIUS_M).all(axis=1)
 
+    def seat_for(self, j: int, T_po) -> np.ndarray | None:
+        """seat_mask of camera j at T_po, kept for the last few poses (a "what to move" step asks for the same
+        moved pose once per grasp)."""
+        key = (j, np.ascontiguousarray(T_po, np.float64).tobytes())
+        if key in self._seats:
+            self._seats.move_to_end(key)
+            return self._seats[key]
+        m = self._seats[key] = self.seat_mask(self.cams[j], T_po)
+        while len(self._seats) > 16:
+            self._seats.popitem(last=False)
+        return m
+
     # ---------------------------------------------------------------- geometry
     def fk(self, qd: dict) -> dict:
         return {uid: g.model.fk_array(qd[uid] if uid in qd else g.model.home) for uid, g in self.robots.items()}
-
-    def _centroids(self, fkd: dict, uid: str, g: _RobotGeom, k: int) -> np.ndarray:
-        """(K, 3) world centroids of link k's triangles at fkd, kept while the same fkd is asked for (the cameras
-        of one joint state share them)."""
-        if self._posed_for is not fkd:
-            self._posed_for, self._posed_links = fkd, {}
-        c = self._posed_links.get((uid, k))
-        if c is None:
-            T = fkd[uid][k]
-            c = self._posed_links[(uid, k)] = g.tri_centre[k] @ T[:3, :3].T + T[:3, 3]
-        return c
 
     def occluders(self, fkd: dict, qd: dict, cone, c: _Cam | None = None, seat=None) -> _Occ:
         """The scene's triangles at fkd that can lie in cone (all when cone is None), the seat of camera c left out."""
@@ -576,7 +611,7 @@ class Evaluator:
                     key.append(f'seat:{c.uid}:' + hashlib.blake2b(np.packbits(seat).tobytes(),
                                                                   digest_size=8).hexdigest())
                 if cone is not None and len(t) > 64:
-                    m = _in_cone(self._centroids(fkd, uid, g, k), g.tri_radius[k], cone)
+                    m = g.cone_mask(k, T[k], cone)
                     keep = m if keep is None else keep & m
                 if keep is not None:
                     t = t[keep]
@@ -607,7 +642,7 @@ class Evaluator:
     def cube(self, j: int, bucket, fkd, qd, o, P, use_cache: bool = True, T_po=None):
         """The map of camera j for points P from o, through the q-bucket cache when bucket is not None."""
         c = self.cams[j]
-        seat = None if T_po is None else self.seat_mask(c, T_po)
+        seat = None if T_po is None else self.seat_for(j, T_po)
         if not use_cache or bucket is None:
             return self.build(fkd, qd, o, P, c, seat)[0]
         key = (j, bucket)

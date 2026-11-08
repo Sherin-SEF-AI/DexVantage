@@ -33,8 +33,10 @@ the dicts it is `None`.
 
 `run` takes a study id (`dv.studies()` lists them: id, title, batch flag, whether it needs a robot, and the plugin that
 added it), a dash form of it (`depth-validity`) or its batch flag (`rig-inventory`). Keyword arguments are settings laid
-over the stored ones **for this run only**: `rig.run('coverage', cube_n=256)`. `progress=fn(fraction, text)` reports
-progress. The result is a `dv.Result`: the study's own JSON (a `dict`, so `json.dumps(cov)` works) plus
+over the stored ones **for this run only**: `rig.run('coverage', cube_n=256)`. A name the study does not read is
+refused in one sentence that lists its settings (`rig.run('tolerance', draws=8)`: "The tolerance study has no setting
+called draws; its settings are distribution, metrics, n, scale, seed and sensors."; `core/study_settings.py`, for the
+studies it lists). `progress=fn(fraction, text)` reports progress. The result is a `dv.Result`: the study's own JSON (a `dict`, so `json.dumps(cov)` works) plus
 
 - `.headline`: the study's headline metric with its unit, the status word the result gives and a sentence
   (`'Worst camera to joint-state skew: ≥ 54.4 ms (out of sync)'` on this sample: a bound is shown as one);

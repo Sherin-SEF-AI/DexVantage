@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Assistant dock · DexVantage</title>
+<meta name="description" content="Window ▸ Assistant (Ctrl+J) opens the dock in its own column on the right. It answers questions about the openproject with Claude or Groq, reading DexVantage&#x27;s own figures through tools; it never changes the project or starts along study without you.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#setting-it-up">Setting it up</a>
+    <a href="#a-worked-example-on-the-so-100-sample">A worked example on the SO-100 sample</a>
+    <a href="#chats-and-memory">Chats and memory</a>
+    <a href="#when-something-goes-wrong">When something goes wrong</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/assistant_dock.md"><code>docs/guide/assistant_dock.md</code></a></p>
+<h1 id="the-assistant-dock">The Assistant dock</h1>
+<p>Window ▸ Assistant (Ctrl+J) opens the dock in its own column on the right. It answers questions about the open
+project with Claude or Groq, reading DexVantage's own figures through tools; it never changes the project or starts a
+long study without you.</p>
+<h2 id="setting-it-up">Setting it up</h2>
+<ol>
+<li>Install the optional packages once, in the source folder: <code>pip install &quot;.[assistant]&quot;</code> (anthropic 2.6.0 for
+Claude, keyring 25.7.0 for the keys). Groq needs no package.</li>
+<li>Click the gear in the dock (Assistant settings), pick the provider and the model (Claude Opus 5.5 is the default;
+Claude Sonnet 5.5 and Claude Haiku 5.5 are faster and cheaper), paste the API key and click Save key. The key goes
+into the system keyring only; the dialog shows it masked (first and last four characters). Remove key takes it
+out again.</li>
+<li>Until a key is stored the dock says so in one sentence at the top (&quot;There is no Claude API key: add one in
+Assistant settings…&quot;), and nothing is sent.</li>
+</ol>
+<h2 id="a-worked-example-on-the-so-100-sample">A worked example on the SO-100 sample</h2>
+<p>File ▸ Open sample ▸ LeRobot SO-100 arm with a wrist and a third-person camera, then Analysis ▸ Coverage and resolution, and Run. The page's headline reads <strong>47.3 % of
+the task volume, gaps</strong>. With the page open, ask the dock <em>What does this page tell me?</em></p>
+<ul>
+<li>The question goes out with the page you are on: <code>open page: Coverage and resolution (Shows 47.3 % of the task volume: gaps.)</code>. The assistant calls <code>get_page_context</code> and cites the headline, its status word and the page's
+explanation (47 % of the volume seen by two or more cameras, 47 % by one only, 5 % by none; the wrist camera sees
+54 %).</li>
+<li>Under the answer, the tools it called are listed (&quot;Tool: Read the page on screen&quot;, with its time).</li>
+<li>If the answer carries a number that is not in what the tools returned, a warning says so. In the tests' scripted
+version of this example the answer adds &quot;about 99 % would need a third camera&quot;; the dock shows <em>Not found in what
+the tools returned or the page shows: 99. … check them before you rely on them.</em></li>
+</ul>
+<p>Then ask <em>Raise the wrist camera by 2 cm</em>. The answer comes with a <strong>proposed change</strong> card: the quantity, its value
+before and after (<code>Wrist camera (sample placement) z −0.0600 m → −0.0400 m</code>). Nothing has changed yet.</p>
+<ul>
+<li><strong>Accept</strong> makes it one undo step, &quot;Assistant · Raise the wrist camera&quot; in Edit ▸ Undo; the card then offers
+<strong>Undo</strong>.</li>
+<li><strong>Discard</strong> leaves the project as it is and writes a memory note (&quot;rejected: …&quot;), so the assistant does not
+propose it again.</li>
+</ul>
+<p>Ask <em>Run the grasp study on every grasp</em>. Grasp self-occlusion is long work (tens of seconds on the samples), so the
+assistant cannot run it from a tool: it puts a <strong>Copilot plan</strong> on screen, each step with its settings and where each
+value came from, the checks (an unknown study, a missing robot or export format are errors; the plan cannot be
+approved until they are fixed) and, when the study has run in this session, how long it took then.</p>
+<ul>
+<li><strong>Approve</strong> stores an approval record (the settings and their SHA-256) for the project and runs the steps in
+order; each step shows its progress and its outcome on the card, and the study's page shows the result.</li>
+<li><strong>Edit…</strong> changes one value (a step's setting, an export's formats): a new version appears with the change listed,
+and it needs approving again.</li>
+<li><strong>Cancel</strong> drops the plan (or stops it while it runs).</li>
+</ul>
+<h2 id="chats-and-memory">Chats and memory</h2>
+<ul>
+<li>Each answer saves the chat for this project. The clock button lists this project's past chats; opening one shows
+it, and the next question continues with a short summary of it.</li>
+<li>The list button opens the <strong>memory notes</strong>: decisions, constraints, rejected ideas and notes the assistant is told
+with each question. Add one yourself, or keep one the assistant offers (Keep / Discard on its card); delete what no
+longer holds.</li>
+<li>Chats, memory notes and plan records live in your data folder (<code>XDG_DATA_HOME/DexVantage/assistant/</code>), per
+project, readable by you only.</li>
+</ul>
+<h2 id="when-something-goes-wrong">When something goes wrong</h2>
+<p>The dock says what happened and what to do, never a traceback: no key, the anthropic package missing, the key not
+accepted, offline (&quot;Could not reach Anthropic's API: you may be offline…&quot;), rate-limited (tried again once when the
+wait is short), the model declined the request, the answer cut off. A failed answer leaves the conversation as it was
+before the question.</p>
+<p>See <code>docs/models/assistant_dock.md</code> for how the loop, the number check and the approval gate work, their validation
+and their known limits.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

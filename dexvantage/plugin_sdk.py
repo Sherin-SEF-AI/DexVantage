@@ -60,6 +60,11 @@ import sys
 import time
 import traceback
 from dataclasses import dataclass, field
+from types import ModuleType
+from typing import TYPE_CHECKING, Callable, Iterable
+
+if TYPE_CHECKING:                                    # names for the type hints only (nothing imported at run time)
+    from importlib.metadata import EntryPoint
 
 GROUP = 'dexvantage.plugins'
 API_VERSION = 1
@@ -110,7 +115,7 @@ def _first_line(e: BaseException) -> str:
     return ((str(e) or type(e).__name__).strip().splitlines() or [''])[0][:240]
 
 
-def _builtins_loaded():
+def _builtins_loaded() -> None:
     """Import DexVantage's own registries first, so a plugin's duplicate id is caught and built-in readers sniff
     before a plugin's."""
     from .core import exporters as EX
@@ -136,36 +141,37 @@ class PluginAPI:
 
     # ---------------------------------------------------------------- helpers a plugin may use
     @property
-    def StudyError(self):
+    def StudyError(self) -> type:
         from .core.jobs import StudyError
         return StudyError
 
     @property
-    def jobs(self):
+    def jobs(self) -> ModuleType:
         from .core import jobs
         return jobs
 
     @property
-    def dv(self):
+    def dv(self) -> ModuleType:
         """The Python API (dexvantage.api): dv.sample, Rig, Result, ..."""
         from . import api
         return api
 
-    def _skip(self, kind: str, ident: str, why: str):
+    def _skip(self, kind: str, ident: str, why: str) -> None:
         self._rec.problems.append(f'{self._rec.name} tried to add the {KIND_WORDS[kind][0]} "{ident}", {why}; it was '
                                   'not added.')
 
-    def _note(self, kind: str, ident: str):
+    def _note(self, kind: str, ident: str) -> None:
         self._rec.added[kind].append(ident)
         ORIGIN[(kind, ident)] = self._rec.name
 
     # ---------------------------------------------------------------- what a plugin can add
-    def study(self, sid: str, title: str, quick: bool = False, batch: str = '', needs_robot: bool = False):
+    def study(self, sid: str, title: str, quick: bool = False, batch: str = '',
+              needs_robot: bool = False) -> Callable[[Callable], Callable]:
         """Decorator: register fn(project, ctx) -> dict as a study (core.jobs.study). batch: its batch flag without
         dashes ('' for none)."""
         from .core import jobs
 
-        def deco(fn):
+        def deco(fn: Callable) -> Callable:
             if not _STUDY_ID.match(str(sid)):
                 raise PluginError(f'the study id "{sid}" is not lower-case words joined by underscores (a dot or a '
                                   'capital is not allowed: factor paths use the dot)')
@@ -181,11 +187,12 @@ class PluginAPI:
             return fn
         return deco
 
-    def metric(self, mid: str, title: str, unit: str, better: str, study: str, note: str = '', tags=()):
+    def metric(self, mid: str, title: str, unit: str, better: str, study: str, note: str = '',
+               tags: Iterable[str] = ()) -> Callable[[Callable], Callable]:
         """Decorator: register extract(doc) -> float | None as a metric (core.metrics.metric)."""
         from .core import metrics as M
 
-        def deco(fn):
+        def deco(fn: Callable) -> Callable:
             if mid in M.METRICS:
                 self._skip('metric', mid, 'which DexVantage already has')
                 return fn
@@ -194,11 +201,12 @@ class PluginAPI:
             return fn
         return deco
 
-    def exporter(self, fid: str, title: str, needs_robot: bool = False, description: str = ''):
+    def exporter(self, fid: str, title: str, needs_robot: bool = False,
+                 description: str = '') -> Callable[[Callable], Callable]:
         """Decorator: register fn(project, out_dir, options, ctx) -> {'files', 'notes'} (core.exporters.exporter)."""
         from .core import exporters as EX
 
-        def deco(fn):
+        def deco(fn: Callable) -> Callable:
             if fid in EX.EXPORTERS:
                 self._skip('exporter', fid, 'which DexVantage already has')
                 return fn
@@ -207,12 +215,13 @@ class PluginAPI:
             return fn
         return deco
 
-    def dataset_reader(self, fmt: str, sniff, title: str = ''):
+    def dataset_reader(self, fmt: str, sniff: Callable[[str], bool],
+                       title: str = '') -> Callable[[Callable], Callable]:
         """Decorator: register open(path) -> core.datasets.Dataset for the format fmt; sniff(path) -> bool says
         whether a path is in it. title: the format's name in words ('' = fmt)."""
         from .core.datasets import episode as EP
 
-        def deco(fn):
+        def deco(fn: Callable) -> Callable:
             if any(r[0] == fmt for r in EP.READERS):
                 self._skip('dataset_reader', fmt, 'a format DexVantage already reads')
                 return fn
@@ -223,7 +232,7 @@ class PluginAPI:
             return fn
         return deco
 
-    def library_folder(self, path: str):
+    def library_folder(self, path: str) -> None:
         """Read library entries (one JSON per device, the library schema) from this folder too; read-only, like the
         built-in library. Entries whose id is already taken are skipped (Library problems say so)."""
         from .core import library as LB
@@ -234,14 +243,14 @@ class PluginAPI:
         self._note('library_folder', path)
 
     @property
-    def Outcome(self):
+    def Outcome(self) -> type:
         """What a validation check returns (validation/suite.py Outcome: error, detail, figure, rows, ...)."""
         from .validation.suite import Outcome
         return Outcome
 
     def check(self, cid: str, title: str, quantity: str, reference: str, tolerance: float, unit: str,
-              references: dict | None = None, refs=None, cost: str = 'cheap', tolerance_quick: float | None = None,
-              model_title: str = ''):
+              references: dict | None = None, refs: Iterable[str] | None = None, cost: str = 'cheap',
+              tolerance_quick: float | None = None, model_title: str = '') -> Callable[[Callable], Callable]:
         """Decorator: register fn(ctx) -> api.Outcome as a validation check (validation/suite.py @check) of this
         plugin's model, 'plugin.<plugin name>' (model_title: its title in the report, default "<name> (plugin)"), so
         --validate, the self-test's cheap run and Help ▸ Validate the models run it with DexVantage's own checks.
@@ -253,7 +262,7 @@ class PluginAPI:
         from .validation import suite as VS
         model = 'plugin.' + re.sub(r'[^a-z0-9_]+', '_', self._rec.name.lower()).strip('_')
 
-        def deco(fn):
+        def deco(fn: Callable) -> Callable:
             if any(c.id == cid for c in VS.CHECKS):
                 self._skip('check', cid, 'an id another check already has')
                 return fn
@@ -283,9 +292,9 @@ class PluginAPI:
             return fn
         return deco
 
-    def page(self, pid: str, title: str, cls, menu: str = 'Analysis', icon: str | None = None,
+    def page(self, pid: str, title: str, cls: type | str, menu: str = 'Analysis', icon: str | None = None,
              action_id: str | None = None, shortcut: str | None = None, workspace: str | None = None,
-             order: int = 200):
+             order: int = 200) -> type | str:
         """A UI page (ui/pages registry). cls: a StudyPage subclass or "module:Class" (imported when the window is
         built: headless use of the plugin never imports Qt)."""
         from .ui import pages as PG
@@ -307,18 +316,18 @@ class _LazyPage:
         self.plugin = plugin
         self.__name__ = path
 
-    def resolve(self):
+    def resolve(self) -> type:
         mod, _, attr = self.path.partition(':')
         if not attr:
             raise PluginError(f'the page "{self.path}" of {self.plugin} is not given as "module:Class"')
         return getattr(importlib.import_module(mod), attr)
 
-    def __call__(self, ctx):
+    def __call__(self, ctx: object) -> object:
         return self.resolve()(ctx)
 
 
 # ====================================================================== discovery and loading
-def discover(paths=None) -> list:
+def discover(paths: Iterable[str | os.PathLike] | None = None) -> list:
     """The entry points of the group: installed ones, or those of the distributions found on paths (folders, as
     importlib.metadata searches them: a pip --target folder, a site-packages)."""
     from importlib import metadata
@@ -331,7 +340,7 @@ def discover(paths=None) -> list:
     return out
 
 
-def _dist_of(ep):
+def _dist_of(ep: EntryPoint) -> tuple[str, str]:
     d = getattr(ep, 'dist', None)
     if d is None:
         return '', ''
@@ -341,14 +350,14 @@ def _dist_of(ep):
         return '', ''
 
 
-def unload(name: str):
+def unload(name: str) -> None:
     """Remove everything the named plugin added (studies, metrics, exporters, readers, library folders, pages, checks
     with their model and references)."""
     for rec in [r for r in _RECORDS if r.name == name]:
         _unload_record(rec)
 
 
-def _unload_record(rec: PluginRecord):
+def _unload_record(rec: PluginRecord) -> None:
     from .core import exporters as EX
     from .core import jobs
     from .core import metrics as M
@@ -386,7 +395,7 @@ def _unload_record(rec: PluginRecord):
         a[k] = []
 
 
-def _load_one(ep, rec: PluginRecord):
+def _load_one(ep: EntryPoint, rec: PluginRecord) -> None:
     t0 = time.perf_counter()
     try:
         try:
@@ -420,7 +429,8 @@ def _load_one(ep, rec: PluginRecord):
     rec.seconds = time.perf_counter() - t0
 
 
-def load(enabled: bool | None = None, entry_points=None, paths=None, reload: bool = False) -> list:
+def load(enabled: bool | None = None, entry_points: Iterable[EntryPoint] | None = None,
+         paths: Iterable[str | os.PathLike] | None = None, reload: bool = False) -> list:
     """Find and load the plugins once (again with reload=True, which unloads the previous ones first). enabled=None
     follows DEXVANTAGE_NO_PLUGINS; False finds them without loading (status 'off'). entry_points: load these
     instead of the installed ones (tests); paths: find them on these folders instead of sys.path."""
@@ -482,7 +492,7 @@ def origin(kind: str, ident: str) -> str | None:
     return ORIGIN.get((kind, ident))
 
 
-def page_replaced(pid: str):
+def page_replaced(pid: str) -> None:
     """A built-in page registered over a plugin's page of the same id (the window loads the built-in pages after the
     plugins): the plugin's record says so in a sentence, and the page is no longer counted as the plugin's."""
     name = ORIGIN.pop(('page', pid), None)

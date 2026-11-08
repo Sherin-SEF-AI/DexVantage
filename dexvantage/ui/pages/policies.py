@@ -38,6 +38,8 @@ class PoliciesPage(StudyPage):
     The headline counts the figures the studies need that no source states: measure them and enter them here."""
     STUDY = None
     TITLE = 'Policies'
+    MODEL = ('Model: the policy figures as resolved from their model card or paper, or your measurement '
+             '(core/policies.py).')
     HEADLINE = 'Policy figures not stated'
 
     def __init__(self, ctx):

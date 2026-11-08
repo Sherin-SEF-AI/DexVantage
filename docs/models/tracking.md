@@ -146,7 +146,7 @@ Measured 2026-11-07 (full run; tmpfs `/tmp`):
 
 | Check | Reference | Tolerance | Measured |
 |---|---|---|---|
-| `tracking.store_round_trip` | four records built in the check (a rig-inventory result, a tolerance result with draws, a value not stated and samples, a scorecard with a bound and the three check states, a failed run; Unicode tags, a two-line note, rerun_of, reproduce), through a JSON round trip | 0 fields | 0 of 434 fields differ (run.json, index line, result.json, after an update, read by a new RunStore) |
+| `tracking.store_round_trip` | four records built in the check (a rig-inventory result, a tolerance result with draws, a value not stated and samples, a scorecard with a bound and the three check states, a failed run; Unicode tags, a two-line note, rerun_of, reproduce), through a JSON round trip | 0 fields | 0 of 443 fields differ (run.json, index line, result.json, after an update, read by a new RunStore) |
 | `tracking.concurrent_writers` | what each of N writer processes reports it wrote (run ids; figures writer × 1000 + i) | 0 runs | 8 writers × 100 runs (and an update of every third): 800 stored, 0 lost, 0 foreign, 0 corrupt, 0 damaged lines, 0 temporary files; all 8 writing at once at the busiest; 0.16 s on tmpfs, 1.8 s on ext4 (16 × 100 also 0 lost) |
 | `tracking.crash_recovery` | the meaning of each crash, written out in the check | 0 cases | 7 of 7 cases hold (1 damaged line, 2 recovered folders, the temporary folder ignored, the later run intact) |
 | `tracking.csv_parquet_identical` | the records' own values; read back with Python's `csv` module and `pyarrow.parquet` | 0 cells | 0 of 8 240 cells differ; numbers compared bit for bit over magnitudes 10⁻³⁰⁰ to 10³⁰⁰, both signs, −0.0 and integers |

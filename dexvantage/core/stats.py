@@ -82,10 +82,15 @@ from __future__ import annotations
 
 import itertools
 import math
+from typing import TYPE_CHECKING, Callable, Sequence
 
 import numpy as np
 
 from .jobs import StudyError
+from .metrics import delta_unit
+
+if TYPE_CHECKING:                                    # names for the type hints only
+    from numpy.typing import ArrayLike
 
 ALPHA = 0.05                # DexVantage defaults (labelled defaults wherever they show)
 POWER = 0.80
@@ -155,28 +160,28 @@ def _sp():
     return stats, special
 
 
-def _conf(confidence) -> float:
+def _conf(confidence: float) -> float:
     c = float(confidence)
     if not (0.5 <= c < 1.0):
         raise StatsError(f'The confidence level must be between 0.5 and 1 (0.95 is 95 %); it is {confidence!r}.')
     return c
 
 
-def _alpha(alpha) -> float:
+def _alpha(alpha: float) -> float:
     a = float(alpha)
     if not (0.0 < a < 0.5):
         raise StatsError(f'The significance level alpha must be between 0 and 0.5 (0.05 is usual); it is {alpha!r}.')
     return a
 
 
-def _target(power) -> float:
+def _target(power: float) -> float:
     p = float(power)
     if not (0.0 < p < 1.0):
         raise StatsError(f'The target power must be between 0 and 1 (0.8 is usual); it is {power!r}.')
     return p
 
 
-def _counts(k, n, what='') -> tuple[int, int]:
+def _counts(k: int, n: int, what: str = '') -> tuple[int, int]:
     try:
         kf, nf = float(k), float(n)
     except (TypeError, ValueError):
@@ -192,7 +197,7 @@ def _counts(k, n, what='') -> tuple[int, int]:
     return k, n
 
 
-def _vec(x, what='The values') -> np.ndarray:
+def _vec(x: ArrayLike, what: str = 'The values') -> np.ndarray:
     try:
         a = np.asarray(x, float).ravel()
     except (TypeError, ValueError):
@@ -203,7 +208,7 @@ def _vec(x, what='The values') -> np.ndarray:
     return a
 
 
-def _pair(x, y) -> tuple[np.ndarray, np.ndarray]:
+def _pair(x: ArrayLike, y: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     x, y = _vec(x, 'The first sample'), _vec(y, 'The second sample')
     if len(x) != len(y):
         raise StatsError(f'Paired samples must have one value each per pair; they have {len(x)} and {len(y)}.')
@@ -212,14 +217,14 @@ def _pair(x, y) -> tuple[np.ndarray, np.ndarray]:
     return x, y
 
 
-def _two(x, y) -> tuple[np.ndarray, np.ndarray]:
+def _two(x: ArrayLike, y: ArrayLike) -> tuple[np.ndarray, np.ndarray]:
     x, y = _vec(x, 'The first sample'), _vec(y, 'The second sample')
     if len(x) < 2 or len(y) < 2:
         raise StatsError(f'Each sample needs at least 2 values; they have {len(x)} and {len(y)}.')
     return x, y
 
 
-def _f(v):
+def _f(v: object):
     """A JSON-able float (None for NaN or infinite)."""
     if v is None:
         return None
@@ -231,11 +236,11 @@ def _norm_ppf(q: float) -> float:
     return float(_sp()[1].ndtri(q))
 
 
-def _norm_cdf(z) -> np.ndarray:
+def _norm_cdf(z: float | np.ndarray) -> np.ndarray:
     return _sp()[1].ndtr(z)
 
 
-def ranks(x) -> np.ndarray:
+def ranks(x: ArrayLike) -> np.ndarray:
     """1-based ranks, ties given their average rank."""
     x = np.asarray(x, float)
     _u, inv, cnt = np.unique(x, return_inverse=True, return_counts=True)
@@ -243,7 +248,7 @@ def ranks(x) -> np.ndarray:
     return avg[inv.reshape(-1)]
 
 
-def _tie_counts(x) -> np.ndarray:
+def _tie_counts(x: np.ndarray) -> np.ndarray:
     return np.unique(np.asarray(x, float), return_counts=True)[1].astype(float)
 
 
@@ -251,7 +256,7 @@ def _p_two(z: float) -> float:
     return float(min(1.0, 2.0 * _sp()[1].ndtr(-abs(z))))
 
 
-def _pv(z, alternative):
+def _pv(z: float, alternative: str):
     if alternative == 'less':
         return float(_sp()[1].ndtr(z))
     if alternative == 'greater':
@@ -262,14 +267,14 @@ def _pv(z, alternative):
 ALTERNATIVES = ('two-sided', 'less', 'greater')
 
 
-def _alt(a) -> str:
+def _alt(a: str) -> str:
     if a not in ALTERNATIVES:
         raise StatsError(f'The alternative must be one of {", ".join(ALTERNATIVES)}; it is {a!r}.')
     return a
 
 
 # =========================================================================== success rates
-def wilson(k, n, confidence: float = CONFIDENCE) -> tuple[float, float]:
+def wilson(k: int, n: int, confidence: float = CONFIDENCE) -> tuple[float, float]:
     """The Wilson score interval of k successes in n trials."""
     k, n = _counts(k, n)
     z = _norm_ppf(0.5 + _conf(confidence) / 2)
@@ -285,7 +290,7 @@ def wilson(k, n, confidence: float = CONFIDENCE) -> tuple[float, float]:
     return lo, hi
 
 
-def clopper_pearson(k, n, confidence: float = CONFIDENCE) -> tuple[float, float]:
+def clopper_pearson(k: int, n: int, confidence: float = CONFIDENCE) -> tuple[float, float]:
     """The Clopper-Pearson interval: the beta quantiles B(α/2; k, n − k + 1) and B(1 − α/2; k + 1, n − k)."""
     k, n = _counts(k, n)
     a = 1 - _conf(confidence)
@@ -295,14 +300,14 @@ def clopper_pearson(k, n, confidence: float = CONFIDENCE) -> tuple[float, float]
     return lo, hi
 
 
-def proportion(k, n, confidence: float = CONFIDENCE, name: str = '') -> dict:
+def proportion(k: int, n: int, confidence: float = CONFIDENCE, name: str = '') -> dict:
     """A success rate with both intervals."""
     k, n = _counts(k, n, f'"{name}"' if name else '')
     return {'name': name, 'successes': k, 'trials': n, 'rate': k / n, 'confidence': confidence,
             'wilson': list(wilson(k, n, confidence)), 'clopper_pearson': list(clopper_pearson(k, n, confidence))}
 
 
-def risk_difference(k1, n1, k2, n2, confidence: float = CONFIDENCE) -> dict:
+def risk_difference(k1: int, n1: int, k2: int, n2: int, confidence: float = CONFIDENCE) -> dict:
     """p2 − p1 with Newcombe's hybrid score interval (method 10): from the two Wilson intervals (l_i, u_i),
     [d − √((p2 − l2)² + (u1 − p1)²), d + √((u2 − p2)² + (p1 − l1)²)]."""
     k1, n1 = _counts(k1, n1)
@@ -317,7 +322,7 @@ def risk_difference(k1, n1, k2, n2, confidence: float = CONFIDENCE) -> dict:
             'method': 'Newcombe hybrid score interval (method 10, from the Wilson intervals)'}
 
 
-def odds_ratio(k1, n1, k2, n2, confidence: float = CONFIDENCE) -> dict:
+def odds_ratio(k1: int, n1: int, k2: int, n2: int, confidence: float = CONFIDENCE) -> dict:
     """The sample odds ratio of condition 2 against condition 1, (k2 (n1 − k1)) / (k1 (n2 − k2)), with Woolf's
     interval exp(ln OR ± z √(Σ 1/cell)); with a zero cell ½ is added to every cell (Haldane-Anscombe), said."""
     k1, n1 = _counts(k1, n1)
@@ -335,17 +340,17 @@ def odds_ratio(k1, n1, k2, n2, confidence: float = CONFIDENCE) -> dict:
                                                                    if corrected else '')}
 
 
-def _hyper_logpmf(x, n1, n2, m):
+def _hyper_logpmf(x: int | np.ndarray, n1: int, n2: int, m: int):
     """log P(X = x) of the hypergeometric: x successes of m in group 1 (n1), the rest in group 2 (n2)."""
     from scipy.special import gammaln
 
-    def lc(a, b):
+    def lc(a: float | np.ndarray, b: float | np.ndarray) -> float | np.ndarray:
         return gammaln(a + 1) - gammaln(b + 1) - gammaln(a - b + 1)
     x = np.asarray(x, float)
     return lc(n1, x) + lc(n2, m - x) - lc(n1 + n2, m)
 
 
-def fisher_exact(k1, n1, k2, n2, alternative: str = 'two-sided') -> dict:
+def fisher_exact(k1: int, n1: int, k2: int, n2: int, alternative: str = 'two-sided') -> dict:
     """Fisher's exact test of the 2 × 2 table (k1, n1 − k1; k2, n2 − k2), conditional on the total successes.
     two-sided: the probability of the tables no more likely than the observed (relative tolerance 1e-7).
     alternative, as everywhere in this module, is about condition 2 against condition 1 (B against A, p2 − p1, the
@@ -369,7 +374,8 @@ def fisher_exact(k1, n1, k2, n2, alternative: str = 'two-sided') -> dict:
     return {'test': 'fisher', 'p': float(min(1.0, p)), 'alternative': alternative}
 
 
-def two_proportion_z(k1, n1, k2, n2, continuity: bool = False, alternative: str = 'two-sided') -> dict:
+def two_proportion_z(k1: int, n1: int, k2: int, n2: int, continuity: bool = False,
+                     alternative: str = 'two-sided') -> dict:
     """The pooled two-proportion z test of p2 − p1 (with Yates' correction ½(1/n1 + 1/n2) when continuity)."""
     k1, n1 = _counts(k1, n1)
     k2, n2 = _counts(k2, n2)
@@ -403,8 +409,8 @@ RATE_ASSUMPTIONS = ('each episode is an independent trial (no learning between e
                     'episode scored twice)')
 
 
-def compare_rates(k1, n1, k2, n2, test: str = 'fisher', confidence: float = CONFIDENCE, names=('A', 'B'),
-                  alternative: str = 'two-sided') -> dict:
+def compare_rates(k1: int, n1: int, k2: int, n2: int, test: str = 'fisher', confidence: float = CONFIDENCE,
+                  names: tuple | list = ('A', 'B'), alternative: str = 'two-sided') -> dict:
     """Two success rates: each rate with its intervals, the test (with why), the risk difference (Newcombe) and the
     odds ratio (Woolf); the z test's expected counts are checked and a small one is said."""
     if test not in RATE_TESTS:
@@ -437,7 +443,7 @@ def compare_rates(k1, n1, k2, n2, test: str = 'fisher', confidence: float = CONF
 STATISTICS = ('mean', 'median')
 
 
-def _stat_fn(statistic):
+def _stat_fn(statistic: str | Callable):
     if callable(statistic):
         return statistic
     if statistic == 'mean':
@@ -447,7 +453,7 @@ def _stat_fn(statistic):
     raise StatsError(f'The statistic must be one of {", ".join(STATISTICS)}; it is {statistic!r}.')
 
 
-def _boot_theta(f, data, B, rng, paired, batch=1000):
+def _boot_theta(f: Callable, data: tuple, B: int, rng: np.random.Generator, paired: bool, batch: int = 1000):
     """The B bootstrap replicates of the statistic. data: (x,) one sample, (d,) paired differences, (x, y) two
     samples resampled independently (theta = f(y) − f(x))."""
     out = np.empty(B)
@@ -467,13 +473,13 @@ def _boot_theta(f, data, B, rng, paired, batch=1000):
     return out
 
 
-def _theta(f, data):
+def _theta(f: Callable, data: tuple):
     if len(data) == 1:
         return float(f(data[0], axis=-1))
     return float(f(data[1], axis=-1) - f(data[0], axis=-1))
 
 
-def _jackknife_acc(f, data) -> float:
+def _jackknife_acc(f: Callable, data: tuple) -> float:
     """BCa's acceleration from the jackknife, each sample left out in turn (Efron and Tibshirani 1993, eq. 14.15; for
     two samples the sums run over both samples' jackknife values, as SciPy does)."""
     nums, dens = 0.0, 0.0
@@ -498,8 +504,9 @@ def _jackknife_acc(f, data) -> float:
     return nums / (6.0 * dens ** 1.5)
 
 
-def bootstrap_ci(x, y=None, paired: bool = False, statistic='mean', method: str = 'bca',
-                 n_resamples: int = N_BOOT, confidence: float = CONFIDENCE, seed: int = SEED) -> dict:
+def bootstrap_ci(x: ArrayLike, y: ArrayLike | None = None, paired: bool = False, statistic: str | Callable = 'mean',
+                 method: str = 'bca', n_resamples: int = N_BOOT, confidence: float = CONFIDENCE,
+                 seed: int = SEED) -> dict:
     """A bootstrap interval of the statistic of x (y None), of the statistic of the paired differences y − x
     (paired; for 'mean' that is the mean difference), or of statistic(y) − statistic(x) (each sample resampled on
     its own). method 'percentile' or 'bca'. Returns {'value', 'ci', 'method', 'n_resamples', 'seed', 'se'}."""
@@ -553,17 +560,17 @@ def bootstrap_ci(x, y=None, paired: bool = False, statistic='mean', method: str 
 
 
 # =========================================================================== permutation tests
-def _perm_p(null, obs, alternative, exact, B):
+def _perm_p(null: np.ndarray, obs: float, alternative: str, exact: bool, B: int):
     """SciPy's convention: counts within a relative 100 ε of the observed count as ties; Monte Carlo adds one to
     numerator and denominator (Phipson and Smyth 2010); two-sided is twice the smaller tail."""
     gamma = abs(np.finfo(float).eps * 100 * obs)
     adj = 0 if exact else 1
     n = len(null)
 
-    def less():
+    def less() -> int:
         return (np.count_nonzero(null <= obs + gamma) + adj) / (n + adj)
 
-    def greater():
+    def greater() -> int:
         return (np.count_nonzero(null >= obs - gamma) + adj) / (n + adj)
     if alternative == 'less':
         p = less()
@@ -574,8 +581,8 @@ def _perm_p(null, obs, alternative, exact, B):
     return float(min(1.0, max(0.0, p)))
 
 
-def permutation_test(x, y, paired: bool = False, statistic='mean', alternative: str = 'two-sided',
-                     n_resamples: int = N_PERM, seed: int = SEED) -> dict:
+def permutation_test(x: ArrayLike, y: ArrayLike, paired: bool = False, statistic: str | Callable = 'mean',
+                     alternative: str = 'two-sided', n_resamples: int = N_PERM, seed: int = SEED) -> dict:
     """The permutation test of statistic(y) − statistic(x) (paired: statistic of y − x, the null flips the sign of
     each difference; unpaired: the null relabels the pooled values). Exact when there are at most n_resamples
     rearrangements (2^n sign flips, C(n1 + n2, n1) relabellings), else n_resamples random ones."""
@@ -634,7 +641,7 @@ def permutation_test(x, y, paired: bool = False, statistic='mean', alternative: 
 
 
 # =========================================================================== t tests
-def welch_t(x, y, alternative: str = 'two-sided', confidence: float = CONFIDENCE) -> dict:
+def welch_t(x: ArrayLike, y: ArrayLike, alternative: str = 'two-sided', confidence: float = CONFIDENCE) -> dict:
     """Welch's t test of mean(y) − mean(x) with the Welch-Satterthwaite degrees of freedom and the difference's
     t interval."""
     alternative = _alt(alternative)
@@ -655,7 +662,7 @@ def welch_t(x, y, alternative: str = 'two-sided', confidence: float = CONFIDENCE
             'ci': [diff - q * se, diff + q * se], 'alternative': alternative, 'confidence': confidence}
 
 
-def _t_p(t, df, alternative):
+def _t_p(t: float, df: float, alternative: str):
     st, _ = _sp()
     if alternative == 'less':
         return float(st.t.cdf(t, df))
@@ -664,7 +671,7 @@ def _t_p(t, df, alternative):
     return float(min(1.0, 2 * st.t.sf(abs(t), df)))
 
 
-def paired_t(x, y, alternative: str = 'two-sided', confidence: float = CONFIDENCE) -> dict:
+def paired_t(x: ArrayLike, y: ArrayLike, alternative: str = 'two-sided', confidence: float = CONFIDENCE) -> dict:
     """The paired t test of the mean of y − x, with its t interval."""
     alternative = _alt(alternative)
     x, y = _pair(x, y)
@@ -702,7 +709,7 @@ def _mwu_counts(n1: int, n2: int) -> np.ndarray:
     return prev[n2]
 
 
-def mann_whitney(x, y, alternative: str = 'two-sided', method: str = 'auto') -> dict:
+def mann_whitney(x: ArrayLike, y: ArrayLike, alternative: str = 'two-sided', method: str = 'auto') -> dict:
     """The Mann-Whitney U test (U of y, U_y = R_y − n_y(n_y + 1)/2, large when y tends to be larger). method 'auto':
     exact when one sample has at most 8 values and there are no ties, else the normal approximation with the tie
     correction and a continuity correction of ½."""
@@ -759,7 +766,7 @@ def _wilcoxon_counts(n: int) -> np.ndarray:
     return c
 
 
-def wilcoxon_signed_rank(x, y, alternative: str = 'two-sided', method: str = 'auto') -> dict:
+def wilcoxon_signed_rank(x: ArrayLike, y: ArrayLike, alternative: str = 'two-sided', method: str = 'auto') -> dict:
     """The Wilcoxon signed-rank test of d = y − x (zero differences dropped: Wilcoxon's rule). T⁺ is the sum of the
     ranks of |d| over the positive d. method 'auto': exact without ties or zeros up to 50 pairs; with ties or zeros
     up to 13 pairs, all 2^n sign flips of the observed differences; else the normal approximation with the tie
@@ -831,8 +838,8 @@ def _nct_interval(t_obs: float, df: float, conf: float) -> tuple[float, float] |
     st, _ = _sp()
     a = 1 - conf
 
-    def solve(target):
-        def fn(lam):                                    # falls with λ; SciPy's nct gives NaN far in a tail
+    def solve(target: float) -> float:
+        def fn(lam: float) -> float:  # falls with λ; SciPy's nct gives NaN far in a tail
             v = float(st.nct.cdf(t_obs, df, lam))
             if not math.isfinite(v):
                 v = 1.0 if lam < t_obs else 0.0
@@ -855,7 +862,7 @@ def _nct_interval(t_obs: float, df: float, conf: float) -> tuple[float, float] |
     return lo, hi
 
 
-def cohens_d(x, y, paired: bool = False, confidence: float = CONFIDENCE) -> dict:
+def cohens_d(x: ArrayLike, y: ArrayLike, paired: bool = False, confidence: float = CONFIDENCE) -> dict:
     """Cohen's d of y against x and Hedges' g = J·d, with intervals from the noncentral t.
     unpaired: d = (mean y − mean x) / s_pooled, t = d / √(1/n1 + 1/n2), df = n1 + n2 − 2;
     paired:   d_z = mean(y − x) / sd(y − x), t = d_z √n, df = n − 1 (d_z is the paired design's own scale: it is not
@@ -892,7 +899,7 @@ def cohens_d(x, y, paired: bool = False, confidence: float = CONFIDENCE) -> dict
             'method': 'noncentral t interval (Steiger and Fouladi 1997); Hedges\' g = J·d with the exact J'}
 
 
-def _cliff(x, y):
+def _cliff(x: np.ndarray, y: np.ndarray):
     """Cliff's delta P(Y > X) − P(Y < X) of rows of x (k, n1) and y (k, n2) through the ranks of the pooled values."""
     n1, n2 = x.shape[-1], y.shape[-1]
     z = np.concatenate([x, y], axis=-1)
@@ -902,7 +909,8 @@ def _cliff(x, y):
     return 2 * u_y / (n1 * n2) - 1
 
 
-def cliffs_delta(x, y, confidence: float = CONFIDENCE, n_resamples: int = 2000, seed: int = SEED) -> dict:
+def cliffs_delta(x: ArrayLike, y: ArrayLike, confidence: float = CONFIDENCE, n_resamples: int = 2000,
+                 seed: int = SEED) -> dict:
     """Cliff's delta of y against x (= the rank-biserial correlation 2U/(n1 n2) − 1, Kerby 2014): from −1 (every y
     below every x) to +1, with a seeded percentile bootstrap interval (each sample resampled on its own)."""
     x, y = _two(x, y)
@@ -920,7 +928,7 @@ def cliffs_delta(x, y, confidence: float = CONFIDENCE, n_resamples: int = 2000, 
             'method': 'Cliff\'s delta (the rank-biserial correlation), percentile bootstrap interval'}
 
 
-def rank_biserial_paired(x, y) -> float | None:
+def rank_biserial_paired(x: ArrayLike, y: ArrayLike) -> float | None:
     """The matched-pairs rank-biserial correlation (T⁺ − T⁻)/(T⁺ + T⁻) of y − x (zeros dropped); None without a
     non-zero difference."""
     x, y = _pair(x, y)
@@ -934,7 +942,7 @@ def rank_biserial_paired(x, y) -> float | None:
 
 
 # =========================================================================== multiple comparisons
-def adjust(pvalues, method: str = CORRECTION, alpha: float = ALPHA) -> dict:
+def adjust(pvalues: Sequence[float | None], method: str = CORRECTION, alpha: float = ALPHA) -> dict:
     """Adjusted p-values (each the smallest family level at which that hypothesis is rejected) and the rejections at
     alpha. bonferroni: min(1, m p); holm: step-down max_{j ≤ i} min(1, (m − j + 1) p_(j)); bh: step-up
     min_{j ≥ i} min(1, m p_(j) / j); by: bh times c(m) = Σ 1/i (any dependence); none: as given. None entries (no
@@ -1011,7 +1019,7 @@ def _z_reject_masks(n1: int, n2: int, alpha: float, continuity: bool) -> np.ndar
     return z >= _norm_ppf(1 - alpha / 2)
 
 
-def _rate_inputs(p1, p2):
+def _rate_inputs(p1: float, p2: float):
     try:
         p1, p2 = float(p1), float(p2)
     except (TypeError, ValueError):
@@ -1022,9 +1030,9 @@ def _rate_inputs(p1, p2):
     return p1, p2
 
 
-def power_two_proportions(p1, p2, n1: int, n2: int | None = None, alpha: float = ALPHA, method: str = 'normal',
-                          test: str = 'fisher', continuity: bool = True, n_sim: int = SIM_DEFAULT,
-                          seed: int = SEED) -> float:
+def power_two_proportions(p1: float, p2: float, n1: int, n2: int | None = None, alpha: float = ALPHA,
+                          method: str = 'normal', test: str = 'fisher', continuity: bool = True,
+                          n_sim: int = SIM_DEFAULT, seed: int = SEED) -> float:
     """The power of a two-sided test of p1 = p2 with n1 and n2 trials (n2 = n1 when None) when the true rates are p1
     and p2. normal: Φ((|Δ| √n_e − z_{α/2} √(2 p̄ q̄)) / √(p1 q1 + p2 q2)) with n_e the harmonic-mean-equivalent n
     and, with continuity, Fleiss's correction inverted (n_e from n through n = (n' − 1/|Δ|)²/n' with equal groups);
@@ -1077,7 +1085,8 @@ def power_two_proportions(p1, p2, n1: int, n2: int | None = None, alpha: float =
     return float(R[x1, x2].mean())
 
 
-def _search_n(power_at, target: float, n0: int, n_max: int = N_MAX, monotone: bool = True) -> tuple[int, float]:
+def _search_n(power_at: Callable[[int], float], target: float, n0: int, n_max: int = N_MAX,
+              monotone: bool = True) -> tuple[int, float]:
     """The smallest n ≥ 2 with power_at(n) ≥ target: bracketing from n0 by doubling, bisection, then (monotone False:
     exact tests, whose power saw-tooths with n) a scan of the 20 n below the bisection's answer."""
     n0 = max(2, min(int(n0), n_max))
@@ -1119,7 +1128,7 @@ TWO_PROPORTION_ASSUMPTIONS = (
     'is itself uncertain, so plan for the smallest difference that matters)')
 
 
-def n_two_proportions(p1, p2, alpha: float = ALPHA, power: float = POWER, method: str = 'normal',
+def n_two_proportions(p1: float, p2: float, alpha: float = ALPHA, power: float = POWER, method: str = 'normal',
                       test: str = 'fisher', continuity: bool = True, n_sim: int = SIM_DEFAULT,
                       seed: int = SEED) -> dict:
     """The smallest number of trials per condition (equal groups) whose power reaches the target."""
@@ -1145,7 +1154,7 @@ def n_two_proportions(p1, p2, alpha: float = ALPHA, power: float = POWER, method
         pw = power_two_proportions(p1, p2, n, n, alpha, 'arcsine')
         formula = 'n = 2 ((z_{α/2} + z_β) / h)², h = 2 asin √p2 − 2 asin √p1 (Cohen 1988)'
     else:
-        def at(k):
+        def at(k: int) -> float:
             return power_two_proportions(p1, p2, k, k, alpha, method, test, continuity, n_sim, seed)
         if n_cc > EXACT_N_MAX and method == 'exact':
             raise StatsError(f'About {n_cc:,.0f} episodes per condition would be needed, above the {EXACT_N_MAX} the '
@@ -1169,7 +1178,7 @@ def n_two_proportions(p1, p2, alpha: float = ALPHA, power: float = POWER, method
 
 
 # =========================================================================== power: t tests
-def power_t(d, n: int, alpha: float = ALPHA, paired: bool = False, alternative: str = 'two-sided',
+def power_t(d: float, n: int, alpha: float = ALPHA, paired: bool = False, alternative: str = 'two-sided',
             n2: int | None = None) -> float:
     """The power of the t test for the standardised effect d: two-sample with n (and n2) per group, df n + n2 − 2,
     λ = d √(n n2 / (n + n2)); paired (or one sample) with n pairs, df n − 1, λ = d_z √n."""
@@ -1208,7 +1217,7 @@ T_ASSUMPTIONS = ('the per-unit values are independent and close to normal with o
                  'estimate)')
 
 
-def n_t(d, alpha: float = ALPHA, power: float = POWER, paired: bool = False,
+def n_t(d: float, alpha: float = ALPHA, power: float = POWER, paired: bool = False,
         alternative: str = 'two-sided') -> dict:
     """The smallest n per group (paired: pairs) whose t-test power reaches the target."""
     target = _target(power)
@@ -1227,7 +1236,7 @@ def n_t(d, alpha: float = ALPHA, power: float = POWER, paired: bool = False,
             'assumptions': list(T_ASSUMPTIONS)}
 
 
-def power_curve(kind: str, ns, alpha: float = ALPHA, **kw) -> dict:
+def power_curve(kind: str, ns: Sequence[int], alpha: float = ALPHA, **kw: object) -> dict:
     """Power at each n of ns. kind 'two_proportions' (p1, p2, method, test, continuity), 't2' or 'paired_t' (d)."""
     ns = [int(n) for n in ns if int(n) >= 2]
     out = []
@@ -1252,7 +1261,7 @@ def curve_ns(n_needed: int, points: int = 40) -> list:
     return sorted(set(int(round(v)) for v in np.linspace(2, top, points)))
 
 
-def episodes_needed(p1, p2, alpha: float = ALPHA, power: float = POWER, method: str = 'exact',
+def episodes_needed(p1: float, p2: float, alpha: float = ALPHA, power: float = POWER, method: str = 'exact',
                     test: str = 'fisher', continuity: bool = True, n_sim: int = SIM_DEFAULT,
                     seed: int = SEED) -> dict:
     """Evaluation episodes per condition to tell success rates p1 and p2 apart with a two-sided test at alpha with
@@ -1289,7 +1298,8 @@ def design_effect(per_operator: float, icc: float) -> float:
     return 1.0 + (m - 1.0) * rho
 
 
-def demonstrations_needed(kind: str = 'continuous', d=None, difference=None, sd=None, p1=None, p2=None,
+def demonstrations_needed(kind: str = 'continuous', d: float | None = None, difference: float | None = None,
+                          sd: float | None = None, p1: float | None = None, p2: float | None = None,
                           alpha: float = ALPHA, power: float = POWER, paired: bool = False, icc: float = 0.0,
                           per_operator: float = 1.0, attrition: float = 0.0, method: str = 'normal') -> dict:
     """Demonstrations to record per condition (two rig variants, two operators' setups, ...) to tell a figure
@@ -1341,8 +1351,8 @@ def demonstrations_needed(kind: str = 'continuous', d=None, difference=None, sd=
             'out_of_scope': OUT_OF_SCOPE}
 
 
-def detectable_difference(kind: str, n: int, alpha: float = ALPHA, power: float = POWER, sd=None, p1=None,
-                          paired: bool = False) -> dict | None:
+def detectable_difference(kind: str, n: int, alpha: float = ALPHA, power: float = POWER, sd: float | None = None,
+                          p1: float | None = None, paired: bool = False) -> dict | None:
     """The smallest difference n per group (paired: pairs) detects with the target power: for 't2' / 'paired_t' a
     standardised d (and, with sd, in the figure's unit); for 'two_proportions' the rate p2 above (or below) p1 the
     normal approximation detects. None when n is too small."""
@@ -1375,7 +1385,7 @@ def detectable_difference(kind: str, n: int, alpha: float = ALPHA, power: float 
 
 
 # =========================================================================== the comparison the app shows
-def describe(x) -> dict:
+def describe(x: ArrayLike) -> dict:
     a = _vec(x)
     if not len(a):
         return {'n': 0, 'mean': None, 'sd': None, 'median': None, 'min': None, 'max': None}
@@ -1392,9 +1402,9 @@ UNPAIRED_WHY = ('The values are not paired, so the test relabels the pooled valu
                 'value would be as likely to have come from either (it also reacts to a difference of spread).')
 
 
-def compare_samples(x, y, better: str = 'higher', paired: bool = False, alpha: float = ALPHA,
+def compare_samples(x: ArrayLike, y: ArrayLike, better: str = 'higher', paired: bool = False, alpha: float = ALPHA,
                     confidence: float = CONFIDENCE, n_boot: int = N_BOOT, n_perm: int = N_PERM, seed: int = SEED,
-                    names=('A', 'B'), pairing: str = '', power: float = POWER) -> dict:
+                    names: tuple | list = ('A', 'B'), pairing: str = '', power: float = POWER) -> dict:
     """The comparison of y (B) against x (A): the primary test (the permutation test of the mean difference, exact
     when small) with why, the mean difference with its BCa bootstrap interval, the standardised effect (paired d_z
     or Hedges' g) with its interval, Cliff's delta (unpaired) or the matched-pairs rank-biserial (paired), the
@@ -1444,7 +1454,8 @@ def compare_samples(x, y, better: str = 'higher', paired: bool = False, alpha: f
     return out
 
 
-def verdict(cmp: dict, p_adj, metric_title: str = 'the figure', unit: str = '', alpha=None) -> dict:
+def verdict(cmp: dict, p_adj: float | None, metric_title: str = 'the figure', unit: str = '',
+            alpha: float | None = None) -> dict:
     """A plain-English verdict of one comparison with its adjusted p-value: (status, word, text)."""
     alpha = cmp.get('alpha', ALPHA) if alpha is None else alpha
     names = cmp.get('names') or ['A', 'B']
@@ -1456,11 +1467,12 @@ def verdict(cmp: dict, p_adj, metric_title: str = 'the figure', unit: str = '', 
     else:
         d = cmp['difference']
         val, ci = d['value'], d['ci']
-        u = f' {unit}' if unit else ''
+        du = delta_unit(unit)                         # a difference of two percentages is in percentage points
+        u = f' {du}' if du else ''
         hi = cmp.get('better', 'higher') == 'higher'
         better_b = (val > 0) == hi
     ptxt = '—' if p_adj is None else (f'= {p_adj:.3g}' if p_adj >= 0.001 else '< 0.001')
-    def sg(x, spec):                                  # a value that rounds to zero is written 0, never +0 or -0
+    def sg(x: float, spec: str) -> str:  # a value that rounds to zero is written 0, never +0 or -0
         t = format(float(x), '+' + spec)
         return '0' if float(t) == 0 else t
     diff_txt = (f'{sg(val, ".1f")}{u} [{sg(ci[0], ".1f")}, {sg(ci[1], ".1f")}]' if cmp['kind'] == 'rates' else

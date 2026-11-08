@@ -560,5 +560,5 @@ def test_the_dev_extra_pins_setuptools_and_the_venv_has_that_version():
     text = open(os.path.join(here, 'pyproject.toml'), encoding='utf-8').read()
     m = re.search(r'^dev = \["setuptools==([0-9.]+)"\]', text, re.M)
     assert m, 'the dev extra pins setuptools'
-    st = pytest.importorskip('setuptools')
+    st = pytest.importorskip('setuptools', reason='setuptools (the dev extra) is not installed')
     assert st.__version__ == m.group(1)

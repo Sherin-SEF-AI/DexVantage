@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The sim-to-real gap: a worked example · DexVantage</title>
+<meta name="description" content="How far is the render of your cell from what the cameras recorded, and what would close the gap? This walk-throughuses the UR5e sample and a recording with four known gaps on its overhead D435. It reads the ranked causes andapplies them one at a time. The method, its equations, checks and limits …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#a-a-recording-with-known-gaps">A. A recording with known gaps</a>
+    <a href="#b-run-it-data--sim-to-real-gap">B. Run it (Data ▸ Sim-to-real gap)</a>
+    <a href="#c-read-it">C. Read it</a>
+    <a href="#d-close-it">D. Close it</a>
+    <a href="#e-batch-and-export">E. Batch and export</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/sim2real.md"><code>docs/guide/sim2real.md</code></a></p>
+<h1 id="the-sim-to-real-gap-a-worked-example">The sim-to-real gap: a worked example</h1>
+<p>How far is the render of your cell from what the cameras recorded, and what would close the gap? This walk-through
+uses the UR5e sample and a recording with four known gaps on its overhead D435. It reads the ranked causes and
+applies them one at a time. The method, its equations, checks and limits are in <code>docs/models/sim2real.md</code>.</p>
+<p>The recording here is synthetic, so every gap is known. On a real rig it is your LeRobot, RLDS or ROS 2 bag
+recording, made with the rig the project describes.</p>
+<h2 id="a-a-recording-with-known-gaps">A. A recording with known gaps</h2>
+<p>From Python (no window):</p>
+<pre><code>import dexvantage as dv
+rig = dv.sample('ur5e')
+rig.gap_dataset('out/s2r_gaps', {'camera': 'observation.images.overhead_d435', 'brightness_dn': 20,
+                                 'blur_px': 1.5, 'latency_s': 0.04,
+                                 'mount': {'position_m': [0.003, 0, 0], 'rotation_deg': [0, 1.0, 0]}},
+                episodes=1, frames=40, size=[320, 180], seed=4)
+</code></pre>
+<p>This renders one 40-row episode of the sample's pick through both cameras (the synthetic episode generator: its mount
+slip and camera–joint offset faults). It then brightens the overhead frames by 20 DN and blurs them with σ 1.5 px
+before the video codec writes them. It takes 1.6 s. <code>dexvantage_truth.json</code> beside the data lists what was injected
+under <code>sim2real_gaps</code>.</p>
+<p>(Simulate ▸ Generate synthetic episodes… gives a recording with the mount slip and offset faults; the photometric
+gaps are only in the API and the checks.)</p>
+<h2 id="b-run-it-data--sim-to-real-gap">B. Run it (Data ▸ Sim-to-real gap)</h2>
+<ol>
+<li>Open the sample: File ▸ Open sample ▸ UR5e.</li>
+<li>On the page, click <strong>Dataset…</strong> and choose <code>out/s2r_gaps</code>. The choice is one undo step and is stored with the
+project. Without a choice the page uses the audit's dataset.</li>
+<li>Click <strong>Run</strong>. The study takes 7–8 s on the RTX 5080: about 330 renders per camera, plus the silhouette
+calibration of the overhead camera.</li>
+</ol>
+<p>The headline reads <strong>24.4 DN, &quot;very large gap&quot;</strong>: the overhead camera's mean absolute difference between the recorded
+frames and their render, before any correction. The wrist D405, which got no gap, reads 1.1 DN.</p>
+<h2 id="c-read-it">C. Read it</h2>
+<p>The <strong>Recorded / Rendered / Difference</strong> row shows a frame of the chosen camera. Choose <strong>Rendered with every
+correction</strong> and the difference image goes almost black. <strong>Difference over the recording</strong> lays the difference in
+red over the recorded frame.</p>
+<p>The list <strong>What explains the gap</strong> gives each correction's Shapley share: what it removes, averaged over every order
+of applying the corrections.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>cause</th>
+<th>removes</th>
+<th>share</th>
+<th>figure</th>
+<th>fixed on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Exposure and colour</td>
+<td>14.6 DN</td>
+<td>60 %</td>
+<td>gain 1.00, 0.99, 1.00, offset +19, +19, +19 DN</td>
+<td>Sim-to-real gap</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Mount offset</td>
+<td>3.2 DN</td>
+<td>13 %</td>
+<td>6.7 mm, 1.31°</td>
+<td>Silhouette calibration</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Blur</td>
+<td>2.4 DN</td>
+<td>10 %</td>
+<td>σ 1.43 px</td>
+<td>Motion blur</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Camera latency</td>
+<td>2.1 DN</td>
+<td>9 %</td>
+<td>+39 ms ± 1 ms</td>
+<td>Time sync</td>
+</tr>
+</tbody>
+</table>
+<p>The four shares add up to what all four corrections remove together. The 2.1 DN left is the scene's own (codec and
+noise): a clean recording reads 1.8 DN.</p>
+<p>The <strong>Figures of the camera</strong> tree gives more detail:</p>
+<ul>
+<li>histogram EMD of about 18 DN per channel, sharpness ratio 0.01 (the recording is far blurrier than the render);</li>
+<li>noise σ 0.11 DN recorded against 0.42 rendered (the blur removed the noise);</li>
+<li>silhouette IoU from 0.53 to 0.89 (background difference: the dataset stores no masks);</li>
+<li>latency 39.3 ms against the time-sync study's prediction for the stream;</li>
+<li>MMD² 0.142 (p 0.015) as planned and −0.084 with every correction (a kernel MMD on thumbnails, not FID).</li>
+</ul>
+<p>The mount reads 6.7 mm against a true 3 mm, because the blur and the brightness weaken the silhouette's edges. On
+the same recording without them it recovers 1.08° for the true 1° and is 2.0 mm from the true 3 mm (see the model
+doc: a 3 mm translation is not resolved at 320 × 180).</p>
+<h2 id="d-close-it">D. Close it</h2>
+<p><strong>Apply</strong> makes the top suggestion (or the row you click) in one undo step. <strong>Preview</strong> says what it would change,
+and <strong>Open page</strong> goes to the page that owns the setting. On this recording five passes of Run and Apply gave:</p>
+<table>
+<thead>
+<tr>
+<th>pass</th>
+<th>gap</th>
+<th>Apply</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>24.4 DN</td>
+<td>exposure: the render's camera response for the overhead D435 (gain and offset)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>10.0 DN</td>
+<td>mount: the recovered mount written to the sensor</td>
+</tr>
+<tr>
+<td>3</td>
+<td>7.6 DN</td>
+<td>latency: −39 ms (stamp minus exposure) entered for the camera in the time-sync settings</td>
+</tr>
+<tr>
+<td>4</td>
+<td>4.6 DN</td>
+<td>blur: the render's blur σ for the camera</td>
+</tr>
+<tr>
+<td>5</td>
+<td>2.1 DN, &quot;close to real&quot;</td>
+<td>nothing left to suggest</td>
+</tr>
+</tbody>
+</table>
+<p>From Python the same loop is:</p>
+<pre><code>res = rig.sim2real('out/s2r_gaps')
+while res['apply']:
+    rig = rig.apply_sim2real(res['apply'])
+    res = rig.sim2real('out/s2r_gaps')
+</code></pre>
+<p>On a real rig the photometric suggestions say two things. First, what the simulator's camera response must be for
+its images to look like yours: export the result for your sim pipeline. Second, what to change on the camera instead:
+&quot;lower the exposure or gain&quot;, &quot;check the focus&quot;. When every camera shows the same gain, the cause is ranked as
+<strong>Lighting</strong>: the room's light differs from the project's. Add the room's lights on the Lighting page; with lights in
+the project, Apply scales them.</p>
+<h2 id="e-batch-and-export">E. Batch and export</h2>
+<pre><code>dexvantage --sample ur5e --sim2real out/s2r.json --dataset out/s2r_gaps
+</code></pre>
+<p>This writes the result with its provenance and exits 0. A missing dataset is refused in one sentence (exit 2).
+<strong>Export…</strong> on the page writes the same JSON. The named metrics are <code>sim2real.image_gap_dn</code> (the headline),
+<code>sim2real.remaining_dn</code>, <code>sim2real.explained</code>, <code>sim2real.latency_ms</code>, <code>sim2real.mount_offset_mm</code> and
+<code>sim2real.silhouette_iou</code>, for requirements, experiments and the API.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

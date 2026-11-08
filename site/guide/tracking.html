@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tracking runs · DexVantage</title>
+<meta name="description" content="The experiment tracker keeps every study run of a project, with its settings, figures and provenance, so you cansee what you tried, compare it and run it again. The model and its validation are in docs/models/tracking.md.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#in-the-window">In the window</a>
+    <a href="#worked-example-the-so-100-sample-a-camera-raised-14-cm">Worked example: the SO-100 sample, a camera raised 14 cm</a>
+    <a href="#in-batch-mode-ci">In batch mode (CI)</a>
+    <a href="#in-mlflow-and-wb">In MLflow and W&amp;B</a>
+    <a href="#in-python">In Python</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/tracking.md"><code>docs/guide/tracking.md</code></a></p>
+<h1 id="tracking-runs">Tracking runs</h1>
+<p>The experiment tracker keeps every study run of a project, with its settings, figures and provenance, so you can
+see what you tried, compare it and run it again. The model and its validation are in <code>docs/models/tracking.md</code>.</p>
+<h2 id="in-the-window">In the window</h2>
+<ol>
+<li>Open the project and save it (the runs go in a folder beside the project file: <code>cell.dexv</code> → <code>cell.runs/</code>).</li>
+<li><strong>Analysis ▸ Runs.</strong> The headline says <strong>tracking off</strong>. Press <strong>Apply</strong> (&quot;Turn tracking on&quot;, one undo step), or
+tick <em>Log every run of this project</em>. <em>Choose folder…</em> keeps the runs elsewhere; <em>Tags</em> are added to every run.</li>
+<li>Run studies as usual. Every long study, designed experiment, optimiser run, tolerance Monte Carlo and scorecard
+that finishes is logged. The quick studies that re-run after each edit are logged only with <em>Also log the quick
+studies</em> ticked. A refusal (&quot;Grasp self-occlusion needs a robot…&quot;) is logged as a <strong>failed</strong> run with its sentence.</li>
+<li>The table lists the runs, newest first. Filter by study, tag and date (<code>since 2026-11-01</code>, <code>until 2026-11-30</code>: a
+date alone means the whole day).</li>
+<li>Select two or more runs and press <strong>Compare</strong>: each figure side by side, the change from the first selected
+(Δ), which run is best by the figure's direction, and what differs (settings, project content, version). Two
+tolerance Monte Carlo runs also get a significance note from the statistics module (their draws are replicates).</li>
+<li><strong>Open result</strong> opens the run's result file; <strong>Re-run</strong> runs its study again on the project as it is now and says
+whether every number reproduces (logged as a new run, tagged <code>rerun</code>); <strong>Tags…</strong> and <strong>Note…</strong> annotate runs.</li>
+<li><strong>Export runs…</strong> writes the runs shown as CSV and Parquet tables, an MLflow <code>mlruns/</code> folder and a W&amp;B replay
+script, with a manifest of SHA-256 digests.</li>
+</ol>
+<h2 id="worked-example-the-so-100-sample-a-camera-raised-14-cm">Worked example: the SO-100 sample, a camera raised 14 cm</h2>
+<pre><code>import dexvantage as dv
+from dexvantage.core import tracking as TR
+
+rig = dv.sample('so100'); rig.save('so100.dexv'); rig = dv.open('so100.dexv')
+rig.factors['setting:tracking.enabled'] = True          # the project's tracking on
+rig.run('coverage')                                      # Task volume seen: 94.5 % (gaps)   -&gt; logged
+z = 'sensor:Third-person camera (sample placement).z'    # 0.36 m
+rig.factors[z] = 0.5
+rig.run('coverage')                                      # Task volume seen: 94.3 % (gaps)   -&gt; logged
+dv.runs(rig)[['study', 'coverage.covered', 'coverage.seen_twice', 'coverage.blind']]
+
+     study  coverage.covered  coverage.seen_twice  coverage.blind
+0  coverage           94.5208              47.3021          5.4792
+1  coverage           94.3403              45.2691          5.6597
+
+st = TR.store_for(rig.project)
+cmp = TR.compare([st.get(r['run_id']) for r in st.runs()])
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Figure</th>
+<th>Run 1 (z 0.36 m)</th>
+<th>Run 2 (z 0.50 m)</th>
+<th>Δ</th>
+<th>Best</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Task volume seen</td>
+<td>94.52 %</td>
+<td>94.34 %</td>
+<td>−0.18 pp</td>
+<td>run 1</td>
+</tr>
+<tr>
+<td>Seen by two or more cameras</td>
+<td>47.30 %</td>
+<td>45.27 %</td>
+<td>−2.03 pp</td>
+<td>run 1</td>
+</tr>
+<tr>
+<td>Task volume blind</td>
+<td>5.48 %</td>
+<td>5.66 %</td>
+<td>+0.18 pp</td>
+<td>run 1</td>
+</tr>
+<tr>
+<td>Resolution, 5th percentile</td>
+<td>1.044 px/mm</td>
+<td>0.931 px/mm</td>
+<td>−0.113 px/mm</td>
+<td>run 1</td>
+</tr>
+</tbody>
+</table>
+<p>What differs: <code>project.sha256</code> (the camera's height). Raising the third-person camera loses a little coverage and
+resolution here: keep 0.36 m. (Measured 2026-11-07 on the bundled sample; one coverage run takes about 0.5 s.)</p>
+<p><code>TR.export(st, 'exp')</code> then writes <code>exp/runs.csv</code>, <code>runs.parquet</code>, <code>runs_long.*</code>, <code>units.json</code>, <code>mlruns/</code>, <code>wandb/</code>
+and <code>export_runs_manifest.json</code>.</p>
+<h2 id="in-batch-mode-ci">In batch mode (CI)</h2>
+<pre><code>dexvantage cell.dexv --coverage cov.json --check requirements.yaml card.json --track runs/ --track-tag nightly
+dexvantage cell.dexv --runs summary.json --track runs/          # the store summarised
+dexvantage --runs-export exp/ --track runs/ --runs-formats csv,mlflow
+</code></pre>
+<p>A project with tracking turned on logs into its own store without <code>--track</code>. Several CI jobs may log into the same
+store at once (it is safe for concurrent writers).</p>
+<h2 id="in-mlflow-and-wb">In MLflow and W&amp;B</h2>
+<pre><code>MLFLOW_ALLOW_FILE_STORE=true mlflow ui --backend-store-uri exp/mlruns   # MLflow 3.13 and later need the variable
+python exp/wandb/replay_wandb.py --project my-rig                        # offline by default
+wandb sync wandb_offline/wandb/offline-run-*                             # upload later
+</code></pre>
+<p>The replay needs wandb (<code>pip install &quot;dexvantage[tracking]&quot;</code> installs it with mlflow-skinny, which reads the store
+from Python; <code>mlflow ui</code> needs the full mlflow package); DexVantage writes the files without either.</p>
+<h2 id="in-python">In Python</h2>
+<pre><code>dv.runs('cell.dexv', study='coverage', tag='nightly', since='2026-11-01')   # a DataFrame (units in .attrs)
+dv.track(rig.run('bandwidth'), rig, tags=['by hand'], note='before the hub')   # log one result explicitly
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

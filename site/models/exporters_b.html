@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exporters, part B: Isaac Lab and Isaac Sim, LeRobot and the policy codes, reports · DexVantage</title>
+<meta name="description" content="dexvantage/core/exporters/isaac.py (&#x27;isaac&#x27;), lerobot.py (&#x27;lerobot&#x27;), report.py (&#x27;report&#x27;) with _pdf.py;the round trips in dexvantage/validation/formats_isaac_lerobot.py, registered in checks_formats.py asformats.isaac_usd, formats.isaac_config, formats.lerobot_export and formats.report. Spec §9.2 …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#isaac-lab-and-isaac-sim--isaacpy">Isaac Lab and Isaac Sim — isaac.py</a>
+    <a href="#lerobot-act-diffusion-policy-openvla--lerobotpy">LeRobot, ACT, Diffusion Policy, OpenVLA — lerobot.py</a>
+    <a href="#reports--reportpy-_pdfpy">Reports — report.py, _pdf.py</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/exporters_b.md"><code>docs/models/exporters_b.md</code></a></p>
+<h1 id="exporters-part-b-isaac-lab-and-isaac-sim-lerobot-and-the-policy-codes-reports">Exporters, part B: Isaac Lab and Isaac Sim, LeRobot and the policy codes, reports</h1>
+<p><code>dexvantage/core/exporters/isaac.py</code> ('isaac'), <code>lerobot.py</code> ('lerobot'), <code>report.py</code> ('report') with <code>_pdf.py</code>;
+the round trips in <code>dexvantage/validation/formats_isaac_lerobot.py</code>, registered in <code>checks_formats.py</code> as
+<code>formats.isaac_usd</code>, <code>formats.isaac_config</code>, <code>formats.lerobot_export</code> and <code>formats.report</code>. Spec §9.2 (exporters),
+§9.4 (bridges), §8.5 (randomisation bounds), §7.13 (the training-config recommendations). A worked example is in
+<a href="../guide/exporters_b.html">Isaac Lab, LeRobot and reports: a worked example on the UR5e sample</a>.</p>
+<p>Each runs through the export registry (<code>core/exporters/__init__.py</code>): File ▸ Export… and <code>export(project, out_dir, ['isaac', 'lerobot', 'report'], options)</code>; every JSON file gets the provenance block, except those a target parser
+refuses extra keys in (below), and the manifest holds every file's SHA-256.</p>
+<p><strong>Contract change (additive).</strong> An exporter may return <code>'unstamped': [rel]</code>: those JSON files are hashed in the
+manifest but not stamped, and the format's row lists them. LeRobot's <code>train_config.json</code> is read by draccus, which
+refuses unknown keys, and LeRobot's <code>DatasetInfo.from_dict</code> warns on them, so the train config and the info.json
+templates are unstamped.</p>
+<h2 id="isaac-lab-and-isaac-sim--isaacpy">Isaac Lab and Isaac Sim — <code>isaac.py</code></h2>
+<p><strong>Sources</strong> (read 2026-11-07, https://github.com/isaac-sim/IsaacLab):</p>
+<table>
+<thead>
+<tr>
+<th>Release</th>
+<th>Commit</th>
+<th>What it fixes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v3.0.0 (the current release)</td>
+<td><code>e3f7d9ff1f5d7f8280de3ece9000b7117f66bcf4</code></td>
+<td><code>CameraCfg.OffsetCfg.rot</code> is <strong>(x, y, z, w)</strong>; <code>TiledCameraCfg</code> is deprecated (&quot;Use CameraCfg directly&quot;); <code>PinholeCameraCfg.distortion</code> takes <code>OpenCvPinholeDistortionCfg</code> (fx, fy, cx, cy, image_size, k1–k6, p1, p2, s1–s4) or <code>OpenCvFisheyeDistortionCfg</code> (k1–k4, max_fov); <code>spawn_camera</code> writes them as <code>omni:lensdistortion:&lt;model&gt;:*</code> attributes with the <code>OmniLensDistortionOpenCv{Pinhole,Fisheye}API</code> schema; <code>Camera._initialize_intrinsics</code> gives a prim without such a model fx = fy = W·focalLength/horizontalAperture and cx = W/2, cy = H/2, and uses the authored fx, fy, cx, cy when it has one</td>
+</tr>
+<tr>
+<td>v2.3.2</td>
+<td><code>37ddf626871758333d6ed89cf64ad702aef127d0</code></td>
+<td><code>OffsetCfg.rot</code> is <strong>(w, x, y, z)</strong>; <code>TiledCameraCfg</code> current; no OpenCV distortion fields</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Frames.</strong> A camera's offset is its imager's optical frame (REP-103: z forward, x right, y down) in its parent: the
+robot link the sensor is mounted on, or the environment for a static mount; Isaac Lab's convention &quot;ros&quot; (forward
++Z, up −Y) is the same frame. The prim path is <code>{ENV_REGEX_NS}/Robot/&lt;link&gt;/&lt;camera&gt;</code> (the articulation's prim name
+is an option) or <code>{ENV_REGEX_NS}/&lt;camera&gt;</code>.</p>
+<p><strong>USD lens.</strong> Isaac Lab's own rule (<code>utils/sensors.py convert_camera_intrinsics_to_usd</code>: pixel size 1/W when no
+focal length is given): horizontalAperture = 1, focalLength = fx/W, verticalAperture = (H/W)(fx/fy). GfCamera's
+frustum puts the window on the image plane at (aperture/2 ± offset)/focal, so with DexVantage's pixel convention
+(OpenCV: pixel centres at integers, image from −0.5 to W − 0.5):</p>
+<pre><code>fx = W f / hAp,   cx = (W − 1)/2 − W·hOff/hAp
+fy = H f / vAp,   cy = (H − 1)/2 + H·vOff/vAp        (USD's y is up, the image's v down)
+</code></pre>
+<p>so hOff = hAp((W − 1)/2 − cx)/W and vOff = vAp(cy − (H − 1)/2)/H. A USD camera looks along −Z with +Y up: its
+transform is the optical frame times diag(1, −1, −1). The stage is metres, Z up, <code>defaultPrim</code> /DexVantage; static
+cameras under /DexVantage/World, link-mounted ones under /DexVantage/&lt;robot&gt;/&lt;link&gt;, an Xform at the link's pose at
+the export's joint state (home by default) so the file shows the rig. clippingRange (0.005, 50) m are DexVantage's
+labelled defaults (the MuJoCo scene's). With usd-core (<code>pip install &quot;dexvantage[usd]&quot;</code>, pinned <code>usd-core==26.8</code>) pxr
+writes the file; without it a text writer of the same prims and attributes does, and the notes say which.</p>
+<p><strong>Lens models.</strong></p>
+<table>
+<thead>
+<tr>
+<th>DexVantage lens</th>
+<th>Isaac Lab v3.0.0</th>
+<th>Exact?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pinhole, square, centred</td>
+<td>focal length and aperture alone</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>pinhole, non-square or off-centre</td>
+<td><code>OpenCvPinholeDistortionCfg</code> with zero terms (carries fx, fy, cx, cy)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Brown-Conrady (k1, k2, p1, p2, k3, rational k4–k6)</td>
+<td><code>OpenCvPinholeDistortionCfg</code>, the same terms</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Kannala-Brandt (k1–k4)</td>
+<td><code>OpenCvFisheyeDistortionCfg</code>, max_fov = 2 × the valid half angle</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>equidistant</td>
+<td><code>OpenCvFisheyeDistortionCfg</code> with k = 0 (KB with k = 0 is equidistant)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>equisolid, stereographic</td>
+<td>no match: a least-squares Kannala-Brandt fit to r(θ)/f over the image's angles</td>
+<td>no; the largest pixel gap is stated (1.9 × 10⁻⁸ px for an equisolid 250 px lens on 640 × 480, 4.0 × 10⁻⁴ px stereographic)</td>
+</tr>
+</tbody>
+</table>
+<p>Isaac Lab v2.3.2 has no OpenCV fields: its file carries the square, centred pinhole of fx, and the notes give the
+largest pixel gap from the real lens, or say that the lens sees rays a pinhole cannot (a fisheye beyond 90°).</p>
+<p><strong>Imagers.</strong> Every imager of every enabled camera and depth sensor is a camera: data_types ['rgb'], plus
+'distance_to_image_plane' on a depth sensor's reference imager (the library entry's reference_imager). IR and ToF
+imagers are visible-light RGB prims with that imager's geometry (Isaac renders no near-infrared): the notes say so.
+update_period is 1/fps of the stream choice (core/studies/motion_blur.imaging), else 0.0 (every step), said in a
+comment.</p>
+<p><strong>Randomisation bounds</strong> come from <code>core/tolerance.bounds</code> (the TOLERANCE study's ± bound per axis of the mount
+tolerance, shifts along the mount parent's x, y, z and turns about the body's own x, y, z applied as R' = R·Rx·Ry·Rz;
+or ± 2σ of a calibration covariance's marginals). Each config file carries <code>DR[name]</code> (the sensor body in its parent,
+the imager in the body, the bounds) and pure-Python <code>perturbed_offset(name, d)</code>, <code>sample_offset(name, rng)</code> (uniform
+within the bounds) and <code>randomized_cameras(seed)</code> (every CameraCfg with one draw, through configclass <code>replace</code>).</p>
+<h2 id="lerobot-act-diffusion-policy-openvla--lerobotpy">LeRobot, ACT, Diffusion Policy, OpenVLA — <code>lerobot.py</code></h2>
+<p><strong>Sources</strong> (read 2026-11-07): LeRobot at commit <code>d490e472a5d1a207cfe0255caaaf74b6d66e4656</code> (the one
+<code>core/datasets/lerobot.py</code> follows): <code>configs/train.py</code>, <code>configs/default.py</code>, <code>configs/policies.py</code>,
+<code>configs/types.py</code>, <code>policies/act/configuration_act.py</code>, <code>policies/diffusion/configuration_diffusion.py</code>, the
+<code>register_subclass</code> names of pi0, pi0_fast, smolvla and groot, <code>datasets/factory.py</code>,
+<code>datasets/lerobot_dataset.py</code>, <code>datasets/utils.py</code> (<code>DatasetInfo.from_dict</code>); ACT at
+<code>742c753c0d4a5d87076c8f69e5628c79a8cc5488</code> (<code>constants.py</code>, <code>imitate_episodes.py</code>); Diffusion Policy at
+<code>5ba07ac6661db573af695b419a7947ecb704690f</code> (<code>config/task/real_pusht_image.yaml</code>,
+<code>config/train_diffusion_unet_real_image_workspace.yaml</code>, <code>dataset/real_pusht_image_dataset.py</code>); OpenVLA at
+<code>c8f03f48af692657d3060c19588038c7220e9af9</code> (<code>prismatic/vla/datasets/rlds/oxe/configs.py</code>).</p>
+<p><strong>info.json</strong> (v2.1 and v3.0) is what <code>write_lerobot</code> writes for a dataset recorded with the rig: observation.state
+and action (float32, the robots' actuated joints by name), one video feature per camera the policies take (each
+sensor's primary imager at its stream size, key <code>observation.images.&lt;sensor name&gt;</code> as <code>core/sim/episodes.py</code> names
+them, sorted as the writer sorts them), the default features, zero counters, and the video fields of LeRobot's
+default encoder (AV1 from libsvtav1, yuv420p, g 2, crf 30, preset 12 at v3.0). fps: the option, else the first
+policy's control rate, else the fastest camera, else 30 fps (a default).</p>
+<p><strong>Train config</strong> (per policy with a LeRobot type: act, diffusion, pi0, pi0_fast, smolvla, groot):
+<code>TrainPipelineConfig</code> keys dataset {repo_id, root}, policy {type, input_features (STATE and one VISUAL [3, H, W] per
+camera the policy takes), output_features (ACTION), device, push_to_hub false, repo_id}, output_dir, job_name; ACT:
+chunk_size from the policy entry, temporal_ensemble_coeff = m and n_action_steps 1 (ACTConfig: &quot;n_action_steps must
+be 1 when using temporal ensembling&quot;); Diffusion: horizon, n_action_steps, resize_shape (H, W) from the entry's
+pre_resize and crop_shape from its centre crop. <code>train.sh</code> runs <code>lerobot-train --config_path=train_config.json</code>.</p>
+<p><strong>§7.13 recommendations</strong> (Policy.recommendations, stored by the action-chunk study's Apply):</p>
+<table>
+<thead>
+<tr>
+<th>Recommendation</th>
+<th>Where it goes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>temporal_ensemble_m (w_i = exp(−m·i), i = 0 the oldest)</td>
+<td>ACTConfig.temporal_ensemble_coeff (the same convention: &quot;w₀ is the oldest action&quot;); ACT's <code>k</code> in <code>act/task_config.yaml</code> (the original code hard-codes k = 0.01)</td>
+</tr>
+<tr>
+<td>delay_offset_s, δ, rounded to whole frames</td>
+<td>LeRobot: the train config has no field (delta timestamps come from the policy's delta indices, <code>datasets/factory.py</code>), so <code>delta_timestamps.json</code> holds {&quot;action&quot;: [δ + k/fps]} over the policy's window and <code>make_dataset.py</code> builds <code>LeRobotDataset(repo_id, root, delta_timestamps=...)</code>; Diffusion Policy: <code>n_latency_steps</code> = δ in steps (its dataset drops the first n actions of a window; a negative δ cannot be written there and is said)</td>
+</tr>
+</tbody>
+</table>
+<p>Without stored recommendations the frameworks' own defaults are written and labelled (ACT's k = 0.01, the entry's
+temporal ensembling, n_latency_steps 0).</p>
+<p><strong>ACT YAML</strong> (<code>act/task_config.yaml</code>): the TASK_CONFIGS entry <code>{dataset_dir, num_episodes, episode_len, camera_names}</code> with the camera names, temporal_agg_k and the delay in steps. <strong>Diffusion Policy YAML</strong>
+(<code>diffusion_policy/task.yaml</code>): <code>shape_meta</code> (rgb cameras [3, H, W] at the entry's pre_resize, the low-dim state,
+the action) and <code>n_latency_steps</code>. <strong>OpenVLA</strong> (<code>openvla/oxe_dataset_config.py</code> and <code>.json</code>): an
+OXE_DATASET_CONFIGS entry: image_obs_keys primary (the first static camera), secondary (the next), wrist (the first
+link-mounted camera; OpenVLA-OFT's primary, secondary, left_wrist and right_wrist for a two-arm rig with an OFT
+policy); depth keys none; state_obs_keys ['joint_state']; the state and action encodings chosen from the project
+(<code>openvla_encoding</code>, <a href="robot_io.html">Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point</a>), with the notes saying when no encoding of the pinned source fits.</p>
+<h2 id="reports--reportpy-_pdfpy">Reports — <code>report.py</code>, <code>_pdf.py</code></h2>
+<p><code>report/report.html</code> (standalone: inline SVG figures from <code>validation/report.svg_figure</code>, light or dark),
+<code>report/report.pdf</code> and <code>report/report.json</code>. The results are those given (<code>results</code>: the app's results; or
+<code>results_dir</code>: batch result files), and the studies named in <code>studies</code> are run now ('all' when nothing is given:
+every study except those that run other studies many times, the tolerance Monte Carlo, experiments, the optimiser,
+the design agent, the variant comparison and the scorecard, which are reported when their results are given; on
+the UR5e sample that is 18 results and 4 refusals in 66 s, mostly the ground-truth renders and the teleop and grasp
+studies);
+a study that refuses is listed under &quot;Not run&quot; with its sentence. Each section: the STATUS word with its colour and
+the study's advice (read from the result's <code>headline</code> or <code>summary</code>), the study's named figures (<code>core/metric_defs.py</code>
+through <code>core.metrics.read</code>; &quot;not stated&quot; when the result does not state one), one bar chart of the first per-camera
+(per-policy, per-cable, …) list carrying a number with a unit suffix, the notes, and the result's own hash when it
+came with a provenance block. The scorecard is <code>core/requirements.check</code> on the same results (shared through a result
+cache, so no study runs twice). The provenance block is <code>core.provenance.block</code> of the report document.</p>
+<p>The PDF is written by <code>_pdf.py</code>, pure Python (ISO 32000-1 file structure, Flate streams, the standard fonts with
+WinAnsiEncoding), so no optional package is needed and nothing is refused; characters outside cp1252 are spelled
+out (≥ as &gt;=, σ as sigma).</p>
+<h2 id="validation">Validation</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Quantity</th>
+<th>Reference</th>
+<th>Tolerance (why)</th>
+<th>Measured 2026-11-07</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>formats.isaac_usd</code></td>
+<td>largest pixel gap of points projected through every re-opened camera prim (pxr- and text-written; the three samples, two cameras given a Brown-Conrady and a Kannala-Brandt calibration with an off-centre, non-square K)</td>
+<td>pxr's Gf.Camera frustum against <code>optics.CameraModel</code>'s pinhole part; the prim's world transform against <code>camrender.optical_pose</code>; the OpenCV attributes against the lens</td>
+<td>10⁻³ px: USD stores the lens as 32-bit floats (10⁻⁴ px at a 1 400 px focal length); a sign error moves the principal point by tens of pixels</td>
+<td>2.6 × 10⁻⁵ px; transform 5.6 × 10⁻¹⁷ m, 5.5 × 10⁻¹⁶ rad; 0 mismatches</td>
+</tr>
+<tr>
+<td><code>formats.isaac_config</code></td>
+<td>position difference of each CameraCfg offset (v3.0.0 and v2.3.2 files executed against stubs that accept only the source's fields)</td>
+<td><code>camrender.optical_pose</code> taken to the link by <code>RobotModel.link_pose</code>; <code>tolerance.bounds</code>; <code>perturbed_offset</code> against <code>tolerance.apply_draw</code> through <code>core.factors</code></td>
+<td>10⁻⁹ m and rad: 17-digit literals, so only composition rounding remains</td>
+<td>1.4 × 10⁻¹⁶ m (draws 1.4 × 10⁻¹⁶ m, 8.2 × 10⁻¹⁶ rad), 0 mismatches, 52 draws</td>
+</tr>
+<tr>
+<td><code>formats.lerobot_export</code></td>
+<td>mismatches of the exported info.json against a dataset written with the same features and read back; train-config keys against the pinned dataclass fields; YAML and OpenVLA entry parsed</td>
+<td><code>core/datasets/lerobot</code> (itself checked by <code>formats.lerobot_roundtrip</code>); the LeRobot, ACT, Diffusion Policy and OpenVLA sources</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>formats.report</code></td>
+<td>mismatches when report.html is parsed with html.parser (every study present a section with its heading, refusals listed, scorecard, provenance with the content hash, figures) and report.pdf read by pdftotext</td>
+<td>report.json and <code>provenance.project_digest</code>; html.parser; poppler</td>
+<td>0</td>
+<td>0 (pdftotext 0 errors)</td>
+</tr>
+</tbody>
+</table>
+<p>A self-test line, &quot;sim exports&quot;, runs the SO-100 versions of the first three (about 1.3 s).</p>
+<h2 id="known-limits">Known limits</h2>
+<p>Isaac Lab, Isaac Sim, LeRobot, ACT, Diffusion Policy and OpenVLA are not installed here: the configs are checked by
+parsing and executing them against the field names of the pinned sources, not by those programs, and the USD is not
+rendered in Isaac Sim. The OpenCV lens attributes' pixel convention is taken to be OpenCV's (centres at integers),
+which the Isaac Lab source does not state; its pinhole K puts the centre at W/2, half a pixel from OpenCV's
+(W − 1)/2 if its pixels are centred at integers. The USD aperture offsets are exact for pxr's <code>Gf.Camera</code>, but Isaac Lab's spawner warns &quot;Camera aperture offsets are not supported by Omniverse. These parameters will be ignored&quot;: so the off-centre principal point is written through the OpenCV lens attributes, which v3.0.0 projects through; the v2.3.2 file has none, so its render is centred, and each such camera is named with its offset in the notes, the config comment, the JSON and the Export dialog (<a href="robot_io.html">Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point</a>). OpenVLA's encodings are chosen from the rig (<code>openvla_encoding</code>): <code>ActionEncoding.JOINT_POS</code> is joint <em>delta</em> positions and OpenVLA's loader refuses it, which the notes say. A renderer that ignores the OpenCV attributes conforms non-square
+pixels to the render's aspect. IR and ToF imagers are RGB prims; depth outputs have no noise model. The randomisation
+is drawn once per config build (per-environment draws need <code>Camera.set_world_poses</code> at reset, not generated). The
+LeRobot state and action are every actuated joint of the robot files (a gripper's linkage joints included; the UR5e
+sample has 14); LeRobot's train config has no field for the delay offset (applied through delta timestamps or by
+shifting the action column); a dataset rate above a camera's repeats frames (said). The report's figure is one list
+per study chosen by a naming rule; results given with an export are reported as given. The PDF's line breaking uses
+approximate glyph widths.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

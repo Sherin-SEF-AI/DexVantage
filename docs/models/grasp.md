@@ -68,8 +68,11 @@ widened by 2° and 2 cm. The test is conservative: with w = C − o, the cone's 
 radius r is kept when |w − (w · a) a| cos θ − (w · a) sin θ ≤ r (the distance from its centre to the cone's surface
 when it is within θ + 90° of the axis; beyond that the nearest point is the apex, which is never nearer) and
 |w| − r ≤ the cone's length. A triangle outside the cone cannot hide any of the points, so a culled map answers as the
-full scene's does for them; the validation check compares with ray casting of the full scene. A camera with no point
-in its image draws no map.
+full scene's does for them; the validation check compares with ray casting of the full scene. A link of more than 64
+triangles is tested in runs of 256 consecutive triangles first (`CULL_CHUNK`, a speed setting), each run's sphere
+holding its triangles' spheres: the test's distance is 1-Lipschitz in the sphere's centre, so a run whose sphere misses
+the cone holds no triangle that meets it, and the triangles kept are exactly the per-triangle test's
+(`tests/test_grasp_cull.py`). A camera with no point in its image draws no map.
 
 **4. The q-bucket cache.** The joint state is quantised: the grasp robot's joint vector divided by `q_bucket_deg`
 (default 0.1°; prismatic joints by `q_bucket_mm`, default 0.5 mm) and rounded is the bucket key. Every grasp or
@@ -145,6 +148,9 @@ the scene. The headline's status is `good` from `good_pct` (90 %), `warning` fro
   results to the page (`ctx.partial`, the running CVS and throughput).
 
 ## Performance budget (measured)
+
+The current figures for every sample, with the budget used and where the time goes, are in
+[../performance.md](../performance.md) (`scripts/benchmarks.py`); the table below is the Phase 3 measurement.
 
 `scripts/measure_grasp.py --n 2000` on the UR5e sample: 2,000 grasps sampled by `grasps.sample` (top-down, side and
 angled, seed 0), default settings (cube maps of 512 texels, two pre-contact steps, sensitivity on 250 grasps, a

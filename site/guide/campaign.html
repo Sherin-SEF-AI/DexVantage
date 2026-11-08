@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planning a data-collection campaign: a worked example on the ALOHA 2 sample · DexVantage</title>
+<meta name="description" content="This plans the demonstrations for the ALOHA 2 sample&#x27;s handover under two lighting presets, three operators, enoughdemonstrations per preset to tell a 50 % success rate from 70 %, and a budget of 4 TB, ten days and an 8-hour uploadwindow on a 1 Gbit/s link. The model is in docs/models/campaign.md. …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-the-spec">1. The spec</a>
+    <a href="#2-plan">2. Plan</a>
+    <a href="#3-the-checklist-and-the-calendar">3. The checklist and the calendar</a>
+    <a href="#4-change-and-apply">4. Change and apply</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/campaign.md"><code>docs/guide/campaign.md</code></a></p>
+<h1 id="planning-a-data-collection-campaign-a-worked-example-on-the-aloha-2-sample">Planning a data-collection campaign: a worked example on the ALOHA 2 sample</h1>
+<p>This plans the demonstrations for the ALOHA 2 sample's handover under two lighting presets, three operators, enough
+demonstrations per preset to tell a 50 % success rate from 70 %, and a budget of 4 TB, ten days and an 8-hour upload
+window on a 1 Gbit/s link. The model is in <code>docs/models/campaign.md</code>. Figures below are from a run on 2026-11-07.</p>
+<h2 id="1-the-spec">1. The spec</h2>
+<p>Data ▸ Campaign shows the settings as fields (each change one undo step, &quot;(default)&quot; while a figure is DexVantage's).
+The levels of the conditions (lighting presets, object sets, variants, teleop devices, tasks) live in a spec file,
+read with <strong>Open spec…</strong> or given to batch mode:</p>
+<pre><code class="language-json">{&quot;schema&quot;: &quot;dexvantage.campaign_spec/1&quot;, &quot;name&quot;: &quot;ALOHA handover, two lighting presets&quot;,
+ &quot;operators&quot;: [&quot;Ana&quot;, &quot;Ben&quot;, &quot;Chen&quot;],
+ &quot;lighting&quot;: [{&quot;name&quot;: &quot;Bright&quot;}, {&quot;name&quot;: &quot;Dim&quot;}],
+ &quot;demos&quot;: {&quot;mode&quot;: &quot;power&quot;, &quot;p_base&quot;: 0.5, &quot;p_target&quot;: 0.7},
+ &quot;episode_s&quot;: 30, &quot;start_date&quot;: &quot;2026-11-16&quot;,
+ &quot;budget&quot;: {&quot;disk_gb&quot;: 4000, &quot;days&quot;: 10, &quot;upload_mbps&quot;: 1000, &quot;upload_hours_per_day&quot;: 8}}
+</code></pre>
+<p>The sample's two trajectories (left and right arm over the same 4 s) are one bimanual task, &quot;Handover&quot;; its 4 s is the
+scripted motion, so <code>episode_s</code> sets 30 s for a person teleoperating. The sample has no lights in the project, so the
+presets are names only and the checklist says &quot;room light as it is&quot;; add the lights (Workspace ▸ Lights) and name
+them in each preset, <code>{&quot;name&quot;: &quot;Dim&quot;, &quot;lights&quot;: {&quot;Key panel&quot;: 0.3}}</code>, to have the checklist say which to switch.</p>
+<h2 id="2-plan">2. Plan</h2>
+<pre><code>dexvantage --sample aloha --campaign spec.json
+</code></pre>
+<p>prints <code>Campaign: 216 episodes over 2 days, 1,304.0 GB (within budget)</code> and writes <code>spec.plan.json</code> (with
+provenance), <code>spec.plan.csv</code>, <code>spec.plan.ics</code> and <code>spec.plan.html</code>. On the page the headline reads <strong>216</strong> &quot;episodes
+over 2 days, 1,304.0 GB&quot;, status <strong>within budget</strong>: storage 33 % of the disk, days 20 %, the busiest day's upload 30 %
+of the window (2.4 h).</p>
+<ul>
+<li><strong>Demonstrations.</strong> The power analysis (two-sided, α 0.05, 80 % power, with the continuity correction: defaults)
+asks for 103 per condition. Three operators recording each condition in two equal blocks makes that 108 (the note
+says so): 36 per operator per condition, blocks of 18.</li>
+<li><strong>Design.</strong> &quot;Williams balanced Latin square of order 2 (2 rows): 6 sequences (3 operators × 2 rounds) … at every
+position equally often; and after every other condition equally often (carry-over balanced).&quot; With seed 0, Ana
+records Dim then Bright, then Bright then Dim; Ben Dim, Bright twice; Chen Bright, Dim twice: three sequences start
+with each preset.</li>
+<li><strong>Storage.</strong> The bandwidth study's rates of the four D405 streams, 1 563 Mbit/s raw, plus its 3 % container overhead
+(a default): 6.04 GB per 30 s episode. Recording to a LeRobot dataset with a ratio you measured on one episode
+(<code>&quot;format&quot;: &quot;lerobot&quot;, &quot;compression_ratio&quot;: {&quot;value&quot;: 0.05, &quot;source&quot;: &quot;episode 0 of the pilot&quot;}</code>) scales it; without
+a ratio the page says the raw size is used.</li>
+<li><strong>Sessions.</strong> Five sessions in 4.5 h on the rig: day 1 (2026-11-16) Ana 09:10–10:37 (72 episodes; her sequences
+repeat Bright at the round boundary, so one changeover fewer lets them fit in the 90-minute limit), Ben, Chen, Ben;
+day 2 Chen 09:10–09:56. The 10-minute daily calibration check moves the first session to 09:10.</li>
+</ul>
+<h2 id="3-the-checklist-and-the-calendar">3. The checklist and the calendar</h2>
+<p>Click a session for its checklist. The first one starts with the calibration check (&quot;capture 5 poses of the hand-eye
+plan … with DexVantage's default board (ChArUco 9 × 7, 30 mm squares, a default) on cam_left_wrist … within 0.5 mm and
+0.05° (defaults)&quot;), then the rig variant, the lighting preset of each condition, the teleop devices (both leader
+arms), each camera's exposure (&quot;not set: run Analysis ▸ Motion blur and Apply its exposure&quot; until you do; after the
+Motion blur page's Apply the line reads the exposure and where it came from), the disk to free (434.68 GB) and the
+blocks. <code>spec.plan.ics</code> opens in any calendar program: one event per session, the checklist in its description, at
+local time. <code>spec.plan.html</code> prints a day per page with tick boxes.</p>
+<h2 id="4-change-and-apply">4. Change and apply</h2>
+<p>Lower the disk budget to 1 000 GB: the headline turns <strong>over budget</strong> and the advice reads &quot;Storage 1,304.0 GB
+against 1,000 GB: record to a compressed format (enter its measured ratio), lower a frame rate on the Bandwidth page,
+or add disk.&quot; Put it back, then <strong>Apply</strong>: the plan goes into the project (one undo step; the notes say &quot;The project
+holds an applied plan (this one)&quot;). <strong>Save spec…</strong> writes the spec for <code>--campaign</code> in CI.</p>
+<p>From Python:</p>
+<pre><code class="language-python">import dexvantage as dv
+rig = dv.sample('aloha')
+res = dv.campaign.plan(rig, 'spec.json')
+res.headline['text']          # 'Campaign episodes recorded: 216 (within budget)'
+dv.campaign.export(res, 'out/plan')       # out/plan.csv, .ics, .html
+dv.campaign.apply(rig, res)               # the plan into the project
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

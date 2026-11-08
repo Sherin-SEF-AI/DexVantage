@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample projects · DexVantage</title>
+<meta name="description" content="Six samples open in this build: SO-100, UR5e + Robotiq 2F-85, the UR5e with a Shadow Hand for the multi-fingerocclusion study (Multi-finger occlusion: a worked example on the dexhand sample), ALOHA 2, two Franka Pandas in one cell, and the Unitree G1 upper body(the last three: the model page). Each …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#so-100---sample-so100">SO-100 (--sample so100)</a>
+    <a href="#ur5e--robotiq-2f-85---sample-ur5e">UR5e + Robotiq 2F-85 (--sample ur5e)</a>
+    <a href="#ur5e--shadow-hand---sample-dexhand">UR5e + Shadow Hand (--sample dexhand)</a>
+    <a href="#aloha-2---sample-aloha">ALOHA 2 (--sample aloha)</a>
+    <a href="#franka-panda-bimanual---sample-panda-bimanual">Franka Panda bimanual (--sample panda-bimanual)</a>
+    <a href="#unitree-g1-upper-body---sample-g1">Unitree G1 upper body (--sample g1)</a>
+    <a href="#other-menagerie-robots">Other Menagerie robots</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/samples.md"><code>docs/guide/samples.md</code></a></p>
+<h1 id="sample-projects">Sample projects</h1>
+<p>Six samples open in this build: SO-100, UR5e + Robotiq 2F-85, the UR5e with a Shadow Hand for the multi-finger
+occlusion study (<a href="dexhand.html">Multi-finger occlusion: a worked example on the dexhand sample</a>), ALOHA 2, two Franka Pandas in one cell, and the Unitree G1 upper body
+(the last three: <a href="../models/samples.html">the model page</a>). Each has a short tour below: open it, look, run one or two
+studies and read what they say. The figures in the tours are produced by <code>scripts/guide_examples.py</code> (examples
+<code>tour-&lt;sample&gt;</code>) on this build and checked against this page by <code>tests/test_guide_examples.py</code>; the screenshots are from
+<code>out/screens</code> (<code>scripts/screens.py --only samples</code>, copied by <code>scripts/tour_media.py</code>). The ALOHA 2 sample also has the
+<a href="../guide.html#ten-minute-tour">ten-minute tour</a> of the user guide.</p>
+<pre><code>dexvantage --sample so100                    # in the window (or File ▸ Open sample in a running window)
+dexvantage --sample ur5e --analyse -         # in batch mode: the project summary as JSON on standard output
+dexvantage --sample aloha --grasp out.json   # any study flag works on any sample
+</code></pre>
+<p>The robots are MuJoCo Menagerie models bundled with DexVantage after their own licences were read
+(<code>THIRD_PARTY.md</code>; each model folder under <code>dexvantage/resources/robots/</code> keeps its <code>LICENSE</code>). Joint limits, link
+geometry and the home pose are the model files' own. <strong>Camera placements are sample placements</strong> chosen so the rig has
+something to analyse, not published figures: move them to where your cameras are.</p>
+<h2 id="so-100---sample-so100">SO-100 (<code>--sample so100</code>)</h2>
+<ul>
+<li><strong>Robot:</strong> the SO-ARM100 from Menagerie <code>trs_so_arm100</code> (Apache-2.0), at the file's <code>home</code> keyframe. The arm
+reaches along the base frame's −y axis, as the file defines it; the world frame is the robot's base (REP-103).
+Its joint limits are the ones Menagerie added as &quot;approximate joint limits&quot; (the model's README), not The Robot
+Studio's figures; the robot's source note says so.</li>
+<li><strong>Gripper frame:</strong> the <code>Fixed_Jaw</code> body; fingertips <code>Fixed_Jaw</code> and <code>Moving_Jaw</code>.</li>
+<li><strong>Cameras:</strong> &quot;Wrist camera (sample placement)&quot; on <code>Fixed_Jaw</code>, on a bracket 0.06 m behind the jaws on the wrist
+side, looking down past the jaw tips; &quot;Third-person camera (sample placement)&quot; on a tripod in front of and beside
+the table, looking at the task volume. Neither has a library device: no maker in the library states a camera for
+the SO-100, so both use the labelled default camera (pinhole, 1280 × 720 px, 90° × 60°) until you choose one on
+the Sensors page.</li>
+<li><strong>Workspace:</strong> a 0.30 × 0.20 × 0.12 m tabletop volume under the jaw tips at home.</li>
+<li><strong>Tasks and policy (sample choices):</strong> the grasp set &quot;Top-down pinches over the tabletop (sample)&quot; (100 top-down
+pinches sampled over the volume, seed 0; the five-joint arm cannot hold most side grasps) and the policy &quot;SmolVLA
+(sample)&quot; (its paper evaluates on SO-100 rigs), so the grasp self-occlusion and VLA token studies run as the sample
+opens (<code>--grasp</code>, <code>--vla-tokens</code>). SmolVLA's inference time is not stated by its source, so <code>--action-chunk</code>
+refuses until you enter a measured one on the Policies page.</li>
+<li><strong>Teleop device (sample choice):</strong> &quot;SO-100 leader arm (sample)&quot;: the leader is the follower's own model, joint to
+joint, as the LeRobot SO-100 guide builds it, so <code>--teleop</code> runs as the sample opens (96.7 % teleoperable).</li>
+</ul>
+<h3 id="tour">Tour</h3>
+<ol>
+<li>
+<p><code>dexvantage --sample so100</code> (or File ▸ Open sample ▸ LeRobot SO-100 arm with a wrist and a third-person camera).
+The Outliner lists 1 robot, 2 sensors, the tabletop volume and the grasp set.</p>
+<p><img src="../docs-media/tour-so100-main.png" alt="The SO-100 sample as it opens" /></p>
+</li>
+<li>
+<p>Robot ▸ Joint sliders and move <code>Rotation</code> (the base): the wrist camera's frustum rides with the jaw, the tripod
+camera stays put, and the Camera view follows the wrist camera when it is selected.</p>
+</li>
+<li>
+<p>Analysis ▸ Coverage and resolution ▸ Run: &quot;Task volume seen: 94.5 % (gaps)&quot;. The camera table says which camera
+misses what; the two default cameras (no device chosen) leave gaps a second view would close.</p>
+</li>
+<li>
+<p>Analysis ▸ Grasp self-occlusion ▸ Run (the 100 top-down pinches): &quot;Contact visibility: 100 % (well seen)&quot;.</p>
+</li>
+<li>
+<p>Analysis ▸ Teleop overlap ▸ Run (the leader arm): &quot;Teleoperable task volume: 96.7 % (clear)&quot;; Apply moves the
+follower's base by the suggested step.</p>
+<p><img src="../docs-media/tour-so100-teleop.png" alt="Teleop overlap on the SO-100" /></p>
+</li>
+</ol>
+<p>The SO-101 is in Menagerie too (<code>robotstudio_so101</code>, Apache-2.0, 18 MB of
+meshes, not bundled): Robot ▸ Import from MuJoCo Menagerie downloads it and shows its licence first.</p>
+<h2 id="ur5e--robotiq-2f-85---sample-ur5e">UR5e + Robotiq 2F-85 (<code>--sample ur5e</code>)</h2>
+<ul>
+<li><strong>Robot:</strong> the UR5e (<code>universal_robots_ur5e</code>, BSD-3-Clause) with the 2F-85 (<code>robotiq_2f85</code>, BSD-2-Clause) on its
+flange. <code>ur5e_robotiq_2f85.xml</code> was written by MuJoCo itself: <code>MjSpec.attach</code> of the gripper at the UR5e file's
+<code>attachment_site</code>, names prefixed <code>gripper_</code> (<code>scripts/bundle_menagerie.py</code>). A test checks the gripper's pose
+against the two separate files compiled by MuJoCo.</li>
+<li><strong>Gripper frame:</strong> <code>gripper_base</code> (the body with the file's <code>pinch</code> site); fingertips <code>gripper_right_pad</code> and
+<code>gripper_left_pad</code>.</li>
+<li><strong>Sensors:</strong> &quot;Wrist D405&quot;, a depth camera on <code>wrist_3_link</code>, 0.07 m off the tool axis, looking at the pinch point;
+&quot;Overhead D435&quot;, a depth camera on the cage 0.85 m above the task volume, looking straight down. Both name
+their library entries (<code>intel-realsense-d405</code>, <code>intel-realsense-d435</code>): lenses, depth FOV, baseline, the
+minimum-Z table and the stated RMS error come from Intel's D400 series datasheet (Rev 023, read 2026-11-06). Where
+Intel states no offset (the D435's RGB imager, the projector) the entry places it as a labelled assumption.</li>
+<li><strong>Workspace:</strong> a 0.50 × 0.40 × 0.30 m tabletop volume under the gripper at home.</li>
+<li><strong>Tasks and policy (sample choices):</strong> the grasp set &quot;Tabletop grasps (sample)&quot; (200 grasps: top-down, side and
+angled, seed 0) and the policy &quot;π0 (sample)&quot;, so every Phase 3, 6 and 7 batch flag runs on it: <code>--grasp</code>,
+<code>--vla-tokens</code>, <code>--bandwidth</code>, <code>--cables</code>, <code>--brackets</code>, <code>--handeye-plan</code>. There is no task object: add one to
+count its tokens and its grasp region. A scripted pick trajectory (&quot;Scripted pick (sample)&quot;, 4.5 s) gives the motion
+blur, time sync and action-chunk studies their motion (<code>--motion-blur</code>, <code>--time-sync</code>, <code>--action-chunk</code>).</li>
+<li><strong>Not in the samples:</strong> lights (<code>--lighting</code> says &quot;no lights&quot;: the lighting guide adds a key light and a window),
+a set exposure (smear figures are upper bounds) and, on the UR5e and dexhand samples, a teleop device.</li>
+<li><strong>Geometry:</strong> the Menagerie UR5e rounds its link offsets to the millimetre, so its flange is up to 1.3 mm from
+the flange of Universal Robots' DH table (<a href="../models/robots.html#known-limits">Robots: import, the MuJoCo model and the samples</a>).</li>
+</ul>
+<h3 id="tour-1">Tour</h3>
+<ol>
+<li>
+<p><code>dexvantage --sample ur5e</code>: 1 robot, 2 sensors (both depth cameras, one on a link). Analysis ▸ Run the project
+summary (F5) fills the Summary tab.</p>
+<p><img src="../docs-media/tour-ur5e-main.png" alt="The UR5e sample as it opens" /></p>
+</li>
+<li>
+<p>Turn the shoulder on the Robot page: the wrist D405 follows the flange, the overhead D435 does not.</p>
+</li>
+<li>
+<p>Coverage ▸ Run: &quot;Task volume seen: 91.9 % (mostly single or blind)&quot;. Depth validity ▸ Run: &quot;Depth-valid task
+volume: 84.6 %&quot;.</p>
+</li>
+<li>
+<p>Grasp self-occlusion ▸ Run (the 200 tabletop grasps): &quot;Contact visibility: 100 % (well seen)&quot;, with the gallery of
+the weakest grasps as each camera renders them.</p>
+<p><img src="../docs-media/tour-ur5e-grasp.png" alt="Grasp self-occlusion on the UR5e" /></p>
+</li>
+<li>
+<p>Time sync ▸ Run: &quot;Worst camera to joint-state skew: ≥ 54.4 ms (out of sync)&quot;: the cameras are free-running
+against the joint states, and the page suggests the D435's hardware trigger.</p>
+</li>
+</ol>
+<p>Known limits: the 2F-85's linkage joints are separate entries of the joint vector, so moving one finger joint alone
+poses the linkage in a way the real gripper cannot (the coupling is an equality constraint in the file, which
+kinematics does not apply).</p>
+<h2 id="ur5e--shadow-hand---sample-dexhand">UR5e + Shadow Hand (<code>--sample dexhand</code>)</h2>
+<ul>
+<li><strong>Robot:</strong> the UR5e with the right Shadow Dexterous Hand from Menagerie (<code>shadow_hand</code>, Apache-2.0) on
+its flange, one robot of 30 joints (<a href="dexhand.html">Multi-finger occlusion: a worked example on the dexhand sample</a>, <a href="../models/dexhand.html">the model page</a>).</li>
+<li><strong>Cameras (sample placements):</strong> a palm micro camera and a dorsal wrist camera on the hand, and a head camera (a
+depth camera on the cage).</li>
+<li><strong>What it is for:</strong> the multi-finger occlusion matrix and the visual-to-tactile handoff (§7.14, §7.15).</li>
+</ul>
+<h3 id="tour-2">Tour</h3>
+<ol>
+<li>
+<p><code>dexvantage --sample dexhand</code>: 1 robot, 3 sensors.</p>
+</li>
+<li>
+<p>Coverage ▸ Run: &quot;Task volume seen: 98.9 % (thin)&quot;.</p>
+</li>
+<li>
+<p>Analysis ▸ Multi-finger occlusion ▸ Run: &quot;Fingertips seen: 93.8 %&quot;. The finger × camera matrix gives the share of
+each fingertip's contact patch each camera does not see and what hides it (the palm, a neighbouring finger, the
+thumb, or outside the image); the line under the headline names the best single mount and a turn that helps.</p>
+<p><img src="../docs-media/tour-dexhand-matrix.png" alt="The multi-finger occlusion matrix" /></p>
+</li>
+</ol>
+<h2 id="aloha-2---sample-aloha">ALOHA 2 (<code>--sample aloha</code>)</h2>
+<ul>
+<li><strong>Robots:</strong> the two ViperX 300 arms of Menagerie <code>aloha</code> (BSD-3-Clause), each a robot of its own (&quot;ALOHA 2 left
+arm&quot; is the primary robot, so the world is its base frame; &quot;ALOHA 2 right arm&quot; stands 0.938 m along x, turned half a
+turn, where <code>aloha.xml</code> puts it). Joint names are <code>aloha.xml</code>'s (<code>left/waist</code> … <code>right/right_finger</code>), so a
+14-value ALOHA recording is read onto each arm by name.</li>
+<li><strong>Gripper frames:</strong> <code>left/gripper_base</code> and <code>right/gripper_base</code>; fingertips the two finger links of each.</li>
+<li><strong>Cameras (published):</strong> <code>cam_high (overhead)</code>, <code>cam_low (worms-eye)</code>, <code>cam_left_wrist</code>, <code>cam_right_wrist</code>: four
+RealSense D405 at 848 × 480 (the ALOHA 2 paper), where Menagerie's model places them; the names are the ALOHA
+recordings' camera names.</li>
+<li><strong>Workspace:</strong> the table of <code>scene.xml</code> (1.22 × 0.74 m), a tabletop volume between the arms and a handover zone
+above its middle (sample choices).</li>
+<li><strong>Tasks and policy (sample choices):</strong> 100 tabletop grasps per arm, 60 bimanual handoffs from the left arm to the
+right one, a handover trajectory per arm, ACT, and two leader arms (the library's ALOHA WidowX-250 leader, joint to
+joint; the WidowX's own ranges are not stated, so the followers' are used).</li>
+</ul>
+<h3 id="tour-3">Tour</h3>
+<ol>
+<li>
+<p><code>dexvantage --sample aloha</code>: 2 robots, 4 sensors (the four D405s), the table, a tabletop volume between the arms and
+a handover zone.</p>
+<p><img src="../docs-media/tour-aloha-main.png" alt="The ALOHA 2 sample as it opens" /></p>
+</li>
+<li>
+<p>Select <code>cam_left_wrist</code> in the Outliner: the Camera view looks down past the left gripper's fingers.</p>
+<p><img src="../docs-media/tour-aloha-left-wrist.png" alt="cam_left_wrist in the Camera view" /></p>
+</li>
+<li>
+<p>Coverage ▸ Run: &quot;Task volume seen: 100 % (well covered)&quot;. Grasp self-occlusion ▸ Run (the left arm's tabletop
+grasps): &quot;Contact visibility: 100 % (well seen)&quot;.</p>
+</li>
+<li>
+<p>The rest of the specification's ten minutes (which grasps lose a fingertip and why, a moved camera, depth, VLA
+tokens, bandwidth, the MuJoCo and LeRobot exports and a printable bracket) is the user guide's
+<a href="../guide.html#ten-minute-tour">ten-minute tour</a>.</p>
+</li>
+</ol>
+<p>Measured on this build (2026-11-07, batch flags on the sample as it opens, RTX 5080): <code>--coverage</code> 99 % of the task
+volume seen by two or more cameras; <code>--grasp</code> (the left arm's 100 grasps) 86 reachable, 14 out of reach, Contact
+Visibility Score 100 %; <code>--teleop</code> 100 % teleoperable through both leader arms, the two arms' reach overlapping on
+100 % of it, the handover zone reached by both on 100 % of its points with an arm-to-arm margin of 48.5 mm (the
+fingers, at a 100 mm gap, a default); <code>--groundtruth</code> the MuJoCo render agrees with the grasp study on 87.1 % of the
+contact points and the verdict on 43 of 43 grasps; <code>--handeye-plan</code> (cam_left_wrist, eye-in-hand) 20 poses meet the
+0.5 mm and 0.05° default. <code>--vla-tokens</code> says &quot;no task object&quot;: add one on the Workspace page to count its tokens.</p>
+<h2 id="franka-panda-bimanual---sample-panda-bimanual">Franka Panda bimanual (<code>--sample panda-bimanual</code>)</h2>
+<ul>
+<li><strong>Robots:</strong> two instances of Menagerie <code>franka_emika_panda</code> (Apache-2.0, with the Franka Hand): there is no
+official bimanual Franka model. &quot;Panda left (sample cell)&quot; is the primary robot; &quot;Panda right (sample cell)&quot; stands
+0.8 m along −y, both facing +x (a sample layout).</li>
+<li><strong>Cameras (sample placements):</strong> a wrist D405 on each hand, looking at the pinch point, and a front D435 looking
+back at the cell.</li>
+<li><strong>Tasks and policy (sample choices):</strong> 100 grasps per arm (top-down, side, angled), 60 handoffs, a handover
+trajectory per arm, GELLO leaders from the library (same kinematics as the arm, Wu et al. 2023), Diffusion Policy.</li>
+</ul>
+<h3 id="tour-4">Tour</h3>
+<ol>
+<li>
+<p><code>dexvantage --sample panda-bimanual</code>: 2 robots, 3 sensors (a wrist D405 on each hand and the front D435).</p>
+<p><img src="../docs-media/tour-panda-bimanual-main.png" alt="Two Pandas in one cell" /></p>
+</li>
+<li>
+<p>Turn the right arm's first joint on the Robot page: only that arm's wrist camera moves.</p>
+</li>
+<li>
+<p>Coverage ▸ Run: &quot;Task volume seen: 100 % (thin)&quot;. Grasp self-occlusion ▸ Run: &quot;Contact visibility: 100 % (well
+seen)&quot;.</p>
+</li>
+<li>
+<p>Teleop overlap ▸ Run for the bimanual block: each arm's reach through its GELLO leader, the overlap of the two arms
+and the handover zone (the measured figures are below).</p>
+<p><img src="../docs-media/tour-panda-bimanual-teleop.png" alt="Teleop overlap of the two Pandas" /></p>
+</li>
+</ol>
+<p>Measured: <code>--coverage</code> 79 % seen by two or more cameras (each wrist D405 sees 52 % at home; the front D435 all of
+it); <code>--grasp</code> 76 of 100 reachable (24 out of reach), score 100 %; <code>--teleop</code> 100 % teleoperable, the arms' reach
+overlapping on 79 %, a singularity dead zone of 3 031 cm³ named with its pose; the handover reads 0 % quality: at the
+default 100 mm gap the two Franka Hands come within 0.6 mm of each other, so set a wider gap on the Teleop page (the
+object you hand over) or move an arm. <code>--groundtruth</code> agrees on 91.0 % of contact points and 38 of 38 verdicts.</p>
+<h2 id="unitree-g1-upper-body---sample-g1">Unitree G1 upper body (<code>--sample g1</code>)</h2>
+<ul>
+<li><strong>Robot:</strong> Menagerie <code>unitree_g1</code> <code>g1_with_hands.xml</code> (BSD-3-Clause), legs and waist held at its <code>stand</code> keyframe
+(their joints deleted in <code>g1_upper_body.xml</code>; all are 0 at <code>stand</code>), pelvis fixed 0.79 m above the floor. q is
+both arms and both three-finger hands, 28 joints in one state vector. <strong>Its meshes are simplified</strong> to fit the
+package, each within 0.5 mm of Menagerie's (measured; <a href="../models/samples.html#unitree-g1-upper-body-g1">The ALOHA 2, bimanual Panda and G1 samples</a>):
+import the full model with Robot ▸ Import from MuJoCo Menagerie when that matters.</li>
+<li><strong>Gripper frame:</strong> the right hand (<code>right_wrist_yaw_link</code>, which carries the palm); fingertips its thumb, index and
+middle distal links.</li>
+<li><strong>Camera (published):</strong> &quot;Head D435 (Unitree URDF d435_link)&quot;, on <code>torso_link</code> where Unitree's own URDF puts its
+<code>d435_link</code>, 47.6° down. Unitree's G1 page states only &quot;Depth Camera+3D LiDAR&quot;; the D435 is the model the frame's
+name gives.</li>
+<li><strong>Tasks and policy (sample choices):</strong> a table under the hands, 100 right-hand grasps, one trajectory that moves
+both arms and closes the right hand, GR00T N1.5, and Apple Vision Pro hand tracking (as Unitree's xr_teleoperate drives
+the G1) with no tracking volume, because none is stated.</li>
+</ul>
+<h3 id="tour-5">Tour</h3>
+<ol>
+<li>
+<p><code>dexvantage --sample g1</code>: 1 robot, 1 sensor (the head D435), both arms and both hands in one state vector.</p>
+<p><img src="../docs-media/tour-g1-main.png" alt="The G1 upper body" /></p>
+</li>
+<li>
+<p>Select the head camera: the Camera view looks down at the hands over the table.</p>
+<p><img src="../docs-media/tour-g1-head.png" alt="The head D435's view" /></p>
+</li>
+<li>
+<p>Coverage ▸ Run: &quot;Task volume seen: 96.6 % (mostly single or blind)&quot;: one camera sees it, so the page suggests a
+second.</p>
+</li>
+<li>
+<p>Grasp self-occlusion ▸ Run (the right hand's grasps): &quot;Contact visibility: 0 % (blind at contact)&quot;: from the head,
+most contact points are behind their own finger at contact.</p>
+</li>
+<li>
+<p>Analysis ▸ Multi-finger occlusion ▸ Run: &quot;Fingertips seen: 25.9 %&quot; of the fingertip-cases over the sample postures.</p>
+</li>
+</ol>
+<p>Measured: <code>--coverage</code> 97 % of the task volumes seen, all by the one camera (&quot;add a second camera&quot;); <code>--grasp</code> (the
+right hand's 100 angled grasps) 79 reachable (20 at a joint limit), score 0 %: the head camera sees 38 % of the contact
+points, most of the rest on the far side of their own finger, the result a head-only humanoid rig is expected to give;
+<code>--dex-occlusion</code> (the hand over the table) 25.9 % of fingertip-cases seen, the index finger hiding its own pad;
+<code>--handeye-plan</code> plans eye-to-hand (the board in the right hand: the head camera rides on a link no joint moves), 20
+poses meet the default. <code>--canonical-view</code> and <code>--silhouette-calib</code> refuse in one sentence: they need a second, or a
+static, camera; <code>--action-chunk</code> refuses because GR00T N1.5's control rate is not stated by its source.</p>
+<h2 id="other-menagerie-robots">Other Menagerie robots</h2>
+<p>Robot ▸ Import from MuJoCo Menagerie… lists Menagerie's models (from GitHub, or a built-in list of names when
+offline), downloads the one you pick into <code>XDG_DATA_HOME/DexVantage/menagerie/</code>, shows that model's own LICENSE and
+imports it only after you tick &quot;I accept the licence of this model&quot;. The robot records the licence, the Menagerie
+commit and the date you accepted it, and the project keeps the LICENSE text.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

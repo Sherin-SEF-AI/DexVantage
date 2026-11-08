@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-cell comparison · DexVantage</title>
+<meta name="description" content="Several robot cells side by side: other labs&#x27; or benches&#x27; rigs (.dexv files or folders), samples, or variants ofthe open project. Code: dexvantage/core/cells.py (the cell set, the figures table, the geometric gap, the drift,the files), dexvantage/core/cells_pool.py (dataset pooling) …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-cell-set">The cell set</a>
+    <a href="#1-figures-of-merit">1. Figures of merit</a>
+    <a href="#2-the-geometric-gap">2. The geometric gap</a>
+    <a href="#3-dataset-pooling">3. Dataset pooling</a>
+    <a href="#4-drift-of-one-design-built-several-times">4. Drift of one design built several times</a>
+    <a href="#the-suggestion">The suggestion</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/cells.md"><code>docs/models/cells.md</code></a></p>
+<h1 id="multi-cell-comparison">Multi-cell comparison</h1>
+<p>Several robot cells side by side: other labs' or benches' rigs (<code>.dexv</code> files or folders), samples, or variants of
+the open project. Code: <code>dexvantage/core/cells.py</code> (the cell set, the figures table, the geometric gap, the drift,
+the files), <code>dexvantage/core/cells_pool.py</code> (dataset pooling), <code>dexvantage/core/studies/cells.py</code> (the study <code>cells</code>),
+<code>dexvantage/core/exporters/cells.py</code> (the export <code>cells</code>), <code>dexvantage/ui/pages/cells.py</code> (File ▸ Compare cells…),
+<code>dexvantage/batch_cells.py</code> (<code>--cells</code>), <code>dv.cells.compare</code> in <code>dexvantage/api.py</code>, the assistant's <code>get_cells</code>.</p>
+<p>The gap index is ported from Vantage <code>core/rig_gap.py</code> (the Rig Contrastive Distance) and the drift from Vantage
+<code>core/fleet.py</code> and the measurement idea of <code>core/fleet_twin.py</code>; the automotive parts (viewing directions around a
+vehicle, the ground in bird's-eye view, body occlusion, nuScenes and KITTI readers, Kalman drift forecasts) are not
+ported.</p>
+<h2 id="the-cell-set">The cell set</h2>
+<p>The open project is cell 0 (its active variant); with <code>variants</code> on (the default) each of its other variants is a
+cell; then the cells the settings name, in order: <code>{'path': ...}</code> (a <code>.dexv</code> file or an unpacked folder),
+<code>{'sample': name}</code> or <code>'sample:&lt;name&gt;'</code>, <code>{'variant': uid or name}</code>. The <strong>reference</strong> (setting <code>reference</code>, default
+0) is the cell the others are compared with, and the plan for the drift. Names are made unique with <code>(2)</code>, <code>(3)</code>.</p>
+<h2 id="1-figures-of-merit">1. Figures of merit</h2>
+<p>Every metric asked for (<code>metrics</code>: a list of ids, <code>'all'</code> for every metric whose study reads no recorded dataset and
+runs no other study, or the default quick set <code>DEFAULT_METRICS</code>: coverage seen, seen twice and P5 resolution, depth
+validity, the sync skew, the payload, the camera and sensor counts, the rig mass and power — a default) is evaluated
+on every cell through <code>core.metrics.evaluate</code> (one result cache for the set). Per metric the table gives every cell's
+value (with its bound and the reason when it is not stated), the best and the worst cell among the plainly stated
+values (none when they are all equal), the spread, and per cell its difference Δ from the reference.</p>
+<p>With <code>tolerance_draws</code> n ≥ 2 the tolerance Monte Carlo (<code>core/tolerance.monte_carlo</code>, seed <code>seed</code>) runs on every
+cell and a difference is called <strong>meaningful</strong> when</p>
+<pre><code>|Δ| &gt; k · √(σ_ref² + σ_cell²),   k = 2 (MEANINGFUL_K, a default: about the two-sided 95 % band of a normal difference)
+</code></pre>
+<p>with σ the standard deviation of the metric over the cell's own draws (the spread the build tolerances alone give).
+When neither cell's figure moves under the draws (σ = 0) any non-zero difference is meaningful. A figure stated only as
+a bound is not judged. Without draws nothing is judged (&quot;not assessed&quot;). With <code>core/stats</code> installed, such a
+difference must also be significant over the draws: <code>stats.compare_samples</code> on the two cells' draws (the permutation
+test of the mean difference, 1 999 resamples here, with Hedges' g), the p-values Holm-adjusted across the whole table
+at α = 0.05 (core/stats' defaults); a difference beyond the spread but not significant is not meaningful (said).</p>
+<h2 id="2-the-geometric-gap">2. The geometric gap</h2>
+<p>Each enabled camera or depth sensor contributes its picked imager (the RGB one of a depth camera, at the stream size),
+posed at the home pose, with a <strong>role</strong>:</p>
+<ul>
+<li><strong>wrist</strong>: mounted on a link a joint moves. Its optical frame is expressed in its robot's <strong>contact frame</strong>
+(<code>core/exporters/canonical_warp.contact_frame</code>: origin between the fingertips, z the approach axis, x the closing
+axis), so wrist cameras of different arms compare relative to the fingers. A robot without a contact frame falls
+back to the mount link (said in the camera's frame text). Which pad comes first is arbitrary, so the comparison
+also tries the other camera half a turn about the approach axis (F = diag(−1, −1, 1)) and keeps the closer
+reading (<code>closing_flipped</code>).</li>
+<li><strong>scene</strong>: static (world, cage, tripod, table, or a link no joint moves, such as the G1's torso). Its optical frame
+in the world (the primary robot's base).</li>
+</ul>
+<p>Cameras are matched one to one within a role by the Hungarian method (<code>scipy.optimize.linear_sum_assignment</code>) on</p>
+<pre><code>cost = θ_axis / 90° + |c_a − c_b| / 0.5 m + |ΔHFOV| / 90° + 1 (different arms) + θ_rot / 1800°
+</code></pre>
+<p>Per matched pair:</p>
+<table>
+<thead>
+<tr>
+<th>Figure</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>viewpoint angle θ_axis</td>
+<td>atan2(‖z_a × z_b‖, z_a · z_b) of the optical axes (exact near 0)</td>
+</tr>
+<tr>
+<td>rotation θ_rot</td>
+<td>atan2 of the sine and cosine parts of R_aᵀ R_b (roll included)</td>
+</tr>
+<tr>
+<td>distance</td>
+<td>‖c_a − c_b‖ of the centres in the role's frame</td>
+</tr>
+<tr>
+<td>target distance ratio</td>
+<td>wrist: distance to the fingertip centre; scene: to the task volumes' centre</td>
+</tr>
+<tr>
+<td>HFOV difference and ratio</td>
+<td>the lens model's edge-to-edge field through the principal point (<code>CameraModel.fov_deg</code>)</td>
+</tr>
+<tr>
+<td>resolution ratio</td>
+<td>pixels per degree at the centre, f_x · π / 180, cell over reference</td>
+</tr>
+<tr>
+<td>task volume in the image</td>
+<td>share of the image whose rays pass through a task volume: rays through a grid of pixel centres at most 128 wide, unprojected through the lens, slab-tested (Kay and Kajiya 1986) against each volume's box</td>
+</tr>
+<tr>
+<td>task volume in view</td>
+<td>share of the volumes' interior points (9 per edge) inside the image</td>
+</tr>
+</tbody>
+</table>
+<p>Components, each in 0..1, means over the matched pairs:</p>
+<pre><code>viewpoint  = min(1, θ_axis / 90°)                 weight 0.30
+position   = min(1, distance / 0.5 m)             weight 0.20   (Vantage matches on distance / 2 m around a vehicle)
+resolution = min(1, |log2 ratio| / 2)             weight 0.15   (two octaves = 1)
+coverage   = |Δ image share|                      weight 0.15
+fov        = min(1, |ΔHFOV| / 90°)                weight 0.10
+topology   = ½ (|n_a − n_b| / max(n_a, n_b) + unmatched cameras / (n_a + n_b))   weight 0.10
+
+gap = Σ w_k c_k / Σ w_k ;   band: &lt; 0.15 small (good), &lt; 0.35 moderate (warning), else large (serious)
+</code></pre>
+<p>The weights, scales and bands are DexVantage's defaults. The bands (0.15, 0.35), the two-octave resolution scale
+and the 90° angle and FOV scales are Vantage's (core/rig_gap.py); the components and their weights are DexVantage's
+own (Vantage weights coverage 0.30, resolution 0.20, height and pitch 0.15, bird's-eye view 0.15, FOV 0.10 and
+topology 0.10 for vehicle rigs, with no viewpoint or position component; its 2 m is a matching cost only). The bands
+are <strong>not calibrated against any policy's success</strong>. The gap is symmetric and 0 for identical cells. A full matrix of every
+pair is in the result (<code>gap.matrix</code>).</p>
+<h2 id="3-dataset-pooling">3. Dataset pooling</h2>
+<p>Each cell's recording is a <strong>schema</strong> read from a LeRobot <code>meta/info.json</code> (the v2.1 / v3.0 feature schema of
+<code>core/datasets/lerobot.py</code>, from the LeRobot source at commit d490e47, read 2026-11-07): the cell's first recorded
+dataset (<code>project.data.datasets</code>, opened through <code>core/datasets</code>; an RLDS folder or a ROS 2 bag through its first
+episode) under <code>pooling: auto</code> (the default) or <code>recorded</code>, else the plan: the info.json its LeRobot export would
+write (<code>core/exporters/lerobot.info_json</code> over <code>rig_streams</code> and <code>state_names</code>), with the joint types and limits of
+the robot models, the policy's control rate and the streams' frame rates. The plan's codec is LeRobot's default
+encoder (AV1 through libsvtav1), labelled a default, not a recording.</p>
+<p>The rules (cell against the reference's schema) and their mapping steps:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Same</th>
+<th>Mapping step</th>
+<th>Cannot be mapped</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>camera key</td>
+<td>paired by key, then by role in order</td>
+<td><code>rename</code></td>
+<td>a target view with no counterpart</td>
+</tr>
+<tr>
+<td>image size</td>
+<td>equal</td>
+<td><code>resize</code> (aspect change said: pad or crop)</td>
+<td></td>
+</tr>
+<tr>
+<td>camera rate</td>
+<td>equal</td>
+<td><code>resample</code> (drop or repeat frames)</td>
+<td></td>
+</tr>
+<tr>
+<td>codec</td>
+<td>equal</td>
+<td><code>reencode</code></td>
+<td></td>
+</tr>
+<tr>
+<td>extra camera</td>
+<td></td>
+<td><code>drop</code></td>
+<td></td>
+</tr>
+<tr>
+<td>dataset rate (rows)</td>
+<td>equal</td>
+<td><code>resample</code> rows</td>
+<td></td>
+</tr>
+<tr>
+<td>joint count</td>
+<td>equal</td>
+<td></td>
+<td>another embodiment</td>
+</tr>
+<tr>
+<td>joint names</td>
+<td>equal</td>
+<td><code>reorder</code> (index list), or <code>rename</code> by position (an assumption)</td>
+<td></td>
+</tr>
+<tr>
+<td>joint units</td>
+<td>equal (rad / m)</td>
+<td><code>convert</code> deg → rad (a ±2π heuristic on stored stats)</td>
+<td>revolute against prismatic</td>
+</tr>
+<tr>
+<td>action space</td>
+<td>equal</td>
+<td></td>
+<td>another space (joint against end effector)</td>
+</tr>
+<tr>
+<td>gripper encoding</td>
+<td>equal type and range</td>
+<td><code>rescale</code> the [closed, open] range linearly (an assumption)</td>
+<td></td>
+</tr>
+<tr>
+<td>control rate</td>
+<td>equal</td>
+<td><code>resample</code> actions</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Verdict: poolable as is, poolable after mapping, not poolable. The pooling mapping JSON (<code>cells_pooling.json</code>,
+schema <code>dexvantage.cells_pooling/1</code>) holds the target's schema and per cell its verdict, steps, what cannot be mapped,
+warnings (figures not stated) and the camera map.</p>
+<h2 id="4-drift-of-one-design-built-several-times">4. Drift of one design built several times</h2>
+<p>The reference cell is the plan; a cell is a copy of it for each camera whose name it shares (case-insensitive). For
+each plan camera X_plan is its optical frame in its mount frame (<code>core/calib/records.camera_mount</code>: the moving link,
+else the world). A copy's camera is <strong>measured</strong> when the cell holds a solved hand-eye session for it (the latest by
+date; its X and σ from <code>HandEyeResult.to_dict</code>), else <strong>as designed</strong> (its own mount: a design difference, not drift).
+A copy on another mount frame is &quot;not comparable&quot;.</p>
+<pre><code>Δ = [ (t_meas − t_plan) · 1000 mm ,  log(R_meas R_planᵀ) in degrees ]          (mount-frame axes)
+share of tolerance  r = max( max|Δ_xyz| / tol_mm ,  ‖ω‖ / tol_deg )             (the plan camera's mount tolerance)
+verdict: ok r ≤ 1, adjust r ≤ 3, re-mount above (Vantage core/fleet.py)
+</code></pre>
+<p>Across the measured copies of a camera (two or more): the median m and robust spread s = 1.4826 · MAD per component
+(Hampel 1974), floored at a quarter of the tolerance; with three or more copies, a copy whose robust z = (Δ − m) / s
+exceeds 3.5 in any component is an outlier; the build is <strong>systematic</strong> when the median is beyond the tolerance
+while more than half the copies sit within tolerance of the median. Then the suggestion adds a variant with those
+cameras at plan ⊕ median (X = [Exp(ω_m) R_plan | t_plan + m_xyz]); the plan is kept and stays active.</p>
+<h2 id="the-suggestion">The suggestion</h2>
+<p>With the open project not the reference: mount its least-alike matched camera at the reference camera's pose in the
+role's frame (<code>T_world = T_world_role · T_ref</code>, <code>F · T_ref</code> when the pair is flipped), so that pair's viewpoint and
+position gaps are zero. With the open project the reference and a systematic drift: add the as-built variant. Apply
+is one undo step; a locked camera is not moved.</p>
+<h2 id="validation">Validation</h2>
+<p><code>dexvantage --validate out/ --models cells</code> (2026-11-07, all pass):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cells.gap_identical</code></td>
+<td>a cell against its exact copy (SO-100 sample; a synthetic three-camera rig)</td>
+<td>0</td>
+<td>10⁻¹²</td>
+</tr>
+<tr>
+<td><code>cells.gap_rotation</code></td>
+<td>a camera turned by θ (1–60°, SciPy rotation vectors) about its centre: rotation θ, viewpoint θ or 0, distance 0</td>
+<td>3.6 × 10⁻¹⁴ °</td>
+<td>10⁻⁹ °</td>
+</tr>
+<tr>
+<td><code>cells.gap_shift</code></td>
+<td>a camera moved by d: distance ‖d‖ (wrist in the contact frame, scene in the world)</td>
+<td>2.8 × 10⁻¹⁴ mm</td>
+<td>10⁻⁹ mm</td>
+</tr>
+<tr>
+<td><code>cells.coverage_polygon</code></td>
+<td>the exact share of a box's projected convex hull (Andrew 1979) clipped to the image (Sutherland and Hodgman 1974), 40 random boxes</td>
+<td>0.0144</td>
+<td>0.02 (grid boundary cells)</td>
+</tr>
+<tr>
+<td><code>cells.pooling_lerobot</code></td>
+<td>three LeRobot datasets written by <code>write_lerobot</code> (v3.0, v2.1) with known differences, read back through the reader: steps found, unmappable joint count, sizes and rates against the decoded frames</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>cells.drift_known</code></td>
+<td>copies with known offsets as hand-eye results: offsets, median, 1.4826 · MAD and the outlier's z by hand; a shared offset called systematic</td>
+<td>1.2 × 10⁻¹⁵</td>
+<td>10⁻⁹</td>
+</tr>
+</tbody>
+</table>
+<p>The coverage tolerance is the grid's: at most 128 columns of rays, so the cells along the polygon's edge carry about
+1–2 % of a share (measured 1.44 % at worst). The self-test's <code>cells</code> line runs the first, second and last checks
+(about 1 s).</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The gap is geometric (viewpoint, distance, field of view, resolution, coverage of the task volume), not appearance
+(lighting, background, blur, colour) and not a predicted success rate; its bands are a heuristic. Wrist cameras are
+related at the home pose through the contact frame the grasp code measures (an assumed one for a robot without
+pads); occlusion of the task volume by the robot is not in the coverage share; scene cameras of two cells compare in
+their own world frames, so robots standing differently relative to their tables differ for that reason too. The gap
+compares the cells' designs (a calibration applied on the Hand-eye page writes the measured mount into the design);
+the drift reads the calibrations themselves, applied or not. Pooling reads the feature schema, not the data (the stats only for the units
+heuristic and the gripper range); joints correspond by name or position, never by kinematics; a recorded camera's
+role comes from its key name; LeRobot's own multi-dataset loader is not run (the package is not a dependency). The
+drift compares the latest calibration per copy and camera (earlier ones are listed), with small-angle rotation
+vectors, matching copies by camera name; trends over time, knocks and forecasts (Vantage <code>fleet_twin.py</code>) are not
+ported. The tolerance spread costs n evaluations of every study named per cell.</p>
+<h2 id="references">References</h2>
+<p>Vantage <code>core/rig_gap.py</code>, <code>core/fleet.py</code>, <code>core/fleet_twin.py</code> (the ported models); H. W. Kuhn, &quot;The Hungarian
+method for the assignment problem&quot;, Naval Research Logistics Quarterly 2, 1955; T. L. Kay and J. T. Kajiya, &quot;Ray
+tracing complex scenes&quot;, SIGGRAPH '86; I. E. Sutherland and G. W. Hodgman, &quot;Reentrant polygon clipping&quot;, CACM 17(1),
+1974; A. M. Andrew, &quot;Another efficient algorithm for convex hulls in two dimensions&quot;, IPL 9(5), 1979; F. R. Hampel,
+&quot;The influence curve and its role in robust estimation&quot;, JASA 69, 1974; LeRobot dataset format v2.1 and v3.0,
+https://github.com/huggingface/lerobot at commit d490e472a5d1a207cfe0255caaaf74b6d66e4656 (read 2026-11-07).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

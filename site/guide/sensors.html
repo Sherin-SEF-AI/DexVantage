@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensors and mounts: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="Choose each sensor&#x27;s device from the datasheet library, mount it on a static frame or a robot link, set its pose andstream, and see what it sees. The image model and its validation are in The Camera view: a sensor&#x27;s simulated image;the library&#x27;s entries in The hardware library: devices from …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-look-through-the-wrist-camera">1. Look through the wrist camera</a>
+    <a href="#2-read-the-devices-figures">2. Read the device&#x27;s figures</a>
+    <a href="#3-change-the-rig-on-the-sensors-and-mounts-page">3. Change the rig on the Sensors and mounts page</a>
+    <a href="#4-add-a-device-from-the-library">4. Add a device from the Library</a>
+    <a href="#5-a-device-of-your-own">5. A device of your own</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/sensors.md"><code>docs/guide/sensors.md</code></a></p>
+<h1 id="sensors-and-mounts-a-worked-example-on-the-ur5e-sample">Sensors and mounts: a worked example on the UR5e sample</h1>
+<p>Choose each sensor's device from the datasheet library, mount it on a static frame or a robot link, set its pose and
+stream, and see what it sees. The image model and its validation are in <a href="../models/camview.html">The Camera view: a sensor's simulated image</a>;
+the library's entries in <a href="../models/library.html">The hardware library: devices from datasheets</a>.</p>
+<h2 id="1-look-through-the-wrist-camera">1. Look through the wrist camera</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ UR5e and Robotiq 2F-85 with a wrist D405 and an overhead D435</strong>.</li>
+<li>Select <strong>Wrist D405</strong> in the Outliner. The <strong>Camera view</strong> (right, under the Inspector) shows its image: the
+2F-85's fingers at the bottom, the table and the dashed edges of the task volume beyond. The line under the image
+reads <code>RGB · 1280 × 720 px · 84° × 53° · …</code>: the D405's colour stream through a pinhole lens fitted to Intel's
+stated FOV (hover over the line for where each figure comes from).</li>
+<li>Pick <strong>IR left</strong> or <strong>IR right</strong> in the combo above the image: the stereo pair, 18 mm apart.</li>
+<li>Move a joint (Robot ▸ Joint sliders, or the pose scrubber). The image follows the arm; while you drag it is drawn
+at half size and sharpens when you let go.</li>
+<li>In the 3D view each sensor shows its imagers' outlines, from the same lens models; the selected sensor's reaches
+further. The overhead D435 draws three: IR left (with the lines from its centre), IR right and the wider RGB.</li>
+</ol>
+<h2 id="2-read-the-devices-figures">2. Read the device's figures</h2>
+<p>The <strong>Inspector</strong> lists the device's figures for the selected sensor: the imager and its stream, the FOV as stated
+and as modelled, the shutter, pixel size, baseline, minimum Z at that stream, range, interface, power and mass, and
+links to the sources with the date each was read. A figure the maker does not state shows &quot;—&quot;; hover over it: &quot;not
+stated by the maker&quot; (the D405's pixel size, for one). Nothing is filled in.</p>
+<h2 id="3-change-the-rig-on-the-sensors-and-mounts-page">3. Change the rig on the Sensors and mounts page</h2>
+<p><strong>Sensors ▸ Sensors and mounts</strong> opens the page in the Analysis dock. Its table lists the rig's sensors; select one
+to edit it below. Each change is one undo step (Ctrl+Z):</p>
+<ul>
+<li><strong>Device:</strong> any camera, depth or tactile entry of the library (or no device: the default camera, labelled so).</li>
+<li><strong>Mounted on:</strong> World, Cage, Tripod or Table (static), or any link of any robot (<code>UR5e + Robotiq 2F-85 ▸ wrist_3_link</code>). With <strong>Keep its place</strong> ticked the sensor stays where it is and its pose is recomputed in the new
+frame: mount the overhead D435 on <code>wrist_3_link</code> and it rides with the wrist from where it hangs now.</li>
+<li><strong>Position</strong> (mm) and <strong>roll, pitch, yaw</strong> (degrees, URDF order) of the sensor body in that frame; type <code>450 mm</code> or
+<code>0.45 m</code>, or drag the axis letter.</li>
+<li><strong>Stream:</strong> the device's stream modes from its datasheet (<code>848 × 480 @ 5, 15, 30, 60, 90 fps · depth, IR left…</code>).
+The Camera view and the studies use that image size; &quot;largest listed&quot; is the default.</li>
+<li><strong>In use:</strong> switch a sensor off to keep it in the rig but out of the image, the frusta and the studies.</li>
+</ul>
+<p><strong>Add camera</strong>, <strong>Duplicate</strong> and <strong>Remove</strong> work on the selection.</p>
+<h2 id="4-add-a-device-from-the-library">4. Add a device from the Library</h2>
+<p>Open <strong>Depth sensors</strong> in the Library (left) and hover over <strong>Intel RealSense Depth Camera D455</strong>: every figure, &quot;—&quot; where Intel
+states none, and the sources. Double-click it (or drag it into the 3D view, over the floor where you want it): a
+D455 on a tripod 0.75 m up, looking at the task volume, joins the rig and is selected.</p>
+<h2 id="5-a-device-of-your-own">5. A device of your own</h2>
+<p><strong>Sensors ▸ New custom device…</strong> (or the last line of the Library) opens a form. Fill the maker, the name and a source
+(a datasheet's URL, or &quot;measured by me, …&quot; with how), then tick <strong>given</strong> for each figure you have and type it; leave
+the rest unticked: they are stored as not given. <strong>Start from a library device</strong> copies an entry's figures and
+sources as a starting point. Errors are shown under the form in plain words and block saving. <strong>Save to my library</strong>
+writes the device to your library (<code>DexVantage/library</code> in your data folder); it appears in the Library at once,
+marked &quot;(custom)&quot;, and can be used like any other device.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Versioning a project: diff, review, merge and Git · DexVantage</title>
+<meta name="description" content="A worked example on the UR5e sample. The model, the merge rules and the validation are inProject diff, merge and the Git folder form.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-keep-the-project-as-a-folder-git-can-read">1. Keep the project as a folder Git can read</a>
+    <a href="#2-or-let-git-diff-read-dexv-files">2. Or let git diff read .dexv files</a>
+    <a href="#3-review-what-changed">3. Review what changed</a>
+    <a href="#4-merge-two-peoples-edits">4. Merge two people&#x27;s edits</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/versioning.md"><code>docs/guide/versioning.md</code></a></p>
+<h1 id="versioning-a-project-diff-review-merge-and-git">Versioning a project: diff, review, merge and Git</h1>
+<p>A worked example on the UR5e sample. The model, the merge rules and the validation are in
+<a href="../models/versioning.html">Project diff, merge and the Git folder form</a>.</p>
+<h2 id="1-keep-the-project-as-a-folder-git-can-read">1. Keep the project as a folder Git can read</h2>
+<p>A <code>.dexv</code> file is a zip: Git sees a binary blob. Write the project as an unpacked folder instead, one JSON file per
+section:</p>
+<pre><code>dexvantage --sample ur5e --unpack cell.dexv.d
+Unpacked UR5e + Robotiq 2F-85 sample: 43 files written, 0 unchanged, 0 removed → cell.dexv.d
+
+cell.dexv.d/
+    project.json  robots.json  variants.json  workspace.json  tasks.json  requirements.json  analysis.json
+    rig.json  cables.json  policies.json  calibration.json  data.json  log.json
+    sources/…     the robot model files (MJCF, meshes, licences)
+</code></pre>
+<p>In the window: File ▸ Save as folder (for Git)… and File ▸ Open folder…; Save then keeps writing the folder, and only
+the files whose content changed are rewritten. <code>dexvantage cell.dexv.d --pack cell.dexv</code> makes a <code>.dexv</code> file again
+(for sending by mail, say). Every command that takes a project also takes the folder.</p>
+<h2 id="2-or-let-git-diff-read-dexv-files">2. Or let <code>git diff</code> read .dexv files</h2>
+<p>If you keep <code>.dexv</code> files in Git, give Git a text form of them (a textconv driver: Git runs the program with the
+file's name and diffs what it prints):</p>
+<pre><code># .gitattributes (in the repository)
+*.dexv diff=dexvantage
+
+# once per clone
+git config diff.dexvantage.textconv &quot;dexvantage --textconv&quot;
+git config diff.dexvantage.cachetextconv true
+</code></pre>
+<p><code>git diff</code>, <code>git log -p</code> and <code>git show</code> then show changed sections as JSON lines, and mesh arrays and model files as
+one line each with their SHA-256. The text does not include the save time, so saving without a change shows nothing.</p>
+<h2 id="3-review-what-changed">3. Review what changed</h2>
+<p>Move the wrist camera up 15 mm and swap the overhead D435 for a D455 (in the window, or in Python), save as
+<code>edited.dexv.d</code>, then:</p>
+<pre><code>dexvantage cell.dexv.d --diff edited.dexv.d --diff-metrics rig.camera_count,bandwidth.margin
+UR5e + Robotiq 2F-85 sample (cell.dexv.d) → UR5e + Robotiq 2F-85 sample (edited.dexv.d)
+2 changes: sensors 2
+
+section  op       change
+sensors  changed  Sensor Wrist D405: mount pose moved 15.0 mm (x +0.0, y +0.0, z +15.0 mm) and turned 0.00°
+sensors  changed  Sensor Overhead D435: model &quot;intel-realsense-d435&quot; → &quot;intel-realsense-d455&quot;
+
+Figures of merit (a → b):
+  Cameras                     2 count → 2 count  +0 count (same)
+  Smallest controller margin  — → —  not stated on both sides
+</code></pre>
+<p>The exit code is 0 when the projects are the same and 1 when they differ (as <code>diff</code>), 2 on an error. Add an output
+file for the JSON (<code>--diff edited.dexv.d diff.json</code>, with provenance) and <code>--diff-html diff.html</code> for a page to attach
+to a review. &quot;Not stated on both sides&quot;: the sample has no host topology, so the bandwidth study states no margin;
+nothing is filled in.</p>
+<p>In the window, File ▸ Compare with… picks the other project and shows the changes (filter them by section), Swap
+reverses the direction, Compare figures runs the metrics of the studies you have run on the open project on both,
+and Export writes JSON or HTML.</p>
+<h2 id="4-merge-two-peoples-edits">4. Merge two people's edits</h2>
+<p>Two people edited copies of <code>base.dexv</code>: one moved the wrist camera, the other added a side camera.</p>
+<pre><code>dexvantage ours.dexv --merge base.dexv theirs.dexv merged.dexv
+Merged: 1 change of ours, 1 of theirs → merged.dexv
+</code></pre>
+<p>If both changed the same thing differently, nothing is written, the exit code is 1 and each conflict is named:</p>
+<pre><code>dexvantage: The two edits cannot be merged: 1 place was changed differently on both sides: (1) variants ▸ Wrist
+D405 + overhead D435 (sample) ▸ sensors ▸ Wrist D405 ▸ mount ▸ pose (base (…) m, yours (…) m, theirs (…) m).
+Make the change on one side only, or merge these by hand.
+</code></pre>
+<p>To use it as Git's merge driver for <code>.dexv</code> files:</p>
+<pre><code># .gitattributes
+*.dexv merge=dexvantage
+# once per clone (%O base, %A ours and the result, %B theirs)
+git config merge.dexvantage.driver &quot;dexvantage %A --merge %O %B %A&quot;
+</code></pre>
+<p>With the folder form Git merges the JSON files line by line itself; <code>--merge</code> is the semantic check (it refuses a
+sensor left on a robot the other side removed, which a line merge would accept).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

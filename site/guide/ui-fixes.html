@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Responsiveness, bounded figures and custom devices: a worked example · DexVantage</title>
+<meta name="description" content="The model and the measurements are in UI responsiveness and the review round&#x27;s analysis fixes. This walk-through uses thebundled samples.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-edits-stay-quick-on-the-two-arm-samples">1. Edits stay quick on the two-arm samples</a>
+    <a href="#2-adding-the-g1-from-the-robot-catalogue">2. Adding the G1 from the robot catalogue</a>
+    <a href="#3-a-refused-study-in-the-log">3. A refused study in the log</a>
+    <a href="#4-an-experiment-where-a-study-states-only-a-bound">4. An experiment where a study states only a bound</a>
+    <a href="#5-the-canonical-view-on-the-panda-pair">5. The canonical view on the Panda pair</a>
+    <a href="#6-a-custom-light-cable-policy-or-teleop-device">6. A custom light, cable, policy or teleop device</a>
+    <a href="#7-surfaces-in-the-outliner">7. Surfaces in the Outliner</a>
+    <a href="#8-the-readiness-gate">8. The readiness gate</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/ui-fixes.md"><code>docs/guide/ui-fixes.md</code></a></p>
+<h1 id="responsiveness-bounded-figures-and-custom-devices-a-worked-example">Responsiveness, bounded figures and custom devices: a worked example</h1>
+<p>The model and the measurements are in <a href="../models/ui-fixes.html">UI responsiveness and the review round's analysis fixes</a>. This walk-through uses the
+bundled samples.</p>
+<h2 id="1-edits-stay-quick-on-the-two-arm-samples">1. Edits stay quick on the two-arm samples</h2>
+<ol>
+<li>File ▸ Open sample ▸ ALOHA 2.</li>
+<li>Drag a camera in the 3D view or type a new x in the Inspector. Each edit now costs about 4 ms on the UI thread
+(it was 32-39 ms): the 30-odd analysis pages that are not shown wait, and refresh once when you open them.</li>
+<li>Open the Sensors page: it shows the rig as it is now, after all the edits, in one refresh.</li>
+</ol>
+<p>The assistant reads a page as you would see it, shown or not: asking it about the Sensors page while the Summary is
+open replays what the page held first.</p>
+<h2 id="2-adding-the-g1-from-the-robot-catalogue">2. Adding the G1 from the robot catalogue</h2>
+<p>Library ▸ Robots ▸ Unitree G1 ▸ Import…, read the licence, tick &quot;I accept&quot;, Import. The model compiles, and its
+bounds are computed, on a worker; adding it to the scene takes about 11 ms on the UI thread (it took 171 ms).</p>
+<h2 id="3-a-refused-study-in-the-log">3. A refused study in the log</h2>
+<p>Open a new project with no camera and run Coverage. The page says &quot;could not run&quot; with the sentence; the log has one
+line, <code>coverage refused: …</code>, and the traceback only when DEBUG logging is on.</p>
+<h2 id="4-an-experiment-where-a-study-states-only-a-bound">4. An experiment where a study states only a bound</h2>
+<p>Some figures are stated as bounds: the motion-blur smear is &quot;at most&quot; a value when the exposure comes from the
+stream's maximum, the sync skew &quot;at most&quot; when a readout time is not stated. In an experiment over such a figure:</p>
+<ul>
+<li>the runs table shows a bounded response as &quot;≤ 3.1&quot;;</li>
+<li>the analysis (means, main effects, Sobol indices) leaves bounded values out and counts them under &quot;censored&quot;;</li>
+<li>the best run is the one known to be best; when a bounded run could still beat it, the headline says the pick is
+not settled and names how many runs could;</li>
+<li>when the bounds do not decide whether the best run beats the rig as it is, the headline word is &quot;not settled&quot; and
+Apply is not offered. Give the figures the study lacks (the exposure, the readout time) to settle it.</li>
+</ul>
+<h2 id="5-the-canonical-view-on-the-panda-pair">5. The canonical view on the Panda pair</h2>
+<p>File ▸ Open sample ▸ Panda bimanual, then Export ▸ Canonical view. The headline reads <strong>larger than the image
+(bound 11 878 px)</strong>, critical, &quot;large parallax&quot;: the two wrist cameras are mirrored about the fingertips, so points off
+the contact plane land far outside the 1280 px canonical image. The advice says the same in words and suggests moving
+the source camera to the canonical pose (Apply, one undo step).</p>
+<h2 id="6-a-custom-light-cable-policy-or-teleop-device">6. A custom light, cable, policy or teleop device</h2>
+<p>Library ▸ New custom device…, Kind: Light. Fill the maker, the name and the source (&quot;measured by me with a lux
+meter at 1 m&quot; counts), choose the type (ring), tick and type only the figures you have (beam angle 40°). Every figure
+left unticked is stored as not stated. Save to my library: the entry's note starts &quot;User-entered custom device.&quot; and
+the Lighting page can use it at once. A teleop leader arm also asks which followers it leads and whether it has
+their joints; a policy asks for its input size, crop rule, chunk and timings.</p>
+<h2 id="7-surfaces-in-the-outliner">7. Surfaces in the Outliner</h2>
+<p>On the Workspace page, Add surface. The Outliner lists it under Workspace; click it there and the Workspace page
+selects it for editing, the Inspector shows its height and size, and Delete removes it (one undo step).</p>
+<h2 id="8-the-readiness-gate">8. The readiness gate</h2>
+<pre><code>dexvantage cell.dexv --check requirements.yaml
+</code></pre>
+<p>prints the table and, last, <code>Scorecard → /full/path/to/scorecard.json (no output file given: scorecard.json in the current folder)</code>. Give a second argument to write elsewhere.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

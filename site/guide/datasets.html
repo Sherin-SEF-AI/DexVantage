@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datasets: a worked example on the SO-100 sample · DexVantage</title>
+<meta name="description" content="Write a two-episode LeRobot dataset with the SO-100 sample&#x27;s joints and a wrist camera, read it back, and see whatDexVantage reports for each episode. The format, the reader&#x27;s mapping, the writer and the validation are inDatasets: readers, writers and the shared episode shape. The LeRobot reader …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-write-a-dataset">1. Write a dataset</a>
+    <a href="#2-read-it-back">2. Read it back</a>
+    <a href="#3-datasets-recorded-elsewhere">3. Datasets recorded elsewhere</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/datasets.md"><code>docs/guide/datasets.md</code></a></p>
+<h1 id="datasets-a-worked-example-on-the-so-100-sample">Datasets: a worked example on the SO-100 sample</h1>
+<p>Write a two-episode LeRobot dataset with the SO-100 sample's joints and a wrist camera, read it back, and see what
+DexVantage reports for each episode. The format, the reader's mapping, the writer and the validation are in
+<a href="../models/datasets.html">Datasets: readers, writers and the shared episode shape</a>. The LeRobot reader and writer need the <code>lerobot</code> extra (pyarrow and
+PyAV): <code>pip install &quot;dexvantage[lerobot]&quot;</code>.</p>
+<h2 id="1-write-a-dataset">1. Write a dataset</h2>
+<pre><code class="language-python">import numpy as np
+from dexvantage.core.robot.samples import sample_project
+from dexvantage.core.datasets import episode as E, lerobot as L, open_dataset
+
+robot = next(r for r in sample_project('so100').robots if r.primary)
+names = [j['name'] for j in robot.joints if j.get('type') in ('revolute', 'prismatic')]
+# ['Rotation', 'Pitch', 'Elbow', 'Wrist_Pitch', 'Wrist_Roll', 'Jaw']
+
+fps, n = 30, 90                                   # 3 s at 30 fps
+t = np.arange(n) / fps
+q = np.zeros((n, 6)); q[:, 0] = 0.6 * np.sin(2 * np.pi * t / 3.0)   # radians
+
+def frames(indices):                              # any source of HxWx3 uint8 RGB frames
+    yy, xx = np.mgrid[0:240, 0:320]
+    for i in (range(n) if indices is None else indices):
+        img = np.zeros((240, 320, 3), np.uint8)
+        img[..., 0], img[..., 1], img[..., 2] = (xx + 4 * i) % 256, yy, 128
+        yield i, img
+
+cam = E.CameraStream('observation.images.wrist', 320, 240, fps, t.copy(), _decode=frames)
+ep = E.Episode('demo', 0, t, q, names, action=q.copy(), action_names=names, fps=fps, robot_type='so100',
+               task='wave the shoulder', cameras={cam.key: cam})
+summary = L.write_lerobot('so100_demo', [ep, ep], 'v3.0', robot_type='so100')
+</code></pre>
+<p><code>summary['codec']</code> is <code>AV1 (libsvtav1)</code> on a PyAV build with that encoder, <code>H.264 (libx264)</code> otherwise. The files are
+<code>data/chunk-000/file-000.parquet</code> and <code>videos/observation.images.wrist/chunk-000/file-000.mp4</code>, plus <code>meta/</code>
+(<code>info.json</code>, <code>stats.json</code>, <code>tasks.parquet</code>, <code>episodes/chunk-000/file-000.parquet</code>). Measured on the development
+machine (CPU): 0.61 s for 180 frames at 320 × 240; 153 kB on disk. For one file per episode in LeRobot's older
+layout, pass <code>'v2.1'</code>.</p>
+<h2 id="2-read-it-back">2. Read it back</h2>
+<pre><code class="language-python">with open_dataset('so100_demo') as ds:
+    print(ds.format, ds.version, [(r.index, r.length) for r in ds.episodes()])
+    # lerobot v3.0 [(0, 90), (1, 90)]
+    g = ds.load(1)
+    wrist = g.cameras['observation.images.wrist']
+    print(g.task, g.joint_names[:2], g.q.shape, wrist.n_frames, wrist.meta['from_timestamp'])
+    # wave the shoulder ['Rotation', 'Pitch'] (90, 6) 90 3.0
+    some = dict(wrist.frames([0, 45, 89]))        # decoded on demand: 7 ms for these three
+</code></pre>
+<p>Episode 1 starts 3.0 s into the packed video, because episode 0 is 90 frames at 30 fps; its camera times still read
+0, 1/30, 2/30, … from the episode start. The three decoded frames measured 44.3, 40.5 and 39.7 dB PSNR against the
+frames written: the video is lossy (crf 30, LeRobot's default), and the validation check requires 30 dB.</p>
+<h2 id="3-datasets-recorded-elsewhere">3. Datasets recorded elsewhere</h2>
+<p>Point <code>open_dataset</code> at a LeRobot dataset folder or at a Hub snapshot already on disk, for example
+<code>~/.cache/huggingface/hub/datasets--lerobot--svla_so101_pickplace</code> (it follows <code>refs/main</code> to the snapshot). Or
+name a public dataset on the Hub and let DexVantage stream it: <code>open_dataset('hf://datasets/lerobot/svla_so101_pickplace')</code>,
+in batch <code>--dataset hf://datasets/lerobot/svla_so101_pickplace</code>, or <strong>From the Hub…</strong> on the Dataset audit page
+(type <code>lerobot/svla_so101_pickplace</code>, optionally <code>@revision</code>). Only the metadata comes on open; each episode's data
+and video files come when the episode is read, into <code>~/.cache/DexVantage/hub/</code> (XDG_CACHE_HOME), pinned to the commit
+the revision pointed at. A dataset of another codebase version is refused with the sentence &quot;… is a LeRobot
+dataset of codebase version v2.0; DexVantage reads versions v2.1 and v3.0 only (LeRobot's own scripts convert
+older ones: v2.0 to v2.1 in its release v0.3.3, v2.1 to v3.0 in lerobot.scripts.convert_dataset_v21_to_v30).&quot; Joint values come back as stored: check the units, because
+many SO-100 datasets on the Hub store degrees.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

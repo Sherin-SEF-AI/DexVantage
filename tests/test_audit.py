@@ -12,10 +12,11 @@ import sys
 import numpy as np
 import pytest
 
-pytest.importorskip('pyarrow')
-pytest.importorskip('av')
+pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
+pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
 
 from conftest import pump  # noqa: E402
+from render_support import require as require_render  # noqa: E402
 from dexvantage.core import jobs  # noqa: E402
 from dexvantage.core.audit import campaign as AC  # noqa: E402
 from dexvantage.core.audit import episode as AE  # noqa: E402
@@ -38,6 +39,7 @@ def so100():
 @pytest.fixture(scope='module')
 def camp(so100, tmp_path_factory):
     """The validation check's campaign: generated, copied without its sidecar, audited, then the sidecar read."""
+    require_render()                        # the episodes are MuJoCo renders
     base = tmp_path_factory.mktemp('audit')
     root = str(base / 'campaign')
     SE.generate(so100, root, dict(CA.SETTINGS))
@@ -352,6 +354,7 @@ def test_reports_and_fiftyone_export(camp, so100, tmp_path):
 # ---------------------------------------------------------------------- the study and batch mode
 @pytest.fixture(scope='module')
 def small(so100, tmp_path_factory):
+    require_render()
     root = str(tmp_path_factory.mktemp('audit_small') / 'small')
     SE.generate(so100, root, dict(SMALL))
     return root

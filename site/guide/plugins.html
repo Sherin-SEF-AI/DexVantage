@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plugins: adding studies, metrics, exporters, readers, library folders and pages · DexVantage</title>
+<meta name="description" content="A DexVantage plugin is an installed Python package that declares an entry point in the group dexvantage.plugins.DexVantage finds it with importlib.metadata, calls its register(api) once at start-up and lists it inHelp ▸ Plugins. Through api a plugin may add:">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#a-worked-example-the-template">A worked example: the template</a>
+    <a href="#writing-registerapi">Writing register(api)</a>
+    <a href="#loading-errors-and---no-plugins">Loading, errors and --no-plugins</a>
+    <a href="#testing-a-plugin">Testing a plugin</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/plugins.md"><code>docs/guide/plugins.md</code></a></p>
+<h1 id="plugins-adding-studies-metrics-exporters-readers-library-folders-and-pages">Plugins: adding studies, metrics, exporters, readers, library folders and pages</h1>
+<p>A DexVantage plugin is an installed Python package that declares an entry point in the group <code>dexvantage.plugins</code>.
+DexVantage finds it with <code>importlib.metadata</code>, calls its <code>register(api)</code> once at start-up and lists it in
+<strong>Help ▸ Plugins</strong>. Through <code>api</code> a plugin may add:</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Call</th>
+<th>Where it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a study</td>
+<td><code>@api.study(id, title, quick=False, batch='flag', needs_robot=False)</code> on <code>fn(project, ctx) -&gt; dict</code></td>
+<td><code>core.jobs</code>, its batch flag <code>--flag OUT.json</code>, <code>rig.run(id)</code>, the assistant's study list</td>
+</tr>
+<tr>
+<td>a metric</td>
+<td><code>@api.metric(id, title, unit, better, study, note='', tags=())</code> on <code>extract(doc) -&gt; float | None</code></td>
+<td><code>rig.metrics</code>, requirements files and <code>--check</code>, the optimiser, experiments</td>
+</tr>
+<tr>
+<td>an exporter</td>
+<td><code>@api.exporter(id, title, needs_robot=False)</code> on <code>fn(project, out_dir, options, ctx) -&gt; {'files', 'notes'}</code></td>
+<td><code>--export --formats id</code>, the Export dialog, <code>rig.export</code></td>
+</tr>
+<tr>
+<td>a dataset reader</td>
+<td><code>@api.dataset_reader(format, sniff, title='')</code> on <code>open(path) -&gt; core.datasets.Dataset</code></td>
+<td><code>dv.datasets.open</code>, the audit, plan against recording, <code>--dataset</code></td>
+</tr>
+<tr>
+<td>a library folder</td>
+<td><code>api.library_folder(path)</code></td>
+<td>the Library (read-only, like the built-in entries)</td>
+</tr>
+<tr>
+<td>a UI page</td>
+<td><code>api.page(id, title, 'module:Class', menu='Analysis', icon=..., action_id=None, workspace=...)</code></td>
+<td>a tab of the Analysis dock and a menu command</td>
+</tr>
+</tbody>
+</table>
+<p>The module is <code>dexvantage/plugin_sdk.py</code>; the contracts each registry follows are those of the built-in code
+(<code>core/jobs.py</code>, <code>core/metrics.py</code>, <code>core/exporters/__init__.py</code>, <code>core/datasets/episode.py</code>, <code>core/library</code>,
+<code>ui/pages</code>) and the rules of <code>docs/DEVELOPING.md</code> apply to a plugin's figures as to DexVantage's: every hardware or
+policy figure from a cited source with its URL and the date read, else <code>None</code> (&quot;not stated&quot;); defaults labelled as
+defaults; errors raised as <code>api.StudyError(&quot;plain sentence&quot;)</code>.</p>
+<h2 id="a-worked-example-the-template">A worked example: the template</h2>
+<p><code>examples/plugin-template/</code> is a pip-installable plugin with one study, two metrics, a page and its own test:</p>
+<pre><code>examples/plugin-template/
+  pyproject.toml                          the entry point: aim_template = &quot;dexvantage_plugin_template:register&quot;
+  dexvantage_plugin_template/__init__.py  register(api): the study, the metrics and the page
+  dexvantage_plugin_template/aim.py       the study (headless: numpy and DexVantage's core only)
+  dexvantage_plugin_template/page.py      the page (Qt; imported only when the window is built)
+  tests/test_template.py                  the plugin's tests, headless
+</code></pre>
+<p>The study, &quot;Aim at the task volume&quot;, is the angle between each enabled camera's viewing direction (its body x axis)
+and its direction to the centre of the first task volume, at the home pose; the headline is the worst angle, and a
+camera is &quot;aimed&quot; within <code>max_angle_deg</code> (20°, a template default). It uses no hardware figure. Its test checks the
+angle against an independent closed form (atan2 of the perpendicular and parallel parts) over 200 random cases within
+1e-9°.</p>
+<p>Install and use it:</p>
+<pre><code>pip install -e examples/plugin-template
+dexvantage --list-plugins
+  aim_template 0.1.0: loaded; added 1 study (aim_check), 2 metrics (aim.worst_deg, aim.share_aimed), 1 page (aim_check)
+dexvantage --sample dexhand --aim-check aim.json
+  Aim at the task volume → aim.json
+</code></pre>
+<p>On the dexhand sample the worst camera is the palm micro camera, 57.1° off the tabletop's centre (&quot;aimed away&quot;; 2 of 3
+cameras aimed); it is on a link, so the advice is to turn it on the Sensors and mounts page. On the UR5e sample the
+worst is the wrist D405 at 16.4° (&quot;aimed&quot;). From Python:</p>
+<pre><code>import dexvantage as dv
+rig = dv.sample('ur5e')
+rig.run('aim_check').headline['text']        # 'Worst camera aim off the task volume: 16.4° (aimed)'
+rig.check([{'metric': 'aim.worst_deg', 'op': '&lt;=', 'threshold': 30}])
+</code></pre>
+<p>In the window the page &quot;Aim at the task volume&quot; (Analysis menu) shows the headline with its status word, a row per
+camera, a line from each camera to the centre in its status colour, and Apply, which turns the worst static camera to
+look at the centre as one undo step (Preview dashes its line first).</p>
+<p>To make your own: copy the folder, rename the package, the distribution, the entry point name and every id, replace the
+study, and keep the test.</p>
+<h2 id="writing-registerapi">Writing register(api)</h2>
+<pre><code>__version__ = '0.1.0'
+REQUIRES_API = 1                        # the plugin interface version it was written for
+
+def register(api):
+    from . import mystudy
+    api.study('my_study', 'My study', batch='my-study')(mystudy.run)
+    api.metric('my.figure', 'My figure', 'mm', 'lower', study='my_study', tags=('headline',))(
+        lambda doc: doc['summary']['figure_mm'])
+    api.page('my_study', 'My study', 'my_plugin.page:MyPage', menu='Analysis')
+</code></pre>
+<ul>
+<li>
+<p><strong>Ids</strong> must be new: a plugin cannot replace a built-in study, metric, exporter or dataset format, or reuse a
+built-in batch flag. A duplicate is skipped and Help ▸ Plugins says so in a sentence (&quot;… tried to add the study
+&quot;coverage&quot;, which DexVantage already has; it was not added.&quot;). Study ids are lower-case words joined by underscores
+(no dot: factor paths use <code>setting:&lt;study&gt;.&lt;key&gt;</code>). Prefix ids with your plugin's name.</p>
+</li>
+<li>
+<p><strong>Pages</strong> are given as <code>&quot;module:Class&quot;</code>, so loading a plugin never imports Qt: the class is imported when the window
+builds its pages. A page subclasses <code>dexvantage.ui.pages.base.StudyPage</code> (headline with a status word, Apply as one
+undo step through <code>ctx.store.edit</code>, Preview, Explain, Export with provenance, <code>overlays(vp)</code> for the 3D view).</p>
+</li>
+<li>
+<p><strong>Tag</strong> one metric per study <code>'headline'</code>: <code>Result.headline</code> and the API's HTML views use it.</p>
+</li>
+<li>
+<p><strong>Licences</strong>: bundle only data you may redistribute; a plugin's library entries follow the library schema and cite
+their sources like the built-in ones.</p>
+</li>
+<li>
+<p><strong>Validation checks</strong>: a plugin's study is a model, and docs/DEVELOPING.md asks every model to be compared with an
+independent reference. <code>api.check(id, title, quantity, reference, tolerance, unit, references={key: citation})</code>
+registers <code>fn(ctx) -&gt; api.Outcome(error, detail)</code> in the validation suite under the plugin's own model
+(<code>plugin.&lt;name&gt;</code>); <code>--validate</code>, <code>--validate --models plugin.&lt;name&gt;</code>, the self-test's cheap run and Help ▸ Validate
+the models run it with the built-in checks, and its references join the report's list and <code>--cite</code>'s BibTeX.
+A check id that is taken, or a reference key that DexVantage has with other text, is skipped with a sentence.</p>
+<pre><code>@api.check('my.vs_closed_form', 'My figure against its closed form', 'absolute error', 'the closed form',
+           1e-9, 'mm', references={'me2026': 'A. Author, &quot;Title&quot;, https://..., (read 2026-11-07).'})
+def _check(ctx):
+    ours, ref = my_figure(), closed_form()
+    return api.Outcome(abs(ours - ref), {'ours': ours, 'reference': ref})
+</code></pre>
+</li>
+</ul>
+<h2 id="loading-errors-and---no-plugins">Loading, errors and --no-plugins</h2>
+<p>Plugins load once at start-up, before the batch flags are built (a plugin study gets its flag), and on first use of
+the Python API. A plugin that raises in <code>register</code>, cannot be imported, or needs a newer <code>REQUIRES_API</code> is marked
+&quot;could not be loaded&quot; with a sentence (<code>broken could not be loaded: KeyError: 'sensors'.</code>); what it registered before
+the failure is removed, its traceback goes to the log (stderr), and DexVantage carries on. Help ▸ Plugins shows each
+plugin's name, version, distribution, status, what it added and its error or skipped items.</p>
+<p><code>dexvantage --no-plugins</code> (or <code>DEXVANTAGE_NO_PLUGINS=1</code>) finds the installed plugins without loading them: they are
+listed as &quot;off&quot;. <code>dexvantage --list-plugins</code> prints the list and exits.</p>
+<h2 id="testing-a-plugin">Testing a plugin</h2>
+<p>The template's <code>tests/conftest.py</code> gives the tests throw-away config, data and cache folders. To load the plugin
+without installing it, give <code>plugin_sdk.load</code> a fake entry point and unload it afterwards:</p>
+<pre><code>from importlib.metadata import EntryPoint
+from dexvantage import plugin_sdk as PL
+PL.load(entry_points=[EntryPoint('aim_template', 'dexvantage_plugin_template:register', PL.GROUP)])
+...
+PL.unload('aim_template')
+</code></pre>
+<p><code>plugin_sdk.load(paths=[folder])</code> finds plugins installed into a folder (<code>pip install --target folder</code>), which is how
+DexVantage's own <code>tests/test_plugins.py</code> installs the template into a temporary folder and finds it as a distribution.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>A plugin runs in DexVantage's process with its rights: there is no sandbox, so install only plugins you trust.
+Unloading removes what a plugin registered, not modules it imported or other state it changed. Pages are added when
+the window is built, so a plugin loaded later from Python adds its page only after a restart, and a page whose id
+equals a built-in page's is replaced by the built-in one (Help ▸ Plugins says so). The plugin interface is version 1; a change to a registry's
+contract (core/jobs, core/metrics, core/exporters, core/datasets, core/library, ui/pages) is a change for plugins too.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

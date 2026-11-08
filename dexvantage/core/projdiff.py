@@ -55,6 +55,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .jobs import StudyError
+from .metrics import delta_unit
 
 SCHEMA = 'dexvantage.diff/1'
 REL = 1e-12
@@ -481,7 +482,7 @@ def _fmt(v, unit='') -> str:
 def _metric_text(r) -> str:
     if r['delta'] is None:
         return 'not stated on both sides'
-    return f'{r["delta"]:+.4g} {r["unit"]} ({r["verdict"]})'.replace('  ', ' ')
+    return f'{r["delta"]:+.4g} {delta_unit(r["unit"])} ({r["verdict"]})'.replace('  ', ' ')
 
 
 def to_text(d: dict) -> str:

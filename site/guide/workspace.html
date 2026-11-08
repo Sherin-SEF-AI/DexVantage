@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Workspace page, the design log and the spec&#x27;s batch names · DexVantage</title>
+<meta name="description" content="This chapter covers what the Phases 9 and 10 spec-completeness review added: the Workspace page (spec §13), notesin the design log, another variant drawn beside the active one, the larger library in the Library panel, theCanonical view&#x27;s own depth range (§7.16), and the batch names of §11.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#worked-example-a-cup-outside-the-task-volume-so-100">Worked example: a cup outside the task volume (SO-100)</a>
+    <a href="#notes-and-decisions-in-the-design-log">Notes and decisions in the design log</a>
+    <a href="#another-variant-beside-the-active-one">Another variant beside the active one</a>
+    <a href="#the-larger-library-in-the-library-panel">The larger library in the Library panel</a>
+    <a href="#the-canonical-views-depth-range-716">The Canonical view&#x27;s depth range (§7.16)</a>
+    <a href="#the-specifications-batch-names-11">The specification&#x27;s batch names (§11)</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/workspace.md"><code>docs/guide/workspace.md</code></a></p>
+<h1 id="the-workspace-page-the-design-log-and-the-specs-batch-names">The Workspace page, the design log and the spec's batch names</h1>
+<p>This chapter covers what the Phases 9 and 10 spec-completeness review added: the Workspace page (spec §13), notes
+in the design log, another variant drawn beside the active one, the larger library in the Library panel, the
+Canonical view's own depth range (§7.16), and the batch names of §11.</p>
+<h2 id="worked-example-a-cup-outside-the-task-volume-so-100">Worked example: a cup outside the task volume (SO-100)</h2>
+<ol>
+<li><code>dexvantage --sample so100</code>, then <strong>Workspace ▸ Workspace</strong>. The headline reads <strong>1 volume · ready</strong>: the sample
+has one task volume, &quot;Tabletop (sample)&quot; (300 × 200 × 120 mm), a table surface and no task objects.</li>
+<li><strong>Add box object</strong> puts a 60 mm box on the volume's floor (one undo step). In the editor below the list, set its
+shape to <em>cylinder</em>, its size to radius 40 mm and height 100 mm, its position to x 450, y 50, z 50 mm and tick
+<em>Glossy</em> under Materials (each change one undo step; the lighting and depth studies read the tags).</li>
+<li>The headline turns to <strong>objects outside</strong>: &quot;1 of 1 objects lie outside every task volume (Box 1)&quot;. The 3D view
+outlines the selected object; the Camera view draws the same outline in the selected camera's image.</li>
+<li><strong>Preview</strong> draws the suggested volume dashed; <strong>Apply</strong> grows &quot;Tabletop (sample)&quot; to hold the cup with a 20 mm
+margin (a DexVantage default; the floor stays at z = 0): the volume becomes 660 × 449 × 120 mm, from
+(−0.15, −0.339, 0) to (0.51, 0.11, 0.12) m, and the headline reads <strong>ready</strong>. Undo puts the old volume back.</li>
+<li><strong>Add surface</strong> adds a 1 × 1 m table top at z = 0; set its height, size, centre, thickness (0: a rectangle) and
+material. Lights are listed here and edited on the Lighting page (the button opens it).</li>
+<li><strong>Export…</strong> writes the workspace and the check as JSON with provenance.</li>
+</ol>
+<p>The check is <code>core/workspace_check.py</code> (the model, its two validation checks and their measured agreement:
+<a href="../models/workspace.html">The workspace check</a>).</p>
+<h2 id="notes-and-decisions-in-the-design-log">Notes and decisions in the design log</h2>
+<p>The Analysis dock's last tab, <strong>Design log</strong>, lists every edit (newest first). Type a note in its field, choose
+<em>Note</em> or <em>Decision</em> and press Enter (or <strong>Add</strong>): it is kept in the project file (<code>project.log</code>, kind <code>note</code> or
+<code>decision</code>) and the project is marked as changed. <strong>Show</strong> filters the list: everything, notes and decisions, or edits.</p>
+<h2 id="another-variant-beside-the-active-one">Another variant beside the active one</h2>
+<p>On <strong>Analysis ▸ Requirements and variants</strong>, <strong>New variant from this one</strong> copies the active variant. Move a camera
+in the copy, then choose it under <strong>Show in 3D</strong>: its cameras are drawn as dashed frusta beside the active variant's,
+with a dashed line from each sensor to its counterpart of the same name. <em>Only the active variant</em> turns it off.</p>
+<h2 id="the-larger-library-in-the-library-panel">The larger library in the Library panel</h2>
+<p>The Library panel now has groups for <strong>Teleop devices</strong>, <strong>Policies</strong>, <strong>Lights</strong> and <strong>Cables</strong> next to the
+sensors and hosts. They are not placed in the scene: double-click opens the page that uses them and adds the entry
+there (a teleop device on the Teleop page, driving the primary robot; a policy on the Policies page; a light on the
+Lighting page, above the task volume), each one undo step; a cable is chosen per cable run on the Cables page. The
+<strong>Mounts</strong> group opens the Brackets page (ISO 9409-1 flange adapter, T-slot clamps, pan-tilt, palm and dorsal
+mounts).</p>
+<h2 id="the-canonical-views-depth-range-716">The Canonical view's depth range (§7.16)</h2>
+<p>By default the residual parallax is measured over a bound from the task volume and the pads' reach. Tick <strong>Own depth
+range</strong> on <strong>Export ▸ Canonical view</strong> and give the two distances from the contact plane (negative: beyond it;
+positive: towards the source camera; the upper end is held short of the camera's near limit). The setting is
+<code>depth_range_m</code> of the study; unticking returns to the default (each one undo step).</p>
+<h2 id="the-specifications-batch-names-11">The specification's batch names (§11)</h2>
+<table>
+<thead>
+<tr>
+<th>Specification</th>
+<th>DexVantage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--grasp-study grasps.json</code></td>
+<td>the same (also <code>--grasp</code>)</td>
+</tr>
+<tr>
+<td><code>--cable-flex out.json</code></td>
+<td>the same (also <code>--cables</code>)</td>
+</tr>
+<tr>
+<td><code>--mujoco-validate out/</code></td>
+<td>the same: a folder (one that exists, or a path ending in <code>/</code>) gets <code>out/groundtruth.json</code>; also <code>--groundtruth OUT.json</code></td>
+</tr>
+<tr>
+<td><code>--handeye-solve captures/</code></td>
+<td><code>--handeye-solve OUT.json --captures captures/</code> (the joint states are <code>joint_states.csv</code> or <code>.json</code> in the folder, or <code>--joints FILE</code>)</td>
+</tr>
+<tr>
+<td><code>--export out/ --formats mjcf,usd,…</code></td>
+<td><code>usd</code> is the Isaac Lab and Isaac Sim export (<code>isaac</code>)</td>
+</tr>
+<tr>
+<td><code>--formats …,fiftyone</code></td>
+<td>with <code>--dataset PATH</code>, or the dataset the project's audit uses</td>
+</tr>
+</tbody>
+</table>
+<p>Every study flag takes a folder as well as a file: <code>dexvantage --sample so100 --vla-tokens out/</code> writes
+<code>out/vla-tokens.json</code>.</p>
+<p>Example (a simulated capture, so the true mount offset is known):</p>
+<pre><code>dexvantage --sample ur5e --handeye-solve solve.json --captures cap/images --joints cap/joint_states.csv
+</code></pre>
+<p><code>tests/test_spec_completeness.py</code> renders such a capture of ten planned poses with MuJoCo and solves it in batch:
+the solved change matches the simulated offset within 0.3 mm.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

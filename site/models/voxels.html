@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sparse voxels with adaptive refinement · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/voxels.py. Tests: tests/test_voxels.py. Spec §7.1.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-grid">The grid</a>
+    <a href="#the-limit-and-its-message">The limit and its message</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/voxels.md"><code>docs/models/voxels.md</code></a></p>
+<h1 id="voxels">Sparse voxels with adaptive refinement</h1>
+<p>Module: <code>dexvantage/core/voxels.py</code>. Tests: <code>tests/test_voxels.py</code>. Spec §7.1.</p>
+<h2 id="the-grid">The grid</h2>
+<p><code>voxels.SparseGrid.from_project(project, voxel_mm=None, refine_mm=None, margin_m=0.02)</code> covers each task volume
+(an axis-aligned box, <code>project.workspace.volumes</code>) with cubic base voxels of edge <code>voxel_mm</code> (default
+<code>project.analysis.voxel_mm</code>, 5 mm by default): ceil(edge / voxel) per axis, as <code>core.jobs.voxel_count</code> counts them,
+the grid centred on the volume so it overhangs each face by less than half a voxel.</p>
+<p>A base voxel is <strong>refined</strong>, split into k³ voxels with k = ceil(voxel / refine) so that the refined edge voxel / k is
+at most <code>refine_mm</code> (default <code>project.analysis.refine_mm</code>, 2 mm by default: 5 mm / 3 = 1.67 mm), when</p>
+<ul>
+<li>its volume is a refinement region (<code>Volume.refine</code>), or</li>
+<li>it overlaps a task object's bounding box grown by <code>margin_m</code> (20 mm, a default): the object and its contact zone.</li>
+</ul>
+<p>The grid gives <code>.centers</code> (N, 3) float32 world metres, <code>.size</code> (N,) float32 edge metres, <code>.volume_index</code> (N,) int32
+into <code>.volumes</code>, <code>.refined</code> (N,) bool, <code>.count</code>, <code>.volume_m3</code> and <code>.chunks(n)</code>, which yields
+<code>Chunk(start, stop, centers, size, volume_index)</code> views of at most n voxels so a study's per-voxel temporaries stay
+bounded. The voxels' volumes add up to the base grid's volume exactly (refinement splits, it never adds).</p>
+<h2 id="the-limit-and-its-message">The limit and its message</h2>
+<p><code>voxels.estimate(project, voxel_mm=None, refine_mm=None)</code> counts the voxels before anything is built (a byte per base
+cell for the refinement mask) and returns <code>count</code>, <code>dense_count</code> (a dense grid at the refined size over the same
+volumes), <code>feasible</code> (count ≤ <code>core.jobs.DENSE_LIMIT</code>, 5 × 10⁷ voxels) and a plain-English <code>message</code>.
+<code>SparseGrid.from_project</code> refuses a grid over the limit with <code>core.jobs.StudyError(message)</code>. Spec §7.1's example
+reads, for one 1.5 × 1.5 × 1.2 m volume at 1 mm:</p>
+<blockquote>
+<p>A dense 1 mm grid over 1.5 × 1.5 × 1.2 m is 2.7 × 10⁹ voxels, which is over the limit of 5 × 10⁷ and is not
+built: use a coarser voxel size and keep the fine size to refinement regions around the objects or the contact
+zone.</p>
+</blockquote>
+<p>At the default 5 mm the same volume is 2.2 × 10⁷ voxels and fits; the message then says so, and that a dense 1.7 mm
+grid would be 5.8 × 10⁸ voxels, over the limit. <code>voxels.dense_message(size_m, voxel_m)</code> writes the sentence for any
+box.</p>
+<p>Sizes on the samples: the UR5e tabletop volume (0.50 × 0.40 × 0.30 m) is 480,000 voxels at 5 mm; the SO-100's
+(0.30 × 0.20 × 0.12 m) is 57,600.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>One level of refinement (base → k³), not a full octree.</li>
+<li>The refined zone around an object is its bounding box grown by the margin, not its shape.</li>
+<li>Volumes are axis-aligned boxes; where two volumes overlap, the shared space has voxels for each (each volume's
+statistics stay whole), so a sum over all voxels counts it twice.</li>
+<li>The 5 × 10⁷ limit (<code>core.jobs.DENSE_LIMIT</code>) is a memory bound of this build (about 1 GB for the centres, sizes,
+volume indices and refinement flags at 21 bytes per voxel), not a property of the method.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

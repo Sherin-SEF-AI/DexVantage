@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading ROS 2 bags and RLDS datasets · DexVantage</title>
+<meta name="description" content="DexVantage reads recorded episodes from ROS 2 bags (MCAP or SQLite) and from RLDS / Open X-Embodiment datasets intothe same episode shape it reads LeRobot datasets into, with no ROS and no TensorFlow installed. The model, the formatsand the validation are in Datasets: readers, writers and the …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#a-ros-2-bag-step-by-step">A ROS 2 bag, step by step</a>
+    <a href="#an-rlds--open-x-embodiment-dataset">An RLDS / Open X-Embodiment dataset</a>
+    <a href="#checking-the-readers-yourself">Checking the readers yourself</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/bags_rlds.md"><code>docs/guide/bags_rlds.md</code></a></p>
+<h1 id="reading-ros-2-bags-and-rlds-datasets">Reading ROS 2 bags and RLDS datasets</h1>
+<p>DexVantage reads recorded episodes from ROS 2 bags (MCAP or SQLite) and from RLDS / Open X-Embodiment datasets into
+the same episode shape it reads LeRobot datasets into, with no ROS and no TensorFlow installed. The model, the formats
+and the validation are in <a href="../models/datasets.html">Datasets: readers, writers and the shared episode shape</a> (sections <em>ROS 2 bags</em> and <em>RLDS</em>).</p>
+<h2 id="a-ros-2-bag-step-by-step">A ROS 2 bag, step by step</h2>
+<p>This example writes a two-second pick episode as a bag (the same way a recorder would: joint states at 100 Hz, a
+30 fps wrist camera with its CameraInfo, the static transform of the camera on the tool flange and the task string)
+and reads it back.</p>
+<pre><code class="language-python">import numpy as np
+from dexvantage.core import rosbag as rb
+from dexvantage.core.datasets import open_dataset
+
+T0 = 1_762_500_000_000_000_000                     # ns since the epoch
+names = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', 'wrist_2_joint',
+         'wrist_3_joint']
+with rb.BagWriter('out/pick_001') as bag:          # out/pick_001/pick_001_0.mcap + metadata.yaml
+    bag.add_topic('/joint_states', 'sensor_msgs/msg/JointState')
+    bag.add_topic('/wrist/color/image_raw', 'sensor_msgs/msg/Image')
+    bag.add_topic('/wrist/color/camera_info', 'sensor_msgs/msg/CameraInfo')
+    bag.add_topic('/tf_static', 'tf2_msgs/msg/TFMessage')
+    bag.add_topic('/task', 'std_msgs/msg/String')
+    T = np.eye(4); T[:3, 3] = [0.0, 0.05, 0.03]    # the camera 5 cm to the side of tool0, 3 cm up
+    bag.write('/tf_static', T0, {'transforms': [rb.transform_stamped(T, T0, 'tool0', 'wrist_optical')]})
+    bag.write('/task', T0, {'data': 'pick the red cube'})
+    for i in range(200):
+        st = T0 + i * 10_000_000
+        bag.write('/joint_states', st + 150_000, {'header': rb.header(st, 'base_link'), 'name': names,
+                                                   'position': [0.1 * np.sin(0.02 * i + k) for k in range(6)]})
+    for i in range(60):
+        st = T0 + 4_000_000 + i * 33_333_333
+        img = np.full((48, 64, 3), (i * 4) % 256, np.uint8)
+        bag.write('/wrist/color/image_raw', st + 6_000_000, rb.image_msg(img, st, 'wrist_optical'))
+        bag.write('/wrist/color/camera_info', st + 6_000_000,
+                  rb.camera_info(64, 48, 'plumb_bob', [0.05, -0.01, 0, 0, 0],
+                                 [[60.0, 0, 32], [0, 60, 24], [0, 0, 1]], t_ns=st, frame_id='wrist_optical'))
+
+with open_dataset('out/pick_001') as ds:
+    ep = ds.load(0)
+    cam = ep.cameras['/wrist/color/image_raw']
+</code></pre>
+<p>What comes back (run on 2026-11-07):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ds.format</code>, <code>ds.version</code>, episode ids</td>
+<td><code>mcap</code>, <code>v5</code>, <code>['pick_001']</code></td>
+</tr>
+<tr>
+<td><code>ep.q.shape</code>, <code>ep.task</code>, <code>ep.duration_s</code></td>
+<td><code>(200, 6)</code>, <code>pick the red cube</code>, <code>1.99</code> s</td>
+</tr>
+<tr>
+<td>camera size and frames</td>
+<td>64 × 48, 60 frames</td>
+</tr>
+<tr>
+<td>first <code>cam.timestamps</code></td>
+<td>0.004, 0.0373, 0.0707 s (header stamps from the episode start)</td>
+</tr>
+<tr>
+<td>first <code>cam.meta['log_times']</code></td>
+<td>0.010, 0.0433, 0.0767 s (when the recorder received them: 6 ms later)</td>
+</tr>
+<tr>
+<td><code>cam.intrinsics</code></td>
+<td>model <code>brown</code>, K row 1 = [60, 0, 32]</td>
+</tr>
+<tr>
+<td><code>cam.extrinsics</code></td>
+<td>frame <code>tool0</code>, position [0, 0.05, 0.03], quaternion [0, 0, 0, 1]</td>
+</tr>
+<tr>
+<td><code>next(cam.frames([10]))</code></td>
+<td>frame 10, a 48 × 64 × 3 uint8 RGB array</td>
+</tr>
+</tbody>
+</table>
+<p>Things to know when you open your own bags:</p>
+<ul>
+<li><strong>Folders of bags.</strong> Point <code>open_dataset</code> at a folder whose sub-folders are bags (or which holds loose <code>.mcap</code> /
+<code>.db3</code> files): each bag is one episode, in natural name order (<code>ep_2</code> before <code>ep_10</code>).</li>
+<li><strong>Compressed bags</strong> need the bags extra: <code>pip install &quot;dexvantage[bags]&quot;</code>. Without it, loading says so in a
+sentence. A bag compressed as whole files must be decompressed first with <code>ros2 bag decompress</code>.</li>
+<li><strong>Device clocks.</strong> If a camera driver stamps frames with the camera's own clock, DexVantage notices (its offset from
+the receive time differs from the joint states' by more than 10 s, a default) and moves those stamps to
+<code>cam.hw_timestamps</code>; <code>cam.meta['timestamp_source']</code> tells you what <code>timestamps</code> hold.</li>
+<li><strong>What is not read:</strong> actions (bags have no standard action message), the dynamic <code>/tf</code>, depth images (listed in
+<code>ep.meta['depth_streams']</code>).</li>
+</ul>
+<h2 id="an-rlds--open-x-embodiment-dataset">An RLDS / Open X-Embodiment dataset</h2>
+<p>Download a dataset folder with its <code>dataset_info.json</code>, <code>features.json</code> and TFRecord shards (for example one Open
+X-Embodiment dataset's <code>0.1.0</code> folder), then:</p>
+<pre><code class="language-python">from dexvantage.core.datasets.rlds import RldsDataset
+
+ds = RldsDataset('datasets/berkeley_autolab_ur5', fps=5.0)   # fps: your control rate; None leaves t in steps
+refs = ds.episodes()                    # 'train-000000', ... from the record headers only
+ep = ds.load(0)                         # CRCs checked; JPEG frames decoded only when asked for
+ep.q                                    # the observation's state vector (meta['state_feature'] names it)
+ep.action, ep.action_names              # 'world_vector_0', ... in features.json order
+ep.task                                 # the language instruction
+ep.cameras['observation/image'].frames([0])
+</code></pre>
+<p><code>open_dataset(path)</code> finds the format by itself; use <code>RldsDataset</code> directly when you want to give the fps. RLDS does
+not store times, so DexVantage does not invent them: without an fps, <code>ep.t</code> counts steps and
+<code>ep.meta['time_base']</code> is <code>'steps'</code>. A damaged record is refused with a sentence naming it (&quot;Record 3 of
+bridge-train.tfrecord-00012-of-01024 is damaged: its data checksum does not match, so it was not read&quot;), and the other episodes still read.</p>
+<h2 id="checking-the-readers-yourself">Checking the readers yourself</h2>
+<p>Help ▸ Validate the models… (or <code>dexvantage --validate out/validation</code>) runs <code>formats.mcap_roundtrip</code> and
+<code>formats.tfrecord_crc</code> among the format checks; both must report 0 mismatches.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

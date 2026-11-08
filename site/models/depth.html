@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Depth validity · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/studies/depth_validity.py (study depth_validity, batch flag --depth-validity OUT.json).Page: dexvantage/ui/pages/depth.py (Analysis ▸ Depth validity). Checks: dexvantage/validation/checks_depth.py(model depth). Tests: tests/test_depth_validity.py. Spec §7.2 and the depth …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-five-conditions">The five conditions</a>
+    <a href="#expected-depth-error">Expected depth error</a>
+    <a href="#settings">Settings</a>
+    <a href="#what-the-result-holds">What the result holds</a>
+    <a href="#the-min-z-blind-zone-in-the-3d-view">The min-Z blind zone in the 3D view</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/depth.md"><code>docs/models/depth.md</code></a></p>
+<h1 id="depth">Depth validity</h1>
+<p>Module: <code>dexvantage/core/studies/depth_validity.py</code> (study <code>depth_validity</code>, batch flag <code>--depth-validity OUT.json</code>).
+Page: <code>dexvantage/ui/pages/depth.py</code> (Analysis ▸ Depth validity). Checks: <code>dexvantage/validation/checks_depth.py</code>
+(model <code>depth</code>). Tests: <code>tests/test_depth_validity.py</code>. Spec §7.2 and the depth checks of §10.</p>
+<p>It builds on the library (<code>core/library</code>: the device's imagers, depth block and projector, <code>docs/models/library.md</code>),
+the lens models (<code>core/optics</code>, <code>docs/models/optics.md</code>), the sparse voxels (<code>core/voxels.py</code>, <code>docs/models/voxels.md</code>)
+and the articulated occlusion (<code>core/scenegeom.py</code>, <code>core/occlusion.py</code>, <code>docs/models/occlusion.md</code>).</p>
+<h2 id="the-five-conditions">The five conditions</h2>
+<p>A voxel (its centre) is <strong>depth-valid</strong> for a depth sensor when all five hold. They are tested in this order and the
+first that fails is the voxel's reason, so the reasons and the valid share add up to 100 % of the task volumes. Shares
+are volume weighted (refined voxels are smaller). Voxels whose centre lies inside a solid task object (box, cylinder or
+sphere) are left out of the task volumes, as in the coverage study: no sensor measures a solid's inside, and counted
+they would all read &quot;occluded&quot; (<code>voxels.inside_objects</code> in the result counts them).</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Reason id</th>
+<th>Condition</th>
+<th>Where its figures come from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>fov</code></td>
+<td>Inside the field of view of every imager the technology needs: <strong>both</strong> imagers of a stereo pair (active or passive); the pattern camera and the projector cone for structured light; the ToF imager for time of flight</td>
+<td><code>library.sensor_imagers</code> at the chosen depth resolution (a pinhole fitted to the stated depth FOV unless the unit is calibrated)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>min_z</code>, <code>max_range</code></td>
+<td>Depth z (along the reference imager's optical axis, Intel's depth convention) at least min-Z for the chosen resolution and at most the maximum range</td>
+<td>the entry's <code>min_z</code> table (else its stated <code>min_range_m</code>, labelled &quot;not per resolution&quot;); <code>max_range_by_mode</code> for the mode, else <code>max_range_m</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>occluded</code></td>
+<td>Seen by <strong>every</strong> needed imager: no robot link, task object or surface between the voxel and the imager's optical centre</td>
+<td>one cube map per imager centre (<code>occlusion.CACHE</code>), from <code>scenegeom.sensor_occluders</code> at q</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>projector</code></td>
+<td>Inside the IR projector's cone, for active sensors that need its texture</td>
+<td>the entry's <code>projector</code> (horizontal and vertical FOV and pose)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>material</code></td>
+<td>Not on a task object tagged <code>transparent</code>, <code>ir_absorbing</code> or specular (<code>glossy</code>, <code>metallic</code>)</td>
+<td><code>TaskObject.materials</code></td>
+</tr>
+</tbody>
+</table>
+<p>Notes on each:</p>
+<ol>
+<li><strong>Stereo overlap.</strong> Requiring both imagers is the overlap of their frusta. Intel's D400 datasheet (§4.4) gives its
+horizontal extent at distance Z as <code>Depth FOV = HFOV/2 + atan(tan(HFOV/2) − B/Z)</code> with the left imager as the
+reference; the check <code>depth.fov_overlap_formula</code> compares the two. The left edge of the overlap is Intel's
+&quot;invalid depth band&quot; (§4.5): near the camera, the left part of the depth image has no match in the right image.
+The spec says &quot;the RGB and projector FOVs&quot; for structured light; the camera that sees the pattern makes the depth,
+so the reference imager of the entry is used (no structured-light device is in the library yet).</li>
+<li><strong>Range.</strong> A figure the maker does not state is not tested, and the result says so (for example the D405 at
+640 × 480, which Table 4-12 gives as &quot;-&quot;). OAK's <code>min_z_extended</code> (extended-disparity mode) is not used.</li>
+<li><strong>Occlusion from either imager</strong> covers finger shadows and the parallax occlusion of a stereo pair: a voxel seen
+by one imager and hidden from the other has no depth. The result splits the occluded volume into &quot;hidden from one
+imager only&quot; and &quot;hidden from every imager&quot;. The mount link stays an occluder (a wrist camera sees its own
+gripper); triangles of it within 25 mm of an imager centre are its seat (<code>scenegeom.OWN_RADIUS_M</code>, a default).</li>
+<li><strong>Projector need</strong> is the per-sensor setting <code>projector</code>: <code>'auto'</code> (default) turns it on for active IR stereo when
+the device's projector and its FOV are stated, and always for structured light (where it is part of condition 1);
+off for passive stereo and ToF (a ToF illuminator's field is not in the library). The D4xx projector's position in
+the device is not stated by Intel; the library places it at a labelled assumption, and the page says so.</li>
+<li><strong>Materials</strong> are warnings with a reason: the geometry is fine, the surface may still give no depth.
+IR-absorbing warns only for the active technologies (active IR stereo, structured light, ToF), whose depth comes
+from their own IR light. A voxel is &quot;on&quot; an object inside the object's shape grown by half the voxel's diagonal
+(a mesh: its bounding box so grown). The result gives each object's share of the volume that is otherwise
+depth-valid, and the depth-valid share with and without the warnings (<code>valid_pct</code>, <code>valid_geometric_pct</code>).</li>
+</ol>
+<h2 id="expected-depth-error">Expected depth error</h2>
+<p>For stereo, z = f B / d; a disparity error σ_d propagates to first order as</p>
+<pre><code>σ_z = z² · σ_d / (f · B)
+</code></pre>
+<p>[Hartley and Zisserman 2004, §12; Gallup et al. 2008]. f is the reference imager's horizontal focal length in pixels
+at the chosen depth resolution (disparity is horizontal), B the stated baseline and σ_d the matcher's subpixel
+disparity error: the entry's <code>subpixel_px</code> when the maker states it, else the setting <code>sigma_d_px</code>, <strong>0.08 px by
+default (a default, not a device figure; no D4xx entry states one)</strong>. The result reports the median and the 5th and
+95th percentiles over the depth-valid voxels (volume weighted), written <code>median [p5–p95]</code>, and σ_z / z.</p>
+<p><strong>Against the maker.</strong> Where the entry states an RMS figure as a percentage at a distance, the page shows both: the
+maker's bound (for example the D405's &quot;RMS error ≤ 1 % at ≤ 0.5 m&quot;, Intel Table 4-15, so ≤ 5 mm at 0.5 m) and the
+model at that distance, with the σ_d that would make the model match the maker. They are not the same quantity:
+Intel's figure is a plane-fit RMS over 80 % of the field of view at HD resolution under its test conditions (a
+textured target in room light for the D405, a white wall with the projector for the others), an upper bound; the
+model is a per-point σ for an ideal matcher. On the UR5e sample at the default 0.08 px the model gives 1.56 mm for the
+D405 at 0.5 m (the bound is 5 mm; σ_d = 0.26 px would match it) and 9.5 mm for the D435 at 2 m (bound 40 mm; σ_d =
+0.34 px). ToF has no stereo error model: the maker's figure is shown alone.</p>
+<p>Not every maker's figure is an RMS. The entry's <code>rms_error.metric</code> says what it is: <code>rms</code> (Intel, and Orbbec's
+Gemini 2 and 335/336 &quot;RMS distance ... to a fitted plane&quot;), <code>median_abs</code> (Luxonis: &quot;median ... absolute depth
+error&quot;), <code>std_dev</code> (Orbbec Femto Bolt, in millimetres) or <code>unspecified</code> (Stereolabs: &quot;Depth Accuracy&quot; with no metric
+defined; also any entry without the field). The page shows the figure with its metric, and the σ_d that would match
+it only for <code>rms</code>; for the others that column reads &quot;not an RMS&quot;.</p>
+<h2 id="settings">Settings</h2>
+<p><code>project.analysis.studies['depth_validity']</code>, all optional:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sensors[uid].resolution</code></td>
+<td>the native depth stream</td>
+<td><code>[w, h]</code>, one of the device's depth modes (its depth streams and min-Z rows). Without it, the stream chosen for the sensor on the Sensors page (<code>Sensor.stream</code>) when that is a depth mode (the Inspector's min-Z and the Camera view use it), else the default: the largest listed depth stream, else the reference imager's largest stream, else the largest min-Z row, else its native resolution; the result says which</td>
+</tr>
+<tr>
+<td><code>sensors[uid].projector</code></td>
+<td><code>'auto'</code></td>
+<td><code>true</code> / <code>false</code> overrides the projector need</td>
+</tr>
+<tr>
+<td><code>sensors[uid].sigma_d_px</code>, <code>sigma_d_px</code></td>
+<td>0.08 px (a default)</td>
+<td>the disparity error when the maker states none</td>
+</tr>
+<tr>
+<td><code>cube_n</code></td>
+<td>512</td>
+<td>cube-map face size</td>
+</tr>
+<tr>
+<td><code>backend</code></td>
+<td><code>'auto'</code></td>
+<td>the occlusion backend (<code>'gl'</code>, <code>'numpy'</code>)</td>
+</tr>
+<tr>
+<td><code>q</code>, <code>pose</code></td>
+<td>home</td>
+<td>joint state per robot uid; the Depth page passes the 3D view's joint state with each run (view state: not stored). <code>pose: 'home'</code> ignores q</td>
+</tr>
+<tr>
+<td><code>good_pct</code>, <code>fair_pct</code></td>
+<td>80 %, 50 % (defaults)</td>
+<td>the status words: good from 80 %, partial from 50 %, else poor</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-the-result-holds">What the result holds</h2>
+<p>Per sensor: the resolution and whether it is the default, min-Z and maximum range with where they come from, f,
+B, σ_d (and whether it is the default), the projector need and why, each needed imager's label (what its camera model
+is and which of its figures are assumptions), the depth-valid share, the breakdown by first failing reason, the
+share failing each condition among the voxels in view, the occlusion split, per-volume shares, σ_z, the maker's
+figure beside the model, the material warnings, the depth of the robots' fingertip frames against min-Z, a sample of
+up to 3000 invalid voxels per reason for the 3D view, and its world pose. For the rig: the share depth-valid for at
+least one sensor (the page's headline). A suggestion (Apply on the page): the depth mode of the same aspect ratio
+with a smaller stated min-Z that makes the most task volume depth-valid (estimated from the voxels that fail min-Z
+alone), or, when none gains volume, the largest one whose min-Z clears fingertips that sit inside min-Z; ties go to
+the larger resolution because σ_z grows as the focal length in pixels shrinks.</p>
+<h2 id="the-min-z-blind-zone-in-the-3d-view">The min-Z blind zone in the 3D view</h2>
+<p><code>blind_zone_local(setup)</code> is the part of the reference imager's field of view nearer than min-Z: a pyramid from the
+optical centre to the plane z = min-Z, its edges sampled on the image border. The Depth page registers it as an
+overlay source (<code>ctx.overlay_sources</code>), so it is drawn on every page, translucent in the sensor's colour, from the
+sensor's world pose at the window's joint state: a wrist camera's zone moves with the wrist. View ▸ Depth min-Z
+zones turns it off. No zone is drawn when min-Z is not stated for the chosen resolution.</p>
+<h2 id="validation">Validation</h2>
+<p><code>dexvantage --validate out/validation --models depth</code> (or Help ▸ Validate the models…). Measured with the default
+seed on the discrete GPU's EGL backend (an NVIDIA GeForce RTX 5080), full run:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>depth.sigma_z_monte_carlo</code></td>
+<td>Monte Carlo: a rectified pair written out in the check, Gaussian noise on the right-image match, linear (DLT) triangulation, 40 000 trials per case; D405, D435, D455 geometry, σ_d 0.08 and 0.3 px, four depths from min-Z to the maximum range (24 cases)</td>
+<td>4.5 standard errors of a standard deviation (1/√(2(n − 1))) plus 3 (σ_d/d)², the second-order term the model leaves out: 0.0183</td>
+<td>0.0070 (largest relative difference)</td>
+</tr>
+<tr>
+<td><code>depth.d400_tables</code></td>
+<td>Intel's D400 datasheet Tables 3-49 and 4-12 and D457 datasheet Tables 3-19 and 4-4, read 2026-11-06, typed again in the check: min-Z at six resolutions (through the study's own lookup), baseline, depth FOV HD and VGA, projector FOV; D405, D415, D435, D435i, D455, D457</td>
+<td>0 figures</td>
+<td>0 of 92 differ</td>
+</tr>
+<tr>
+<td><code>depth.fov_overlap_formula</code></td>
+<td>Intel §4.4, Depth FOV = HFOV/2 + atan(tan(HFOV/2) − B/Z), with the model's own left-imager HFOV; D405, D435, D455 at 1280 × 720 and 848 × 480, Z from min-Z to 2 m</td>
+<td>0.01° (the sweep step is 0.0005°)</td>
+<td>0.00094°</td>
+</tr>
+<tr>
+<td><code>depth.finger_shadow_raycast</code></td>
+<td><code>raycast.visible_exact</code> (Möller–Trumbore through a uniform grid) from each imager centre; UR5e sample, wrist D405 and overhead D435, three random arm poses with the gripper partly closed, points in the D405's frustum (30 to 600 mm) and in the task volume</td>
+<td>1e-3 of the point-imager pairs away from a silhouette (and under 2 % in all); points seen by one imager only must occur</td>
+<td>0 of 242 850 away from a silhouette; 0.16 % within two texels of one; 8675 points seen by one imager only</td>
+</tr>
+</tbody>
+</table>
+<p>The table check is a second reading of the same documents, not a second source: it catches transcription errors and
+a broken resolution lookup, not an error in the datasheet.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The voxel centre stands for the voxel. Occlusion is per cube-map texel from each imager's optical centre (points
+within about a texel of a silhouette may be judged either way, <code>docs/models/occlusion.md</code>); no sensor housing is an
+occluder. The projector's own shadow is not modelled, only its cone, and the D4xx projector's position is a labelled
+assumption. The imagers at a depth stream take the stated depth FOV, which Intel states as the overlap at one
+distance (0.2 m for the D405 and 2 m for the D415, D43x and D455 in the D400 datasheet, 4 m for the D457 in its own),
+so the modelled overlap is narrower than the one the stated figure implies: by 2.9–3.6° for the D405 and 0.7–1.9° for
+the others from min-Z outwards; Intel gives about ±3° unit to unit. min-Z is measured from the optical
+centre, not the front glass (Intel's depth start point is a few millimetres away). Materials are tags, not optics: no
+reflectance, multipath, sunlight or IR wash-out (§7.8). σ_z is first order in σ_d / d and leaves out calibration
+error, matcher bias, quantisation and the matcher's dependence on texture. Lens distortion is what the library
+states (a pinhole unless the unit is calibrated). The Camera view overlay of the depth-valid mask is not drawn yet.</p>
+<h2 id="references">References</h2>
+<p>R. Hartley and A. Zisserman, Multiple View Geometry in Computer Vision, 2nd ed., 2004. D. Gallup, J.-M. Frahm,
+P. Mordohai and M. Pollefeys, &quot;Variable baseline/resolution stereo&quot;, CVPR 2008. RealSense, D400 Series Datasheet
+337029-017 rev. 023 (March 2026), https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf;
+D457 Datasheet 337029-011 rev. 006 (August 2025), https://realsenseai.com/wp-content/uploads/2025/08/RealSense-D457-Datasheet-Aug_2025.pdf;
+both read 2026-11-06.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

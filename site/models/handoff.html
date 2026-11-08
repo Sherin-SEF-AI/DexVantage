@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visual-to-tactile handoff and the sensory blind gap (spec §7.15) · DexVantage</title>
+<meta name="description" content="Part 2 of dexvantage/core/studies/dex_hand_tactile.py (the multi-finger occlusion study, --dex-occlusion; theresult&#x27;s handoff key; tactile_handoff(project) runs it alone) · the chart on Analysis ▸ Multi-fingerocclusion · check dexhand.blind_gap_bruteforce (dexvantage/validation/checks_chunk.py).">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-approaches">The approaches</a>
+    <a href="#the-tactile-pads-at-contact">The tactile pads at contact</a>
+    <a href="#the-gap">The gap</a>
+    <a href="#validation-measured-2026-11-07">Validation (measured 2026-11-07)</a>
+    <a href="#on-the-samples">On the samples</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/handoff.md"><code>docs/models/handoff.md</code></a></p>
+<h1 id="visual-to-tactile-handoff-and-the-sensory-blind-gap-spec-715">Visual-to-tactile handoff and the sensory blind gap (spec §7.15)</h1>
+<p>Part 2 of <code>dexvantage/core/studies/dex_hand_tactile.py</code> (the multi-finger occlusion study, <code>--dex-occlusion</code>; the
+result's <code>handoff</code> key; <code>tactile_handoff(project)</code> runs it alone) · the chart on <strong>Analysis ▸ Multi-finger
+occlusion</strong> · check <code>dexhand.blind_gap_bruteforce</code> (<code>dexvantage/validation/checks_chunk.py</code>).</p>
+<p>The question: as the hand closes in on the object, when do the cameras lose sight of each fingertip's contact region,
+and does a tactile pad take over at contact? The distance before contact over which a contact is neither seen nor
+touched is the <strong>sensory blind gap</strong>.</p>
+<h2 id="the-approaches">The approaches</h2>
+<p>They end at the study's contact cases: each grasp of a grasp set reached by IK, or each grasp posture fully closed
+(at most <code>handoff_max_cases</code>, default 6, evenly spaced). Along each, the gripper frame is backed off along −approach
+(the grasp's approach, else the gripper's approach axis, <code>core/grasps.py</code> <code>gripper_geometry</code>, turned with the frame)
+by a distance d, and the arm is solved by IK from the solution at the nearer distance (<code>nearest_q0</code>, one seed,
+self-collision not checked; the hand keeps its contact posture), as the grasp study poses its pre-contact steps.</p>
+<p>At each d, part 1's kernel (<code>visibility_at</code>: exact ray casting by default, owner groups, the cameras' lens models)
+gives each fingertip's share of its contact patch that some camera sees. Along the approach the task objects occlude
+(<code>handoff_objects_occlude</code>, default on: the object is what hides the contact as the fingers close on it). A fingertip
+is seen from <code>min_visible_pct</code> (50 %, a default).</p>
+<p>Distances: 0 to <code>handoff_max_mm</code> (default 50 mm, the grasp study's pre-contact default) every <code>handoff_step_mm</code>
+(10 mm), then every <code>handoff_refine_mm</code> (2 mm) inside each coarse interval where a fingertip's seen state changes.</p>
+<h2 id="the-tactile-pads-at-contact">The tactile pads at contact</h2>
+<p>Every tactile sensor in use on a link of a finger covers that finger's patch points within <code>pad_gap_mm</code> (3 mm) of its
+sensing plane and inside its pad, <code>pad_mm</code> from the library entry (GelSight Mini 18.6 × 14.3 mm, DIGIT 19 × 16 mm,
+both cited; not stated → coverage not known). A pad left at its link's origin (the mount pose not set, as the Library
+adds one) is <strong>assumed</strong> centred on the patch, facing along its mean normal, its longer side along the patch's longer
+extent; the result labels it. A placed pad senses along its mount's body x axis (REP-103 forward), its sides along
+body y and z. A fingertip is touched from <code>min_touch_pct</code> (50 %) of its patch on a pad.</p>
+<h2 id="the-gap">The gap</h2>
+<p>From (distance, seen) samples of a fingertip:</p>
+<pre><code>gap = 0                                  when seen at contact
+    = (d_last_hidden + d_first_seen) / 2  otherwise
+    = d_max (&quot;or more&quot;)                   when never seen
+</code></pre>
+<p>and the hidden total counts every stretch not seen, a change of state at the midpoint between samples. Touch begins
+only at contact, so a fingertip neither seen nor touched at contact is <strong>unsensed at contact</strong> whatever its gap.
+Flags: a gap above <code>blind_gap_max_mm</code> (default 10 mm) or an unsensed contact. Status: good with no flag, warning for
+flagged gaps up to 2 × the threshold, serious above, critical when a contact is unsensed (defaults).</p>
+<h2 id="validation-measured-2026-11-07">Validation (measured 2026-11-07)</h2>
+<p><code>dexhand.blind_gap_bruteforce</code>: the dexhand sample with only its head camera and a 4 mm plate between it and the
+hand, its top edge where the line of sight to the patches' centre passes 20 mm before contact; the fully closed power
+posture, 0 to 40 mm. The adaptive scan (13 visibility evaluations) against a scan of every distance at 2 mm (21
+evaluations): <strong>0 mm difference</strong> over the five fingertips, two transitions (the middle finger lost at 19 mm, the ring
+finger at 37 mm; the first finger, little finger and thumb not seen over the whole 40 mm); tolerance one refine step,
+2 mm, because both read the same kernel at the same distances where they meet and can differ only where a short
+seen or hidden stretch falls between two coarse samples.</p>
+<h2 id="on-the-samples">On the samples</h2>
+<p>The dexhand sample (no task object, no tactile sensor): its three closed postures are seen by the head camera up to
+contact (gap 0 mm, status good), and the notes say no tactile sensor is on the fingers. With a DIGIT on every
+fingertip and the plate above, the first three fingers are touched at contact (72–78 % of the patch on the pad), the
+little finger's patch is 48 % covered and the thumb's 11 % (its patch wraps round the distal link, wider than the 19
+× 16 mm pad), so those two stay unsensed at contact: critical, and the flags name them. Time: about 6 s for three
+approaches (18 evaluations, exact ray casting on the CPU; no GPU is used by the default backend), on top of part 1's
+4.5 s; <code>--dex-occlusion</code> on the sample takes about 12 s with start-up.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The approach is a straight line in the gripper frame's position with the hand already in its contact posture (the
+fingers do not close as it comes in); a seen or hidden stretch shorter than the coarse step inside one interval can
+be missed (the check measures it on one scene); a distance IK cannot reach is left out and counted; touch is judged
+only at contact and by geometry (a pad's footprint on the patch), not by contact force or the sensor's sensitivity;
+an assumed pad placement is a guess the result labels, and only the pad's mount pose says where it really is.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

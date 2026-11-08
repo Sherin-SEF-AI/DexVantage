@@ -11,7 +11,7 @@ prints (29 s on the RTX 5080, most of it the grasp study):
 
     Readiness scorecard · Wrist D405 + overhead D435 (sample)
     Requirement                          Metric                    Value       Threshold         Margin     Status
-    Contact visibility                   grasp.contact_visibility  100 %       ≥ 95 % (default)  +5 %       pass
+    Contact visibility                   grasp.contact_visibility  100 %       ≥ 95 % (default)  +5 pp      pass
     Camera to joint-state skew           sync.skew_ms              ≥ 54.43 ms  < 2 ms (default)  −52.43 ms  fail
     No controller over budget            bandwidth.over_budget     —           ≤ 0 (default)     —          not evaluated
     No cable pull or snag                cables.pull_snag          ≥ 3         ≤ 0 (default)     −3         fail

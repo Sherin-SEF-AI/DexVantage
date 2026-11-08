@@ -166,7 +166,8 @@ def test_progress_and_cancel(arm6):
 
 
 def test_sample_so100_is_solved_position_only():
-    samples = pytest.importorskip('dexvantage.core.robot.samples')
+    samples = pytest.importorskip('dexvantage.core.robot.samples',
+                                  reason='the robot samples module does not import here')
     from dexvantage.core.robot import get_model
     try:
         p = samples.sample_project('so100')

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A research workflow from Python · DexVantage</title>
+<meta name="description" content="examples/03_research_workflow.py goes once through the research tools on the SO-100 sample: the experiment tracker,statistics and power, the campaign planner, a tolerance sweep on a process pool, the multi-cell comparison, the projectdiff and the publication kit. Run it as a script (about 4 s and …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-two-rigs">1. Two rigs</a>
+    <a href="#2-track-and-export-the-runs">2. Track and export the runs</a>
+    <a href="#3-statistics-and-power">3. Statistics and power</a>
+    <a href="#4-the-campaign">4. The campaign</a>
+    <a href="#5-a-sweep-on-a-process-pool">5. A sweep on a process pool</a>
+    <a href="#6-two-cells-and-the-change-reviewed">6. Two cells, and the change reviewed</a>
+    <a href="#7-publish">7. Publish</a>
+    <a href="#plugins-with-validation-checks">Plugins with validation checks</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/research-workflow.md"><code>docs/guide/research-workflow.md</code></a></p>
+<h1 id="a-research-workflow-from-python">A research workflow from Python</h1>
+<p><code>examples/03_research_workflow.py</code> goes once through the research tools on the SO-100 sample: the experiment tracker,
+statistics and power, the campaign planner, a tolerance sweep on a process pool, the multi-cell comparison, the project
+diff and the publication kit. Run it as a script (about 4 s and 0.8 GB here, the result cache warm) or open it as a
+notebook with <code>jupytext --to notebook examples/03_research_workflow.py</code>; <code>DEXVANTAGE_EXAMPLE_OUT</code> chooses where it
+writes (default: a new temporary folder). <code>tests/test_completeness_api.py</code> runs it.</p>
+<h2 id="1-two-rigs">1. Two rigs</h2>
+<pre><code>import dexvantage as dv
+rig = dv.sample('so100')
+cam = next(s.name for s in rig.sensors if 'Third-person' in s.name)
+raised = rig.with_factors({f'sensor:{cam}.dz': 0.10})     # the third-person camera 100 mm higher
+</code></pre>
+<h2 id="2-track-and-export-the-runs">2. Track and export the runs</h2>
+<pre><code>store = dv.run_store('out/runs')
+dv.track(rig.run('coverage'), rig, store=store, tags=['baseline'])
+dv.track(raised.run('coverage'), raised, store=store, tags=['camera raised'])
+dv.runs(store)                                     # one row per run, one column per metric
+dv.export_runs(store, 'out/runs_export')           # runs.csv, runs.parquet, mlruns/, wandb/
+</code></pre>
+<p>The two headlines read &quot;Task volume seen: 94.5 % (gaps)&quot; and &quot;Task volume seen: 94.3 % (gaps)&quot;. The export says
+<code>{'csv': 'ok', 'parquet': 'ok', 'mlflow': 'ok', 'wandb': 'ok'}</code>; <code>mlflow ui --backend-store-uri out/runs_export/mlruns</code>
+shows the runs (MLflow is an optional extra), and <code>wandb/replay_wandb.py</code> replays them into W&amp;B offline.</p>
+<h2 id="3-statistics-and-power">3. Statistics and power</h2>
+<pre><code>dv.stats.compare_rates([('Policy A', 14, 20), ('Policy B', 19, 20)]).headline['text']
+# 'Smallest corrected p-value of the comparisons: p = 0.0915 (no clear difference)'
+dv.stats.episodes_needed(0.70, 0.95)['n_per_group']     # 39
+</code></pre>
+<p>The success counts are example inputs: use your evaluation's. α 0.05 and power 0.8 are defaults.</p>
+<h2 id="4-the-campaign">4. The campaign</h2>
+<pre><code>dv.campaign.plan(rig).headline['text']       # 'Campaign episodes recorded: 50 (no budget set)'
+</code></pre>
+<h2 id="5-a-sweep-on-a-process-pool">5. A sweep on a process pool</h2>
+<pre><code>mc = dv.cluster.tolerance(rig, jobs=2, n=16, metrics=['coverage.covered'], cache_dir='out/cluster-cache')
+</code></pre>
+<p>&quot;Monte Carlo tolerances: P5 94.4 % (no requirement). Task volume seen: 94.56 % ± 0.116 % (σ over 16 draws) …&quot;. The
+result equals a single process's. Spawned workers import the main script again, so a script that starts workers keeps
+its top-level code under <code>if __name__ == '__main__':</code>; DexVantage refuses a pool started outside it with one sentence
+(&quot;A pool of 2 workers starts worker processes, and each spawned worker imports your script again, so the script must
+make this call under &quot;if <strong>name</strong> == '<strong>main</strong>':&quot; (line 3 of sweep.py is outside it). …&quot;). A notebook needs no guard;
+run as a script, the example uses one worker.</p>
+<h2 id="6-two-cells-and-the-change-reviewed">6. Two cells, and the change reviewed</h2>
+<pre><code>dv.cells.compare(rig, raised).headline['text']   # 'Largest geometric gap to the reference cell: 0.0209 index (small gap)'
+d = dv.diff(rig, raised, metrics=['coverage.covered'])
+print(d.text)
+# sensors  changed  Sensor Third-person camera (sample placement): mount pose moved 100.0 mm (x +0.0, y +0.0, z +100.0 mm) ...
+#   Task volume seen  94.52 % → 94.32 %  -0.2014 pp (worse)
+d.save('out/diff.json'); open('out/diff.html', 'w').write(d.html)
+m = dv.merge(base, ours, theirs)                  # m.rig, or dv.MergeConflict listing each conflict
+raised.save('out/so100_raised.dexv.d')            # the Git-friendly folder form
+</code></pre>
+<h2 id="7-publish">7. Publish</h2>
+<pre><code>dv.publication.export(rig, 'out/paper', {'coverage': cov})   # main.tex, methods.tex, tables/, figures/, refs.bib
+dv.bibtex(rig, 'out/refs.bib')                                # every source the rig depends on
+dv.figure(cov, 'out/coverage.svg')                            # 88.9 mm wide (one IEEE column); .pdf works too
+</code></pre>
+<h2 id="plugins-with-validation-checks">Plugins with validation checks</h2>
+<p>A plugin that adds a study can now add its validation check too (<code>api.check</code>, <code>docs/guide/plugins.md</code>): it runs in
+<code>--validate</code> under the plugin's own model and cites its references in the report.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>See <code>docs/models/research-api.md</code>: the functions are thin layers over the modules batch mode uses and keep their
+limits; the main-guard check sees only pools started from a script's own top-level code.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

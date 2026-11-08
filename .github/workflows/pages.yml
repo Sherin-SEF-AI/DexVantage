@@ -1,0 +1,50 @@
+# Publishes the website in site/ to GitHub Pages when it changes on main, and by hand (Actions > Website > Run
+# workflow). The site is static and committed as built (python scripts/build_site.py, --validation, --media): this
+# workflow builds nothing; it checks the site's links and HTML (standard library only) and deploys the folder.
+# Pages must first be turned on for the repository (Settings > Pages > Source: GitHub Actions).
+#
+# The shape follows GitHub's starter workflow for static content (actions/starter-workflows pages/static.yml) and the
+# READMEs of the four official actions, read 2026-11-08. Actions are pinned by commit SHA with the release in the
+# comment: change the SHA and the comment together.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'scripts/build_site.py', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read    # read-only by default; the deploy job adds what Pages needs
+
+# one deployment at a time; a deployment in progress is allowed to finish
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify that the deployment comes from this workflow
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check the site's links and HTML
+        run: python3 scripts/build_site.py --check
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

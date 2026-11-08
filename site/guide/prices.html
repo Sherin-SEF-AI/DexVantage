@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prices and the rig cost · DexVantage</title>
+<meta name="description" content="The library carries cited list prices (docs/models/library.md#prices): one unit&#x27;s price as the maker&#x27;s own store orofficial price list stated it on the date read, with the page&#x27;s URL. The rig inventory adds them up as rig.cost.Nothing is estimated and no currency is converted.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#worked-example-the-ur5e-sample">Worked example: the UR5e sample</a>
+    <a href="#when-a-part-has-no-price-the-dexhand-sample">When a part has no price: the dexhand sample</a>
+    <a href="#in-the-optimiser">In the optimiser</a>
+    <a href="#prices-in-another-currency">Prices in another currency</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/prices.md"><code>docs/guide/prices.md</code></a></p>
+<h1 id="prices-and-the-rig-cost">Prices and the rig cost</h1>
+<p>The library carries cited list prices (docs/models/library.md#prices): one unit's price as the maker's own store or
+official price list stated it on the date read, with the page's URL. The rig inventory adds them up as <code>rig.cost</code>.
+Nothing is estimated and no currency is converted.</p>
+<h2 id="worked-example-the-ur5e-sample">Worked example: the UR5e sample</h2>
+<pre><code class="language-python">import dexvantage as dv
+
+rig = dv.sample('ur5e')                      # a Wrist D405 and an Overhead D435
+rig.metrics(['rig.cost'])['rig.cost']
+# {'value': 700.0, 'unit': 'USD', 'status': 'ok', ...}
+
+dv.price('intel-realsense-d405')
+# {'amount': 325, 'currency': 'USD', 'unit': 'each', 'kind': 'maker_store',
+#  'source': 'https://store.realsenseai.com/buy-realsense-depth-camera-d405.html', 'read': '2026-11-07', ...}
+
+dv.prices('depth').to_frame()                # every depth camera's price, source and date
+</code></pre>
+<p>From the command line the same figure is in the rig inventory's JSON:</p>
+<pre><code>python -m dexvantage --sample ur5e --rig-inventory out/rig.json     # cost: {&quot;value&quot;: 700.0, &quot;unit&quot;: &quot;USD&quot;, ...}
+</code></pre>
+<h2 id="when-a-part-has-no-price-the-dexhand-sample">When a part has no price: the dexhand sample</h2>
+<p>The dexhand sample's palm camera (OmniVision OVM6948) has no price on a maker's page, so the cost is a lower bound:</p>
+<pre><code class="language-python">dv.sample('dexhand').metrics(['rig.cost'])['rig.cost']
+# {'value': 574.0, 'bound': 'at_least', 'status': 'ok',
+#  'reason': 'At least 574.00 USD: a price is not stated for 1 of the 3 parts (Palm micro camera ...), ...'}
+</code></pre>
+<p>A requirement <code>rig.cost &lt;= 500 USD</code> fails on it (at least 574 cannot be at most 500); <code>rig.cost &lt;= 1000 USD</code> stays
+&quot;not evaluated&quot; until the palm camera has a price. To give it one, add a custom library entry (a JSON file in the user
+library, docs/models/library.md, Custom devices) with a <code>price</code> block naming your quote (the figures below are placeholders for yours, not a price):</p>
+<pre><code class="language-json">&quot;price&quot;: {&quot;amount&quot;: 120, &quot;currency&quot;: &quot;USD&quot;, &quot;unit&quot;: &quot;each&quot;, &quot;kind&quot;: &quot;reseller&quot;,
+          &quot;source&quot;: &quot;https://your-distributor.example/quote-123&quot;, &quot;read&quot;: &quot;2026-11-07&quot;, &quot;what&quot;: &quot;quote for 10 pcs&quot;}
+</code></pre>
+<h2 id="in-the-optimiser">In the optimiser</h2>
+<p><code>rig.cost</code> is one of the optimiser's default objectives. It is used only when every device the search can choose
+states a price; otherwise it is dropped with a sentence naming the devices without one. On the UR5e and ALOHA samples
+(RealSense cameras only) it is used.</p>
+<h2 id="prices-in-another-currency">Prices in another currency</h2>
+<p>Every built-in price is in US dollars. A custom entry in another currency gives the rig inventory a total in that
+currency, but <code>rig.cost</code> (a USD figure) reads &quot;not stated&quot; for it, and a rig mixing currencies is refused: no exchange
+rate is assumed.</p>
+<p>Known limits: list prices without tax, shipping or discounts, on the date read; volume prices (NVIDIA modules, 1000+)
+are marked <code>min_quantity</code>; only the enabled sensors are counted; prices go stale, and the validation check fails a
+price read more than two years ago.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

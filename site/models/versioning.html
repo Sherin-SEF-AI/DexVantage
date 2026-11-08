@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project diff, merge and the Git folder form · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/projdiff.py (diff, metric deltas, three-way merge), dexvantage/core/projfolder.py(the unpacked folder and the git diff text), dexvantage/batch_research.py (batch options),dexvantage/ui/versioning.py (File ▸ Compare with…, Save as folder (for Git)…, Open folder…). …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-diff">The diff</a>
+    <a href="#the-three-way-merge">The three-way merge</a>
+    <a href="#the-unpacked-folder">The unpacked folder</a>
+    <a href="#validation-measured-2026-11-07-quick-and-full-runs-agree">Validation (measured 2026-11-07, quick and full runs agree)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/versioning.md"><code>docs/models/versioning.md</code></a></p>
+<h1 id="project-diff-merge-and-the-git-folder-form">Project diff, merge and the Git folder form</h1>
+<p>Modules: <code>dexvantage/core/projdiff.py</code> (diff, metric deltas, three-way merge), <code>dexvantage/core/projfolder.py</code>
+(the unpacked folder and the <code>git diff</code> text), <code>dexvantage/batch_research.py</code> (batch options),
+<code>dexvantage/ui/versioning.py</code> (File ▸ Compare with…, Save as folder (for Git)…, Open folder…). Validation:
+<code>dexvantage/validation/checks_versioning.py</code> (model <code>versioning</code>).</p>
+<h2 id="the-diff">The diff</h2>
+<p><code>diff(a, b)</code> compares two projects (Project objects, <code>.dexv</code> files or unpacked folders) in the project's own terms
+and returns JSON with the schema <code>dexvantage.diff/1</code>:</p>
+<pre><code>{'schema', 'a': {'name', 'file'}, 'b': {...}, 'identical', 'counts': {section: n},
+ 'changes': [{'section', 'op', 'kind', 'item', 'field', 'path', 'before', 'after', 'delta'?, 'text'}],
+ 'metrics': [{'id', 'title', 'unit', 'better', 'study', 'a', 'b', 'delta', 'verdict', 'status_a', 'status_b'}]}
+</code></pre>
+<p>Sections, in this order: meta (name, notes), robots (and their joints and links by name), variants, sensors (every
+variant's), workspace (volumes, objects, lights, surfaces, background), tasks (grasp sets, trajectories, teleop
+devices), requirements, policies, rig (hosts and their controllers, hubs, links, clocks, stream triggers), cables,
+calibration (boards, sessions), settings (voxel sizes and each study's settings), data (datasets, audit
+requirements) and files (mesh arrays and stored model files, by SHA-256). The design log and the creation and save
+times are not compared; nor is the &quot;live analysis&quot; view toggle.</p>
+<p><strong>Matching.</strong> Items with a uid are matched by uid; those left are matched by name when both projects hold that name
+once. A matched pair is compared field by field: a dict is walked, a list or a pose is one value. Numbers are equal
+within one part in 10¹² (a save and load can change the last bit of a normalised quaternion).</p>
+<p><strong>Pose deltas.</strong> For a mount or base pose that changed, the diff reports</p>
+<pre><code>shift (mm) = 1000 · (p_b − p_a)                in the parent frame's axes
+distance (mm) = |shift|
+turn (°) = 2 · atan2(|v|, |w|) of q_a⁻¹ q_b    (frames.quat_angle; full precision near zero)
+</code></pre>
+<p><strong>Metric deltas.</strong> With study results for both projects ({study id: result doc}, for example the window's analysis
+cache), <code>metric_deltas</code> reads every metric of core/metric_defs.py whose study both hold, with <code>core/metrics.read</code>,
+and gives <code>delta = b − a</code> and a verdict (better, worse or same by the metric's direction). <code>evaluate_deltas</code> runs the
+metrics' studies on both projects (<code>core/metrics.evaluate</code>, each study once per project). A figure one side does not
+state gives no delta (&quot;not stated on both sides&quot;), never a guess.</p>
+<h2 id="the-three-way-merge">The three-way merge</h2>
+<p><code>merge3(base, ours, theirs)</code> merges two edits of one project on the project's JSON:</p>
+<ul>
+<li>a value only one side changed takes that side; the same change on both sides is taken once;</li>
+<li>lists of items with uids (robots, sensors, variants, volumes, objects, requirements, policies, hosts, cables,
+boards, datasets…) and the rig's links (keyed by sensor) merge item by item; items the other side added are
+appended in its order;</li>
+<li>other lists (joint tables, grasp poses, trajectory samples) and poses (position and orientation together) are single
+values;</li>
+<li>mesh arrays and stored model files merge by key; the design log keeps ours and appends their new entries.</li>
+</ul>
+<p>A conflict is a value both sides changed differently, an item one side removed while the other changed it, or a
+reference the merge would leave dangling that neither side had (a sensor mounted on a robot the other side removed, a
+policy camera, cable or link naming a removed sensor, an active variant that is gone). Any conflict refuses the whole
+merge with <code>MergeConflict</code>, a sentence that lists each place (&quot;variants ▸ Rig A ▸ sensors ▸ Wrist D405 ▸ mount ▸ pose
+(base …, yours …, theirs …)&quot;); nothing half-merged is returned.</p>
+<h2 id="the-unpacked-folder">The unpacked folder</h2>
+<p><code>save_unpacked(project, 'cell.dexv.d')</code> writes one pretty-printed JSON file per section (sorted keys, two-space
+indent, UTF-8, a final newline), mesh arrays as <code>.npy</code> files (<code>allow_pickle</code> off) and the stored model files under
+their own names; <code>project.json</code> lists them. <code>Project.load</code> and <code>Project.save</code> use this form for a folder or a path
+ending in <code>.dexv.d</code>, so the window, batch mode and the API open it like a <code>.dexv</code> file.</p>
+<p>Byte stability: the same project gives the same bytes in every file; a save writes only the files whose bytes changed
+and removes only the files it wrote before (a <code>.gitattributes</code> or a README in the folder is left alone). The save time
+is not written (it would change every file on every save); git's history says when.</p>
+<p><code>textconv(path)</code> prints each section's JSON as the folder holds it, then one line per mesh array (dtype, shape,
+SHA-256) and stored file (size, SHA-256), for <code>git diff</code> (docs/guide/versioning.md).</p>
+<h2 id="validation-measured-2026-11-07-quick-and-full-runs-agree">Validation (measured 2026-11-07, quick and full runs agree)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance (why)</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>versioning.diff_lists_edits</code></td>
+<td>the 24 seeded edits of nine kinds, recorded as applied</td>
+<td>0 changes (a change is listed or not)</td>
+<td>0 missed, 0 extra; a project against its own copy: identical</td>
+</tr>
+<tr>
+<td><code>versioning.pose_deltas</code></td>
+<td>the applied shift (m × 1000) and the angle of the applied rotation (SciPy <code>Rotation.magnitude</code>)</td>
+<td>10⁻⁶ mm or ° (float64 on metre-sized values carries about 10⁻¹³)</td>
+<td>0 (3 poses)</td>
+</tr>
+<tr>
+<td><code>versioning.merge_cases</code></td>
+<td>eight cases with the outcome written out</td>
+<td>0 cases</td>
+<td>8 of 8: four merges with the expected number of changes from the base, four refusals</td>
+</tr>
+<tr>
+<td><code>versioning.unpack_round_trip</code></td>
+<td>the first unpacking's bytes; <code>provenance.project_digest</code></td>
+<td>0 files</td>
+<td>66 files byte-identical; content hash equal through the folder and through <code>.dexv</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="known-limits">Known limits</h2>
+<p>A renamed item that also got a new uid is reported as removed and added. Lists (joint tables, grasp poses,
+trajectory samples) are compared and merged whole: the diff says how many entries a list has and its hash, not which
+grasp moved, and two edits of different entries of one list conflict. A merge can leave two items with the same name
+(each side added one; the merge result notes it). Metric deltas need results for both projects. Mesh arrays are
+binary in the folder (git stores them whole). The folder is written file by file, not as one atomic step (the zip is
+atomic). A merge records itself in the merged project's design log (how many changes came from each side), not in a
+stamped file.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

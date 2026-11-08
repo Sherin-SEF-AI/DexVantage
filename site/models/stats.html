@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statistics and power analysis · DexVantage</title>
+<meta name="description" content="Research tools part 2. Code: dexvantage/core/stats.py (the maths: NumPy and SciPy, no project, no Qt),dexvantage/core/statcompare.py (the comparison sources), dexvantage/core/studies/stats.py (the study stats,batch flag --stats-saved OUT.json; a spec file with --stats SPEC.json …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#sources">Sources</a>
+    <a href="#tests-and-why">Tests and why</a>
+    <a href="#power-and-sample-size">Power and sample size</a>
+    <a href="#the-result-the-headline-and-the-suggestion">The result, the headline and the suggestion</a>
+    <a href="#validation-measured-2026-11-07---validate---models-stats">Validation (measured 2026-11-07, --validate --models stats)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/stats.md"><code>docs/models/stats.md</code></a></p>
+<h1 id="statistics-and-power-analysis">Statistics and power analysis</h1>
+<p>Research tools part 2. Code: <code>dexvantage/core/stats.py</code> (the maths: NumPy and SciPy, no project, no Qt),
+<code>dexvantage/core/statcompare.py</code> (the comparison sources), <code>dexvantage/core/studies/stats.py</code> (the study <code>stats</code>,
+batch flag <code>--stats-saved OUT.json</code>; a spec file with <code>--stats SPEC.json</code>, <code>dexvantage/batch_stats.py</code>),
+<code>dexvantage/ui/pages/statistics.py</code> (Analysis ▸ Statistics), <code>dv.stats</code> (<code>dexvantage/api.py</code>), the assistant tool
+<code>get_statistics</code> (<code>dexvantage/assistant/tools.py</code>). Checks: <code>dexvantage/validation/checks_stats.py</code> (model <code>stats</code>).
+Metrics: <code>stats.p_adjusted</code> (headline), <code>stats.n_needed</code>, <code>stats.planned_power</code>.</p>
+<p>The question it answers: is a difference between two rigs, two sets of runs or two policies' success rates larger
+than chance, how large is it, and how many evaluation episodes, tolerance draws or demonstrations does it take to
+tell two conditions apart? Every result names the test that ran and why, and spells out its assumptions.</p>
+<p><strong>Out of scope: sequential testing and early stopping.</strong> Every test here is a fixed-sample test. Looking at the
+results as episodes come in and stopping as soon as a test turns significant inflates the false-positive rate well
+above alpha; group-sequential designs (O'Brien-Fleming, alpha spending) are not offered. Decide the number of
+episodes first (the power calculator), then test once.</p>
+<h2 id="sources">Sources</h2>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>The two sides</th>
+<th>Paired?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Success counts (the default)</td>
+<td>rows of (condition, successes, trials): each against the first, or every pair</td>
+<td>no: different episodes</td>
+</tr>
+<tr>
+<td>Variants over the tolerance Monte Carlo</td>
+<td><code>core/tolerance.monte_carlo</code> on variant A and on variant B with <strong>one seed</strong>, the figures the tolerance study would carry (the requirements', else its defaults)</td>
+<td>yes, <strong>by seed</strong>: draw <em>i</em> of both variants uses the same random numbers</td>
+</tr>
+<tr>
+<td>Experiment runs, by a factor</td>
+<td>the last designed experiment's runs at a factor's two levels (default the first and last level; a continuous factor with more than two values splits at its median)</td>
+<td>when every run at one level has exactly one run at the other with the same other factors (a full factorial), else no</td>
+</tr>
+<tr>
+<td>Experiment runs, two variants</td>
+<td>the saved design run on variants A and B (<code>core/experiments.run</code>, <code>design.variant</code>)</td>
+<td>yes, by run (the same factor values)</td>
+</tr>
+<tr>
+<td>Tracker runs</td>
+<td>two runs that kept their draws (a tolerance Monte Carlo logged by <code>core/tracking</code>): draw by draw; or two groups of runs (ids or a tag), one value per run</td>
+<td>draws: when both runs state the same seed and number of draws; groups: when every run states a seed and the seeds match one to one</td>
+</tr>
+<tr>
+<td>Samples (batch, API)</td>
+<td>numbers given</td>
+<td>as given</td>
+</tr>
+</tbody>
+</table>
+<p>Pairing by seed: with the same seed, <code>monte_carlo</code> draws the same uniform (or normal) numbers for the same sensors in
+the same order, so draw <em>i</em> of A and draw <em>i</em> of B are the same relative mount errors (common random numbers). The
+comparison is then of the designs, not of the luck of the draws, and a paired test is much sharper. When the
+variants' sensors differ (another count or a calibrated sensor on one side), draw <em>i</em> is paired by index only; the
+paired test stays valid (the pairs are independent of each other) but gains less.</p>
+<h2 id="tests-and-why">Tests and why</h2>
+<h3 id="success-rates">Success rates</h3>
+<p><strong>Fisher's exact test</strong> (default): conditional on the total successes <em>m</em>, the count of condition 1 is
+hypergeometric, P(X = x) = C(n₁, x) C(n₂, m − x) / C(n₁ + n₂, m). Two-sided p: the probability of the tables no more
+likely than the observed (relative tolerance 10⁻⁷, as R and SciPy); one-sided, as every test here, about condition 2 against condition 1 ('greater': p₂ &gt; p₁, the z test's direction; SciPy's <code>fisher_exact</code> names that direction for the table with condition 2 in the first row). Why: exact at any number of episodes, which is
+what robot-policy evaluations have (10 to 50 episodes per condition); conservative (its false-positive rate is at
+most alpha). The <strong>pooled two-proportion z test</strong> is the option: z = (p̂₂ − p̂₁) / √(p̄ q̄ (1/n₁ + 1/n₂)); a note warns
+when an expected count is under 5.</p>
+<p>Intervals of each rate: <strong>Wilson</strong> (1927) score interval and <strong>Clopper-Pearson</strong> (1934): lower B(α/2; k, n − k + 1),
+upper B(1 − α/2; k + 1, n − k) (beta quantiles; never below the nominal coverage). Effect sizes: the <strong>risk
+difference</strong> p₂ − p₁ with <strong>Newcombe's hybrid score interval</strong> (1998, method 10, from the two Wilson intervals
+(lᵢ, uᵢ)): [d − √((p₂ − l₂)² + (u₁ − p₁)²), d + √((u₂ − p₂)² + (p₁ − l₁)²)]; the <strong>odds ratio</strong> (k₂(n₁ − k₁)) /
+(k₁(n₂ − k₂)) with <strong>Woolf's</strong> interval exp(ln OR ± z √Σ 1/cell), with ½ added to every cell when one is zero
+(Haldane-Anscombe, said). When the Newcombe interval excludes zero but Fisher's test does not reject, a note says the
+evidence is borderline (the two are different methods and Fisher's is conservative).</p>
+<h3 id="figures-over-draws-runs-or-episodes">Figures over draws, runs or episodes</h3>
+<p>The primary test is a <strong>permutation test of the mean difference</strong>:</p>
+<ul>
+<li>paired: T = mean(dᵢ), dᵢ = bᵢ − aᵢ; under H₀ each dᵢ is as likely positive as negative, so the null distribution is
+T over sign flips of the dᵢ;</li>
+<li>unpaired: T = mean(b) − mean(a); under H₀ every value is as likely to have come from either side, so the null
+distribution is T over relabellings of the pooled values.</li>
+</ul>
+<p>It is <strong>exact</strong> (every rearrangement: 2ⁿ sign flips, C(n₁ + n₂, n₁) relabellings) when there are at most
+<code>n_perm</code> (default 9 999) of them, else <code>n_perm</code> random rearrangements with p = (b + 1) / (B + 1) (Phipson and Smyth
+2010). Two-sided p is twice the smaller tail, values within 100 ε of the observed counting as ties (SciPy's
+convention). Why it is the default: the figures over tolerance draws or runs are often skewed or pile up at a bound
+(a coverage share near 100 %), so a t test's normality is doubtful at the small n a study allows; the permutation
+test needs only exchangeability under H₀. It also reacts to a difference of spread in the unpaired case (said).</p>
+<p>Shown for reference with every comparison: the <strong>paired t</strong> test and the <strong>Wilcoxon signed-rank</strong> test (paired), or
+<strong>Welch's t</strong> (Welch-Satterthwaite df = (v₁ + v₂)² / (v₁² / (n₁ − 1) + v₂² / (n₂ − 1)), vᵢ = sᵢ² / nᵢ) and the
+<strong>Mann-Whitney U</strong> (unpaired). Their assumptions: the t tests, normal values (paired: normal differences); the rank
+tests, continuous values (ties are handled by average ranks and the tie corrections). Method choice, as SciPy's:
+Mann-Whitney exact (the U distribution by the recurrence f(i, j, u) = f(i − 1, j, u − j) + f(i, j − 1, u)) when a
+sample has at most 8 values and there are no ties, else normal with the tie correction and a ½ continuity
+correction; Wilcoxon (zero differences dropped) exact without ties or zeros up to 50 pairs (the distribution of T⁺
+by subset sums), all 2ⁿ sign flips with ties or zeros up to 13 pairs, else normal with the tie correction.</p>
+<p>Effect sizes: the <strong>mean difference with a BCa bootstrap interval</strong> (Efron 1987; bias correction
+z₀ = Φ⁻¹(#{θ<em>ᵦ &lt; θ̂} + #{θ</em>ᵦ ≤ θ̂}) / 2B), acceleration from the jackknife, a = Σ U³ / (6 (Σ U²)^{3/2}), the two
+samples' jackknife values summed as SciPy does; seeded; percentile when BCa is undefined); <strong>Cohen's d</strong> (pooled σ)
+and <strong>Hedges' g</strong> = J d with the exact J(df) = Γ(df/2) / (√(df/2) Γ((df − 1)/2)), or, paired, <strong>d_z</strong> = mean(d) /
+sd(d); their intervals from the noncentral t (Steiger and Fouladi 1997: the λ with P(T ≤ t_obs | λ) = 1 − α/2 and
+α/2, scaled back); <strong>Cliff's delta</strong> P(B &gt; A) − P(B &lt; A) = 2U/(n₁n₂) − 1 (the rank-biserial correlation, Kerby
+2014) with a seeded percentile bootstrap interval; the <strong>matched-pairs rank-biserial</strong> (T⁺ − T⁻)/(T⁺ + T⁻).</p>
+<p>A comparison that is not clear never reads as &quot;equal&quot;. Instead of the observed power (which only restates the
+p-value, Hoenig and Heisey 2001), it gives the <strong>smallest difference the data detect</strong> with the target power: the d
+with power_t(d, n) = 0.8 times the sd (paired: of the differences), or, for rates, the rates below and above the
+reference that the normal approximation detects at that n.</p>
+<h3 id="several-figures-or-comparisons">Several figures or comparisons</h3>
+<p>p-values are corrected across the figures (or the rate comparisons) of one analysis: <strong>Holm</strong> (default; step-down,
+p̃₍ᵢ₎ = max_{j ≤ i} min(1, (m − j + 1) p₍ⱼ₎), the family-wise error rate), <strong>Bonferroni</strong> (min(1, m p)),
+<strong>Benjamini-Hochberg</strong> (step-up, p̃₍ᵢ₎ = min_{j ≥ i} min(1, m p₍ⱼ₎ / j), the false discovery rate under independence
+or positive dependence), <strong>Benjamini-Yekutieli</strong> (BH times c(m) = Σ 1/i, any dependence) or none. A figure with no
+p-value (too few values) is left out of m.</p>
+<h2 id="power-and-sample-size">Power and sample size</h2>
+<p><strong>Two proportions</strong>, two-sided at alpha, equal n per condition:</p>
+<ul>
+<li><code>normal</code> (Fleiss, Levin and Paik 2003): n = [z_{α/2} √(2 p̄ q̄) + z_β √(p₁q₁ + p₂q₂)]² / Δ², with the continuity
+correction n′ = n/4 (1 + √(1 + 4/(nΔ)))² (default on). Its power at a given n inverts the correction
+(n = (n′ − 1/Δ)² / n′) and uses Φ((Δ√n − z_{α/2}√(2p̄q̄)) / √(p₁q₁ + p₂q₂)) plus the other tail;</li>
+<li><code>arcsine</code> (Cohen 1988): h = 2 asin √p₂ − 2 asin √p₁, n = 2 ((z_{α/2} + z_β) / h)²;</li>
+<li><code>exact</code> (the default of the episodes calculator): every outcome (x₁, x₂) of the two binomials enumerated, each
+tested (Fisher's exact test, the rejection region found per total m from the hypergeometric probabilities; or the
+z test with Yates' correction), power = Σ Bin(x₁; n, p₁) Bin(x₂; n, p₂) 1[reject] (up to 2 000 per condition; the
+normal approximation above, said);</li>
+<li><code>simulation</code>: seeded draws of both binomials, the same test applied.</li>
+</ul>
+<p>The power of an exact test saw-tooths with n (the counts are discrete): the smallest n that reaches the target is
+reported, found by bisection and a scan of the 20 n below. For 70 % against 95 % at alpha 0.05 and power 0.80 the
+three methods give 39 (exact, Fisher), 43 (normal with the continuity correction) and 32 (arcsine) episodes per
+condition: the arcsine formula is the least conservative at rates near 1.</p>
+<p><strong>t tests</strong> through the noncentral t: two-sample df = 2n − 2, λ = d √(n/2); paired df = n − 1, λ = d_z √n;
+power = P(T &gt; t_c | λ) + P(T &lt; −t_c | λ). Where SciPy's noncentral t gives NaN far in a tail the normal approximation
+is used (the power there is 0 or 1 to many digits).</p>
+<p><strong>Evaluation episodes</strong> (<code>episodes_needed(p1, p2)</code>): the two-proportion n with the assumptions spelled out: every
+episode an independent trial with its condition's success probability (no drift, no learning, no two episodes failing
+together because they share a scene or a reset), the same number per condition, a two-sided test, and p₁, p₂ the
+rates to tell apart (a pilot's estimate is itself uncertain: plan for the smallest difference that matters).</p>
+<p><strong>Demonstrations per condition</strong> (<code>demonstrations_needed</code>): to tell a figure measured on each demonstration apart
+between two conditions (two rigs, two setups): a per-demonstration value (completion time, a quality score: the t
+test's n, paired when a scene is recorded under both) or pass/fail (the two-proportion n); then inflated by Kish's
+(1965) design effect 1 + (m − 1) ρ for m demonstrations per operator with intra-class correlation ρ (default 0:
+independent demonstrations), and by 1 / (1 − attrition) for the share the audit discards (default 0). This is <strong>not</strong>
+the number of demonstrations a policy needs to learn the task (that depends on the policy and the task and is not
+modelled).</p>
+<p>Defaults (DexVantage defaults, labelled so in the UI and the results): alpha 0.05, power 0.80, confidence 0.95,
+9 999 bootstrap resamples and permutations, seed 0, Holm's correction, 32 tolerance draws per variant.</p>
+<h2 id="the-result-the-headline-and-the-suggestion">The result, the headline and the suggestion</h2>
+<p>The study's result: the comparisons (each: the test and why, both sides, the difference with its interval, the
+effect sizes with intervals, the reference tests, p and the corrected p, the verdict), the correction, the pairing,
+the assumptions, the power calculation with its curve, references and the out-of-scope note. The headline is the
+comparison with the smallest corrected p, as its difference B − A (rates in percentage points), status <strong>clear
+difference</strong> (good: corrected p ≤ alpha), <strong>no clear difference</strong> (warning) or <strong>cannot test</strong> (critical: too few
+values); with only the power calculator, n per condition with <strong>enough planned</strong> / <strong>underpowered</strong> / <strong>needed</strong>.</p>
+<p>The suggestion (the page's Apply, one undo step): when the headline difference is not clear, the episodes per
+condition (rates), draws per variant (variants) or runs (experiments, tracker) that would detect the observed
+difference with the target power, written into the settings. It plans from the observed difference, itself uncertain.</p>
+<h2 id="validation-measured-2026-11-07---validate---models-stats">Validation (measured 2026-11-07, <code>--validate --models stats</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stats.proportion_ci</code></td>
+<td><code>scipy.stats.binomtest(k, n).proportion_ci</code> (wilson, exact), every k of n ∈ {1, 7, 20, 50, 137} at 90/95/99 %</td>
+<td>3.2 × 10⁻¹⁵</td>
+<td>10⁻⁹</td>
+</tr>
+<tr>
+<td><code>stats.t_tests</code></td>
+<td>SciPy <code>ttest_ind(equal_var=False)</code>, <code>ttest_rel</code>, 20 data sets, p, t and the interval</td>
+<td>8.9 × 10⁻¹⁶</td>
+<td>10⁻⁹</td>
+</tr>
+<tr>
+<td><code>stats.rank_tests</code></td>
+<td>SciPy <code>mannwhitneyu</code>, <code>wilcoxon</code> (exact, permutation, asymptotic; three alternatives)</td>
+<td>1.1 × 10⁻¹⁶</td>
+<td>10⁻⁹</td>
+</tr>
+<tr>
+<td><code>stats.fisher_odds</code></td>
+<td>SciPy <code>fisher_exact</code>, <code>contingency.odds_ratio(kind='sample')</code></td>
+<td>1.1 × 10⁻¹⁵</td>
+<td>10⁻⁹</td>
+</tr>
+<tr>
+<td><code>stats.permutation_exact</code></td>
+<td>SciPy <code>permutation_test</code> in its exact mode, 18 cases</td>
+<td>0</td>
+<td>10⁻¹²</td>
+</tr>
+<tr>
+<td><code>stats.permutation_mc</code></td>
+<td>SciPy <code>permutation_test</code>, its own random stream, 9 999 rearrangements</td>
+<td>1.6 SE</td>
+<td>4 SE</td>
+</tr>
+<tr>
+<td><code>stats.bootstrap</code></td>
+<td>SciPy <code>bootstrap</code> (percentile, BCa; one sample, paired, two samples)</td>
+<td>0.12 bootstrap SE</td>
+<td>0.25</td>
+</tr>
+<tr>
+<td><code>stats.multiplicity_bh1995</code></td>
+<td>Benjamini and Hochberg (1995) p. 295: Bonferroni 3, FDR 4 rejections; Holm 3, BY 3 and every adjusted p written out again</td>
+<td>5.6 × 10⁻¹⁷</td>
+<td>10⁻¹²</td>
+</tr>
+<tr>
+<td><code>stats.power_cohen1992</code></td>
+<td>Cohen (1992) Table 2: n per group for d and h = 0.2, 0.5, 0.8 at alpha 0.01, 0.05, 0.10</td>
+<td>1 per group</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>stats.power_gpower</code></td>
+<td>G*Power 3.1 manual §19.3 (p. 48), §20.3 (p. 50): 0.832114, 0.500352, N 30 (0.955144), N 1492 (0.900169)</td>
+<td>4.6 × 10⁻⁷</td>
+<td>5 × 10⁻⁶</td>
+</tr>
+<tr>
+<td><code>stats.power_simulation</code></td>
+<td>exact Fisher power against 2 000 simulated evaluations tested with SciPy's <code>fisher_exact</code>; t power against simulated normal samples</td>
+<td>1.2 SE</td>
+<td>4 SE</td>
+</tr>
+<tr>
+<td><code>stats.ci_coverage</code></td>
+<td>coverage of the d interval (noncentral t) and of Newcombe's interval over simulated data</td>
+<td>0.24 SE</td>
+<td>4 SE (Newcombe: beyond 0.01)</td>
+</tr>
+<tr>
+<td><code>stats.bruteforce</code></td>
+<td>Cliff's delta by counting every pair, the paired rank-biserial by a loop, power at the detectable difference</td>
+<td>7.4 × 10⁻¹⁴</td>
+<td>10⁻⁹</td>
+</tr>
+</tbody>
+</table>
+<p>Tolerances and why: closed forms and exact distributions computed by other code agree to rounding (10⁻⁹); Monte
+Carlo comparisons are judged in their standard errors (4: a false alarm about once in 15 000 per comparison); the
+bootstrap's 0.25 comes from measurement (over 30 seeds each endpoint's standard deviation was 0.022 to 0.045
+bootstrap standard errors in either implementation, the mean difference under 0.01, so two independent runs differ
+with a standard deviation under 0.06); Cohen's table rounds to the nearest unit and comes from approximations (for
+d = 0.2 at alpha 0.05 the exact noncentral t needs 394, as G<em>Power also gives, the table 393), so one per group.
+The G</em>Power examples are one-sample and matched-pairs (the same noncentral t with df n − 1); the manual has no
+worked two-sample example, which Cohen's table covers. Newcombe's interval is an approximation: at the two settings
+simulated its coverage was 94.8 % and 95.6 %.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>Fixed-sample tests only (no sequential testing or early stopping). Episodes and runs are taken as independent; the
+pairing is what the source states (by seed, by run, by the other factors). Power is computed for success rates and
+for normal data with equal variances; the permutation and rank tests' own power is not (their asymptotic relative
+efficiency against the t test is at least 0.864, Hodges and Lehmann 1956), so the t-based plan is an approximation
+for them. The operators' clustering is only Kish's design effect with equal cluster sizes. BCa intervals are poor
+with fewer than about 10 values. A difference that is not clear is not shown to be absent: read the smallest
+detectable difference. Corrections apply within one analysis, not across analyses run separately. The variants'
+Monte Carlo inherits the tolerance model's limits (<code>docs/models/tolerance.md</code>), and its default 32 draws per variant
+re-run every study the figures need.</p>
+<h2 id="references">References</h2>
+<p>Wilson 1927; Clopper and Pearson 1934; Newcombe 1998; Efron 1987; Efron and Tibshirani 1993; Phipson and Smyth 2010;
+Welch 1947; Mann and Whitney 1947; Wilcoxon 1945; Cohen 1988 and 1992; Hedges and Olkin 1985; Steiger and Fouladi
+1997; Cliff 1993; Kerby 2014; Holm 1979; Benjamini and Hochberg 1995; Benjamini and Yekutieli 2001; Fleiss, Levin
+and Paik 2003; Kish 1965; Hoenig and Heisey 2001; the G*Power 3.1 manual (2023); SciPy 1.18 <code>scipy.stats</code>. Full
+entries in <code>core/stats.py</code> REFERENCES and <code>validation/references.py</code>.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

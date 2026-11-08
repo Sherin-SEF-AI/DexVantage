@@ -59,7 +59,7 @@ def test_tools_list_names_every_tool_with_a_valid_input_schema():
     assert len(names) == len(set(names))
     from dexvantage.assistant import tools as T
     assert set(T.TOOLS) <= set(names) and {'dexvantage_status', 'open_project', 'run_batch'} <= set(names)
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     for t in tools:
         assert re.fullmatch(r'[A-Za-z0-9_.-]{1,128}', t['name'])               # the 2025-11-25 tool-name rule
         assert t['description'] and t['title'] and isinstance(t['annotations']['readOnlyHint'], bool)
@@ -73,7 +73,7 @@ def test_tools_list_names_every_tool_with_a_valid_input_schema():
 
 def test_schema_examples_validate_with_jsonschema_too():
     """The server's own check (assistant/tools._check) and jsonschema agree on good and bad inputs."""
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     from dexvantage.assistant import tools as T
     cases = [('edit_project', {'changes': {'sensor:a.x': 1.0}}, True),
              ('edit_project', {'ops': [{'op': 'add_variant', 'name': 'B'}]}, True),

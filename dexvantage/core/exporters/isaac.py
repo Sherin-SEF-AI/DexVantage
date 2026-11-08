@@ -763,9 +763,11 @@ def export_isaac(project, out_dir: str, options: dict, ctx) -> dict:
     if not use_pxr:
         C.write_text(out_dir, USD_FILE, usda_text(records, project.name))
         if o['usd'] == 'auto' and not have_pxr():
+            from ...extras import missing
             notes.append('usd-core is not installed, so cameras.usda is written as text by DexVantage (the same '
-                         'prims and attributes); install the usd extra (pip install "dexvantage[usd]") to write it '
-                         'with pxr and to run the USD round-trip check.')
+                         'prims and attributes). ' + missing('usd', 'Install the usd extra (pip install '
+                                                             '"dexvantage[usd]") to write it with pxr and to run the '
+                                                             'USD round-trip check.'))
     else:
         notes.append('cameras.usda is written with pxr (usd-core).')
     files.append(USD_FILE)

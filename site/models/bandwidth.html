@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bandwidth, hosts and power · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/studies/bandwidth.py (study bandwidth, batch flag --bandwidth OUT.json). Page:dexvantage/ui/pages/bandwidth.py (Analysis ▸ Bandwidth, hosts and power). Checks:dexvantage/validation/checks_bandwidth.py (model bandwidth). Tests: tests/test_bandwidth.py. Spec §7.6 and …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-host-topology-projectrig">The host topology (project.rig)</a>
+    <a href="#data-rate-of-a-stream">Data rate of a stream</a>
+    <a href="#capacity">Capacity</a>
+    <a href="#flags">Flags</a>
+    <a href="#disk">Disk</a>
+    <a href="#bus-power">Bus power</a>
+    <a href="#the-suggestion-apply">The suggestion (Apply)</a>
+    <a href="#validation-measured">Validation (measured)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/bandwidth.md"><code>docs/models/bandwidth.md</code></a></p>
+<h1 id="bandwidth">Bandwidth, hosts and power</h1>
+<p>Module: <code>dexvantage/core/studies/bandwidth.py</code> (study <code>bandwidth</code>, batch flag <code>--bandwidth OUT.json</code>). Page:
+<code>dexvantage/ui/pages/bandwidth.py</code> (Analysis ▸ Bandwidth, hosts and power). Checks:
+<code>dexvantage/validation/checks_bandwidth.py</code> (model <code>bandwidth</code>). Tests: <code>tests/test_bandwidth.py</code>. Spec §7.6 and §6
+(Hosts); the bandwidth checks of §10.</p>
+<p>Ported from Vantage <code>core/recording.py</code> (data-rate rows, the disk budget, link loads and their findings) and
+<code>core/power.py</code> (devices against what feeds them, findings worst first). Vantage's GMSL ECU, lidars, radars, DC-DC
+converter, alternator, fuses and power cables were stripped; the host topology and USB bus power are new.</p>
+<p>The study is cheap (no geometry, a few milliseconds) and runs live after every edit.</p>
+<h2 id="the-host-topology-projectrig">The host topology (<code>project.rig</code>)</h2>
+<p>A project section of its own (<code>core/project.py</code> <code>rig_from_dict</code>; schema <code>docs/project.schema.json</code>; one undo step per
+edit through the <code>rig</code> section):</p>
+<pre><code class="language-json">{&quot;hosts&quot;: [{&quot;uid&quot;: &quot;…&quot;, &quot;name&quot;: &quot;Workstation&quot;, &quot;library_id&quot;: &quot;usb-3.2-gen2-host&quot;,
+            &quot;controllers&quot;: [{&quot;uid&quot;: &quot;…&quot;, &quot;name&quot;: &quot;USB 3 controller 1&quot;, &quot;kind&quot;: &quot;usb3&quot;,
+                             &quot;practical_mbps&quot;: null, &quot;source&quot;: &quot;&quot;}]}],
+ &quot;hubs&quot;:  [{&quot;uid&quot;: &quot;…&quot;, &quot;name&quot;: &quot;Hub 1&quot;, &quot;powered&quot;: false, &quot;upstream&quot;: &quot;&lt;controller or hub uid&gt;&quot;}],
+ &quot;links&quot;: [{&quot;sensor_uid&quot;: &quot;…&quot;, &quot;stream_ids&quot;: [&quot;depth|848x480|30|Z16&quot;], &quot;via&quot;: &quot;&lt;controller or hub uid&gt;&quot;,
+            &quot;cable_uid&quot;: &quot;&quot;}]}
+</code></pre>
+<ul>
+<li><code>kind</code> is <code>usb3</code>, <code>usb2</code>, <code>pcie</code> or <code>gmsl</code>. <code>practical_mbps</code> is the controller's practical bandwidth when a source
+states it (a measurement, a board manual), with the source in <code>source</code>; <code>null</code> means not stated.</li>
+<li>A link is one sensor cable. <code>stream_ids</code> name the streams it carries as <code>imager|WxH|fps|format</code>, each a stream mode
+of the sensor's library entry at one of its listed rates; empty means the default streams (below).</li>
+<li>The rig is project-wide; links name sensors by uid, so each variant's sensors keep their own links. A sensor of the
+active variant with no link is &quot;not assigned&quot;: its data counts for the disk, not for a controller.</li>
+<li>The content hash (<code>core/provenance.py</code>) includes the rig only when it holds something, so projects without one keep
+their hashes.</li>
+</ul>
+<h2 id="data-rate-of-a-stream">Data rate of a stream</h2>
+<p>Decimal units throughout (Mbit/s = 10⁶ bit/s, MB = 10⁶ bytes, GB = 10⁹ bytes), as links and disks are sold.</p>
+<pre><code>payload  = width × height × fps × bits per pixel / 10⁶          (bytes per pixel = bits per pixel / 8)
+on wire  = payload × (1 + overhead)
+</code></pre>
+<p>Width, height, the listed frame rates and the bits per pixel come from the library entry's <code>streams</code> (each entry cites
+its datasheet). A stream whose bits per pixel the maker does not state has <strong>no data rate</strong>: MJPEG streams, the
+Luxonis sensor modes (the format on the link depends on the on-device pipeline), the DIGIT tactile camera, and the
+GelSight Mini (no stream listed at all). The study says so, the budget is marked incomplete (a controller's load is
+then a lower bound), and a measured figure can be entered per sensor:</p>
+<pre><code>project.analysis.studies['bandwidth']['measured'] = {sensor_uid: {'mbps': 74.0, 'source': 'usbtop, 2026-11-06'}}
+</code></pre>
+<p>Streams the library does not list (an IMU, audio) are added per sensor in <code>extra</code> (<code>[{'name', 'mbps', 'source'}]</code>).
+Tactile sensors are counted like any other sensor.</p>
+<p><strong>Protocol overhead.</strong> No maker in the library states the share its class protocol adds (video class payload headers,
+frame gaps; CSI-2 packet headers and blanking over GMSL). It is a <strong>labelled default per interface, 5 %</strong>
+(<code>DEFAULT_OVERHEAD</code>, reasoning in <code>OVERHEAD_WHY</code>): for USB, the capacity figure below already takes off the link's
+flow control, framing and protocol overheads, so the 5 % stands only for the class protocol on top. A user figure with
+its source (<code>overhead {bus: {'value', 'source'}}</code>) replaces it.</p>
+<p><strong>Default streams.</strong> A depth sensor sends its <code>depth</code> stream and its RGB stream when its entry lists them (it computes
+depth on board); a depth sensor without a depth stream (a ZED) sends one stream of every imager; a camera or tactile
+sensor its first imager's stream. The size is the sensor's chosen stream (<code>Sensor.stream</code>, from the Sensors page) when
+that imager streams it, else the imager's largest; the format the first listed at that size; the rate the listed one
+nearest <code>default_fps</code> (30 fps, a default; ties go to the higher rate). Each such stream is labelled &quot;default&quot;.</p>
+<h2 id="capacity">Capacity</h2>
+<table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Capacity used without a measured figure</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>USB 2.0 high speed (480 Mbit/s)</td>
+<td>425.984 Mbit/s: 13 bulk transactions × 512 bytes per 125 µs microframe = 53 248 000 bytes/s, &quot;does not include the overhead associated with bit stuffing&quot;</td>
+<td>USB 2.0, §5.8.4, Table 5-10</td>
+</tr>
+<tr>
+<td>USB 3.2 Gen 1x1 (5 Gbit/s; &quot;USB 3.0&quot;, &quot;USB 3.1 Gen 1&quot;)</td>
+<td>3600 Mbit/s: &quot;the raw throughput is 500 MB/sec. Accounting for flow control, packet framing and protocol overheads reduces the effective bandwidth down to 450 MB/sec or less&quot;</td>
+<td>USB 3.2, §4.4.11</td>
+</tr>
+<tr>
+<td>USB 3.2 Gen 2x1 (10 Gbit/s)</td>
+<td>8800 Mbit/s: &quot;approximately 1.1 GB/sec or less&quot;</td>
+<td>USB 3.2, §4.4.11</td>
+</tr>
+<tr>
+<td>USB 3.2 Gen 2x2 (20 Gbit/s)</td>
+<td>17 600 Mbit/s: &quot;The effective bandwidth is doubled in Gen 2x2 operation&quot;</td>
+<td>USB 3.2, §4.4.11</td>
+</tr>
+<tr>
+<td>PCIe, GMSL</td>
+<td>not stated: not checked until you enter a figure</td>
+<td>the GMSL2 link rate is in the serialiser and deserialiser datasheets (ADI MAX96717 / MAX96712), which could not be fetched</td>
+</tr>
+</tbody>
+</table>
+<p>Each is an <strong>upper bound</strong>: the specification says &quot;or less&quot;, and real controllers, drivers and hub trees often fall
+short; several ports can share one controller, which makers rarely state (<code>lsusb -t</code> shows it). A measured
+<code>practical_mbps</code> always replaces it.</p>
+<ul>
+<li>A <code>usb3</code> controller's generation comes from its host's library entry (its stated per-port signalling rate, 5000,
+10 000 or 20 000 Mbit/s per USB-IF); without one Gen 1, the lowest, is assumed and the result says so.
+A host whose interface names USB 3 ports of several generations (the Jetson AGX Orin developer kit's &quot;USB 3.2 Gen
+2 / Gen 1&quot;) cannot say which one a controller serves: the lowest named is assumed and said; enter the controller's
+practical bandwidth for a faster port. A 10 Gbit/s rate is taken as Gen 2x1: Gen 1x2 (two 5 Gbit/s lanes, &quot;The
+effective bandwidth is doubled in Gen 1x2 operation&quot;, 7200 Mbit/s) is not told apart.</li>
+<li>A sensor's <strong>link</strong> carries all its streams (depth + RGB + IMU on one cable). Its capacity is the lower of the
+device's own USB generation (parsed from the entry's <code>interface</code>: &quot;USB 3.1 Gen 1&quot; is Gen 1, &quot;USB 3.0&quot; is Gen 1 as
+USB-IF says) and its controller's, or the controller's measured figure when that is lower. A device that states no
+generation (&quot;USB&quot;) takes the controller's.</li>
+<li>A <strong>hub's uplink</strong> carries everything below it, at its controller's capacity.</li>
+<li><strong>Load</strong> = on-wire rate / capacity; <strong>margin</strong> = capacity − on-wire rate (Mbit/s). Above <code>margin_warn</code> (80 %, a
+default) the status is &quot;tight&quot; (warning), above 100 % &quot;over budget&quot; (critical).</li>
+</ul>
+<h2 id="flags">Flags</h2>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A controller, a sensor link or a hub uplink over 100 %</td>
+<td>critical</td>
+</tr>
+<tr>
+<td>… above the 80 % margin</td>
+<td>warning</td>
+</tr>
+<tr>
+<td>A hub on a shared controller: the controller also carries other devices or hubs</td>
+<td>warning</td>
+</tr>
+<tr>
+<td>A USB device on a GMSL or PCIe controller, a GMSL device on a USB one, a USB hub on a non-USB controller</td>
+<td>serious</td>
+</tr>
+<tr>
+<td>A link or hub plugged into a uid the rig does not have; hubs in a loop</td>
+<td>serious</td>
+</tr>
+<tr>
+<td>A sensor linked twice (the first link is used) or a stream id the entry does not list</td>
+<td>warning</td>
+</tr>
+<tr>
+<td>Sensors not assigned; a sensor without a stated data rate; a controller whose load is a lower bound</td>
+<td>warning</td>
+</tr>
+<tr>
+<td>A device or bus-powered hub over its port's current</td>
+<td>critical</td>
+</tr>
+<tr>
+<td>A power figure not stated; the recorder's write speed not stated</td>
+<td>note</td>
+</tr>
+</tbody>
+</table>
+<p>The headline is the busiest controller, link or hub uplink as a share of its capacity, with the worst finding's
+status word (&quot;within budget&quot;, &quot;tight&quot;, &quot;problems&quot;, &quot;over budget&quot;; &quot;see findings&quot; when the worst finding is a warning
+that is not a load above the margin; &quot;incomplete&quot; when everything is fine but some rates are not stated; &quot;no hosts&quot;).</p>
+<h2 id="disk">Disk</h2>
+<pre><code>recorded (Mbit/s) = Σ payload × record_ratio × (1 + container_overhead)
+per episode (GB)  = recorded / 8 × episode_s / 1000
+per campaign      = per episode × episodes
+write needed      = recorded / 8 × write_headroom   (MB/s, against the recorder's stated sustained write)
+</code></pre>
+<p><code>record_ratio</code> 1.0 (recorded as streamed), <code>container_overhead</code> 3 % (message headers and indexes, Vantage's default),
+<code>episode_s</code> 60 s, <code>episodes</code> 100 and <code>write_headroom</code> 1.3 (Vantage's default) are labelled defaults. The recorder
+(<code>recorder {'name', 'write_mb_s', 'capacity_gb', 'source'}</code>) is the user's figure with its source: none of the
+library's hosts states a disk, so without it the write check is &quot;not stated&quot;. With <code>capacity_gb</code>, the episodes that
+fit on one disk.</p>
+<h2 id="bus-power">Bus power</h2>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Current available</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>USB 2.0 root port or powered hub port</td>
+<td>500 mA: &quot;a unit load is defined to be 100 mA&quot;, a high-power device &quot;up to five unit loads&quot;</td>
+<td>USB 2.0 §7.2.1; USB 3.2 Table 3-1 &quot;low (100 mA)/high (500 mA)&quot;</td>
+</tr>
+<tr>
+<td>USB 3 root port or powered hub port, one lane</td>
+<td>900 mA: &quot;a unit load for Enhanced SuperSpeed for single-lane operation is 150 mA&quot;, high-power &quot;up to six unit loads&quot;</td>
+<td>USB 3.2 §11.4.1, Table 3-1 &quot;high (900 mA)&quot;</td>
+</tr>
+<tr>
+<td>USB 3 two-lane (Gen 2x2 device on a Gen 2x2 host)</td>
+<td>1500 mA</td>
+<td>USB 3.2 Table 3-1</td>
+</tr>
+<tr>
+<td>Port of a bus-powered USB 2.0 hub</td>
+<td>100 mA: &quot;External ports in a bus-powered hub can supply only one unit load per port&quot;</td>
+<td>USB 2.0 §7.2.1</td>
+</tr>
+<tr>
+<td>Ports of a bus-powered USB 3 hub</td>
+<td>shared: the hub supplies &quot;any power not used by the hub electronics … with any split across the exposed downstream ports&quot;</td>
+<td>USB 3.2 §10.14 (hub configuration)</td>
+</tr>
+</tbody>
+</table>
+<p>A device's current is its stated power (<code>power_w</code>, as the maker states it, often a maximum) at the nominal 5 V
+(USB 3.2 §11.4.2: &quot;The nominal 5 V source is 4.75 V to 5.50 V&quot;; devices must work from 4.00 V). A bus-powered hub
+draws the sum of everything below it from its own port; a powered hub draws nothing counted (the specification lets
+it draw one unit load; that is not stated anywhere here). Hub electronics count 0 mA and the result says so. Sensors in
+<code>external_power</code> have their own supply; PCIe and GMSL devices are not checked (power over coax comes from the
+deserialiser board, whose budget is not stated).</p>
+<h2 id="the-suggestion-apply">The suggestion (Apply)</h2>
+<ol>
+<li>No host: add &quot;Host (assumed)&quot; with one &quot;USB 3 controller (assumed)&quot; and plug every USB sensor into it — labelled
+an assumption in its names; set your machine's controllers.</li>
+<li>Sensors not assigned: plug each, largest rate first, into the compatible controller with the most room.</li>
+<li>A controller above the margin: move the one sensor whose move brings the higher of the two loads lowest, when that
+helps.</li>
+</ol>
+<p>Each is one undo step on the <code>rig</code> section. Preview draws the move as a dashed line in the 3D view.</p>
+<h2 id="validation-measured">Validation (measured)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bandwidth.stated_mode_rates</code></td>
+<td>ams OSRAM NanEyeC datasheet: &quot;75 Mbps at 58 Hz&quot; (SEIM), &quot;63 Mbps at 49 Hz&quot; (LVDS), the only stream data rates a maker in the library states</td>
+<td>the payload must not exceed the stated serial rate (0) and be at least half of it</td>
+<td>0: payload 59.392 Mbit/s = 79.2 % of 75, 50.176 Mbit/s = 79.6 % of 63; implied framing 26.3 % and 25.6 % (reported, not judged); the study's on-the-wire figure with its default 5 % overhead is 16.9 % and 16.4 % below the stated rates (reported)</td>
+</tr>
+<tr>
+<td><code>bandwidth.spec_figures</code></td>
+<td>USB 2.0 Table 5-10 (53 248 000 bytes/s), USB 3.2 §4.4.11 (450 MB/s, 1.1 GB/s, doubled for x2), USB 3.2 Table 3-1 (500, 900, 1500 mA) against the study's derivations from other statements (transactions per microframe, unit loads × count)</td>
+<td>10⁻¹² relative</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>bandwidth.budget_recompute</code></td>
+<td>the budget written out again in the check from the library's JSON files (own stream lookup, hub walk, a table of device generations, USB rules typed in again), 40 seeded random topologies (8 in a quick run) with every controller kind, powered and bus-powered hubs, eleven devices</td>
+<td>10⁻⁹ relative</td>
+<td>3.9 × 10⁻¹⁶ over 752 figures</td>
+</tr>
+</tbody>
+</table>
+<p>The stated-rate check is weak by nature: the NanEyeC's figures are serial rates that include framing, so they bound
+the payload rather than equal it. No USB or GMSL maker in the library states a data rate for a stream mode, so no
+other device can be checked against a stated rate; the arithmetic itself is checked by the re-computation.
+The one stated figure also disagrees with the default overhead: the NanEyeC's own serial framing takes about 26 %,
+five times the 5 % default. The default is meant for what a USB or GMSL link adds on top of the pixels, so it is not
+changed; for a link that carries a sensor's raw serial stream, enter the stated rate as a measured figure.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>A controller without a measured figure is compared with the specification's upper bound; real controllers often
+deliver less, and several ports can share one controller (makers rarely state which).</li>
+<li>Isochronous USB transfers have their own per-endpoint limits (USB 2.0 Table 5-5), not modelled; the USB 2.0
+figure is the bulk limit without bit stuffing.</li>
+<li>The protocol overhead is a default, not a measurement.</li>
+<li>Compressed streams (MJPEG, H.264) and pipeline-dependent formats have no stated rate and need a measurement.</li>
+<li>Stream modes a device cannot run at the same time (Intel's simultaneous-stream tables) are not checked.</li>
+<li>Bus power uses the maker's stated figure at 5 V: not the inrush, not the drop along the cable, not a regulated
+device's higher current at 4.00 V; hub electronics count 0 mA; USB Type-C current (1.5 A, 3 A) and USB Power
+Delivery are not modelled.</li>
+<li>The GMSL2 link rate and the deserialisers' power-over-coax budgets are not in the library.</li>
+<li>The disk check is a sustained rate, not an SSD's behaviour once its write cache is full; the recorder's figure is
+the user's.</li>
+</ul>
+<h2 id="references">References</h2>
+<ul>
+<li>USB 3.0 Promoter Group, <em>Universal Serial Bus 3.2 Specification</em>, Revision 1.1, June 2022: Table 3-1, §4.4.11,
+§10.14, §11.4.1, §11.4.2. https://www.usb.org/sites/default/files/usb_32_202206_0.zip, read 2026-11-06.</li>
+<li><em>Universal Serial Bus Specification</em>, Revision 2.0, April 27, 2000: Table 5-10, §7.2.1.
+https://www.usb.org/sites/default/files/usb_20_20250603.zip, read 2026-11-06.</li>
+<li>USB-IF, <em>USB 3.2 Specification Language Usage Guidelines</em> (signalling rates; cited in the library's host entries).</li>
+<li>ams OSRAM, NanEyeC datasheet (as cited in the library entry <code>ams-osram-naneyec</code>).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=DexVantage
+GenericName=Robot camera rig planner
+Comment=Plan and check the cameras, depth and teleop of robot-learning data-collection rigs
+Exec=@EXEC@ %f
+Icon=dexvantage
+Terminal=false
+Categories=Science;Engineering;
+MimeType=application/x-dexvantage-project;
+Keywords=robot;camera;depth;grasp;teleoperation;hand-eye calibration;LeRobot;MuJoCo;data collection;
+StartupWMClass=DexVantage
+StartupNotify=true

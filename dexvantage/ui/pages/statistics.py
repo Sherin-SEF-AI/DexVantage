@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (QComboBox, QGridLayout, QHeaderView, QLineEdit, QMe
 
 from ...core import statcompare as SC
 from ...core import stats as ST
+from ...core.metrics import delta_unit
 from ...core.studies import stats as SS
 from ..theme import STATUS, THEME, mono
 from ..widgets import ScrubSpinBox, SegmentedControl, button, label
@@ -570,7 +571,7 @@ class StatisticsPage(StudyPage):
         try:
             h = doc.get('headline') or {}
             v = h.get('value')
-            fig = '—' if v is None else (_sg(v, '.1f') if h.get('unit') == 'pp' else
+            fig = '—' if v is None else (_sg(v, '.1f') if h.get('unit') == 'pp' and h.get('kind') != 'samples' else
                                          f'{v:.0f}' if h.get('unit') == 'per condition' else _sg(v, '.3g'))
             tip = ('The comparison with the smallest corrected p-value. Status: clear difference when its corrected p '
                    'is at most alpha, else no clear difference (which does not show the two are equal).')
@@ -615,7 +616,8 @@ class StatisticsPage(StudyPage):
             a = f'{_g(c["a"]["mean"])} ± {_g(c["a"]["sd"], 2)} {unit} (n {c["a"]["n"]})'.replace('  ', ' ')
             b = f'{_g(c["b"]["mean"])} ± {_g(c["b"]["sd"], 2)} {unit} (n {c["b"]["n"]})'.replace('  ', ' ')
             d = c['difference']
-            diff = f'{_sg(d["value"], ".3g")} [{_sg(d["ci"][0], ".3g")}, {_sg(d["ci"][1], ".3g")}] {unit}'.strip()
+            diff = (f'{_sg(d["value"], ".3g")} [{_sg(d["ci"][0], ".3g")}, {_sg(d["ci"][1], ".3g")}] '
+                    f'{delta_unit(unit)}').strip()
             s = c.get('standardised') or {}
             if s.get('d') is None:
                 eff = '—'

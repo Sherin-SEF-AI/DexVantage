@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inverse kinematics, manipulability and collision distances · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/robot/ik.py, manipulability.py, collision.py. Checks: dexvantage/validation/checks_ik.py(model kinematics). Tests: tests/test_ik.py.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#inverse-kinematics">Inverse kinematics</a>
+    <a href="#manipulability">Manipulability</a>
+    <a href="#collision-distances">Collision distances</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/ik.md"><code>docs/models/ik.md</code></a></p>
+<h1 id="ik">Inverse kinematics, manipulability and collision distances</h1>
+<p>Modules: <code>dexvantage/core/robot/ik.py</code>, <code>manipulability.py</code>, <code>collision.py</code>. Checks: <code>dexvantage/validation/checks_ik.py</code>
+(model <code>kinematics</code>). Tests: <code>tests/test_ik.py</code>.</p>
+<h2 id="inverse-kinematics">Inverse kinematics</h2>
+<p><code>ik.solve(model, link, target, q0=None, seeds=8, rng=None, pos_tol=1e-4, rot_tol=1e-3, max_iter=200, damping=0.01, weight_rot=0.3, mode='auto', rule='nearest_home', collision=True, margin=0.0, tcp=None)</code> returns an <code>IKResult</code>
+(<code>q, ok, pos_err, rot_err, iterations, reason, mode, orientation_ok, manipulability, min_distance, solutions, note</code>).
+<code>ik.solve_batch(model, link, targets (N, 4, 4) or (N, 3), ...)</code> returns an <code>IKBatch</code> with the same fields as arrays,
+<code>reason</code> as a list and <code>counts()</code> giving how many targets succeeded and how many failed for each reason.</p>
+<p><strong>The step.</strong> For the tool pose x(q) (the link's frame, optionally followed by a fixed offset <code>tcp</code>) and a target
+(p*, R*):</p>
+<pre><code>e  = [p* − p ;  w · log(R* Rᵀ)]          position error (m), rotation error (rad, world axis-angle)
+Jw = [J_lin ; w · J_ang]                 MuJoCo's world Jacobian of the tool point (mj_jac), rows weighted alike
+Δq = (Jwᵀ Jw + λ² I)⁻¹ Jwᵀ e             damped least squares [Wampler 1986; Nakamura and Hanafusa 1986]
+λ² = ½ |e|² + δ²                         error-dependent damping [Sugihara 2011]
+Δq += −k (I − Jw⁺ Jw) ∇H(q)              H = Σ ((q − q_mid)/(q_hi − q_lo))², away from the limits [Liégeois 1977]
+q  ← clip(q + s·Δq, lower, upper)        s caps the largest joint change at 0.5 rad per iteration
+</code></pre>
+<p>w = 0.3 m/rad, δ = 0.01, k = 0.05 and the step cap are defaults of the solver (tuning of the method, not figures of
+any robot); the convergence tolerances 0.1 mm and 1 mrad are defaults the caller can change. Iteration stops when
+both errors are within tolerance, when the error score has not dropped by 0.1 % for 15 iterations (stalled), or at
+<code>max_iter</code>.</p>
+<p><strong>Only the joints that move the link are solved.</strong> A gripper's finger joints do not move the gripper's base, and one
+arm of a bimanual robot does not move the other's flange; such joints (<code>manipulability.chain_mask</code>) stay at q0 (or
+home) and never enter the joint count. The SO-100 sample has six joints, but its jaw does not move the fixed jaw, so
+its gripper frame has five.</p>
+<p><strong>Position-only mode.</strong> A chain with fewer than six joints cannot set all six pose coordinates. In <code>mode='auto'</code> such
+chains are solved position-first: the position by damped least squares, the orientation as a second task inside the
+null space N_p = I − J_lin⁺ J_lin of the position task [Nakamura and Hanafusa 1986], so the position is reached exactly
+and the orientation as closely as the joints allow. <code>ok</code> then means the position was reached; <code>orientation_ok</code> says
+whether the orientation was too; <code>note</code> says how far off it is, in degrees. <code>mode='pose'</code> asks for the full pose and
+fails with <strong>orientation unreachable</strong> when only the position could be reached. A target given as a 3-vector leaves
+the orientation free (<code>rot_err</code> is nan).</p>
+<p><strong>Seeds and the rule.</strong> Each target is solved from <code>seeds</code> starting points (q0 when given, home, then uniform draws
+within the limits from a seeded generator) in lock step: MuJoCo evaluates the Jacobians one at a time, and the linear
+algebra runs batched over every seed and target. Targets no seed solved get <code>retry_seeds</code> (default 2 × seeds) fresh
+seeds. Among the converged seeds (in position-first mode, those within rot_tol of the best orientation), <code>rule</code>
+chooses <strong>nearest_home</strong> (smallest joint distance to home; unlimited revolute joints wrapped to within π of home),
+<strong>nearest_q0</strong> (the same, to q0, and wrapped to within π of q0: smooth when dragging, never a jump of a full turn) or <strong>most_manipulable</strong> (largest Yoshikawa measure of the task
+Jacobian). With <code>collision=True</code> the chosen solution is the first, in rule order, that is at least <code>margin</code> from
+self-collision.</p>
+<p><strong>Why a target fails</strong>, decided in this order:</p>
+<table>
+<thead>
+<tr>
+<th>reason</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>out of reach</td>
+<td>farther from the first moving joint than the reach bound (the sum of the distances between consecutive joint anchors and to the tool point, plus each prismatic joint's travel from home, max(upper − home, home − lower): the triangle inequality), or every seed stalled short of it with and without the joint limits</td>
+</tr>
+<tr>
+<td>joint limit</td>
+<td>a solve with the limits removed converges, and shifting revolute joints by whole turns does not bring it back inside them</td>
+</tr>
+<tr>
+<td>orientation unreachable</td>
+<td><code>mode='pose'</code> on a chain with fewer than six joints whose position alone can be reached</td>
+</tr>
+<tr>
+<td>self-collision</td>
+<td>every converged solution has the robot nearer to itself than <code>margin</code></td>
+</tr>
+<tr>
+<td>no convergence</td>
+<td>none of the above: the seeds ran out of iterations (more seeds or iterations may help)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Speed</strong> (measured on the development machine, one thread, 8 seeds): 4 ms per target for the scripted 6-joint arm,
+4.4 ms for the UR5e sample, 3.1 ms for the SO-100 sample (position-first), so 10,000 grasps take about 40 s.</p>
+<h2 id="manipulability">Manipulability</h2>
+<p>From the singular values σ of the Jacobian J (m × n) [Yoshikawa 1985]:</p>
+<pre><code>w = √det(J Jᵀ) = Π σᵢ   (0 when m &gt; n)        κ = σ_max / σ_min   (numpy's 2-norm condition number)
+1/κ in [0, 1]                                  limit distance dᵢ = 2·min(qᵢ − loᵢ, hiᵢ − qᵢ)/(hiᵢ − loᵢ) in [0, 1]
+</code></pre>
+<p><code>measures(model, q, link, part='full'|'position'|'rotation')</code> and <code>measures_batch(model, Q, link)</code> return all of them;
+<code>min_limit_distance</code> is taken over the joints that move the link. The 6 × n Jacobian mixes metres and radians, so w
+and κ of <code>part='full'</code> depend on the length unit; <code>part='position'</code> is in metres and is the measure for five-joint
+arms.</p>
+<h2 id="collision-distances">Collision distances</h2>
+<p><code>collision.self_collision(model, q, margin=0.0, distmax=0.2)</code> returns <code>(in_collision, min_distance, pairs)</code>;
+<code>environment_distance</code> does the same against the static geoms of the robot's own file; both have batch versions.
+The distance of a geom pair is MuJoCo's signed <code>mj_geomDistance</code> (negative = penetration depth), evaluated for pairs
+whose bounding spheres come within distmax (a default; a value of distmax means &quot;at least distmax&quot;). Pairs not
+checked: geoms of one rigid group (bodies joined without a moving joint), adjacent links (one joint between them),
+pairs the file excludes (MuJoCo's contype/conaffinity rule and <code>&lt;exclude&gt;</code>), planes and height fields. Pairs the file
+names in <code>&lt;contact&gt;&lt;pair&gt;</code> are always checked.</p>
+<h2 id="validation">Validation</h2>
+<table>
+<thead>
+<tr>
+<th>check</th>
+<th>reference</th>
+<th>tolerance</th>
+<th>measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kinematics.ik_round_trip</td>
+<td>150 random collision-free joint vectors of a scripted 6-joint arm → pose by a product of exponentials written out in the check → IK → the solution's pose by the same product</td>
+<td>0.1 mm (the solver's tolerance), all solved, rotation ≤ 1 mrad</td>
+<td>150/150 solved; largest 0.0997 mm, median 0.018 mm; rotation ≤ 0.84 mrad</td>
+</tr>
+<tr>
+<td>kinematics.ik_position_only</td>
+<td>the same on a 5-joint arm, position-first</td>
+<td>0.1 mm, all solved</td>
+<td>150/150; largest 0.093 mm; orientation also reached in 149</td>
+</tr>
+<tr>
+<td>kinematics.manipulability_2r</td>
+<td>closed form |l₁ l₂ sin q₂| over 1,000 poses (and κ from the eigenvalues of the closed-form J Jᵀ)</td>
+<td>1e-12 m²</td>
+<td>1.1e-16 m²; κ to 4.5e-12 relative</td>
+</tr>
+<tr>
+<td>kinematics.collision_spheres</td>
+<td>|c₁ − c₂| − r₁ − r₂ over 1,000 placements (78 overlapping)</td>
+<td>1e-9 m</td>
+<td>1.1e-16 m; in-collision flag right every time</td>
+</tr>
+<tr>
+<td>kinematics.collision_capsules</td>
+<td>closest points of two segments [Ericson 2005, §5.1.9] minus the radii, 1,000 placements (90 overlapping)</td>
+<td>1e-9 m</td>
+<td>1.1e-16 m; flag right every time</td>
+</tr>
+</tbody>
+</table>
+<p>The round trip's error sits just under its tolerance by design: the solver stops as soon as it is within 0.1 mm,
+and the check confirms that a solution reported as converged meets the tolerance by an independent route.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>IK is local: a reachable target can be missed when every seed falls into a local minimum (reported as no
+convergence, or as out of reach when the seeds also stalled without limits). The reach bound is an upper bound.</li>
+<li>Unlimited revolute joints are seeded within ±π of home only; URDF mimic joints move independently.</li>
+<li>MuJoCo collides meshes as their convex hulls, so distances to concave links (a U-shaped bracket, a palm) are short
+of the true ones (never long). Closed linkages (the Robotiq 2F-85's) have non-adjacent links a few millimetres
+apart by design, so a margin larger than that reports them.</li>
+<li>The environment is only what the robot's own file places in its world body; project obstacles are not avoided yet.</li>
+<li>Yoshikawa's measure and κ of the full Jacobian are not scale-free (metres against radians).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

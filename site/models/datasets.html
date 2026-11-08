@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datasets: readers, writers and the shared episode shape · DexVantage</title>
+<meta name="description" content="dexvantage/core/datasets/: episode.py (the shared Dataset / Episode / CameraStream shape andopen_dataset), one module per format, the validation check formats.lerobot_roundtrip indexvantage/validation/checks_formats.py. A worked example is in Datasets: a worked example on the SO-100 sample.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#formats">Formats</a>
+    <a href="#ros-2-bags">ROS 2 bags</a>
+    <a href="#rlds">RLDS</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/datasets.md"><code>docs/models/datasets.md</code></a></p>
+<h1 id="datasets-readers-writers-and-the-shared-episode-shape">Datasets: readers, writers and the shared episode shape</h1>
+<p><code>dexvantage/core/datasets/</code>: <code>episode.py</code> (the shared <code>Dataset</code> / <code>Episode</code> / <code>CameraStream</code> shape and
+<code>open_dataset</code>), one module per format, the validation check <code>formats.lerobot_roundtrip</code> in
+<code>dexvantage/validation/checks_formats.py</code>. A worked example is in <a href="../guide/datasets.html">Datasets: a worked example on the SO-100 sample</a>.</p>
+<p>Every reader opens a dataset into the same shape, so the auditor (§8.2), plan-against-recording (§8.3) and the
+calibration capture work on any format:</p>
+<pre><code class="language-python">from dexvantage.core.datasets import open_dataset
+with open_dataset(path) as ds:            # sniffs the format; a plain DatasetError when it cannot
+    for ref in ds.episodes():             # cheap: index, id, length
+        ep = ds.load(ref.index)           # t (N,), q (N, nq), joint_names, action, task, cameras, meta
+        cam = ep.cameras['observation.images.wrist']
+        for i, rgb in cam.frames([0, 10]):   # decoded lazily, HxWx3 uint8
+            ...
+    truth = ds.truth()                    # the ground-truth sidecar of a synthetic dataset, else None
+</code></pre>
+<p>A figure a format does not record is <code>None</code>, never a guess: LeRobot stores no intrinsics, extrinsics or hardware
+timestamps, so those are <code>None</code> for a LeRobot camera.</p>
+<h2 id="formats">Formats</h2>
+<h3 id="lerobot-v21-and-v30--coredatasetslerobotpy">LeRobot v2.1 and v3.0 — <code>core/datasets/lerobot.py</code></h3>
+<p><strong>Source.</strong> The format is taken from the LeRobot repository itself, https://github.com/huggingface/lerobot, read
+2026-11-07: v3.0 at commit <code>d490e472a5d1a207cfe0255caaaf74b6d66e4656</code> (main, 2026-11-05), files
+<code>src/lerobot/datasets/{utils, dataset_metadata, dataset_writer, io_utils, feature_utils, compute_stats, video_utils}.py</code>, <code>src/lerobot/configs/video.py</code>, <code>src/lerobot/utils/constants.py</code>,
+<code>src/lerobot/scripts/convert_dataset_v21_to_v30.py</code> and <code>docs/source/lerobot-dataset-v3.mdx</code>; v2.1 at tag <code>v0.3.3</code>
+(commit <code>b883328e6c95681ca90a18b102e4ae5e1f91e2bf</code>, the last release whose <code>CODEBASE_VERSION</code> is <code>&quot;v2.1&quot;</code>), files
+<code>src/lerobot/datasets/{utils, lerobot_dataset, compute_stats, video_utils}.py</code>. LeRobot is Apache-2.0; nothing of it
+is bundled or imported (the layout is reimplemented from the source).</p>
+<p><strong>Layouts.</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>v2.1</th>
+<th>v3.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>header</td>
+<td><code>meta/info.json</code>: <code>codebase_version</code>, <code>robot_type</code>, <code>total_episodes</code>, <code>total_frames</code>, <code>total_tasks</code>, <code>total_videos</code>, <code>total_chunks</code>, <code>chunks_size</code> (1000), <code>fps</code>, <code>splits</code>, <code>data_path</code>, <code>video_path</code>, <code>features</code></td>
+<td><code>meta/info.json</code>: <code>codebase_version</code>, <code>fps</code> (integer), <code>features</code>, <code>total_episodes</code>, <code>total_frames</code>, <code>total_tasks</code>, <code>chunks_size</code>, <code>data_files_size_in_mb</code> (100), <code>video_files_size_in_mb</code> (200), <code>data_path</code>, <code>video_path</code>, <code>robot_type</code>, <code>splits</code></td>
+</tr>
+<tr>
+<td>data</td>
+<td><code>data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet</code>, one per episode; <code>episode_chunk = episode_index // chunks_size</code></td>
+<td><code>data/chunk-{chunk_index:03d}/file-{file_index:03d}.parquet</code>, many episodes, one row group each</td>
+</tr>
+<tr>
+<td>video</td>
+<td><code>videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4</code></td>
+<td><code>videos/{video_key}/chunk-{chunk_index:03d}/file-{file_index:03d}.mp4</code>, many episodes</td>
+</tr>
+<tr>
+<td>episodes</td>
+<td><code>meta/episodes.jsonl</code>: <code>{episode_index, tasks, length}</code></td>
+<td><code>meta/episodes/chunk-000/file-000.parquet</code>: <code>episode_index</code>, <code>tasks</code>, <code>length</code>, <code>data/chunk_index</code>, <code>data/file_index</code>, <code>dataset_from_index</code>, <code>dataset_to_index</code>, <code>videos/&lt;key&gt;/{chunk_index, file_index, from_timestamp, to_timestamp}</code>, <code>stats/&lt;feature&gt;/&lt;stat&gt;</code>, <code>meta/episodes/{chunk_index, file_index}</code></td>
+</tr>
+<tr>
+<td>tasks</td>
+<td><code>meta/tasks.jsonl</code>: <code>{task_index, task}</code></td>
+<td><code>meta/tasks.parquet</code>: <code>task_index</code>, with <code>task</code> as the pandas index</td>
+</tr>
+<tr>
+<td>stats</td>
+<td><code>meta/episodes_stats.jsonl</code>: <code>{episode_index, stats: {feature: {min, max, mean, std, count}}}</code></td>
+<td>per episode in the episodes table, aggregated in <code>meta/stats.json</code>; adds <code>q01, q10, q50, q90, q99</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every dataset has the default features <code>timestamp</code> (float32), <code>frame_index</code>, <code>episode_index</code>, <code>index</code>, <code>task_index</code>
+(int64), each of shape <code>[1]</code>. A video feature has <code>dtype: &quot;video&quot;</code>, <code>shape: [h, w, 3]</code>, <code>names: [&quot;height&quot;, &quot;width&quot;, &quot;channels&quot;]</code> and an <code>info</code> block (<code>video.height</code>, <code>video.width</code>, <code>video.codec</code>, <code>video.pix_fmt</code>, <code>video.fps</code>,
+<code>video.channels</code>, <code>has_audio</code>; v2.1 <code>video.is_depth_map</code>, v3.0 <code>is_depth_map</code> and the encoder fields <code>video.g</code>,
+<code>video.crf</code>, <code>video.preset</code>, <code>video.fast_decode</code>). The conversion script's comment block writes <code>file_000</code>; the
+constants it imports and every path LeRobot builds give <code>file-000</code>, which is what DexVantage writes and reads.</p>
+<p><strong>Which frame belongs to a row.</strong> LeRobot looks a row's frame up by time: at v2.1 the frame at the row's <code>timestamp</code>
+in the episode's own video; at v3.0 the frame at</p>
+<pre><code>t_video = from_timestamp(episode, camera) + timestamp(row)
+</code></pre>
+<p>in the packed file, where <code>from_timestamp</code> is the summed duration of the episodes before it in that file
+(<code>dataset_writer._save_episode_video</code>, <code>get_video_duration_in_s</code> = stream duration × time base).</p>
+<p><strong>Reader.</strong> <code>open_dataset(path)</code> takes the dataset folder, its <code>meta/info.json</code>, a Hub snapshot folder
+(<code>…/snapshots/&lt;revision&gt;</code>) or a Hub cache folder (<code>datasets--org--name</code>, whose <code>refs/main</code> names the snapshot), or a
+dataset on the Hugging Face Hub by name, <code>hf://datasets/&lt;org&gt;/&lt;name&gt;[@&lt;revision&gt;]</code> (or its huggingface.co page URL),
+streamed file by file (<code>core/datasets/hub.py</code>, below). Any other <code>codebase_version</code> is refused with a sentence naming v2.1 and v3.0 (and the
+conversion scripts LeRobot offers); so are v3.0's non-Parquet <code>storage_format</code> backends (Lance). The episode maps as:</p>
+<table>
+<thead>
+<tr>
+<th>Episode</th>
+<th>LeRobot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>t</code></td>
+<td>the <code>timestamp</code> column (float32 stored, float64 returned)</td>
+</tr>
+<tr>
+<td><code>q</code>, <code>joint_names</code></td>
+<td><code>observation.state</code> and its feature <code>names</code> (a list, or a dict of lists such as <code>{&quot;motors&quot;: […]}</code>; <code>[]</code> when not stated)</td>
+</tr>
+<tr>
+<td><code>action</code>, <code>action_names</code></td>
+<td><code>action</code> and its names</td>
+</tr>
+<tr>
+<td><code>task</code></td>
+<td>the task of the episode's first row (<code>task_index</code>), all tasks in <code>meta['tasks']</code></td>
+</tr>
+<tr>
+<td><code>meta['columns']</code></td>
+<td>every other data column (<code>frame_index</code>, <code>index</code>, <code>task_index</code>, extra features)</td>
+</tr>
+<tr>
+<td><code>cameras[key]</code></td>
+<td>each <code>video</code> feature, and <code>image</code> features (PNG bytes in the Parquet, decoded with OpenCV)</td>
+</tr>
+<tr>
+<td><code>CameraStream.timestamps</code></td>
+<td>the presentation times of the episode's frames in the video, <code>pts · time_base − from_timestamp</code>, read by demuxing only (no decoding)</td>
+</tr>
+</tbody>
+</table>
+<p>A camera's <code>timestamps</code> are the video's own times, not the rows', so a dropped frame shows as a gap and a late
+camera as an offset against <code>Episode.t</code>, which is what the auditor compares. <code>frames(indices)</code> decodes with PyAV,
+seeking to the keyframe before the first frame asked for, and matches frames by their exact pts; frames come back in
+ascending index order, each once. Values are returned <strong>as stored</strong>: LeRobot records no units (DexVantage writes
+radians and metres; many SO-100 datasets on the Hub store degrees), so <code>meta['units']</code> says so.</p>
+<p><strong>Writer.</strong> <code>write_lerobot(path, episodes, version='v3.0', fps=None, robot_type=None, features=None, *, codec='auto', truth=None, overwrite=False, chunks_size=1000, data_file_size_mb=100, video_file_size_mb=200, progress=None) -&gt; dict</code> writes <code>observation.state</code> and <code>action</code> as float32 with the joint names, the default
+features, extra features (<code>{key: {dtype, shape, names}}</code>, values in each episode's <code>meta['columns'][key]</code>), the
+tasks, per-episode and aggregated stats as <code>compute_stats.py</code> defines them, and the videos:</p>
+<ul>
+<li>
+<p><strong>Codec.</strong> <code>codec='auto'</code> takes <strong>AV1 with <code>libsvtav1</code></strong>, LeRobot's default, when the PyAV build has that encoder,
+otherwise <strong>H.264 with <code>libx264</code></strong>; the summary's <code>codec</code> says which (<code>&quot;AV1 (libsvtav1)&quot;</code> or <code>&quot;H.264 (libx264)&quot;</code>) and <code>info.json</code> records <code>video.codec</code>. Options are LeRobot's defaults (<code>configs/video.py</code>):
+yuv420p, <code>g=2</code>, <code>crf=30</code>, and <code>preset=12</code> for libsvtav1 at v3.0. The PyAV build in the development venv
+(av 19.0.2) has libsvtav1 (SVT-AV1 4.2.0, which maps preset 12 to 11) and decodes with libdav1d.</p>
+</li>
+<li>
+<p><strong>Frame times.</strong> A camera's frames are written at <strong>its own timestamps</strong> (pts), so a synthetic camera that drops,
+duplicates or shifts frames keeps exactly those times. A camera whose every frame k sits at k/fps gets time base
+1/fps, as LeRobot's own files do; any other camera gets 1/90000 s (the MPEG 90 kHz clock), so its times come back
+within half a tick, 5.6 µs.</p>
+</li>
+<li>
+<p><strong>Packing at v3.0.</strong> Each episode is encoded to its own MP4 first, as LeRobot does, and its packets are then
+remuxed, not re-encoded, into the camera's packed file, shifted by <code>from_timestamp</code>. An episode's duration is
+counted in whole ticks of the time base:</p>
+<pre><code>duration = t_last + 1/fps,    from_timestamp(e+1) = from_timestamp(e) + duration(e)
+</code></pre>
+<p>For regular cameras that is the duration LeRobot's <code>get_video_duration_in_s</code> measures (N/fps), so the file is the
+one LeRobot's concatenation produces. LeRobot concatenates with ffmpeg's concat demuxer, which subtracts each
+file's start time and would erase a late camera's offset. The remux keeps it (tested). H.264 at v3.0 is written
+without B-frames (<code>bf=0</code>, so pts = dts and packets shift cleanly). A new file starts when the packed file's bytes
+plus the episode's would reach <code>video_files_size_in_mb</code> (LeRobot's rule; the bytes counted are packet bytes),
+and a new data file when the uncompressed Arrow bytes would reach <code>data_files_size_in_mb</code>.</p>
+</li>
+<li>
+<p><strong>Stats.</strong> Per feature, over the episode's rows: min, max, mean, std (population), count, and at v3.0 the
+quantiles q01–q99 (exact, <code>numpy.quantile</code>; LeRobot approximates them with 5000-bin histograms). Images: frames
+sampled as <code>sample_indices</code> does (<code>max(min(100, N), min(int(N^0.75), 10000))</code> evenly spaced), downsampled as
+<code>auto_downsample_height_width</code> does, per channel over (frame, height, width), divided by 255, shape (3, 1, 1); the
+count is the number sampled at v2.1 and N at v3.0. Aggregation is <code>aggregate_stats</code>: min of mins, max of maxes,
+the count-weighted mean, the pooled variance</p>
+<pre><code>μ = Σ nᵢ μᵢ / Σ nᵢ,    σ² = Σ nᵢ (σᵢ² + (μᵢ − μ)²) / Σ nᵢ
+</code></pre>
+<p>and for quantiles the envelope (min of q ≤ 50, max above), as LeRobot v3.0 does.</p>
+</li>
+<li>
+<p><strong>Ground truth.</strong> <code>truth={'schema': 'dexvantage.truth/1', …}</code> is written as <code>dexvantage_truth.json</code> at the root and
+returned by <code>Dataset.truth()</code>; LeRobot ignores the file.</p>
+</li>
+<li>
+<p><strong>Refusals.</strong> Each is a plain sentence: a non-whole fps (LeRobot stores an integer), odd frame sizes (yuv420p),
+feature names with <code>/</code>, episodes with different features or cameras, camera times that do not start at 0 s or
+later and increase, a non-empty folder (an existing LeRobot dataset is replaced only with <code>overwrite=True</code>; any
+other folder never is). A failed write removes the folder it created.</p>
+</li>
+</ul>
+<p><strong>Validation.</strong> <code>formats.lerobot_roundtrip</code> writes three synthetic episodes (12, 9 and 8 rows, six joints, actions, a
+two-column extra feature, two tasks, a 64 × 48 camera; the third camera drops a frame and runs one frame 13 ms late)
+as v2.1 and as v3.0. It reads them back twice: with DexVantage's reader, and <strong>independently</strong> with <code>json</code> and
+<code>pyarrow.parquet</code> on the files at the paths the format defines, the videos decoded by the <code>ffmpeg</code>/<code>ffprobe</code>
+command-line tools (a separate FFmpeg build from PyAV's). Tolerances, and why: columns bit for bit after the float32
+cast the format stores; camera times within half a 90 kHz tick (regular cameras are exact); frames at 30 dB PSNR or
+better, because the videos are lossy (crf 30) and 30 dB, an RMS error of 8 grey levels, is below what was measured
+with margin for other encoder builds; every frame closer to its own source than to a neighbour; info.json features,
+names and totals as written. The <code>lerobot</code> package is not installed, so LeRobot's own loader is not run; the check
+says so.</p>
+<p>Measured 2026-11-07 (AV1, libsvtav1, av 19.0.2, CPU): 0 mismatches; worst-frame PSNR 35.65 dB (v2.1) and 33.24 dB
+(v3.0, preset 12), identical from DexVantage's reader and from the ffmpeg CLI; the closest neighbouring source frame
+was at least 15.3 dB (v2.1) and 12.7 dB (v3.0) worse than a frame's own; camera time error 0 s (v2.1) and
+2.8 × 10⁻¹⁶ s (v3.0); the state against the float64 source 5.9 × 10⁻⁸ (float32 rounding). On a 64 × 48 / 128 × 96
+test pattern, H.264 (libx264, crf 30) gave a worst frame of 36.7 dB. The check takes 0.5 s; no GPU is used.</p>
+<p><strong>Known limits.</strong> Compatibility is with the format as read from the pinned source; the <code>lerobot</code> package itself is
+not a dependency and its loader is not run here. LeRobot records no units: values come back as stored. Intrinsics,
+extrinsics and hardware timestamps are not part of the format (<code>None</code>). Depth videos (12-bit, <code>is_depth_map</code>) are
+listed as cameras but their frames are not dequantised. v3.0 quantiles are exact where LeRobot's are histogram
+estimates. Data files roll over by uncompressed Arrow bytes and video files by packet bytes, where LeRobot measures
+the files on disk, so file boundaries can differ slightly from LeRobot's own for the same limits. The episodes
+table is written as one file. The writer writes videos, not PNG image features (the reader reads both). SVT-AV1
+now and then writes a stream that does not decode (2 of 32 and 1 of 40 small datasets written four at a time,
+measured 2026-11-08), so the writer decodes every AV1 file once after writing it (more time per dataset) and
+encodes a bad one again with one encoder thread, about 11 × slower; none of 40 failed that way. Video bytes
+streamed from the Hub are not kept on disk (a second pass reads them again unless they are still among the blocks
+in memory).</p>
+<p><strong>Hub streaming (<code>core/datasets/hub.py</code>).</strong> The Hub's HTTP interface as <code>huggingface_hub</code> uses it (read from
+github.com/huggingface/huggingface_hub at commit fd5dccb, main, 2026-11-05, read 2026-11-07: <code>constants.py</code>,
+<code>file_download.hf_hub_url</code>, <code>hf_api.dataset_info</code> and <code>_iter_repo_tree_pages</code>, <code>utils/_pagination.py</code>):
+<code>{endpoint}/api/datasets/{repo}/revision/{rev}</code> (the commit <code>sha</code>, <code>private</code>, <code>gated</code>, the card's licence),
+<code>{endpoint}/api/datasets/{repo}/tree/{sha}/{path}?recursive=true&amp;expand=false</code> (the file list, paged by a
+<code>Link: &lt;…&gt;; rel=&quot;next&quot;</code> header) and <code>{endpoint}/datasets/{repo}/resolve/{sha}/{path}</code> (a file); the endpoint is
+<code>HF_ENDPOINT</code> or https://huggingface.co. Opening pins the revision to its commit and fetches <code>meta/info.json</code> and
+the episode metadata (v2.1 <code>episodes.jsonl</code> and <code>tasks.jsonl</code>; v3.0 every file under <code>meta/episodes/</code> and
+<code>tasks.parquet</code>); loading an episode fetches its data file, and its cameras' videos are read in place by HTTP range
+requests (4 MiB blocks, the last 24 kept in memory: defaults), so a packed v3.0 video file is not downloaded whole (a
+server that ignores ranges gets the whole file fetched instead); stats and the ground-truth sidecar only when asked
+for. Measured on <code>lerobot/svla_so100_pickplace</code> (commit 728583b, 2026-11-07, a home connection): open 2.3 s (50
+episodes); episode 10's two cameras 11.9 s and 33 MB by range requests, where their packed files are 449 MB; its 364
+frames of one camera then decoded in 0.6 s. Files go to <code>XDG_CACHE_HOME/DexVantage/hub/&lt;org&gt;--&lt;name&gt;/&lt;commit&gt;/</code> (&quot;.part&quot; then
+renamed), so a second read is local. Only public datasets: no token is read or sent, and a gated or private dataset
+is refused in one sentence, as are a missing dataset or revision and a network that cannot reach the Hub. The
+dataset's <code>source</code> (repo, revision, commit, the card's licence) goes into the audit's <code>dataset</code> block. Tested against
+a fake Hub that serves a synthetic dataset through the same URLs (<code>tests/test_spec_review_p458.py</code>: only metadata on
+open, the episode's files on load, identical arrays and frames to the local read, a paged file list, a second read
+from the cache); the real Hub was not contacted by the tests.</p>
+<h2 id="ros-2-bags">ROS 2 bags</h2>
+<p>Modules: <code>dexvantage/core/rosbag.py</code> (the CDR codec, the MCAP writer, the MCAP and SQLite readers; ported from
+Vantage <code>core/rosbag.py</code>) and <code>dexvantage/core/datasets/bag.py</code> (a bag as a <code>Dataset</code>; formats <code>mcap</code> and
+<code>rosbag2-sqlite</code>). Check <code>formats.mcap_roundtrip</code>. Tests <code>tests/test_bag_reader.py</code>. Worked example:
+<a href="../guide/bags_rlds.html">Reading ROS 2 bags and RLDS datasets</a>.</p>
+<p><strong>What is read.</strong> A rosbag2 bag (a folder with <code>metadata.yaml</code> and its <code>.mcap</code> or <code>.db3</code> files, split bags merged in
+time order), one <code>.mcap</code> or <code>.db3</code> file, or a folder of bags (each sub-folder bag and each loose bag file is one
+episode, in natural name order). No ROS installation: numpy and the standard library, PyYAML for <code>metadata.yaml</code>,
+OpenCV for compressed images, and <code>zstandard</code> / <code>lz4</code> (the <code>bags</code> extra, <code>pip install &quot;dexvantage[bags]&quot;</code>) only for
+compressed MCAP chunks; without them the reader says so in a sentence.</p>
+<p><strong>Wire formats.</strong> MCAP as specified at https://mcap.dev/spec (read 2026-11-07): chunks streamed one at a time and
+merged into log-time order, their CRC-32 checked; a file without a summary (a recorder that was killed) is read by a
+linear scan that stops at the first incomplete record and says so. SQLite bags: the <code>topics</code> and <code>messages</code> tables
+rosbag2's sqlite3 plugin writes, with <code>message_definitions</code> (Iron and later) when present. Messages are XCDR1 &quot;plain
+CDR&quot; (OMG DDS-XTypes 1.3 §7.4): a 4-byte encapsulation header, every primitive aligned to its own size measured from
+the end of the header, strings as a uint32 length that counts the NUL, sequences as a uint32 count. A bag's own
+message definitions (MCAP schema, <code>message_definitions</code>) take precedence, so vendor types and other distributions
+decode as recorded. The types a robot-learning bag holds are built in: <code>sensor_msgs/JointState</code>, <code>Image</code>,
+<code>CompressedImage</code>, <code>CameraInfo</code>, <code>TimeReference</code>, <code>tf2_msgs/TFMessage</code>, <code>std_msgs/Header</code>, <code>String</code>, the multi-array
+types, and the geometry types they use.</p>
+<p><strong>Episode mapping.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Episode field</th>
+<th>From</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>t</code>, <code>q</code>, <code>joint_names</code></td>
+<td><code>/joint_states</code> (else the JointState topic with the most messages, command topics last). <code>t</code> is <code>header.stamp</code>, or the log time when the driver leaves the stamp at zero (<code>meta['t_source']</code>). <code>q</code> holds the union of joint names in first-seen order; a message that leaves a joint out holds its previous value (<code>meta['q_held']</code> counts them), a joint not yet seen is NaN.</td>
+</tr>
+<tr>
+<td><code>cameras[topic]</code></td>
+<td>every <code>Image</code> / <code>CompressedImage</code> topic with 8-bit colour, mono, Bayer or YUV 4:2:2 pixels. <code>timestamps</code> = header stamps, <code>meta['log_times']</code> = receive times. Depth, 16-bit and float images go to <code>meta['depth_streams']</code>.</td>
+</tr>
+<tr>
+<td><code>hw_timestamps</code></td>
+<td>a <code>sensor_msgs/TimeReference</code> in the camera's namespace (<code>time_ref</code> of the frame whose stamp is <code>header.stamp</code>), or the header stamps themselves when they run on another clock than the joint states (see below). Seconds from that camera's first device time; <code>meta['hw_t0_s']</code> keeps the raw first value.</td>
+</tr>
+<tr>
+<td><code>intrinsics</code></td>
+<td>the first <code>CameraInfo</code> beside the image topic (<code>&lt;ns&gt;/camera_info</code>), or with the same <code>frame_id</code>: <code>plumb_bob</code> and <code>rational_polynomial</code> → <code>brown</code> (<code>pinhole</code> when every coefficient is zero), <code>equidistant</code> → <code>kb</code>; an all-zero K (uncalibrated) → <code>None</code>.</td>
+</tr>
+<tr>
+<td><code>extrinsics</code></td>
+<td><code>/tf_static</code>: the pose of the image's <code>frame_id</code> in the top frame reachable through static transforms (<code>meta['tf_chain']</code>): the base or world frame of a fixed camera, the link a wrist camera is bolted to.</td>
+</tr>
+<tr>
+<td><code>task</code>, <code>robot_type</code></td>
+<td>a <code>String</code> topic named <code>task</code>, <code>instruction</code>, <code>language_instruction</code> or <code>prompt</code> (else <code>metadata.yaml</code> <code>custom_data</code>); the robot name in <code>/robot_description</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>All times are seconds from the episode start t₀ (the earliest joint-state or camera time), computed in integer
+nanoseconds before the conversion, <code>t = (stamp_ns − t₀) / 10⁹</code>, so an epoch time keeps nanosecond resolution.</p>
+<p><strong>Two clocks.</strong> A camera driver may stamp frames with the device's clock (seconds since power-on) rather than the
+host's. With o = median(header stamp − log time) of a stream, a camera whose o differs from the joint states' o_j by
+more than <code>CLOCK_SPLIT_S</code> (default 10 s, a labelled default; transport delays are milliseconds, clock-domain offsets
+are hours to decades) has its header stamps moved to <code>hw_timestamps</code>, and its <code>timestamps</code> become log time + o_j:
+the receive time carried onto the joint-state clock (<code>meta['timestamp_source']</code> says which was used).</p>
+<p><strong>Validation</strong> (<code>formats.mcap_roundtrip</code>, tolerance 0 mismatches: a container either carries every byte or is
+wrong). A two-camera robot episode (321 messages in the full run, 65 in the quick run) is written with every chunk
+compression installed (none, zstd, lz4) and read back by (1) an MCAP walk written again in the check from the
+specification, checking every chunk's CRC-32, the data-section CRC and the summary CRC; (2) the <code>mcap</code> package
+(Foxglove, version 1.6.0) with CRC validation, when installed; (3) one JointState laid out byte by byte with <code>struct</code>
+in XCDR1; and the dataset reader must return the joint states, stamps and static camera pose exactly. Measured
+2026-11-07: 0 mismatches, 0 CRC failures, hand CDR layout identical, in 0.06 s. A reader that drops a stamp's
+nanoseconds fails it (a test). The tests also cross-check the codec with the <code>mcap</code> package both ways, read SQLite
+bags written with <code>sqlite3</code> alone, rebuild the static camera poses from the quaternions by hand, and decode JPEG,
+PNG, rgb8, bgr8, mono8 and Bayer frames.</p>
+<p><strong>Speed</strong> (AMD Ryzen 9 9900X, files in the page cache): an episode of 1000 joint states and 300 rgb8 640×480 frames
+(277 MB) loads in 0.09 s (headers only: the pixel data is not decoded) and all 300 frames decode in 0.12 s.</p>
+<p><strong>Known limits.</strong> One robot state vector from one JointState topic; actions are not read from bags (no standard
+action message; command topics are listed in <code>meta['other_joint_topics']</code>); dynamic <code>/tf</code> is not used for
+extrinsics; vendor frame-metadata topics (exposure, gain) are not decoded; a <code>frame_id</code> that is the camera's body
+frame rather than its optical frame gives that frame's pose (<code>meta['frame_id']</code>); the camera <code>fps</code> is <code>None</code> (a bag
+does not state a nominal rate); rosbag2 file compression (a whole <code>.mcap.zstd</code>) is refused with the command that
+undoes it (<code>ros2 bag decompress</code>); XCDR2 and <code>wstring</code> are not read; a bag with no JointState topic has
+no reference clock, so each camera keeps its header stamps as recorded.</p>
+<h2 id="rlds">RLDS</h2>
+<p>Module: <code>dexvantage/core/datasets/rlds.py</code> (format <code>rlds</code>). Check <code>formats.tfrecord_crc</code>. Tests
+<code>tests/test_rlds_reader.py</code> (fixtures written by <code>tests/tfrecord_writer.py</code>, which shares no code with the reader).</p>
+<p><strong>What is read.</strong> An RLDS / Open X-Embodiment dataset in TensorFlow Datasets' on-disk form — a folder of
+<code>&lt;name&gt;-&lt;split&gt;.tfrecord-XXXXX-of-YYYYY</code> shards with <code>dataset_info.json</code> and <code>features.json</code> (or its parent, whose
+highest version folder is used) — or a single TFRecord file. No TensorFlow and no protobuf runtime: the framing,
+the CRC and the protobuf messages are decoded by hand from their definitions.</p>
+<p><strong>Sources</strong> (read 2026-11-07): TFRecord framing, <code>xla/tsl/lib/io/record_writer.h</code> and the mask in
+<code>xla/tsl/lib/hash/crc32c.h</code> (https://github.com/openxla/xla) and https://www.tensorflow.org/tutorials/load_data/tfrecord;
+<code>tensorflow/core/example/example.proto</code> and <code>feature.proto</code> (https://github.com/tensorflow/tensorflow); the protobuf
+wire format, https://protobuf.dev/programming-guides/encoding/; TFDS's serialisation,
+<code>tensorflow_datasets/core/example_serializer.py</code> and <code>core/features/{image_feature, tensor_feature, dataset_feature, sequence_feature}.py</code> (https://github.com/tensorflow/datasets); RLDS's episode and step fields, the README of
+https://github.com/google-research/rlds (Ramos et al. 2021, arXiv:2111.02767); and the published <code>features.json</code> /
+<code>dataset_info.json</code> of three Open X-Embodiment datasets (<code>fractal20220817_data</code>, <code>bridge</code>, <code>berkeley_autolab_ur5</code>, at
+<code>https://storage.googleapis.com/gresearch/robotics/&lt;name&gt;/0.1.0/</code>), whose layout the test fixtures follow.</p>
+<p><strong>TFRecord and CRC-32C.</strong> A record is <code>uint64 length | uint32 masked_crc(length) | data | uint32 masked_crc(data)</code>,
+little-endian, with masked(c) = ((c ≫ 15) | (c ≪ 17)) + 0xa282ead8 mod 2³². The CRC is CRC-32C (Castagnoli,
+reflected polynomial 0x82f63b78, initial value and final XOR 0xffffffff). Both CRCs of every record read are
+verified; listing episodes reads only the 12-byte headers. The CRC is linear over GF(2), which the implementation
+uses to run in numpy: a buffer of n bytes is cut into B blocks of L ≈ √n bytes whose registers advance together
+(one table look-up per byte position for all blocks), then combined in order with r ← Z_L(r) ⊕ c_k, where Z_L, &quot;the
+register after L zero bytes&quot;, is a fixed linear map tabulated once per L. 100 MB take 1.0 s on a Ryzen 9 9900X (the
+table-driven byte-by-byte Python loop, measured on 4 MB, would take 4.9 s).
+GZIP-compressed TFRecords are read through Python's <code>gzip</code>.</p>
+<p><strong>Example and SequenceExample.</strong> <code>Example{Features features = 1}</code>, <code>SequenceExample{Features context = 1; FeatureLists feature_lists = 2}</code>, <code>Features{map&lt;string, Feature&gt; feature = 1}</code> (map entries: key = 1, value = 2),
+<code>Feature{oneof: BytesList = 1, FloatList = 2, Int64List = 3}</code>. Packed and unpacked repeated encodings are both read
+(the encoding guide requires parsers to accept either); int64 varints are two's complement.</p>
+<p><strong>TFDS features.</strong> TFDS flattens the nested feature dictionary with <code>/</code> and stores the RLDS <code>steps</code> sequence stacked:
+a <code>(3,)</code> float32 action over N steps is one FloatList of 3N values, an image is one encoded JPEG or PNG per step,
+<code>bool</code> is int64, <code>uint64</code> is bit-cast to int64, a Tensor with encoding <code>bytes</code> or <code>zlib</code> is one (zlib-compressed)
+raw buffer per step, and a float32 image is a 4-channel PNG of its bytes. <code>features.json</code> gives each leaf's class,
+shape, dtype and encoding; without it shapes are inferred from N (from <code>steps/is_first</code>).</p>
+<p><strong>Episode mapping.</strong> One record is one episode, id <code>&lt;split&gt;-&lt;k&gt;</code>. <code>q</code> is the observation's state vector — the first
+of <code>joint_position(s)</code>, <code>joint_pos</code>, <code>joint_state(s)</code>, <code>qpos</code>, <code>state</code>, <code>robot_state</code>, <code>proprio</code> present — with
+components named <code>&lt;feature&gt;_&lt;i&gt;</code>, because RLDS stores no joint names (Open X-Embodiment <code>state</code> vectors are often
+end-effector poses, not joint angles; <code>meta['state_feature']</code> names the source). <code>action</code> is the <code>action</code> tensor, or
+the <code>action/*</code> sub-features concatenated in <code>features.json</code> order. <code>task</code> is the language instruction (a step
+feature or episode metadata). Every 8-bit image feature is a <code>CameraStream</code>, decoded lazily with OpenCV to RGB; float
+and 16-bit images are listed in <code>meta['depth_streams']</code>. <code>meta['rlds']</code> holds <code>is_first</code>, <code>is_last</code>, <code>is_terminal</code>,
+<code>reward</code>, <code>discount</code>; a flag not set on exactly the first / last step is a warning in <code>meta['warnings']</code>.
+<code>meta['episode_metadata']</code> holds the episode-level features.</p>
+<p><strong>Time.</strong> RLDS records no times in general. <code>t</code> is the step index divided by the fps passed to the reader
+(<code>RldsDataset(path, fps=...)</code>, a user setting, never a guess); without it <code>t</code> counts steps and
+<code>meta['time_base'] = 'steps'</code>. A float step feature named <code>timestamp</code> is used instead, read as seconds
+(<code>meta['time_source']</code> says so).</p>
+<p><strong>Validation</strong> (<code>formats.tfrecord_crc</code>, tolerance 0 mismatches: a checksum is exact). The reader's CRC-32C against
+the five test vectors of RFC 3720 appendix B.4 and the CRC catalogue's check value crc32c(&quot;123456789&quot;) = 0xe3069283;
+against a bit-at-a-time Castagnoli CRC written in the check on random buffers on both sides of the vectorised path's
+8 KiB threshold (up to 150 kB); the masked CRC against TensorFlow's formula on 200 random values; and TFRecord framing
+written in the check, read back, with a damaged copy that must be refused. Measured 2026-11-07: 0 mismatches in
+0.11 s. CRC-32 (zlib's polynomial) in its place fails it (a test). The tests also parse messages serialised by
+Google's protobuf runtime (descriptors built from <code>example.proto</code> / <code>feature.proto</code> at run time, no TensorFlow),
+check that runtime reads the test writer's bytes, and read whole TFDS-style datasets back exactly (PNG frames bit for
+bit, JPEG within 3 grey levels).</p>
+<p><strong>Known limits.</strong> float64 tensors that TFDS stored in a FloatList keep float32 precision; float32 and uint16 images
+(depth) are not exposed as cameras; ragged (multi-level) sequences are left out with a note; intrinsics, extrinsics
+and hardware timestamps are <code>None</code> (RLDS has no standard place for them); a GZIP TFRecord is decompressed from the
+start for every episode, so it is slow to browse; Hub / GCS datasets are read only from a local copy.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -820,7 +820,7 @@ def _regular(ts: np.ndarray, fps: float) -> bool:
 class _VideoFile:
     """One episode's MP4 being encoded (PyAV), frames given with their presentation time in seconds."""
 
-    def __init__(self, path, fps, width, height, codec, version, regular):
+    def __init__(self, path, fps, width, height, codec, version, regular, single_thread=False):
         av = _av()
         os.environ.setdefault('SVT_LOG', '1')          # SVT-AV1: errors only on stderr
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -832,6 +832,8 @@ class _VideoFile:
         if codec == 'libx264' and version == 'v3.0':
             opts['bf'] = '0'                           # no B-frames: pts = dts, so packets shift into a packed file
         self.options = {k: (int(v) if v.isdigit() else v) for k, v in opts.items()}
+        if codec == 'libsvtav1' and single_thread:
+            opts['svtav1-params'] = 'lp=1'             # one thread: the same stream format (see _encode_episode)
         self.c = av.open(path, 'w', options={'movflags': 'faststart'})
         self.s = self.c.add_stream(codec, rate=int(round(fps)), options=opts)
         self.s.pix_fmt = ENCODER_DEFAULTS['pix_fmt']
@@ -869,8 +871,35 @@ class _VideoFile:
         self.c.close()
 
 
+def _decodes(path: str, n: int) -> bool:
+    """True when every one of the n frames of the video at path decodes."""
+    av = _av()
+    try:
+        with av.open(path) as c:
+            return sum(1 for _ in c.decode(video=0)) == n
+    except Exception:                                   # noqa: BLE001 — any decode error: not readable
+        return False
+
+
 def _encode_episode(path, k, j, cam, ts, fps, vcodec, version, regular, cam_shape):
-    """Encode one camera of one episode to path; (the closed _VideoFile, the camera's stats)."""
+    """Encode one camera of one episode to path; (the closed _VideoFile, the camera's stats).
+
+    SVT-AV1 (the PyAV 19.0.2 wheel's libsvtav1) now and then writes a stream that does not decode ("Invalid data
+    found when processing input"), with "live_count should not be EB_ObjectWrapperReleasedValue" on stderr: measured
+    here as 2 of 32 and 1 of 40 small SO-100 datasets (two episodes of two 160 × 90 cameras) written four at a time,
+    and none of 40 with one encoder thread (lp=1), which is about 11 × slower (640 × 480, 300 frames: 11.1 s against
+    1.0 s). So every AV1 file is decoded once after it is written, and a file that does not decode is encoded again
+    from the camera's frames with one thread."""
+    vf, stats = _encode_once(path, k, j, cam, ts, fps, vcodec, version, regular, cam_shape, False)
+    if vcodec == 'libsvtav1' and not _decodes(path, len(ts)):
+        vf, stats = _encode_once(path, k, j, cam, ts, fps, vcodec, version, regular, cam_shape, True)
+        if not _decodes(path, len(ts)):
+            raise DatasetError(f'The AV1 video of camera {k} in episode {j} does not decode even when encoded with '
+                               'one thread; write the dataset with the H.264 codec instead.')
+    return vf, stats
+
+
+def _encode_once(path, k, j, cam, ts, fps, vcodec, version, regular, cam_shape, single_thread):
     m = len(ts)
     sample = set(_sample_indices(m))
     samples, seen, vf = [], 0, None
@@ -892,7 +921,7 @@ def _encode_episode(path, k, j, cam, ts, fps, vcodec, version, regular, cam_shap
                 raise DatasetError(f'Camera {k} changes size from {cam_shape[k][1]}x{cam_shape[k][0]} to '
                                    f'{img.shape[1]}x{img.shape[0]} px; LeRobot features have one shape.')
             if vf is None:
-                vf = _VideoFile(path, fps, img.shape[1], img.shape[0], vcodec, version, regular)
+                vf = _VideoFile(path, fps, img.shape[1], img.shape[0], vcodec, version, regular, single_thread)
             vf.add(float(ts[i]), img, key_frame=(i == 0))
             if i in sample:
                 samples.append(_downsample(np.transpose(img, (2, 0, 1))))

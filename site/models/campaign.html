@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data-collection campaign planner · DexVantage</title>
+<meta name="description" content="Research tools part 2. Code: dexvantage/core/campaign.py (the model), dexvantage/core/studies/campaign.py (thestudy campaign, batch flag --campaign-saved OUT.json), dexvantage/batch_campaign.py (--campaign SPEC.json [--campaign-out OUT.json]), dexvantage/core/exporters/campaign.py (the exporter …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#inputs">Inputs</a>
+    <a href="#the-design">The design</a>
+    <a href="#storage">Storage</a>
+    <a href="#demonstrations-from-a-power-analysis">Demonstrations from a power analysis</a>
+    <a href="#budget-and-status">Budget and status</a>
+    <a href="#outputs">Outputs</a>
+    <a href="#validation-measured-2026-11-07-checks_campaignpy">Validation (measured 2026-11-07, checks_campaign.py)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/campaign.md"><code>docs/models/campaign.md</code></a></p>
+<h1 id="data-collection-campaign-planner">Data-collection campaign planner</h1>
+<p>Research tools part 2. Code: <code>dexvantage/core/campaign.py</code> (the model), <code>dexvantage/core/studies/campaign.py</code> (the
+study <code>campaign</code>, batch flag <code>--campaign-saved OUT.json</code>), <code>dexvantage/batch_campaign.py</code> (<code>--campaign SPEC.json [--campaign-out OUT.json]</code>), <code>dexvantage/core/exporters/campaign.py</code> (the exporter <code>campaign</code>),
+<code>dexvantage/ui/pages/campaign.py</code> (Data ▸ Campaign), <code>dv.campaign</code> in <code>dexvantage/api.py</code>, the assistant's
+<code>get_campaign</code>. Checks: <code>dexvantage/validation/checks_campaign.py</code> (model <code>campaign</code>, 6 checks). Ported in part from
+Vantage <code>core/simcampaign.py</code> (a seeded design with each condition list shuffled per seed) and <code>core/fleet.py</code>
+(settings clamped to limits, dates parsed and normalised); nothing automotive is kept.</p>
+<h2 id="inputs">Inputs</h2>
+<p>The spec lives in <code>project.analysis.studies['campaign']</code>, or in a spec file for batch mode (schema
+<code>dexvantage.campaign_spec/1</code>). Every key is optional; each default below is a DexVantage default and the result lists
+the keys left at their default (<code>defaults</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tasks</code></td>
+<td>one per coordinated motion of <code>project.tasks.trajectories</code> (trajectories of different robots over the same time span are one bimanual motion), else one per grasp set, else &quot;Task&quot;</td>
+<td><code>[{name, trajectory, episode_s}]</code></td>
+</tr>
+<tr>
+<td><code>variants</code></td>
+<td>the active variant</td>
+<td>rig variants (uid or name)</td>
+</tr>
+<tr>
+<td><code>lighting</code></td>
+<td>one preset, &quot;As designed&quot; (the lights as they are)</td>
+<td><code>[{name, lights: {light uid or name: dim 0..1}}]</code> (0 = off)</td>
+</tr>
+<tr>
+<td><code>object_sets</code></td>
+<td>one set, every task object</td>
+<td><code>[{name, objects: [uid or name]}]</code></td>
+</tr>
+<tr>
+<td><code>devices</code></td>
+<td>one level, every teleop device</td>
+<td><code>[{name, devices: [uid or name]}]</code></td>
+</tr>
+<tr>
+<td><code>conditions</code></td>
+<td>the full factorial of the levels (at most 500)</td>
+<td>an explicit list <code>[{task, variant, lighting, objects, device}]</code> by level name</td>
+</tr>
+<tr>
+<td><code>operators</code></td>
+<td><code>[&quot;Operator 1&quot;]</code></td>
+<td>names, or a count</td>
+</tr>
+<tr>
+<td><code>demos</code></td>
+<td><code>{mode: entered, per_condition: 50}</code></td>
+<td>or <code>{mode: power, p_base, p_target, alpha: 0.05, power: 0.8, continuity: true}</code></td>
+</tr>
+<tr>
+<td><code>keep_rate</code></td>
+<td>1 (every episode kept)</td>
+<td>your audit pass rate: what is recorded is the target / keep_rate, rounded up</td>
+</tr>
+<tr>
+<td><code>episode_s</code></td>
+<td>each task's trajectory duration, else 60 s</td>
+<td>seconds per episode (every task)</td>
+</tr>
+<tr>
+<td><code>reset_s</code></td>
+<td>30 s</td>
+<td>between episodes</td>
+</tr>
+<tr>
+<td><code>changeover_min</code></td>
+<td>5 min</td>
+<td>setting a condition up at the start of a session and at each change of condition</td>
+</tr>
+<tr>
+<td><code>calibration</code></td>
+<td><code>{every: day, minutes: 10, check_poses: 5}</code></td>
+<td>the calibration check (<code>day</code> or <code>session</code>)</td>
+</tr>
+<tr>
+<td><code>session_max_min</code></td>
+<td>90 min</td>
+<td>operator fatigue limit: the longest session</td>
+</tr>
+<tr>
+<td><code>operator_sessions_per_day</code></td>
+<td>2</td>
+<td>operator fatigue limit</td>
+</tr>
+<tr>
+<td><code>sessions_per_day</code>, <code>break_min</code></td>
+<td>4, 15 min</td>
+<td>the rig</td>
+</tr>
+<tr>
+<td><code>day_start</code>, <code>day_hours</code></td>
+<td>09:00, 8 h</td>
+<td>the day</td>
+</tr>
+<tr>
+<td><code>start_date</code>, <code>weekdays_only</code></td>
+<td>none (days numbered), true</td>
+<td>dates</td>
+</tr>
+<tr>
+<td><code>rounds</code></td>
+<td><code>auto</code></td>
+<td>rounds per operator (below)</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td>0</td>
+<td>shuffles the design</td>
+</tr>
+<tr>
+<td><code>format</code>, <code>compression_ratio</code></td>
+<td><code>raw</code>, none</td>
+<td><code>raw</code>, <code>lerobot</code> or <code>rosbag</code>; <code>{value, source}</code> measured encoded / raw</td>
+</tr>
+<tr>
+<td><code>budget</code></td>
+<td>none</td>
+<td><code>{disk_gb, days, upload_mbps, upload_hours_per_day, operator_hours}</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-design">The design</h2>
+<p>C conditions, O operators. Each operator records each condition m times in B rounds; in each round the operator
+records every condition once, as a block of k = m / B consecutive episodes, in the order of one row of a <strong>Williams
+balanced Latin square</strong> (Williams 1949):</p>
+<pre><code>first row  0, 1, C−1, 2, C−2, 3, …            row i = (first row + i) mod C
+C odd:     those C rows and their C mirror images (2C rows)
+</code></pre>
+<p>In the C rows of an even order every condition is at every position once and follows every other condition exactly
+once; in the 2C rows of an odd order every ordered pair is adjacent exactly twice. The S = O × B sequences take the
+square's rows in turn (row s mod L, L the square's row count); the seed shuffles which condition each symbol stands
+for and which sequence (operator, round) gets which row. Hence:</p>
+<ul>
+<li>every condition is recorded B times by every operator (always);</li>
+<li>every condition is at every position of a round equally often when S is a multiple of C;</li>
+<li>every ordered pair is adjacent equally often (first-order carry-over balance) when S is a multiple of L.</li>
+</ul>
+<p><code>rounds: auto</code> takes the smallest B ≤ m with S a multiple of L, else of C, else B = 1; the result's <code>design.text</code>
+says which balance holds and how many sequences full balance needs. m is rounded up to a multiple of B (the notes say
+how many more episodes that records).</p>
+<p><strong>Sessions.</strong> An operator's episodes are packed in order into sessions of at most <code>session_max_min</code> (whole minutes,
+rounded up; a session's length is its changeovers, its episodes with their resets, and the calibration check when it
+is per session). An episode never straddles two sessions. The packing is then repeated with the shortest limit that
+needs no more sessions (bisection: in-order packing never needs more sessions for a longer limit), so no session is a
+short remainder.</p>
+<p><strong>Days.</strong> Filled in passes: each pass offers one session to every operator who has one left, in an order rotated by
+one operator each day, while the day has a slot (<code>sessions_per_day</code>), the operator is under
+<code>operator_sessions_per_day</code>, and the session ends by <code>day_start + day_hours</code> (after the daily calibration check and a
+<code>break_min</code> break after each session). The first session of each day carries the calibration check when it is daily.</p>
+<h2 id="storage">Storage</h2>
+<p>Per episode, for the condition's variant (core/studies/bandwidth.py, the bandwidth study's own figures):</p>
+<pre><code>GB = Σ payload_mbps (enabled sensors) × ratio × (1 + container_overhead) × episode_s / 8 / 1000
+</code></pre>
+<p>with payload_mbps = width × height × fps × bits per pixel of the stated stream modes (or your measured rate),
+container_overhead the bandwidth study's setting (3 %, a default), ratio 1 for <code>raw</code> and <code>rosbag</code> (raw image messages)
+and, for <code>lerobot</code>, your measured <code>compression_ratio</code>. LeRobot encodes video with AV1 (libsvtav1, yuv420p, g 2, crf 30,
+preset 12 at v3.0; <code>core/datasets/lerobot.py</code> ENCODER_DEFAULTS, from LeRobot's configs/video.py); no source states the
+size that gives (it depends on the content), so without your ratio the size is the raw size and the result says so. A
+sensor without a stated rate adds nothing: the storage is then &quot;at least&quot; (metric bound <code>at_least</code>).</p>
+<h2 id="demonstrations-from-a-power-analysis">Demonstrations from a power analysis</h2>
+<p>The per-group size to tell success rate p1 from p2 with a two-sided test at α with power 1 − β (Fleiss, Levin &amp; Paik
+2003, normal approximation):</p>
+<pre><code>n = [z_{1−α/2} √(2 p̄ q̄) + z_{1−β} √(p1 q1 + p2 q2)]² / (p2 − p1)²,      p̄ = (p1 + p2) / 2,  q = 1 − p
+</code></pre>
+<p>and with the continuity correction (the default; Fleiss, Tytun &amp; Ury 1980): n_c = n / 4 · (1 + √(1 + 4 / (n |p2 −
+p1|)))². 0.5 against 0.7 at α 0.05 and 80 % power: n = 93 without, 103 with the correction. The figure comes from
+core/stats.py's <code>n_two_proportions</code> (its normal method, the same formula, with the power it reaches at n) when that
+module is there; the formula in <code>power_n</code> is the fallback, and the result keeps both (<code>n</code>, <code>formula_n</code>).</p>
+<h2 id="budget-and-status">Budget and status</h2>
+<p>Each budget figure given is compared with the plan: storage against <code>disk_gb</code>, days against <code>days</code>, the busiest
+day's upload time (its GB × 8000 / upload_mbps / 3600 h) against <code>upload_hours_per_day</code> (24 h without one), the
+busiest operator's hours against <code>operator_hours</code>. Within: good; above 90 % of the limit (TIGHT, a default): warning,
+&quot;tight&quot;; over: critical, &quot;over budget&quot;. No figure given: warning, &quot;no budget set&quot;. A storage that is only &quot;at least&quot;
+turns a good status into &quot;storage incomplete&quot;. The advice says what to change for each figure over or near its limit.</p>
+<h2 id="outputs">Outputs</h2>
+<p>The result (<code>dexvantage.campaign/1</code>): <code>conditions</code> (each with its levels, episode length and its source, GB per
+episode, recorded and expected kept episodes), <code>design</code>, <code>sequences</code>, <code>sessions</code> (day, date, start and end, operator,
+blocks, GB and the checklist), <code>days</code>, <code>totals</code>, <code>budget</code>, <code>headline</code> (&quot;N episodes over D days, S GB&quot; with its status
+word), <code>advice</code>, <code>notes</code>, <code>assumptions</code>, <code>defaults</code>, <code>references</code>.</p>
+<p>The <strong>checklist</strong> of a session: the calibration check (the hand-eye plan's camera and board, <code>check_poses</code> of its
+planned poses, its requirement <code>need_mm</code> and <code>need_deg</code>, labelled defaults when unset; the last solved session); per
+item one line when every condition of the session shares it, else one per condition: the rig variant, the lighting
+preset (each light on at its dim or off), the object set, the teleop devices, each camera's exposure, gain and
+polariser as the motion-blur and lighting studies' settings hold them (what their Apply writes; &quot;not set&quot;
+otherwise); the disk to free; the blocks to record.</p>
+<p>Exports: CSV (one row per block), iCalendar (RFC 5545: one VEVENT per session with UID, DTSTAMP in UTC, floating
+DTSTART and DTEND, SUMMARY and the checklist as DESCRIPTION; TEXT escaped, CRLF, lines folded at 75 octets without
+splitting a UTF-8 sequence), a printable HTML page (one day per printed page). Apply writes <code>compact_plan</code> (the
+schedule without the checklists, its digest) into <code>analysis.studies['campaign']['plan']</code>, one undo step; the study
+ignores that key.</p>
+<p>Metrics: <code>campaign.episodes</code> (headline), <code>campaign.days</code>, <code>campaign.storage_gb</code> (bound <code>at_least</code> when incomplete),
+<code>campaign.rig_hours</code>, <code>campaign.kept_per_condition</code>.</p>
+<h2 id="validation-measured-2026-11-07-checks_campaignpy">Validation (measured 2026-11-07, <code>checks_campaign.py</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance (why)</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>campaign.williams_square</code></td>
+<td>the definition, counted by brute force, orders 1–12</td>
+<td>0 (a combinatorial property)</td>
+<td>0 violations</td>
+</tr>
+<tr>
+<td><code>campaign.schedule_balance</code></td>
+<td>counts from the exported CSV, parsed with <code>csv</code>, on 40 seeded random campaigns (16 quick)</td>
+<td>0 (exact by construction where the design says so)</td>
+<td>0; 35 of 40 exact in position, 27 in carry-over</td>
+</tr>
+<tr>
+<td><code>campaign.session_limits</code></td>
+<td>each campaign's limits, re-checked from the session times</td>
+<td>0 (hard limits)</td>
+<td>0 in 383 sessions</td>
+</tr>
+<tr>
+<td><code>campaign.storage_vs_bandwidth</code></td>
+<td>the bandwidth study's <code>gb_per_episode</code> and <code>gb_per_campaign</code> (UR5e raw; dex-hand LeRobot at ratio 0.08): a consistency check, since the campaign reads them; and, independently, GB per episode added up again in the check from each selected stream's width × height × fps and the library file's bits per pixel</td>
+<td>10⁻⁹ relative (the same arithmetic in another order)</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>campaign.ics_roundtrip</code></td>
+<td>a strict RFC 5545 reader written in the check (8 calendars with <code>;</code>, <code>,</code>, <code>\</code>, non-ASCII)</td>
+<td>0 (a format round trip)</td>
+<td>0 in 34 events</td>
+</tr>
+<tr>
+<td><code>campaign.power_exact</code></td>
+<td>exact power of the pooled z-test (and the Yates-corrected one) by enumeration over both binomials (SciPy)</td>
+<td>0.04 power (the normal approximation is furthest off near 0 or 1)</td>
+<td>0.033 (0.8 against 0.95: 0.833 for 80 %, an overshoot); the largest shortfall below the target power is 0.0047 (0.4 against 0.6, 80 %, with the correction); 0.016 in the quick run</td>
+</tr>
+</tbody>
+</table>
+<p>Self-test line <code>campaign</code> (Williams squares, 16 campaigns' balance and limits, 34 calendar events read back): 0.5 s.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>Every episode is taken to last episode_s + reset_s (real demonstrations vary, fail and are re-done; the keep rate
+covers discarded episodes on average, not their time); a trajectory's duration is the robot's scripted motion, which
+teleoperation may be slower than; operators are taken as equally fast; the fatigue limits are defaults, not ergonomics
+findings; position and carry-over balance are exact only for the numbers of sequences the design states, and the
+balance is of blocks, not single episodes; conditions are not balanced across days (operators rotate their order;
+a day holds what fits); days are filled greedily, which is not always the fewest days when sessions differ; a
+compressed format's storage is the raw size without a measured ratio; a sensor without a stated data rate adds
+nothing; upload is a steady rate without protocol overhead; times are local without a time zone (floating calendar
+times, RFC 5545 §3.3.5); holidays are not known; the power analysis is for two independent proportions, not several
+conditions at once, paired designs or learning curves. <code>--reproduce</code> of a <code>--campaign SPEC.json</code> result re-runs the
+project's stored spec, not the file's (store the spec with Open spec… or Apply to reproduce it).</p>
+<h2 id="references">References</h2>
+<ul>
+<li>E. J. Williams, &quot;Experimental designs balanced for the estimation of residual effects of treatments&quot;, Australian
+Journal of Scientific Research, Series A 2(2), 149–168, 1949, https://doi.org/10.1071/CH9490149 (read 2026-11-07).</li>
+<li>J. L. Fleiss, B. Levin and M. C. Paik, Statistical Methods for Rates and Proportions, 3rd ed., Wiley, 2003.</li>
+<li>J. L. Fleiss, A. Tytun and H. K. Ury, &quot;A simple approximation for calculating sample sizes for comparing
+independent proportions&quot;, Biometrics 36(2), 343–346, 1980, https://doi.org/10.2307/2529990 (read 2026-11-07).</li>
+<li>B. Desruisseaux (ed.), Internet Calendaring and Scheduling Core Object Specification (iCalendar), RFC 5545,
+September 2009, https://www.rfc-editor.org/rfc/rfc5545 (read 2026-11-07).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

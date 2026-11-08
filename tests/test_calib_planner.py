@@ -423,7 +423,7 @@ def test_calibration_section_round_trips_and_validates(tmp_path):
     p.save(path)
     q = P.Project.load(path)
     assert q.calibration == p.calibration
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     with open(os.path.join(ROOT, 'docs', 'project.schema.json')) as fh:
         schema = json.load(fh)
     jsonschema.validate(json.loads(json.dumps(q.to_dict())), schema)

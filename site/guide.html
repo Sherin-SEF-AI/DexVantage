@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User guide · DexVantage</title>
+<meta name="description" content="How to use DexVantage step by step: the window, batch mode, robots, sensors, grasps, hardware, calibration, ground truth, teleop, lighting, timing, data, requirements, export, the assistant, the samples and the research tools, each with a worked example.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#samples">Samples</a>
+      <a href="guide.html" aria-current="page">Guide</a>
+      <a href="docs.html">Docs</a>
+      <a href="methods.html">Methods</a>
+      <a href="validation.html">Validation</a>
+      <a href="index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#ten-minute-tour">1. The ten-minute tour</a>
+    <a href="#getting-started">2. Getting started</a>
+    <a href="#window">3. The window</a>
+    <a href="#robots">4. Robots</a>
+    <a href="#sensors">5. Sensors and coverage</a>
+    <a href="#studies">6. The studies</a>
+    <a href="#calibration">7. Calibration</a>
+    <a href="#data">8. Data</a>
+    <a href="#requirements">9. Optimisation and requirements</a>
+    <a href="#export">10. Export</a>
+    <a href="#assistant">11. The assistant and MCP</a>
+    <a href="#research">12. Research workflows</a>
+    <a href="#batch">13. Batch mode</a>
+    <a href="#python-api">14. The Python API</a>
+    <a href="#troubleshooting">15. Troubleshooting</a>
+    <a href="#worked-examples">Worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Guide</div>
+<h1 id="dexvantage-user-guide">DexVantage user guide</h1>
+<p>How to use DexVantage, from the first ten minutes to a paper: one chapter per part of the window and per kind of
+study, each with a worked example on a bundled sample. Every figure in a worked example is what this build computes
+when you do the same: <code>scripts/guide_examples.py</code> runs each example (marked in this file's source by an invisible
+<code>&lt;!-- example: … --&gt;</code> line) and <code>tests/test_guide_examples.py</code> fails when a figure printed here is no longer the one
+the code gives, within the rounding printed. The ten-minute tour is also driven through the window by
+<code>tests/test_ten_minute_tour.py</code>. A figure that depends on the GPU's rasteriser against numpy's may differ in its last
+digit on another machine (the occlusion model's own agreement, <a href="docs.html#occlusion">overview</a>).</p>
+<p>The models behind each figure, with their equations, references, validation and known limits, are in
+<a href="docs.html">DexVantage: models and methods</a>; the longer worked example of each feature is in <code>docs/guide/</code> (each chapter links its
+own). The project file is described in <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/project-format.md">project-format.md</a>.</p>
+<p><strong>Contents.</strong> 1 <a href="#ten-minute-tour">The ten-minute tour</a> · 2 <a href="#getting-started">Getting started</a> ·
+3 <a href="#window">The window</a> · 4 <a href="#robots">Robots</a> · 5 <a href="#sensors">Sensors and coverage</a> · 6 <a href="#studies">The studies</a> ·
+7 <a href="#calibration">Calibration</a> · 8 <a href="#data">Data</a> · 9 <a href="#requirements">Optimisation and requirements</a> ·
+10 <a href="#export">Export</a> · 11 <a href="#assistant">The assistant and MCP</a> · 12 <a href="#research">Research workflows</a> ·
+13 <a href="#batch">Batch mode</a> · 14 <a href="#python-api">The Python API</a> · 15 <a href="#troubleshooting">Troubleshooting</a> ·
+the <a href="guide/samples.html">sample tours</a> · reference: <a href="reference/cli.html">command line</a>, <a href="reference/api.html">Python API</a>.</p>
+<h2 id="ten-minute-tour">1. The ten-minute tour</h2>
+<p>The specification's definition of done: install DexVantage, open the ALOHA 2 sample, and within ten minutes see
+which grasps lose fingertip visibility and why, move a camera and see the score change, check depth validity, VLA
+token coverage and bandwidth, export the cameras to MuJoCo and LeRobot, and export a printable bracket. On the
+machine the figures come from (an RTX 5080 through EGL) the compute of the whole tour takes about two and a half
+minutes; the rest is reading.</p>
+<ol>
+<li><strong>Open the sample.</strong> <code>dexvantage --sample aloha</code> (or File ▸ Open sample ▸ ALOHA 2 bimanual with its four cameras).
+The window shows 2 robots (the two ViperX 300 arms of Menagerie's <code>aloha.xml</code>; the left one's base is the world
+frame) and 4 cameras: <code>cam_high (overhead)</code>, <code>cam_low (worms-eye)</code>, <code>cam_left_wrist</code> and <code>cam_right_wrist</code>, four
+RealSense D405s where the ALOHA 2 project puts them. Select a camera in the Outliner to see its image in the Camera
+view (right).</li>
+<li><strong>Which grasps lose fingertip visibility.</strong> Analysis ▸ Grasp self-occlusion opens the page with the left arm's
+tabletop grasps chosen (100 grasps, a sample set). Press <strong>Run</strong> (30.9 s from the page on a lightly loaded RTX 5080
+machine, <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/performance.md">performance.md</a>; 60–62 s in batch mode when its load average was 18). The arm is solved for every
+grasp: 86 reachable, 14 out of reach (listed by reason). The headline reads <strong>100.0 [95.7–100]</strong> % of reachable
+grasps, &quot;well seen&quot;: every reachable grasp has every fingertip at least 50 % visible in at least one camera (the
+requirement and its 50 % are labelled defaults; the interval is Wilson's, because every bootstrap resample gives
+100 %). The score is 100 % but the margin is thin: the camera table shows <code>cam_left_wrist</code> seeing 61 % and 56 % of
+the two fingertips' contact patches, just above the 50 % line, and the gallery of the weakest grasps starts at
+56 %. Click a grasp in the table or the gallery and the arm takes that pose; Robot ▸ Joint sliders ▸ Home all puts
+it back.</li>
+<li><strong>Why.</strong> The camera table splits each camera's contact points by what happens to them. <code>cam_high (overhead)</code> sees
+16 % of them: 39 % are behind their own finger and 46 % are hidden by the scene (the other arm, the gripper body).
+<code>cam_right_wrist</code> has 55 % outside its image: it looks at the right gripper. So the left wrist camera carries the
+score alone.</li>
+<li><strong>Move a camera and see the score change.</strong> Select <code>cam_left_wrist</code>, open Sensors ▸ Sensors and mounts and set
+its pitch from −65° to −75° (10° further down, one undo step). The grasp page says the project changed since the
+run; <strong>Run</strong> again: <strong>4.7 [1–9]</strong>, &quot;blind at contact&quot;: 4 of 86 grasps meet the requirement, because 43 % of the
+left wrist camera's contact points are now outside its image. Ctrl+Z puts the camera back.</li>
+<li><strong>Depth validity.</strong> Analysis ▸ Depth validity ▸ <strong>Run</strong> (the arms at home): &quot;Depth-valid task volume: 100.0 %&quot;.
+The bar chart gives, per D405, the first condition each voxel fails (field of view, minimum Z, occlusion, the
+projector cone); the translucent pyramid in front of each camera in the 3D view is its min-Z blind zone.</li>
+<li><strong>VLA token coverage.</strong> Analysis ▸ VLA token resolution ▸ <strong>Run</strong>: &quot;no task object&quot;, because there is nothing to
+count tokens on. Workspace ▸ Add box object adds Box 1, a 60 mm cube at (450, 0, 30) mm on the table between the
+arms; <strong>Run</strong> again: &quot;Fewest ViT tokens on a critical object: 3 tokens (too few tokens)&quot; for the sample's ACT
+policy, under the 2 × 2 tokens a critical object should span (a labelled default). The page draws the patch grid in
+the Camera view and suggests a stream or a camera move.</li>
+<li><strong>Bandwidth.</strong> Analysis ▸ Bandwidth, hosts and power: the four D405s send 1 563.0 Mbit/s of payload, but the
+sample has no host, so the headline reads &quot;—, no hosts&quot;. <strong>Apply</strong> adds the suggested host with one USB 3
+controller (an assumption the topology says) and plugs every camera in: the busiest controller is at 46 %, within
+budget, a margin of 1958.8 Mbit/s.</li>
+<li><strong>Export the cameras to MuJoCo and LeRobot.</strong> File ▸ Export…, tick MuJoCo MJCF and LeRobot, ACT, Diffusion Policy
+and OpenVLA configs, choose a folder, <strong>Export</strong>: &quot;2 of 2 formats written; 38 files.&quot; The folder holds the camera
+and site snippets for the arms' own MJCF and a full MuJoCo scene, the LeRobot dataset features and the policy
+train configs, and <code>export_manifest.json</code> with every file's SHA-256 and the project's provenance.</li>
+<li><strong>Export a printable bracket.</strong> Analysis ▸ Brackets ▸ <strong>Run</strong>, then <strong>Apply</strong>: <code>cam_high</code> and <code>cam_low</code> get a 2020
+T-slot camera clamp (a default guess the page says; change it to your profile). The wrist cameras keep no type: the
+page suggests none for them. The headline reads 0/2 ready, &quot;check&quot;: each clamp draws the D405's mounting holes at
+the middle of the face, since Intel's drawing does not dimension where they sit, so check them against the camera
+before printing (batch mode counts the same as &quot;Sensors without a ready bracket: 4&quot;: the two clamps to check and
+the two wrist cameras without a type). Pick <code>cam_high (overhead)</code> and <strong>Export STL…</strong>: a watertight binary STL with a JSON sidecar
+(dimensions, print orientation, provenance). The batch export of the brackets format writes 2 STL files, one per
+clamp.</li>
+</ol>
+<p>The same tour in batch mode:</p>
+<pre><code class="language-bash">dexvantage --sample aloha --grasp grasp.json --depth-validity depth.json --vla-tokens vla.json --bandwidth bw.json
+dexvantage --sample aloha --export out/aloha --formats mjcf,lerobot
+</code></pre>
+<h2 id="getting-started">2. Getting started</h2>
+<ol>
+<li><strong>Install.</strong> The <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/README.md#install">README</a> has the bundles and the source install
+(<code>pip install -e .</code>, Python 3.10 or newer) with the optional extras (<code>lerobot</code>, <code>bags</code>, <code>usd</code>, <code>pin</code>, <code>step</code>,
+<code>rerun</code>, <code>assistant</code>, <code>research</code>, <code>tracking</code>).</li>
+<li><strong>Check the installation.</strong> <code>dexvantage --self-test</code> checks, without a window, the project file, frames, MuJoCo,
+OpenCV, fonts, OpenGL, the main window and a quick validation, one line per check. <code>dexvantage --validate out/validation</code> runs the whole validation suite and writes its HTML report (Help ▸ Validate the models does the
+same from the window). After a plain <code>pip install -e .</code> the checks that need an optional extra cannot run: the
+self-test marks their lines as a warning naming the extra, and the validation run leaves them out and says, in one
+sentence, how many and which extra runs them (13 need the <code>lerobot</code> extra, one the <code>test</code> extra's jsonschema).</li>
+<li><strong>Open a sample.</strong> <code>dexvantage --sample NAME</code> with <code>so100</code>, <code>ur5e</code>, <code>dexhand</code>, <code>aloha</code>, <code>panda-bimanual</code> or <code>g1</code>,
+or File ▸ Open sample. Each has a <a href="guide/samples.html">tour</a>.</li>
+<li><strong>Frames and units.</strong> SI units; joints in radians, shown in degrees; the world is the primary robot's base frame
+(REP-103: x forward, y left, z up); a camera's optical frame has z forward, x right, y down. Help ▸ Coordinate
+frames draws them.</li>
+</ol>
+<h2 id="window">3. The window</h2>
+<ol>
+<li><strong>Layout.</strong> Left: the Outliner (the project, robots, the active rig variant's sensors, the workspace, tasks) and
+the Library. Centre: the 3D view with the pose scrubber under it. Right: the Inspector and the Camera view; Ctrl+J
+opens the Assistant column. Bottom: Analysis, one tab per page.</li>
+<li><strong>Navigation.</strong> Orbit with the middle button or a left drag on empty space (about the point under the cursor);
+Shift pans; the wheel zooms towards the cursor. 7, 1 and 3 look from the top, front and side; 5 toggles
+orthographic; Home frames everything. The control in the top right does the same with a mouse or touchpad.</li>
+<li><strong>Commands.</strong> Ctrl+K opens the command palette, Ctrl+F finds an object, <code>?</code> lists every shortcut. Every edit is
+one undo step (Ctrl+Z, Ctrl+Shift+Z).</li>
+<li><strong>Workspaces.</strong> Window ▸ Placement, Grasp study, Teleop, Calibration, Data audit and Review switch the panel layout;
+Window ▸ Save workspace layout keeps your arrangement, Reset puts the default back. View ▸ Overlays and View ▸
+Theme (dark, light, or the system's) change the 3D view and the colours.</li>
+<li><strong>Files.</strong> File ▸ Save writes a <code>.dexv</code> file; Save as folder (for Git) writes the unpacked form; Open recent and
+Open sample are in the File menu; File ▸ Render image (F12) writes a high-resolution render; Export ▸ Export the
+project summary writes JSON with its provenance block.</li>
+</ol>
+<p><strong>Worked example: the dense-voxel limit.</strong> File ▸ New starts an empty project with a default tabletop task volume of
+500 × 600 × 300 mm (labelled default). Select the volume in the Outliner and type <code>1.5</code> into each Size field (or
+<code>1500 mm</code>), then Analysis ▸ Run the project summary (F5): at the default 5 mm the volume is 27 × 10⁶ voxels, still
+feasible, while a dense 1 mm grid would need 3.4 × 10⁹, above the limit of 5 × 10⁷ (a documented default), so the
+studies refine to 1–2 mm only inside refinement regions. Ctrl+Z undoes each change.</p>
+<h2 id="robots">4. Robots</h2>
+<p>The models: <a href="docs.html#robots">robots</a>, <a href="docs.html#kinematics">kinematics</a>, <a href="docs.html#ik">IK</a>, the
+<a href="docs.html#catalogue">catalogue</a>. Longer examples: <a href="guide/robots.html">Robots: the robot catalogue</a> (the catalogue) and
+<a href="guide/robot_io.html">Robots in and out: URDF for MuJoCo, USD robots, OpenVLA and Isaac exports</a> (USD import, URDF inertials).</p>
+<h3 id="import-a-robot">Import a robot</h3>
+<ol>
+<li><strong>Robot ▸ Import robot…</strong> opens the wizard. Drop a URDF, MJCF or USD file on it (USD needs the <code>usd</code> extra), or
+Browse…. A preview of the robot at its home pose appears on the right.</li>
+<li><strong>File:</strong> the format, the files, their size and the main file's SHA-256; rename the robot here.</li>
+<li><strong>Meshes:</strong> every file the model names, found or missing. A missing mesh stops the import and says which file to
+pick. A xacro file must be expanded first (<code>ros2 run xacro xacro in.urdf.xacro &gt; out.urdf</code>); MuJoCo reads STL and
+OBJ, not COLLADA, so convert <code>.dae</code> meshes.</li>
+<li><strong>Scale and units:</strong> the bounding box at home and each mesh's largest edge. A mesh over 10 m across means a file
+in millimetres: the wizard blocks the import and says to set <code>scale=&quot;0.001 0.001 0.001&quot;</code>.</li>
+<li><strong>Joints:</strong> each joint's type, limits, velocity and effort as the file states them (&quot;—&quot; where it states none);
+tick the gripper's joints (names with finger, gripper, jaw or claw are ticked for you).</li>
+<li><strong>Gripper and pads:</strong> the gripper frame (what IK drags and the grasp studies aim), the fingertip frames and the
+contact pads (boxes on a link where the fingers touch, sized at first to the link's mesh).</li>
+<li><strong>Summary</strong>, then Import: the robot and its files are one undo step. The first robot is the primary one; its base
+is the world frame.</li>
+</ol>
+<p><strong>Robot ▸ Import from MuJoCo Menagerie…</strong> downloads a Menagerie model (one pinned commit), shows that model's own
+LICENSE and imports it only after you tick &quot;I accept the licence of this model&quot;. The Library's <strong>Robots</strong> group lists
+the robot catalogue: each robot's maker figures with their sources, and a double-click imports its Menagerie model.</p>
+<h3 id="joint-sliders-ik-and-trajectories-the-robot-page">Joint sliders, IK and trajectories (the Robot page)</h3>
+<p><strong>Robot ▸ Joint sliders</strong> opens the Robot page: a slider and a field per joint, over the file's limits. The headline is
+the gripper frame's manipulability w (Yoshikawa's measure) with a word: clear, near a limit (within 2 % of a range, a
+default), singular (condition number above 10¹²) or in collision. <strong>Robot ▸ Drag the end effector (IK)</strong> shows a
+handle on the gripper frame: drag it and IK follows (green: reachable; red with the solver's reason: out of reach,
+joint limit, self-collision…); Esc puts the pose back. <strong>Robot ▸ Import trajectory (CSV)…</strong> reads <code>t,&lt;joint&gt;,…</code> rows
+in seconds and radians; the pose scrubber under the 3D view plays it.</p>
+<p><strong>Worked example on the UR5e (<code>dexvantage --sample ur5e</code>).</strong> The robot has 14 joints (six arm joints and the 2F-85's
+eight linkage hinges). On the Robot page at home the gripper frame <code>gripper_base</code> is at (−134.0, +492.0, +477.2) mm,
+roll, pitch, yaw (180, 0, 90)°, w = 0.0820 from the 6 × n Jacobian, condition number 8.3, &quot;clear&quot;. Type <code>0</code> into
+<code>elbow_joint</code>: the arm stands straight up, the frame goes to (−134.0, +110.8, +1080.0) mm and the headline says
+&quot;singular&quot; (the gripper cannot move along the arm). Home all puts it back.</p>
+<h2 id="sensors">5. Sensors and coverage</h2>
+<p>The models: <a href="docs.html#library">library</a>, <a href="docs.html#optics">lens models</a>, <a href="docs.html#occlusion">occlusion</a>,
+<a href="docs.html#coverage">coverage</a>, <a href="docs.html#depth">depth validity</a>, <a href="docs.html#camview">the Camera view</a>,
+<a href="docs.html#prices">prices</a>, <a href="docs.html#workspace">the workspace check</a>. Longer examples:
+<a href="guide/sensors.html">Sensors and mounts: a worked example on the UR5e sample</a>, <a href="guide/library.html">The hardware library: a worked example</a>,
+<a href="guide/library_systems.html">Systems from the library: hosts, policies, lights, cables and teleop devices</a>, <a href="guide/coverage.html">Coverage and resolution: a worked example on the UR5e sample</a>,
+<a href="guide/depth.html">Depth validity: a worked example</a>, <a href="guide/workspace.html">The Workspace page, the design log and the spec's batch names</a>, <a href="guide/prices.html">Prices and the rig cost</a>.</p>
+<ol>
+<li><strong>The library.</strong> The Library panel lists the hardware by kind (cameras, depth sensors, tactile sensors, hosts,
+lights, cables, policies, teleop devices, robots), each figure from the maker's datasheet or page with the URL and
+the date read. A figure the maker does not state shows &quot;—&quot; with the tooltip &quot;not stated by the maker&quot;.
+<strong>Sensors ▸ New custom device…</strong> makes your own entry, every figure ticked &quot;given&quot; or &quot;not given&quot;, with its source.</li>
+<li><strong>Add and mount.</strong> Double-click a device in the Library (or drag it into the 3D view); Sensors ▸ Add camera on a
+tripod adds a camera with the labelled default lens. <strong>Sensors ▸ Sensors and mounts</strong> opens the Sensors and mounts
+page: per sensor its device, what it is mounted on (World, Cage, Tripod, Table or any link of any robot: it rides
+with the link), its position and roll, pitch, yaw, and its stream mode. Each change is one undo step.</li>
+<li><strong>The Camera view</strong> shows the selected sensor's image through its lens model, with the robots posed, the objects
+and the task volumes' edges; the line under it states the model and &quot;offset assumed&quot; where the maker gives no
+imager position.</li>
+<li><strong>Coverage and resolution</strong> (Analysis ▸ Coverage and resolution ▸ Run): per 5 mm voxel (a default) and camera, in
+the image, visible past the posed robot, pixels per millimetre, viewing angle and redundancy.</li>
+<li><strong>Depth validity</strong> (Analysis ▸ Depth validity ▸ Run): a voxel is valid for a depth camera when both imagers see it,
+it is beyond the minimum Z of the chosen stream and within range, no link shadows it, it is inside the projector
+cone where texture is needed, and no transparent or IR-absorbing object is tagged there.</li>
+<li><strong>The Workspace page</strong> (Workspace ▸ Workspace) checks that every task object lies inside a task volume and
+suggests a volume around those outside. Workspace ▸ Add task volume and Add box object add them.</li>
+</ol>
+<p><strong>Worked example on the UR5e.</strong> Coverage ▸ Run: &quot;Task volume seen: 91.9 % (mostly single or blind)&quot;. The camera
+table: the Wrist D405 sees 46.4 % of the volume at a median 2.13 px/mm, with 39.5 % outside its image; the Overhead
+D435 sees 71.9 % at 1.68 px/mm (the arm hides the rest). Depth validity ▸ Run: &quot;Depth-valid task volume: 84.6 %&quot;.
+Raise the overhead D435 by 10 cm (its z on the Sensors page, or the factor <code>sensor:Overhead D435.dz</code> in Python) and
+run both again: 92.0 % seen and 87.0 % depth-valid, so the higher mount buys a little coverage and more valid depth.
+The rig's cited list prices add up to 700 USD (<code>rig.cost</code>, the two RealSense cameras).</p>
+<h2 id="studies">6. The studies</h2>
+<p>Each study is a page under Analysis (or Tasks, Simulate, Calibrate, Data, Export) with the same pattern: a headline
+figure with its status word, <strong>Run</strong>, <strong>Apply</strong> (the suggested change, one undo step), <strong>Preview</strong>, <strong>Explain</strong> (the
+model and inputs) and <strong>Export…</strong> (the result as JSON with provenance). Every study has a batch flag (chapter 13).</p>
+<h3 id="tasks-grasp-sets-and-policies">Tasks, grasp sets and policies</h3>
+<p>The <strong>Tasks</strong> page (Tasks ▸ Tasks) samples a grasp set over a task volume (top-down pinch, side, angled, bimanual
+handoff; count and seed), previews it as glyphs, and adds it (one undo step); or imports a CSV or JSON of gripper
+poses, takes grasps from a trajectory, or from each time the gripper closes in a recorded dataset. The <strong>Policies</strong>
+page (Tasks ▸ Policies) names the policy the data is for (OpenVLA, π0, SmolVLA, ACT, Diffusion Policy, GR00T and more,
+each figure cited); the Camera view outlines what its input crop keeps. Longer examples:
+<a href="guide/grasps.html">Grasp sets: a worked example on the UR5e and SO-100 samples</a>, <a href="guide/policies.html">Policies: a worked example on the UR5e sample</a>.</p>
+<h3 id="grasp">Grasp self-occlusion</h3>
+<p>The <strong>Grasp self-occlusion</strong> page solves the arm for every grasp, measures how much of each fingertip's contact patch
+each camera sees at contact and on the approach, and gives the Contact Visibility Score with its interval, the
+cameras, &quot;what to move&quot; (each camera moved 2 cm or turned 5°, one at a time) and a gallery of the weakest grasps.
+Model: <a href="docs.html#grasp">overview</a>; longer example: <a href="guide/grasp.html">Grasp self-occlusion: a worked example on the UR5e sample</a>.</p>
+<p><strong>Worked example on the UR5e's 200 tabletop grasps.</strong> Run: 133 of 200 grasps are reachable (64 obstacle collision,
+2 out of reach, 1 no convergence), and 133 of 133 meet the requirement: 100.0 %, &quot;well seen&quot;. The best single change
+the page finds is &quot;move Wrist D405 +2 cm along y of wrist_3_link&quot;; Apply makes it.</p>
+<h3 id="vla">VLA token resolution</h3>
+<p>The <strong>VLA token resolution</strong> page counts the ViT tokens each critical task object and each fingertip covers in every
+camera the policy takes, at the pre-grasp and contact poses, warns under 2 × 2 tokens (a default) or when the crop
+cuts an object away, and exports Plücker ray maps. Model: <a href="docs.html#vla">overview</a>; longer example:
+<a href="guide/vla.html">VLA token resolution: a worked example on the UR5e sample</a>.</p>
+<p><strong>Worked example on the UR5e's π0.</strong> Run on the sample as it opens: &quot;no task object&quot;. Add the soda can of the
+lighting example (a cylinder of radius 33 mm and height 115 mm at the task volume's centre) and run again: &quot;Fewest
+ViT tokens on a critical object: 1 token (too few tokens)&quot;: in the camera that sees it least the can spans about one
+patch of π0's input, so move that camera closer or choose a narrower lens.</p>
+<h3 id="dexhand">Multi-finger occlusion and the tactile handoff</h3>
+<p>The <strong>Multi-finger occlusion</strong> page (the dexhand sample: a Shadow Hand on a UR5e with a palm, a dorsal wrist and a head
+camera) gives a finger × camera matrix of how much of each fingertip's contact patch each camera does not see over
+grasp postures, what hides it, the mounts ranked and a suggested turn; under it the visual-to-tactile handoff chart and
+the sensory blind gap. Models: <a href="docs.html#dexhand">overview</a>; longer examples: <a href="guide/dexhand.html">Multi-finger occlusion: a worked example on the dexhand sample</a>,
+<a href="guide/handoff.html">The visual-to-tactile handoff: a worked example</a>.</p>
+<p><strong>Worked example (<code>dexvantage --sample dexhand</code>).</strong> Run: &quot;Fingertips seen: 93.8 %&quot; of the fingertip-cases; the matrix
+shows which finger each camera loses and to what (the palm, a neighbouring finger, the thumb, or outside the image).</p>
+<h3 id="teleop">Teleop overlap</h3>
+<p>The <strong>Teleop overlap</strong> page (the Teleop workspace) maps the teleop device (a leader arm or GELLO joint to joint, or a
+VR or space-mouse volume you measured) onto the task volume: where the operator is comfortable and the follower
+reaches well, and the dead zones (near a singularity, a joint limit or itself, or out of reach). Apply moves the
+follower's base by the suggested step; with two arms, the overlap and the handover quality. Model:
+<a href="docs.html#teleop">overview</a>; longer example: <a href="guide/teleop.html">Teleop overlap: a worked example on the SO-100 sample</a>.</p>
+<p><strong>Worked example on the SO-100 and its leader arm.</strong> Run: &quot;Teleoperable task volume: 96.7 % (clear)&quot;.</p>
+<h3 id="lighting">Lighting and glare</h3>
+<p>The <strong>Lighting and glare</strong> page takes the lab's lights (from the library or with your measured figures) and the
+objects' materials and gives each camera's share of object and gripper area in specular saturation, a glare map in
+the Camera view and, for active-stereo cameras, the depth washed out by ambient IR, with each fix's figure before and
+after. Model: <a href="docs.html#lighting">overview</a>; longer example: <a href="guide/lighting.html">Lighting and glare: a worked example on the UR5e sample</a>.</p>
+<p><strong>Worked example on the UR5e.</strong> Add a metallic soda can at the task volume's centre and <strong>Add light ▸ Elgato Key
+Light (library)</strong>, which goes 1.2 m above the volume facing down; Run: &quot;Specular saturation (worst camera): 34.9 %
+(heavy glare)&quot;, relative to an auto-exposure (no maker in the library states a sensor's sensitivity). The
+recommendations (a polariser, moving or dimming the light, tilting the camera) each show their figure.</p>
+<h3 id="timing">Motion blur, time sync and action-chunk latency</h3>
+<p>The <strong>Motion blur and rolling shutter</strong> page follows the trajectories and gives the smear in one exposure and the
+rolling-shutter skew per camera; <strong>Time sync</strong> gives each stream's timestamp error against the joint states and the
+action-label error it causes; <strong>Action-chunk latency</strong> gives the policy's sensor-to-action loop, when the gripper
+closes relative to the demonstrated contact and the delay offset to train with. A term no maker states makes a figure
+a bound (≤, ≥). Models: <a href="docs.html#timing">overview</a>; longer examples: <a href="guide/motion_blur.html">Motion blur and rolling shutter: a worked example on the UR5e sample</a>,
+<a href="guide/time_sync.html">Time sync: a worked example on the UR5e sample</a>, <a href="guide/action_chunk.html">Action-chunk latency: a worked example</a>.</p>
+<p><strong>Worked example on the UR5e's scripted pick.</strong> Motion blur: &quot;Worst motion smear: ≤ 38.0 px (may be blurred)&quot; (no
+exposure is set, so the frame period bounds it). Time sync: &quot;Worst camera to joint-state skew: ≥ 54.4 ms (out of
+sync)&quot;; Apply sets the D435's hardware trigger. Action-chunk latency for π0: &quot;Worst closing error: 0 mm (on contact)&quot;.</p>
+<h3 id="bandwidth">Bandwidth, cables and brackets</h3>
+<p>The <strong>Bandwidth, hosts and power</strong> page gives every stream's rate, the load and margin of each controller and link in
+the host topology, disk per episode and bus power. The <strong>Cable flex across joints</strong> page routes cables across joints
+and checks slack, bends, pulls and snags, with a harness sheet. The <strong>Brackets</strong> page makes printable brackets
+(ISO 9409-1 flange adapters, T-slot clamps, a neck plate, palm and dorsal sleeves) and checks their clearance. Models:
+<a href="docs.html#bandwidth">bandwidth</a>, <a href="docs.html#cables">cables</a>, <a href="docs.html#brackets">brackets</a>; longer examples:
+<a href="guide/bandwidth.html">Bandwidth, hosts and power: a worked example</a>, <a href="guide/cables.html">Cable flex across joints: a worked example on the SO-100 sample</a>, <a href="guide/brackets.html">Brackets: a worked example on the UR5e sample</a>.</p>
+<p><strong>Worked example on the UR5e.</strong> Bandwidth: 2 322.4 Mbit/s of payload and &quot;no hosts&quot;; Apply adds the suggested host:
+&quot;Smallest controller margin: 1161.4 Mbit/s (within budget)&quot;. Cables: &quot;Cables not clear: 1 (at risk)&quot;. Brackets:
+&quot;No sensor has a bracket type yet: Apply sets the suggested ones.&quot;; after Apply (a flange adapter for the wrist D405,
+a 2020 T-slot clamp for the overhead D435) and Run: &quot;Sensors without a ready bracket: 2&quot;, both because Intel's
+drawings do not place the mounting holes on the face, which the page says to check before printing.</p>
+<h3 id="canonical">Canonical view</h3>
+<p>The <strong>Canonical view</strong> page (Export ▸ Canonical view) warps robot B's wrist image to robot A's viewpoint through the
+fingertip contact plane and reports the residual parallax off the plane; Export warp maps… writes the homography and
+remap LUT. Model: <a href="docs.html#canonical_warp">overview</a>; longer example:
+<a href="guide/canonical_warp.html">Canonical view: pooling wrist cameras across robots</a>.</p>
+<p><strong>Worked example on the UR5e (Wrist D405 to Overhead D435).</strong> &quot;Canonical view warp error off the contact plane (P95):
+675.1 px (large parallax)&quot;: the default depth range is a pessimistic bound; narrow it to the depths your objects take.</p>
+<h3 id="groundtruth">MuJoCo ground truth and synthetic episodes</h3>
+<p><strong>Simulate ▸ Rendered against predicted visibility…</strong> opens the <strong>Rendered against predicted</strong> page: MuJoCo renders
+through every camera's lens model, compared with the grasp study's contact visibility and the depth study's voxels.
+Simulate ▸ Build the MuJoCo scene… writes the scene; Simulate ▸ Generate synthetic episodes… writes LeRobot v2.1 or
+v3.0 episodes with known faults and their ground truth. Models: <a href="docs.html#groundtruth">overview</a>,
+<a href="docs.html#synth_episodes">synthetic episodes</a>; longer examples: <a href="guide/groundtruth.html">Rendered against predicted: a worked example</a>,
+<a href="guide/synth_episodes.html">Generating synthetic episodes with known faults</a>.</p>
+<p><strong>Worked example on the UR5e.</strong> Run: &quot;Rendered against predicted agreement: 92.8 % (agrees)&quot;.</p>
+<h2 id="calibration">7. Calibration</h2>
+<p>Models: <a href="docs.html#handeye">hand-eye</a>, <a href="docs.html#render_calib">silhouette calibration</a>,
+<a href="docs.html#datalinks">data links</a>. Longer examples: <a href="guide/handeye.html">Hand-eye calibration: a worked example</a>,
+<a href="guide/render_calib.html">Silhouette calibration: a worked example</a>.</p>
+<ol>
+<li><strong>Calibrate ▸ Plan hand-eye poses…</strong> opens the <strong>Hand-eye pose plan</strong> page: 20 poses (a default) the arm reaches
+without collision with the board in view, chosen to pin the camera down best, with the predicted 1σ in mm and
+degrees; Print board… writes the ChArUco board as a PDF; Save as session keeps the plan.</li>
+<li><strong>Calibrate ▸ Solve hand-eye…</strong> opens the <strong>Hand-eye solve</strong> page: import a folder of board images with a
+<code>joint_states</code> file (or take frames from a LeRobot dataset or ROS 2 bag), solve (closed form, then a bundle
+adjustment), read the per-view residuals and the covariance, take the pose the coach asks for next, and Apply the
+calibrated mount.</li>
+<li><strong>Calibrate ▸ Silhouette calibration</strong> opens the <strong>Silhouette calibration</strong> page: a static camera's mount from the
+robot's own silhouette in recorded frames, per episode, with its σ and whether it is observable.</li>
+</ol>
+<p><strong>Worked example: hand-eye on the UR5e's wrist D405.</strong> Plan with the defaults: &quot;Predicted camera position σ (worst
+axis): 0.0117 mm (meets the requirement)&quot;. Render 12 board images at 12 planned poses with 1 grey level of noise
+(Simulate a capture…, or <code>core/calib/synthetic.py</code>), import them with their joint states: 12 images detected; Solve:
+status good, and Apply would move the mount by 0.01 mm and 0.002°, the rendered truth recovered.</p>
+<p><strong>Worked example: silhouette calibration of the UR5e's overhead D435.</strong> Generate the synthetic episodes with their
+defaults (4 episodes, 640 × 360, every fault on, among them a mount slip of the overhead camera from episode 2), then
+choose the dataset on the page and Run: &quot;Mount offset found by the silhouettes: 4.21 mm (mount moved)&quot;: the slip, found
+from the robot's outline alone.</p>
+<h2 id="data">8. Data</h2>
+<p>Models: <a href="docs.html#data">readers, the auditor and plan against recording</a>, <a href="docs.html#sim2real">sim-to-real</a>.
+Longer examples: <a href="guide/datasets.html">Datasets: a worked example on the SO-100 sample</a>, <a href="guide/bags_rlds.html">Reading ROS 2 bags and RLDS datasets</a>,
+<a href="guide/audit.html">Auditing a dataset and comparing it with the plan</a>, <a href="guide/sim2real.html">The sim-to-real gap: a worked example</a>.</p>
+<p>DexVantage reads LeRobot v2.1 and v3.0 (and writes them), ROS 2 bags (MCAP and SQLite) and RLDS / Open X-Embodiment
+TFRecords. <strong>Data ▸ Audit a dataset…</strong> opens the <strong>Dataset audit</strong> page (the Data audit workspace): per episode and
+camera the dropped and duplicated frames, frame rate, jitter, USB gaps, camera-joint offset, clock drift, exposure
+steps, blur and a hidden gripper, mount slip across the campaign, and a verdict (pass, fix, recalibrate, drop); the
+report exports as JSON, HTML and a FiftyOne dataset. <strong>Data ▸ Plan against recording…</strong> opens the <strong>Plan against
+recording</strong> page. <strong>Data ▸ Sim-to-real gap</strong> opens the <strong>Sim-to-real gap</strong> page: a recorded episode rendered again
+through the rig and compared camera by camera, with the causes ranked and the change that closes each.</p>
+<p><strong>Worked example on the SO-100.</strong> Simulate ▸ Generate synthetic episodes… with 2 episodes of 48 frames at 160 px wide
+(seed 7, every fault on with its default size) writes a Recording LeRobot v3.0 of 2 episodes. Audit it: &quot;Episodes
+that pass the audit: 0 % (not usable)&quot;, which is the point of a dataset with every fault in it: each episode names
+its faults and the fix. Plan against recording: &quot;Plan against recording: comparisons that match: 80 % (mostly
+matches)&quot;.</p>
+<p><strong>Worked example: the sim-to-real gap on the UR5e.</strong> <code>rig.gap_dataset(…)</code> renders one episode of 24 frames at 320 ×
+180 with the overhead D435 made 20 grey levels brighter than the render; the page (or <code>rig.sim2real</code>) reads:
+&quot;Sim-to-real image gap (worst camera): 18.6 DN (very large gap)&quot;, with the causes ranked and the change that closes
+the first one offered by Apply.</p>
+<h2 id="requirements">9. Optimisation and requirements</h2>
+<p>Models: <a href="docs.html#requirements">requirements</a>, <a href="docs.html#tolerance">tolerances</a>,
+<a href="docs.html#experiments">designed experiments</a>, <a href="docs.html#optimise">the optimiser</a>. Longer examples:
+<a href="guide/requirements.html">Requirements, the readiness scorecard and the variants compare</a>, <a href="guide/tolerance.html">Tolerances: a worked example on the SO-100 sample</a>,
+<a href="guide/experiments.html">Designed experiments: a worked example on the UR5e sample</a>, <a href="guide/optimise.html">Optimise: improve a rig, or design new ones</a>.</p>
+<ol>
+<li><strong>Analysis ▸ Requirements and variants</strong> opens the <strong>Requirements and variants</strong> page (the Review workspace): each
+requirement a named metric, an operator and a threshold; Run gives the scorecard (pass, fail, not evaluated, each
+margin); Compare variants evaluates every requirement on every rig variant. The batch CI gate is <code>--check</code>.</li>
+<li><strong>Analysis ▸ Tolerances</strong> opens the <strong>Tolerances</strong> page: each mount's ± tolerance (or its calibration covariance),
+draws and seed; each metric's spread and the share of draws meeting each requirement. Export perturbations writes
+the draws for augmentation.</li>
+<li><strong>Analysis ▸ Designed experiments</strong> opens the <strong>Designed experiments</strong> page: factors, responses and a design (full
+factorial, fractional, Latin hypercube, Sobol, Saltelli); Sobol indices, main effects and the best run.</li>
+<li><strong>Analysis ▸ Optimise</strong> opens the <strong>Optimise</strong> page: improve this rig (mounts within a box and a cone) or design new
+rigs (devices, mount sites, brackets); the Pareto front, each design explained; Accept adds it as a variant.</li>
+</ol>
+<p><strong>Worked example on the UR5e: a requirement and the tolerances.</strong> Add the requirement &quot;Task volume seen&quot; ≥ 90 % (the
+metric <code>coverage.covered</code>; 90 is this example's figure, not a standard) and Run: &quot;Readiness scorecard: 1 / 1 (ready).
+All 1 requirement pass.&quot; On the Tolerances page with 16 draws, seed 1 and that one metric (the mounts' default ±1 mm
+and ±0.5°): &quot;Monte Carlo tolerances: P5 91.7 % (no requirement). Task volume seen: 91.88 % ± 0.120 % (σ over 16
+draws), P5 91.70 %. No requirement names it: add one to judge it.&quot;</p>
+<p><strong>Worked example: a designed experiment.</strong> Factors the overhead D435's height (±5 cm) and pitch (±5°), responses
+task volume seen and depth-valid volume, a Latin hypercube of 8 runs, seed 2: 8 runs, &quot;better than now&quot;: &quot;Best of 8
+runs: task volume seen 92 % at run 1, against 91.9 % for the rig as it is. Apply sets that run's factors (one undo
+step).&quot;</p>
+<p><strong>Worked example: the optimiser.</strong> Improve this rig with a budget of 12 designs, seed 1: &quot;Optimiser: 3 designs
+(better rig found). 1 of the 3 designs is at least as good as the current rig on every objective and better on one;
+the others trade one objective for another. No requirement is set, so every design counts as meeting them.&quot;</p>
+<h2 id="export">10. Export</h2>
+<p>Models: <a href="docs.html#exporters">exporters</a>, <a href="docs.html#formats">formats</a>, <a href="docs.html#rerun">Rerun</a>,
+<a href="docs.html#paper_kit">the paper kit</a>. Longer examples: <a href="guide/exporters_a.html">Exporting the rig: MuJoCo, ROS 2, calibration files and masks</a>,
+<a href="guide/exporters_b.html">Isaac Lab, LeRobot and reports: a worked example on the UR5e sample</a>, <a href="guide/rerun.html">Looking at the rig in Rerun</a>.</p>
+<p><strong>File ▸ Export…</strong> (Ctrl+E, and Export ▸ Export to MuJoCo, Isaac, ROS 2, LeRobot…): tick formats (MuJoCo MJCF; ROS 2
+URDF and tf2; OpenCV YAML and the Kalibr camchain; self-occlusion and depth masks; Plücker ray maps; bracket STL and
+STEP; Isaac Lab and Isaac Sim cameras; LeRobot, ACT, Diffusion Policy and OpenVLA configs; the HTML and PDF report;
+perturbed extrinsics; the canonical warp; FiftyOne; a synthetic LeRobot dataset; the campaign plan; the cell
+comparison; the paper kit), the pose and a folder. The export runs in the background and shows its manifest.
+<strong>Export ▸ Stream to Rerun…</strong> sends the scene to an <code>.rrd</code> file or a Rerun viewer (the <code>rerun</code> extra).</p>
+<p><strong>Worked example on the UR5e.</strong> Export 7 formats at once (mjcf, urdf, opencv_yaml, masks, plucker, isaac, lerobot):
+97 files, each listed in <code>export_manifest.json</code> with its SHA-256.</p>
+<h2 id="assistant">11. The assistant and MCP</h2>
+<p>Models: <a href="docs.html#assistant">the tools and the MCP server</a>, <a href="docs.html#copilot">the dock and the Copilot</a>.
+Longer examples: <a href="guide/assistant_dock.html">The Assistant dock</a>, <a href="guide/mcp.html">Claude over MCP: a worked example on the SO-100 sample</a>.</p>
+<p><strong>Window ▸ Assistant</strong> (Ctrl+J) asks Claude (the <code>assistant</code> extra) or Groq about the page on screen. Keys are entered
+in the dock's settings and kept in the system keyring only. Every number in an answer is checked against what the
+tools and the page returned (an unmatched number is shown to you); an edit comes as a proposal you accept as one undo
+step; long studies run only from a plan you approve. <code>python -m dexvantage.mcp</code> serves the same tools to an MCP client
+over standard input and output: with a DexVantage window open it attaches to it, so changes show at once and can be
+undone; otherwise it works on <code>--project cell.dexv</code> or <code>--sample NAME</code>.</p>
+<p><strong>Worked example.</strong> <code>python -m dexvantage.mcp --sample aloha</code> (or in process, <code>dexvantage.mcp.server.Server</code>):
+<code>initialize</code> answers protocol 2025-11-25 and <code>tools/list</code> lists 40 tools.</p>
+<h2 id="research">12. Research workflows</h2>
+<p>A research team's day, from a notebook to a paper. Models: <a href="docs.html#tracking">tracker</a>,
+<a href="docs.html#stats">statistics</a>, <a href="docs.html#campaign">campaign</a>, <a href="docs.html#cells">cells</a>,
+<a href="docs.html#cluster">cluster</a>, <a href="docs.html#versioning">versioning</a>, <a href="docs.html#paper_kit">paper kit</a>. The whole
+day on ALOHA 2: <a href="guide/research-workflow.html">A research workflow from Python</a> and the review of it,
+<a href="guide/product-review.html">A research team's notebook on ALOHA 2</a>; fixes of the review round: <a href="guide/ui-fixes.html">Responsiveness, bounded figures and custom devices: a worked example</a>.</p>
+<ol>
+<li><strong>Keep every run.</strong> <strong>Analysis ▸ Runs</strong> opens the <strong>Runs</strong> page: Apply turns tracking on (one undo step), each
+study run is logged with its settings, figures, seeds and provenance in <code>&lt;name&gt;.runs/</code> beside the project; select
+runs and Compare. Batch mode logs with <code>--track DIR</code> (<a href="guide/tracking.html">Tracking runs</a>).</li>
+<li><strong>On all cores or a cluster.</strong> Run on… ▸ This machine (<code>--jobs N</code>) or a Slurm job folder (<code>--slurm FOLDER</code>, then
+<code>--run-shard</code> and <code>--gather</code>) for experiments, tolerance Monte Carlo and optimiser generations; the gathered result
+is the single-process one (<a href="guide/cluster.html">Cluster sweeps: a worked example on the SO-100 sample</a>).</li>
+<li><strong>Is the difference real?</strong> <strong>Analysis ▸ Statistics</strong> opens the <strong>Statistics</strong> page: success counts, variants over
+their tolerance draws, an experiment's levels or tracker runs, each comparison naming its test and why, and the
+power calculator (<a href="guide/stats.html">Statistics: a worked example</a>).</li>
+<li><strong>Plan the recording.</strong> <strong>Data ▸ Campaign</strong> opens the <strong>Campaign</strong> page: conditions, the demonstrations a power
+analysis asks for, operators counterbalanced, storage and a calendar (<a href="guide/campaign.html">Planning a data-collection campaign: a worked example on the ALOHA 2 sample</a>).</li>
+<li><strong>Several cells.</strong> <strong>File ▸ Compare cells…</strong> opens the <strong>Cells</strong> page: other projects, samples or variants beside
+the open one (<a href="guide/cells.html">Comparing cells: a worked example on the UR5e sample</a>).</li>
+<li><strong>What changed.</strong> File ▸ Compare with… lists every change between two projects; File ▸ Save as folder (for Git)
+and <code>--textconv</code> make a project diffable; <code>--merge</code> merges three ways; <code>--cite</code> writes BibTeX; Export figure… on a
+chart writes a publication figure (<a href="guide/versioning.html">Versioning a project: diff, review, merge and Git</a>,
+<a href="guide/publication.html">Citing your sources and making figures for a paper</a>).</li>
+<li><strong>Write it up.</strong> <strong>Export ▸ Paper kit…</strong> opens the <strong>Publication</strong> page: the methods paragraph, LaTeX tables,
+figures, BibTeX and a reproducibility appendix, every number traced (<a href="guide/paper_kit.html">Writing the paper kit</a>).</li>
+<li><strong>Extend it.</strong> Plugins add studies, metrics, exporters, readers, library folders and pages through the
+<code>dexvantage.plugins</code> entry point (Help ▸ Plugins…, <code>--list-plugins</code>, <code>--no-plugins</code>;
+<a href="guide/plugins.html">Plugins: adding studies, metrics, exporters, readers, library folders and pages</a>).</li>
+</ol>
+<p><strong>Worked example: two success rates.</strong> ACT 14 of 20 against Diffusion Policy 19 of 20 (<code>dv.stats.compare_rates</code>):
+&quot;no clear difference&quot; at this sample size; telling 70 % from 95 % at the default α 0.05 and 80 % power takes 39
+episodes per condition (<code>dv.stats.episodes_needed(0.7, 0.95)</code>).</p>
+<p><strong>Worked example: the ALOHA 2 handover campaign</strong> of <a href="guide/campaign.html">Planning a data-collection campaign: a worked example on the ALOHA 2 sample</a> (three operators, two
+lighting presets, demonstrations from a 50 % against 70 % power analysis, 30 s episodes, a 4 TB and ten-day budget):
+&quot;Campaign episodes recorded: 216 (within budget)&quot;.</p>
+<p><strong>Worked example: three cells.</strong> The UR5e sample as the reference with the SO-100 and ALOHA 2 samples
+(<code>dv.cells.compare(rig, 'sample:so100', 'sample:aloha')</code>): &quot;Largest geometric gap to the reference cell: 0.35 index
+(large gap)&quot;.</p>
+<p><strong>Worked example: a diff and the citations.</strong> The UR5e sample against a copy with the overhead D435 raised 10 cm: 1
+change, &quot;Sensor Overhead D435: mount pose moved 100.0 mm (x +0.0, y +0.0, z +100.0 mm) and turned 0.00°&quot;. Its BibTeX
+(<code>--cite refs.bib</code>, <code>dv.bibtex(rig)</code>) holds 236 BibTeX entries: every source the project and the checks depend on.</p>
+<p><strong>Worked example: the paper kit of the SO-100.</strong> &quot;ready&quot;: 48 of 48 numbers traced. &quot;All 48 numbers in the methods
+paragraph and 52 in the tables trace to the project or a result; every citation has its BibTeX entry and the LaTeX is
+balanced.&quot;</p>
+<h2 id="batch">13. Batch mode</h2>
+<p>Everything runs without a window: <code>dexvantage [PROJECT.dexv | --sample NAME] [OPTION …]</code>. The full list of options,
+generated from the parser itself, is the <a href="reference/cli.html">command-line reference</a>; exit codes are 0 done, 1 a
+failed check or a result that does not reproduce, 2 an error said in one sentence.</p>
+<pre><code class="language-bash">dexvantage --sample ur5e --analyse -                       # the project summary as JSON on standard output
+dexvantage cell.dexv --coverage cov.json                   # any study: its flag writes the result with provenance
+dexvantage cell.dexv --reproduce cov.json                  # re-run it and compare every number
+dexvantage --sample ur5e --check defaults scorecard.json   # the readiness scorecard as a CI gate
+dexvantage --sample ur5e --export out/ --formats mjcf,urdf,opencv_yaml,isaac,lerobot,report
+dexvantage --sample so100 --synth-episodes out/synth       # synthetic LeRobot episodes with known faults
+dexvantage --sample so100 --audit audit.json --dataset out/synth
+dexvantage --sample ur5e --experiment design.json          # a designed experiment (docs/guide/experiments.md)
+dexvantage --sample ur5e --optimise opt.json --optimise-settings '{&quot;budget&quot;: 24}'
+dexvantage --sample aloha --campaign spec.json             # a campaign plan
+dexvantage a.dexv --diff b.dexv diff.json                  # what changed (exit 1 when they differ)
+dexvantage --validate out/validation                       # the validation suite
+dexvantage --self-test                                     # this installation
+</code></pre>
+<p>The reference lists 106 options (with <code>--no-plugins</code>; installed plugins add their own study flags), every study's
+flag among them; its companion, the <a href="reference/api.html">Python API reference</a>, documents the 37 names <code>dv</code> exports.</p>
+<h2 id="python-api">14. The Python API</h2>
+<p><code>import dexvantage as dv</code> gives DexVantage without the window and without Qt: open or make a rig, run any study,
+read the named metrics, sweep factors, check requirements, export, read datasets, track runs and compare. It runs the
+same code as the window and batch mode, so every figure is the study's own. The worked examples are in
+<a href="guide/api.html">The Python and notebook API</a> and the notebooks in <code>examples/</code>; the docstrings of the 37 names <code>dv</code> exports are the
+<a href="reference/api.html">Python API reference</a>.</p>
+<pre><code class="language-python">import dexvantage as dv
+rig = dv.sample('ur5e')                                   # or dv.open('cell.dexv'), dv.new('My cell')
+res = rig.run('coverage')                                 # a dict plus .headline, .metrics(), .to_frame()
+res.headline['text']                                      # 'Task volume seen: 91.9 % (mostly single or blind)'
+taller = rig.with_factors({'sensor:Overhead D435.dz': 0.10})   # a new Rig; rig is unchanged
+taller.metrics(['coverage.covered', 'depth.valid']).figures()
+rig.check('requirements.yaml'); rig.export('out/', ['opencv_yaml', 'mjcf']); rig.save('cell.dexv')
+</code></pre>
+<h2 id="troubleshooting">15. Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>What you see</th>
+<th>Why, and what to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The import wizard refuses a <code>.xacro</code> file, or a <code>.urdf</code> with <code>$(…)</code> or <code>${…}</code></td>
+<td>xacro macros must be expanded first: <code>ros2 run xacro xacro in.urdf.xacro &gt; out.urdf</code>.</td>
+</tr>
+<tr>
+<td>The wizard blocks a mesh over 10 m across</td>
+<td>the meshes are in millimetres: set <code>scale=&quot;0.001 0.001 0.001&quot;</code> on them in the model file.</td>
+</tr>
+<tr>
+<td>A COLLADA (<code>.dae</code>) mesh is not read</td>
+<td>MuJoCo reads STL and OBJ: convert the mesh and point the model at the converted file.</td>
+</tr>
+<tr>
+<td><code>dexvantage file.urdf</code> says it is a robot model file</td>
+<td>start DexVantage and import it with Robot ▸ Import robot…; the command line takes <code>.dexv</code> projects.</td>
+</tr>
+<tr>
+<td>A figure shows &quot;—&quot; with &quot;not stated by the maker&quot;</td>
+<td>the datasheet does not state it; DexVantage never guesses. Enter your measured figure with its source (a custom device, or the field's own override).</td>
+</tr>
+<tr>
+<td>A study refuses in one sentence (for example Action-chunk latency on the SO-100: SmolVLA's inference time is not stated by its source)</td>
+<td>the input it needs is missing and the sentence says which; enter it where it says (the Policies page here).</td>
+</tr>
+<tr>
+<td>&quot;no hosts&quot; on the bandwidth page</td>
+<td>the rig has no host topology: Apply adds an assumed host, or add your own from the library.</td>
+</tr>
+<tr>
+<td>&quot;no task object&quot; on the VLA page</td>
+<td>add a task object (Workspace ▸ Add box object); every task object counts as critical by default.</td>
+</tr>
+<tr>
+<td>Studies are slow</td>
+<td>the GPU path needs Linux EGL and OpenGL 3.3; elsewhere the exact numpy rasteriser runs (the same figures within the occlusion model's agreement, slower).</td>
+</tr>
+<tr>
+<td>The 3D view is blank or flickers</td>
+<td>start with <code>--software-3d</code> (QPainter instead of OpenGL). It is slow, and slower the more triangles the robots have: 160 ms (SO-100) to 586 ms (UR5e) a frame in Phase 2 (<a href="models/performance.html">Performance: the UI-thread budget</a>); on 2026-11-08, in a 1600 × 1000 window on a busy machine (load average about 30), 0.19 s (SO-100, 60 682 triangles), 0.73 s (UR5e), 0.91 s (UR5e + Shadow Hand), 0.93 s (G1), 1.1 s (two Pandas) and 1.4 s (ALOHA 2, 331 392 triangles) a median frame. The view lags while you drag; the studies still run on their own threads.</td>
+</tr>
+<tr>
+<td>The status bar says &quot;OpenGL is not available here&quot;</td>
+<td>DexVantage could not create an OpenGL 2.1 context (a virtual machine, a remote X session, or a missing GPU driver), so it uses the QPainter renderer above. <code>dexvantage --self-test</code> says on its <code>opengl</code> line what it tried; install the GPU's OpenGL driver (or Mesa) to get the fast view back.</td>
+</tr>
+<tr>
+<td>A plugin breaks start-up</td>
+<td><code>dexvantage --no-plugins</code>, then Help ▸ Plugins… or <code>--list-plugins</code> shows which plugin failed and why.</td>
+</tr>
+<tr>
+<td>The paper kit's LaTeX compile is skipped</td>
+<td>no LaTeX engine is on PATH; the <code>.tex</code> files are written and checked anyway.</td>
+</tr>
+<tr>
+<td>The Menagerie list is short and says it is offline</td>
+<td>the list falls back to the folder names; connect to download a model.</td>
+</tr>
+<tr>
+<td>The Assistant asks for a key</td>
+<td>keys live in the system keyring only (the <code>assistant</code> extra installs <code>keyring</code>).</td>
+</tr>
+<tr>
+<td>Something failed with &quot;details in the log&quot;</td>
+<td>the window logs the traceback and shows a sentence; run the same step in batch mode for its exit code and the sentence on standard error.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="worked-examples">Worked examples</h2>
+<p>One page per feature, each a worked example on a sample project.</p>
+<ul>
+<li><a href="guide/samples.html">Sample projects</a></li>
+<li><a href="guide/robots.html">Robots: the robot catalogue</a></li>
+<li><a href="guide/robot_io.html">Robots in and out: URDF for MuJoCo, USD robots, OpenVLA and Isaac exports</a></li>
+<li><a href="guide/sensors.html">Sensors and mounts: a worked example on the UR5e sample</a></li>
+<li><a href="guide/library.html">The hardware library: a worked example</a></li>
+<li><a href="guide/library_systems.html">Systems from the library: hosts, policies, lights, cables and teleop devices</a></li>
+<li><a href="guide/coverage.html">Coverage and resolution: a worked example on the UR5e sample</a></li>
+<li><a href="guide/depth.html">Depth validity: a worked example</a></li>
+<li><a href="guide/workspace.html">The Workspace page, the design log and the spec's batch names</a></li>
+<li><a href="guide/prices.html">Prices and the rig cost</a></li>
+<li><a href="guide/grasps.html">Grasp sets: a worked example on the UR5e and SO-100 samples</a></li>
+<li><a href="guide/policies.html">Policies: a worked example on the UR5e sample</a></li>
+<li><a href="guide/grasp.html">Grasp self-occlusion: a worked example on the UR5e sample</a></li>
+<li><a href="guide/vla.html">VLA token resolution: a worked example on the UR5e sample</a></li>
+<li><a href="guide/dexhand.html">Multi-finger occlusion: a worked example on the dexhand sample</a></li>
+<li><a href="guide/handoff.html">The visual-to-tactile handoff: a worked example</a></li>
+<li><a href="guide/teleop.html">Teleop overlap: a worked example on the SO-100 sample</a></li>
+<li><a href="guide/lighting.html">Lighting and glare: a worked example on the UR5e sample</a></li>
+<li><a href="guide/motion_blur.html">Motion blur and rolling shutter: a worked example on the UR5e sample</a></li>
+<li><a href="guide/time_sync.html">Time sync: a worked example on the UR5e sample</a></li>
+<li><a href="guide/action_chunk.html">Action-chunk latency: a worked example</a></li>
+<li><a href="guide/bandwidth.html">Bandwidth, hosts and power: a worked example</a></li>
+<li><a href="guide/cables.html">Cable flex across joints: a worked example on the SO-100 sample</a></li>
+<li><a href="guide/brackets.html">Brackets: a worked example on the UR5e sample</a></li>
+<li><a href="guide/canonical_warp.html">Canonical view: pooling wrist cameras across robots</a></li>
+<li><a href="guide/groundtruth.html">Rendered against predicted: a worked example</a></li>
+<li><a href="guide/synth_episodes.html">Generating synthetic episodes with known faults</a></li>
+<li><a href="guide/handeye.html">Hand-eye calibration: a worked example</a></li>
+<li><a href="guide/render_calib.html">Silhouette calibration: a worked example</a></li>
+<li><a href="guide/datasets.html">Datasets: a worked example on the SO-100 sample</a></li>
+<li><a href="guide/bags_rlds.html">Reading ROS 2 bags and RLDS datasets</a></li>
+<li><a href="guide/audit.html">Auditing a dataset and comparing it with the plan</a></li>
+<li><a href="guide/sim2real.html">The sim-to-real gap: a worked example</a></li>
+<li><a href="guide/requirements.html">Requirements, the readiness scorecard and the variants compare</a></li>
+<li><a href="guide/tolerance.html">Tolerances: a worked example on the SO-100 sample</a></li>
+<li><a href="guide/experiments.html">Designed experiments: a worked example on the UR5e sample</a></li>
+<li><a href="guide/optimise.html">Optimise: improve a rig, or design new ones</a></li>
+<li><a href="guide/exporters_a.html">Exporting the rig: MuJoCo, ROS 2, calibration files and masks</a></li>
+<li><a href="guide/exporters_b.html">Isaac Lab, LeRobot and reports: a worked example on the UR5e sample</a></li>
+<li><a href="guide/rerun.html">Looking at the rig in Rerun</a></li>
+<li><a href="guide/assistant_dock.html">The Assistant dock</a></li>
+<li><a href="guide/mcp.html">Claude over MCP: a worked example on the SO-100 sample</a></li>
+<li><a href="guide/research-workflow.html">A research workflow from Python</a></li>
+<li><a href="guide/product-review.html">A research team's notebook on ALOHA 2</a></li>
+<li><a href="guide/ui-fixes.html">Responsiveness, bounded figures and custom devices: a worked example</a></li>
+<li><a href="guide/tracking.html">Tracking runs</a></li>
+<li><a href="guide/cluster.html">Cluster sweeps: a worked example on the SO-100 sample</a></li>
+<li><a href="guide/stats.html">Statistics: a worked example</a></li>
+<li><a href="guide/campaign.html">Planning a data-collection campaign: a worked example on the ALOHA 2 sample</a></li>
+<li><a href="guide/cells.html">Comparing cells: a worked example on the UR5e sample</a></li>
+<li><a href="guide/versioning.html">Versioning a project: diff, review, merge and Git</a></li>
+<li><a href="guide/publication.html">Citing your sources and making figures for a paper</a></li>
+<li><a href="guide/paper_kit.html">Writing the paper kit</a></li>
+<li><a href="guide/plugins.html">Plugins: adding studies, metrics, exporters, readers, library folders and pages</a></li>
+<li><a href="guide/api.html">The Python and notebook API</a></li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="guide.html">User guide</a>
+      <a href="docs.html">Models and methods</a>
+      <a href="methods.html">Technical reference</a>
+      <a href="validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="assets/js/site.js"></script>
+</body>
+</html>

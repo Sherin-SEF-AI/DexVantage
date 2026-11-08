@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command-line reference · DexVantage</title>
+<meta name="description" content="dexvantage: DexVantage · camera, depth and teleop planning for robot-learning data collection. Every option below is the parser&#x27;s own, in its groups and order; the worked examples are in the user guide. Installed plugins add their own study flags (dexvantage --help lists them; --no-plugins leaves …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#exit-codes">Exit codes</a>
+    <a href="#positional-arguments">Positional arguments</a>
+    <a href="#options">Options</a>
+    <a href="#batch-mode-no-window">Batch mode (no window)</a>
+    <a href="#studies-each-writes-its-result-as-json-with-provenance---for-stdout-a-folder-gets-folderflagjson">Studies (each writes its result as JSON with provenance; &quot;-&quot; for stdout; a folder gets &lt;folder&gt;/&lt;flag&gt;.json)</a>
+    <a href="../methods.html#reference">All reference pages</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html#reference">All reference pages</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/reference/cli.md"><code>docs/reference/cli.md</code></a></p>
+<h1 id="command-line-reference">Command-line reference</h1>
+<p><code>dexvantage</code>: DexVantage · camera, depth and teleop planning for robot-learning data collection. Every option below is the parser's own, in its groups and order; the worked examples are in the <a href="../guide.html#batch">user guide</a>. Installed plugins add their own study flags (<code>dexvantage --help</code> lists them; <code>--no-plugins</code> leaves them out).</p>
+<pre><code>dexvantage [PROJECT.dexv | --sample NAME] [OPTION …]
+</code></pre>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>done (validation: every check passed; reproduce: the numbers reproduce; a scorecard: every requirement passes)</td>
+</tr>
+<tr>
+<td>1</td>
+<td>a failed check, a requirement that does not pass, a result that does not reproduce, an incomplete gather, two projects that differ</td>
+</tr>
+<tr>
+<td>2</td>
+<td>an error that stopped the run, said in one sentence on standard error (a file that cannot be read, a bad option, a study that cannot work with its inputs)</td>
+</tr>
+</tbody>
+</table>
+<p><code>-</code> as an output writes to standard output. A study flag given a folder (one that exists, or a path ending in <code>/</code>) writes <code>&lt;folder&gt;/&lt;flag&gt;.json</code>.</p>
+<h2 id="positional-arguments">Positional arguments</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path</code></td>
+<td>a .dexv project</td>
+</tr>
+</tbody>
+</table>
+<h2 id="options">Options</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>show this help message and exit</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>show program's version number and exit</td>
+</tr>
+<tr>
+<td><code>--self-test</code></td>
+<td>check this installation (project file, frames, MuJoCo, OpenCV, fonts, OpenGL, main window, validation) without a window</td>
+</tr>
+<tr>
+<td><code>--theme {dark,light,system}</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--scale SCALE</code></td>
+<td>UI scale, e.g. 1.15</td>
+</tr>
+<tr>
+<td><code>--software-3d</code></td>
+<td>draw the 3D view with QPainter instead of OpenGL</td>
+</tr>
+<tr>
+<td><code>--sample NAME</code></td>
+<td>open a sample project, in the window or in batch mode: so100, ur5e, dexhand, aloha, panda-bimanual, g1</td>
+</tr>
+<tr>
+<td><code>--no-plugins</code></td>
+<td>start without loading the installed plugins (Help ▸ Plugins lists them as off)</td>
+</tr>
+<tr>
+<td><code>--list-plugins</code></td>
+<td>list the installed plugins, what each added and any error, then exit</td>
+</tr>
+</tbody>
+</table>
+<h2 id="batch-mode-no-window">Batch mode (no window)</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--analyse OUT.json</code></td>
+<td>write the project summary study as JSON (&quot;-&quot; for stdout)</td>
+</tr>
+<tr>
+<td><code>--validate OUT_DIR</code></td>
+<td>run the validation suite and write its report</td>
+</tr>
+<tr>
+<td><code>--models MODELS</code></td>
+<td>with --validate: comma-separated model ids (default: all)</td>
+</tr>
+<tr>
+<td><code>--quick</code></td>
+<td>with --validate: fewer Monte Carlo trials (a smoke run)</td>
+</tr>
+<tr>
+<td><code>--reproduce RESULT.json</code></td>
+<td>re-run the study that wrote RESULT.json and compare</td>
+</tr>
+<tr>
+<td><code>--tolerance [PATTERN=]VALUE[%]</code></td>
+<td>with --reproduce: allowed differences, e.g. 1e-9 or voxels*=0</td>
+</tr>
+<tr>
+<td><code>--synth-episodes OUT_DIR</code></td>
+<td>generate synthetic LeRobot episodes with known faults and their ground truth into a new or empty folder (core/sim/episodes.py)</td>
+</tr>
+<tr>
+<td><code>--synth-settings JSON</code></td>
+<td>with --synth-episodes: settings as JSON text or a .json file, e.g. {&quot;episodes&quot;: 2, &quot;version&quot;: &quot;v2.1&quot;}</td>
+</tr>
+<tr>
+<td><code>--dataset PATH</code></td>
+<td>with --audit, --plan-vs-recording, --silhouette-calib or --sim2real (or --export with the format fiftyone): the recorded dataset (a LeRobot folder, an RLDS folder or a ROS 2 bag)</td>
+</tr>
+<tr>
+<td><code>--captures DIR</code></td>
+<td>with --handeye-solve: a folder of board images to capture at run time; the joint states are its joint_states.csv or .json unless --joints names the file (core/calib/capture.py)</td>
+</tr>
+<tr>
+<td><code>--joints FILE</code></td>
+<td>with --captures: the joint_states file (CSV or JSON)</td>
+</tr>
+<tr>
+<td><code>--audit-html OUT.html</code></td>
+<td>with --audit: also write the audit report as a standalone HTML page (core/audit/report.py)</td>
+</tr>
+<tr>
+<td><code>--fiftyone OUT_DIR</code></td>
+<td>with --audit: also export the per-episode audit scores as a FiftyOne dataset (sample tags and fields; a new or empty folder)</td>
+</tr>
+<tr>
+<td><code>--optimise-settings JSON</code></td>
+<td>with --optimise or --design-agent: settings as JSON text or a .json file, merged over the project's, e.g. {&quot;budget&quot;: 200, &quot;seed&quot;: 3}</td>
+</tr>
+<tr>
+<td><code>--rerun OUT.rrd</code></td>
+<td>save the scene for Rerun: the robot over its trajectory, camera frusta, min-Z blind zones, task volumes and, with --audit or --rerun-audit, the audit flags per episode (core/bridges/rerun.py; needs the optional extra rerun)</td>
+</tr>
+<tr>
+<td><code>--rerun-audit AUDIT.json</code></td>
+<td>with --rerun: an audit result written before by --audit</td>
+</tr>
+<tr>
+<td><code>--experiment DESIGN.json</code></td>
+<td>run a designed experiment (schema dexvantage.experiment/1, docs/models/experiments.md) on the project; writes the result JSON with provenance and the runs as CSV (core/experiments.py)</td>
+</tr>
+<tr>
+<td><code>--experiment-out OUT.json</code></td>
+<td>with --experiment: the result file (default DESIGN.results.json beside the design; the CSV goes beside it with .csv)</td>
+</tr>
+<tr>
+<td><code>--export OUT_DIR</code></td>
+<td>export the project with --formats (core/exporters); writes each format's files and export_manifest.json (SHA-256 of every file, provenance)</td>
+</tr>
+<tr>
+<td><code>--formats A,B,...</code></td>
+<td>with --export: comma-separated export formats, e.g. mjcf,urdf,opencv_yaml,masks,plucker,brackets</td>
+</tr>
+<tr>
+<td><code>--export-options JSON</code></td>
+<td>with --export: options per format as JSON text or a .json file, e.g. {&quot;mjcf&quot;: {&quot;mode&quot;: &quot;snippets&quot;}, &quot;masks&quot;: {&quot;atlas&quot;: false}}</td>
+</tr>
+<tr>
+<td><code>--check REQUIREMENTS.yaml OUT.json …</code></td>
+<td>the readiness scorecard CI gate: evaluate a requirements file (&quot;defaults&quot; for the labelled defaults), print the table and write the JSON with provenance (default scorecard.json); exit 0 pass, 1 fail, 2 error</td>
+</tr>
+<tr>
+<td><code>--reproduce-out REPORT.json</code></td>
+<td>with --reproduce: also write the reproduction report (every number compared) as JSON</td>
+</tr>
+<tr>
+<td><code>--run-plan PLAN.json OUT_DIR …</code></td>
+<td>run the studies, checks, exports and reproductions a plan lists, in order, and write one JSON summary (core/run_plan.py); outputs go under OUT_DIR (default: the plan's folder)</td>
+</tr>
+<tr>
+<td><code>--diff OTHER.dexv OUT.json …</code></td>
+<td>compare the project with another (a .dexv file or unpacked folder): print the changes, write them as JSON to OUT.json; exit 0 same, 1 different</td>
+</tr>
+<tr>
+<td><code>--diff-html OUT.html</code></td>
+<td>with --diff: also write the changes as an HTML page</td>
+</tr>
+<tr>
+<td><code>--diff-metrics ID,ID,...</code></td>
+<td>with --diff: run these metrics on both projects and give their deltas (core/metric_defs.py lists the ids)</td>
+</tr>
+<tr>
+<td><code>--merge BASE.dexv THEIRS.dexv OUT.dexv</code></td>
+<td>three-way merge: the project (ours) and THEIRS, both edits of BASE, written to OUT (a .dexv file or a .dexv.d folder); exit 1 and write nothing when they conflict</td>
+</tr>
+<tr>
+<td><code>--unpack OUT.dexv.d</code></td>
+<td>write the project as an unpacked, Git-friendly folder</td>
+</tr>
+<tr>
+<td><code>--pack OUT.dexv</code></td>
+<td>write the project (for example an unpacked folder) as a .dexv file</td>
+</tr>
+<tr>
+<td><code>--textconv FILE</code></td>
+<td>print a stable text of a .dexv file or folder (a git diff textconv driver: docs/guide/versioning.md)</td>
+</tr>
+<tr>
+<td><code>--cite OUT.bib</code></td>
+<td>write BibTeX for every source the project depends on and for DexVantage (&quot;-&quot; for stdout)</td>
+</tr>
+<tr>
+<td><code>--cite-references {checks,all,none}</code></td>
+<td>with --cite: the validation references to include (default checks: those the validation checks cite)</td>
+</tr>
+<tr>
+<td><code>--figure SPEC.json OUT.svg</code></td>
+<td>write a publication figure (SVG or PDF by the extension) from a figure spec (core/figures.py)</td>
+</tr>
+<tr>
+<td>`--figure-width single</td>
+<td>double</td>
+</tr>
+<tr>
+<td><code>--figure-palette {tol,chart}</code></td>
+<td>with --figure: tol (colour-blind safe, default) or chart (the colours in the spec)</td>
+</tr>
+<tr>
+<td><code>--campaign SPEC.json</code></td>
+<td>plan a data-collection campaign (schema dexvantage.campaign_spec/1, docs/models/campaign.md) on the project; writes the plan as JSON with provenance, CSV, an iCalendar .ics and a printable HTML (core/campaign.py)</td>
+</tr>
+<tr>
+<td><code>--campaign-out OUT.json</code></td>
+<td>with --campaign: the plan file (default SPEC.plan.json beside the spec; .csv, .ics and .html go beside it)</td>
+</tr>
+<tr>
+<td><code>--track RUNS_DIR</code></td>
+<td>log every study run, experiment and check of this command as a run in the run store RUNS_DIR (core/tracking; created if missing)</td>
+</tr>
+<tr>
+<td><code>--track-tag TAG</code></td>
+<td>with --track (or a project with tracking on): a tag for the runs logged (repeat for more)</td>
+</tr>
+<tr>
+<td><code>--track-note TEXT</code></td>
+<td>with --track: a note for the runs logged</td>
+</tr>
+<tr>
+<td><code>--runs-export OUT_DIR</code></td>
+<td>export the run store (--track RUNS_DIR, else the project's) as CSV and Parquet tables, an MLflow mlruns/ folder and a W&amp;B replay script</td>
+</tr>
+<tr>
+<td><code>--runs-formats A,B</code></td>
+<td>with --runs-export: csv, parquet, mlflow, wandb (default: all four)</td>
+</tr>
+<tr>
+<td><code>--cells CELL …</code></td>
+<td>compare several robot cells: .dexv files or folders, or sample:&lt;name&gt;; with a project given, it is the first cell (core/cells.py)</td>
+</tr>
+<tr>
+<td><code>--cells-out OUT.json</code></td>
+<td>with --cells: the comparison as JSON (&quot;-&quot; for stdout, the default)</td>
+</tr>
+<tr>
+<td><code>--cells-pooling POOL.json</code></td>
+<td>with --cells: the pooling mapping (rename, resize, resample, reorder … per cell, and what cannot be mapped)</td>
+</tr>
+<tr>
+<td><code>--cells-html PAGE.html</code></td>
+<td>with --cells: the comparison as a standalone HTML page</td>
+</tr>
+<tr>
+<td><code>--cells-settings JSON</code></td>
+<td>with --cells: the study's settings as JSON text or a .json file, e.g. {&quot;reference&quot;: 1, &quot;metrics&quot;: &quot;all&quot;, &quot;tolerance_draws&quot;: 16}</td>
+</tr>
+<tr>
+<td><code>--jobs N</code></td>
+<td>with --experiment, --experiment-saved, --tolerance-mc, --optimise or --cluster-studies: run in N worker processes on this machine (core/cluster)</td>
+</tr>
+<tr>
+<td><code>--slurm FOLDER</code></td>
+<td>with the same: write a Slurm job folder (an sbatch array, docs/guide/cluster.md) instead of running</td>
+</tr>
+<tr>
+<td><code>--shards N</code></td>
+<td>with --slurm: the number of array tasks (default: the items, at most 32); with --gather: the shard count when the folder does not record it</td>
+</tr>
+<tr>
+<td><code>--slurm-settings JSON</code></td>
+<td>with --slurm: sbatch settings as JSON text or a .json file, e.g. {&quot;mem&quot;: &quot;8G&quot;, &quot;time&quot;: &quot;04:00:00&quot;, &quot;partition&quot;: &quot;cpu&quot;, &quot;activate&quot;: &quot;source &lt;venv&gt;/bin/activate&quot;}</td>
+</tr>
+<tr>
+<td><code>--submit</code></td>
+<td>with --slurm or --optimise-continue: also submit with sbatch</td>
+</tr>
+<tr>
+<td><code>--cluster-studies LIST.json</code></td>
+<td>run a list of (project, study, settings) jobs with --jobs N or --slurm FOLDER</td>
+</tr>
+<tr>
+<td><code>--cluster-out OUT.json</code></td>
+<td>with --cluster-studies --jobs: the results file (default LIST.results.json)</td>
+</tr>
+<tr>
+<td><code>--cluster-cache DIR</code></td>
+<td>with --jobs or --run-shard: a result cache folder shared by the workers</td>
+</tr>
+<tr>
+<td><code>--run-shard WORK.json</code></td>
+<td>run one shard of a cluster work file</td>
+</tr>
+<tr>
+<td><code>--shard I</code></td>
+<td>with --run-shard: the shard (0 … N − 1)</td>
+</tr>
+<tr>
+<td><code>--of N</code></td>
+<td>with --run-shard: the number of shards</td>
+</tr>
+<tr>
+<td><code>--out DIR</code></td>
+<td>with --run-shard: the output folder (default: out/ beside the work)</td>
+</tr>
+<tr>
+<td><code>--gather FOLDER</code></td>
+<td>merge a job folder's shard outputs into the result</td>
+</tr>
+<tr>
+<td><code>--gather-out OUT.json</code></td>
+<td>with --gather: the result file (default FOLDER/result.json)</td>
+</tr>
+<tr>
+<td><code>--optimise-continue FOLDER</code></td>
+<td>the next round of an optimiser job folder on Slurm</td>
+</tr>
+<tr>
+<td><code>--stats SPEC.json</code></td>
+<td>statistics and power analysis from a spec (schema dexvantage.stats/1, docs/models/stats.md): compare success counts, samples, two variants over the tolerance Monte Carlo, experiment or tracker runs; the power calculator; writes the result as JSON with provenance</td>
+</tr>
+<tr>
+<td><code>--stats-out OUT.json</code></td>
+<td>with --stats: the result file (default SPEC.results.json beside the spec; &quot;-&quot; for stdout)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="studies-each-writes-its-result-as-json-with-provenance---for-stdout-a-folder-gets-folderflagjson">Studies (each writes its result as JSON with provenance; &quot;-&quot; for stdout; a folder gets &lt;folder&gt;/&lt;flag&gt;.json)</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--action-chunk OUT.json</code></td>
+<td>Action-chunk latency</td>
+</tr>
+<tr>
+<td><code>--audit OUT.json</code></td>
+<td>Dataset audit</td>
+</tr>
+<tr>
+<td><code>--bandwidth OUT.json</code></td>
+<td>Bandwidth, hosts and power</td>
+</tr>
+<tr>
+<td><code>--brackets OUT.json</code></td>
+<td>Brackets and clearance</td>
+</tr>
+<tr>
+<td><code>--cables OUT.json</code>, <code>--cable-flex OUT.json</code></td>
+<td>Cable flex across joints</td>
+</tr>
+<tr>
+<td><code>--campaign-saved OUT.json</code></td>
+<td>Data-collection campaign</td>
+</tr>
+<tr>
+<td><code>--canonical-view OUT.json</code></td>
+<td>Canonical view</td>
+</tr>
+<tr>
+<td><code>--cells-compare OUT.json</code></td>
+<td>Multi-cell comparison</td>
+</tr>
+<tr>
+<td><code>--coverage OUT.json</code></td>
+<td>Coverage and resolution</td>
+</tr>
+<tr>
+<td><code>--depth-validity OUT.json</code></td>
+<td>Depth validity</td>
+</tr>
+<tr>
+<td><code>--dex-occlusion OUT.json</code></td>
+<td>Multi-finger occlusion</td>
+</tr>
+<tr>
+<td><code>--experiment-saved OUT.json</code></td>
+<td>Designed experiments</td>
+</tr>
+<tr>
+<td><code>--grasp OUT.json</code>, <code>--grasp-study OUT.json</code></td>
+<td>Grasp self-occlusion</td>
+</tr>
+<tr>
+<td><code>--groundtruth OUT.json</code>, <code>--mujoco-validate OUT.json</code></td>
+<td>Rendered against predicted</td>
+</tr>
+<tr>
+<td><code>--handeye-plan OUT.json</code></td>
+<td>Hand-eye pose plan</td>
+</tr>
+<tr>
+<td><code>--handeye-solve OUT.json</code></td>
+<td>Hand-eye solve</td>
+</tr>
+<tr>
+<td><code>--lighting OUT.json</code></td>
+<td>Lighting and glare</td>
+</tr>
+<tr>
+<td><code>--motion-blur OUT.json</code></td>
+<td>Motion blur and rolling shutter</td>
+</tr>
+<tr>
+<td><code>--optimise OUT.json</code></td>
+<td>Optimiser</td>
+</tr>
+<tr>
+<td><code>--design-agent OUT.json</code></td>
+<td>Design agent</td>
+</tr>
+<tr>
+<td><code>--plan-vs-recording OUT.json</code></td>
+<td>Plan against recording</td>
+</tr>
+<tr>
+<td><code>--scorecard OUT.json</code></td>
+<td>Readiness scorecard</td>
+</tr>
+<tr>
+<td><code>--variants-compare OUT.json</code></td>
+<td>Variants compare</td>
+</tr>
+<tr>
+<td><code>--rig-inventory OUT.json</code></td>
+<td>Rig inventory</td>
+</tr>
+<tr>
+<td><code>--silhouette-calib OUT.json</code></td>
+<td>Silhouette calibration</td>
+</tr>
+<tr>
+<td><code>--sim2real OUT.json</code></td>
+<td>Sim-to-real gap</td>
+</tr>
+<tr>
+<td><code>--stats-saved OUT.json</code></td>
+<td>Statistics</td>
+</tr>
+<tr>
+<td><code>--teleop OUT.json</code>, <code>--teleop-overlap OUT.json</code></td>
+<td>Teleop overlap and dead zones</td>
+</tr>
+<tr>
+<td><code>--time-sync OUT.json</code>, <code>--sync OUT.json</code></td>
+<td>Time sync</td>
+</tr>
+<tr>
+<td><code>--tolerance-mc OUT.json</code></td>
+<td>Monte Carlo tolerances</td>
+</tr>
+<tr>
+<td><code>--runs OUT.json</code></td>
+<td>Runs</td>
+</tr>
+<tr>
+<td><code>--vla-tokens OUT.json</code></td>
+<td>VLA token resolution</td>
+</tr>
+</tbody>
+</table>
+<p>106 options in all.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

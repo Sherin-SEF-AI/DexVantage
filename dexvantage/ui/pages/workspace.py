@@ -62,6 +62,8 @@ class WorkspacePage(StudyPage):
     outside is not measured by the coverage, depth, grasp or VLA studies."""
     STUDY = None
     TITLE = 'Workspace'
+    MODEL = ('Model: the workspace check (core/workspace_check.py): task volumes against the objects\' bounding '
+             'boxes.')
     HEADLINE = 'Task volumes'
 
     def build_body(self, layout):

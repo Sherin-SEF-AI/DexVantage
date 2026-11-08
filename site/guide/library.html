@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The hardware library: a worked example · DexVantage</title>
+<meta name="description" content="The Library panel (left dock) lists every camera, depth camera and tactile sensor DexVantage knows from a maker&#x27;sdatasheet, product page or paper, each figure with its source and the date it was read. The entry format, the gapspolicy and the data-consistency checks are in The hardware library …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-find-a-device">1. Find a device</a>
+    <a href="#2-put-it-on-the-robot">2. Put it on the robot</a>
+    <a href="#3-a-depth-camera-variant-and-a-tactile-pad">3. A depth camera variant and a tactile pad</a>
+    <a href="#4-check-the-library-itself">4. Check the library itself</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/library.md"><code>docs/guide/library.md</code></a></p>
+<h1 id="the-hardware-library-a-worked-example">The hardware library: a worked example</h1>
+<p>The Library panel (left dock) lists every camera, depth camera and tactile sensor DexVantage knows from a maker's
+datasheet, product page or paper, each figure with its source and the date it was read. The entry format, the gaps
+policy and the data-consistency checks are in <a href="../models/library.html">The hardware library: devices from datasheets</a>.</p>
+<h2 id="1-find-a-device">1. Find a device</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ UR5e</strong>.</li>
+<li>In the Library panel type <code>zed x one</code> in the search box. Two entries remain: <em>Stereolabs ZED X One GS, wide lens
+(2.2 mm)</em> and its narrow-lens twin. The grey column reads <code>110° · 1928 × 1208</code> - the horizontal FOV and the native
+image of the first imager.</li>
+<li>Hover the wide one. The tooltip lists every figure, &quot;—&quot; for those the maker does not state, and the two sources:
+the ZED X One GS datasheet (rev. 2.3) and the store page, both &quot;read 2026-11-07&quot;. The note (in the Inspector once the
+sensor is placed) says what the sources disagree on: for the narrow lens the datasheet gives 73° × 45° × 87° and
+the store page 80° × 52° × 91°; the entry uses the datasheet.</li>
+</ol>
+<h2 id="2-put-it-on-the-robot">2. Put it on the robot</h2>
+<ol>
+<li>Double-click the entry (or drag it into the 3D view). A sensor of that model is added to the rig, looking at the task
+volume, as one undo step.</li>
+<li>In the Inspector, set what it is mounted on to the UR5e's <code>wrist_3_link</code> to use it as a global-shutter wrist
+camera (the Inspector's &quot;Mounted on&quot; row then reads <code>wrist_3_link (link)</code>).</li>
+<li>Open the <strong>Camera view</strong>. The library builds the camera from the stated figures: a pinhole 1920 × 1200 px (the
+largest listed stream) with 110° × 80°, labelled &quot;as stated for 1928 × 1208&quot;. Its focal lengths come out as
+fx = 672.2 px and fy = 715.1 px - not equal, because a distortion-free pinhole with square pixels cannot show both
+stated angles. The stated focal length says the same thing another way: 2.2 mm / 3 µm = 733 px, which as a pinhole
+would show only 105.5° across the image; the lens shows 110°, about 8 % of barrel distortion. Calibrate a unit and
+store its K and D in the sensor's calibration (docs/models/library.md, &quot;From a sensor to cameras&quot;) before trusting
+pixel positions near the edges.</li>
+</ol>
+<h2 id="3-a-depth-camera-variant-and-a-tactile-pad">3. A depth camera variant and a tactile pad</h2>
+<ul>
+<li>Search <code>d436</code>. The D436 (added in the RealSense datasheet revision 023) is the D435's depth module with a
+global-shutter OV9782 colour camera. Its RGB imager reads &quot;derived from the stated 1280 × 800 FOV by a centred crop&quot;:
+the datasheet streams colour only up to 1280 × 720 while the store page says 1280 × 800, and the entry's note says
+which it assumed. Its RGB position is marked as an assumption (not stated by the maker).</li>
+<li>Search <code>xela</code>. The uSkin Patch uSPa 44 is a contact sensor: <code>pad 23 × 25 mm</code>, 16 taxels, no imagers. It is placed on
+a finger pad rather than looking at the scene, and the multi-finger occlusion and tactile hand-off study counts its
+pad coverage. It lists no stream (its readings are not images), so its data rate has to be entered for the
+bandwidth budget.</li>
+</ul>
+<h2 id="4-check-the-library-itself">4. Check the library itself</h2>
+<p>Run the library's data-consistency checks from a terminal:</p>
+<pre><code>dexvantage --validate out/validation --models library --quick
+</code></pre>
+<p>On the shipped entries (2026-11-07) they report:</p>
+<pre><code>pass  library.sensor_geometry            0.0122 / 0.02 fraction
+pass  library.fov_shape                  2.92 / 3 deg
+pass  library.fov_focal                  0.477 / 3 deg
+</code></pre>
+<p><code>out/validation/validation.html</code> lists, per check, the entries checked and the six imagers whose maker's angles
+contradict each other (their entries carry a <code>figures_conflict</code> statement saying so, and the library uses their
+horizontal and vertical angles). A custom device you add (Sensors ▸ New custom device…) is not part of these checks;
+the same bounds apply to it, so a diagonal FOV far wider than the horizontal and vertical allow is worth a second look.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

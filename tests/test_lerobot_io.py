@@ -9,8 +9,8 @@ import shutil
 import numpy as np
 import pytest
 
-pytest.importorskip('pyarrow')
-pytest.importorskip('av')
+pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
+pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
 
 import pyarrow as pa  # noqa: E402
 import pyarrow.parquet as pq  # noqa: E402
@@ -275,7 +275,7 @@ def test_hub_snapshot_folders(tmp_path, src):
 
 
 def test_names_as_dict_and_image_columns(tmp_path):
-    cv2 = pytest.importorskip('cv2')
+    cv2 = pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     root = str(tmp_path / 'img')
     e = E.Episode('e', 0, np.arange(4) / 10, np.arange(8.0).reshape(4, 2), ['a', 'b'], fps=10.0, task='x')
     L.write_lerobot(root, [e], 'v2.1')

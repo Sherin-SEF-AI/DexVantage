@@ -12,7 +12,11 @@ What is cited, in this order (one group comment each):
 2. The library entries the project names (sensors of every rig variant, policies, the rig's hosts, cables, lights):
    each source of an entry (a maker's datasheet, a model card, a paper, a code repository) as @misc with its title,
    url and urldate (the date the source was read, from the entry). A source several entries cite (one datasheet
-   for a family) is one item; its note names every entry it backs.
+   for a family) is one item; its note names every entry it backs. Its key names the document, not one device
+   (shared_key: the first device's maker, a colon and the document's file or page name, e.g.
+   intel:realsense-d400-series-datasheet-mar-2026 for the D400 Series datasheet that backs the D405 and the D435),
+   so a paper cites it once and no device is cited under another's name. A source one entry cites keeps that
+   entry's id as its key (-2, -3, ... for its second and later sources).
 3. Robots: a MuJoCo Menagerie model as @misc with the tree URL at the commit the files came from and its licence,
    plus Menagerie's own citation as its README gives it (read 2026-11-07); other robots as @misc with their name,
    licence and import note.
@@ -65,6 +69,25 @@ def escape(text: str) -> str:
 def _key(s: str) -> str:
     k = _KEY_BAD.sub('-', str(s)).strip('-.:') or 'ref'
     return k if k[0].isalpha() else f'r{k}'
+
+
+def shared_key(maker_id: str, ref: str) -> str:
+    """The key of a source several library entries cite: the first entry's maker (its id's first word), a colon and
+    the document's name (the URL's last path part without its extension, else the document's first words), in
+    lower case, cut to 48 characters at a word."""
+    from urllib.parse import unquote, urlsplit
+    ref = str(ref or '').strip()
+    if re.match(r'^https?://', ref):
+        parts = [x for x in urlsplit(ref).path.split('/') if x]
+        name = unquote(parts[-1]) if parts else urlsplit(ref).netloc
+        name = re.sub(r'\.(pdf|md|html?|php|aspx?)$', '', name, flags=re.I)
+    else:
+        name = ' '.join(ref.split()[:6])
+    slug = re.sub(r'[^a-z0-9.]+', '-', name.lower()).strip('-.')
+    if len(slug) > 48:
+        slug = slug[:48].rsplit('-', 1)[0] if '-' in slug[:48] else slug[:48]
+    maker = str(maker_id or '').split('-')[0] or 'source'
+    return _key(f'{maker}:{slug or "source"}')
 
 
 def _url_clean(u: str) -> str:
@@ -178,7 +201,10 @@ def _library_entries(project) -> tuple[list, list]:
         if read:
             note += f'; read {read}'
         f['note'] = escape(note)
-        key = e.id if r['k'] == 0 else f'{e.id}-{r["k"] + 1}'
+        if len(r['ids']) > 1:                             # a shared source: keyed by the document, not one device
+            key = shared_key(r['ids'][0], ref)
+        else:
+            key = e.id if r['k'] == 0 else f'{e.id}-{r["k"] + 1}'
         out.append(Entry('misc', _key(key), f, 'Library sources (datasheets, model cards, papers)'))
     return out, missing
 

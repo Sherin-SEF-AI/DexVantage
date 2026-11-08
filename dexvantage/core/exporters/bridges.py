@@ -90,8 +90,9 @@ def step_from_mesh(V, F, path: str):
     try:
         import gmsh
     except ImportError:
-        raise StudyError('STEP export needs the optional gmsh package, which is not installed: pip install '
-                         '"dexvantage[step]", or export STL only.') from None
+        from ...extras import missing
+        raise StudyError(missing('step', 'STEP export needs the optional gmsh package, which is not installed: pip '
+                                 'install "dexvantage[step]", or export STL only.', ', or export STL only')) from None
     V = np.asarray(V, float)
     F = np.asarray(F, np.int64)
     started = gmsh.isInitialized() if hasattr(gmsh, 'isInitialized') else False
@@ -138,8 +139,10 @@ def export_brackets(project, out_dir, options, ctx):
         try:
             import gmsh  # noqa: F401
         except ImportError:
-            raise StudyError('STEP export needs the optional gmsh package, which is not installed: pip install '
-                             '"dexvantage[step]", or export STL only (step off).') from None
+            from ...extras import missing
+            raise StudyError(missing('step', 'STEP export needs the optional gmsh package, which is not installed: '
+                                     'pip install "dexvantage[step]", or export STL only (step off).',
+                                     ', or export STL only (step off)')) from None
     cap = int(options.get('step_max_triangles') or STEP_MAX_TRIANGLES)
     files, notes, used = [], [], set()
     st = (project.analysis.studies.get('brackets') or {}).get('sensors') or {}

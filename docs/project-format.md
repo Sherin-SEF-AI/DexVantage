@@ -40,6 +40,7 @@ A `.dexv` file is a zip archive (written atomically: a `.part` file renamed over
   "cables": [],                                              // Phase 6
   "policies": [],                                            // Phase 3
   "calibration": { "boards": [], "sessions": [] },           // Phase 7
+  "data": { "datasets": [], "requirements": {} },            // Phase 8, absent or empty when nothing is audited
   "log": [ {"t", "kind", "text"} ],
   "meshes": ["keys in meshes.npz"], "sources": ["names under sources/"]
 }
@@ -97,6 +98,16 @@ modes); `[]` (the default) uses each imager's largest listed stream.
   ([models/handeye.md](models/handeye.md#handeye-planner)).
 - Each of these sections, like `policies`, enters the content hash (`core/provenance.py`) only when it holds
   something, so files written before them keep their hashes; a file without a section reads it as empty.
+
+## Recorded datasets (Phase 8)
+
+- `data`: `{"datasets": [{"uid", "name", "path", "format": "lerobot|rlds|mcap|rosbag2-sqlite", "version",
+  "episodes", "cameras": {dataset camera key: sensor uid}, "exclude": [episode index]}], "requirements": {id:
+  value}}`: the recorded datasets the project audits ([models/audit.md](models/audit.md)). `path` is the folder or
+  file the user chose; `cameras` maps a dataset's camera key to a sensor where matching by name is not enough;
+  `exclude` lists the episodes the audit's Apply marked to drop or re-record. `requirements` holds the user's values
+  over the labelled defaults of `core/audit/episode.py` (`REQUIREMENTS` and `SETTINGS`): a number, or `[low, high]`
+  for `action_lag_rows`. A file without `data` reads as no datasets.
 
 ## The unpacked folder (`.dexv.d`, research tools part 1)
 

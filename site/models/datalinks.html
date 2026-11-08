@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data links: grasp sets and hand-eye captures from recorded datasets · DexVantage</title>
+<meta name="description" content="Phase 8 (spec §7.3 &quot;taken from a recorded dataset&quot;, §8.1 &quot;recording and solving: ROS 2 topics, a LeRobot episode&quot;).Two features read a recorded dataset through the shared reader layer (core/datasets: LeRobot v2.1 and v3.0, ROS 2bags in MCAP or SQLite, RLDS) and turn it into a project record:">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-recorded-joints-on-the-robots-model-coredatasetsjointspy">The recorded joints on the robot&#x27;s model (core/datasets/joints.py)</a>
+    <a href="#grasps-from-a-dataset-coregraspsfrom_dataset">Grasps from a dataset (core/grasps.from_dataset)</a>
+    <a href="#hand-eye-capture-from-a-dataset-corecalibcapturecapture_dataset">Hand-eye capture from a dataset (core/calib/capture.capture_dataset)</a>
+    <a href="#references">References</a>
+    <a href="#validation-measured-2026-11-07">Validation (measured 2026-11-07)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/datalinks.md"><code>docs/models/datalinks.md</code></a></p>
+<h1 id="data-links-grasp-sets-and-hand-eye-captures-from-recorded-datasets">Data links: grasp sets and hand-eye captures from recorded datasets</h1>
+<p>Phase 8 (spec §7.3 &quot;taken from a recorded dataset&quot;, §8.1 &quot;recording and solving: ROS 2 topics, a LeRobot episode&quot;).
+Two features read a recorded dataset through the shared reader layer (<code>core/datasets</code>: LeRobot v2.1 and v3.0, ROS 2
+bags in MCAP or SQLite, RLDS) and turn it into a project record:</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Function</th>
+<th>Page</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A grasp set: one grasp each time the gripper closes in an episode</td>
+<td><code>core/grasps.from_dataset</code></td>
+<td>Tasks ▸ From a dataset…</td>
+</tr>
+<tr>
+<td>A hand-eye session: the frames with the board in view, with the joints at their times</td>
+<td><code>core/calib/capture.capture_dataset</code></td>
+<td>Hand-eye solve ▸ From a LeRobot dataset or ROS 2 bag…</td>
+</tr>
+</tbody>
+</table>
+<p>Both run on a window job (a worker thread) from the pages, and both explain a dataset they cannot use in a plain
+sentence (a <code>GraspError</code> or <code>CaptureError</code>, never a traceback). Neither stores a full path: a record names the
+dataset's folder or file only.</p>
+<h2 id="the-recorded-joints-on-the-robots-model-coredatasetsjointspy">The recorded joints on the robot's model (<code>core/datasets/joints.py</code>)</h2>
+<p><code>on_model(episode, model, unit)</code> puts an episode's state vector (<code>Episode.q</code>, <code>Episode.joint_names</code>) into the model's
+joint order:</p>
+<ol>
+<li>the same name;</li>
+<li>the same name after normalising both (lower case; a trailing <code>.pos</code>, <code>_pos</code>, <code>.position</code>, <code>_position</code>, <code>_joint</code>
+or <code>.joint</code> and a leading <code>main_</code> or <code>follower_</code> removed; <code>-</code>, space and <code>.</code> read as <code>_</code>), when unambiguous. This
+matches LeRobot names such as <code>shoulder_pan.pos</code> or <code>main_shoulder_pan</code> to <code>shoulder_pan_joint</code>;</li>
+<li>by order, only when no name matches and the counts are equal (RLDS <code>state_0</code> …), said in the notes.</li>
+</ol>
+<p>A model joint the dataset lacks is held at the model's home; unused dataset columns are listed. When fewer than half
+of the model's joints are found and the dataset names more other joints than were found, the recording is refused
+as another robot's. Unit <code>deg</code> converts revolute joints (prismatic joints stay in metres); a revolute column beyond
+a full turn (2π + 0.01 rad) while the joint's limits are not is reported as &quot;looks like degrees&quot;, never converted on
+its own.</p>
+<p><code>interpolate(t, Q, x)</code> is linear between rows:</p>
+<pre><code>q(x) = Q[k] (1 − w) + Q[k+1] w,   w = (x − t[k]) / (t[k+1] − t[k]),   t[k] ≤ x ≤ t[k+1]
+</code></pre>
+<p>NaN outside [t₀, t_N] and next to a NaN row (a bag joint not yet published). A time within 10⁻³ of the median row
+spacing (at least 1 µs) outside the span takes the end row: LeRobot stores timestamps as float32, whose rounding at
+20 s is about 2 µs.</p>
+<h2 id="grasps-from-a-dataset-coregraspsfrom_dataset">Grasps from a dataset (<code>core/grasps.from_dataset</code>)</h2>
+<p>Each episode is read as a trajectory: the joints on the model, clipped to the limits, rows with a NaN joint left out
+(counted), then the rules of <code>from_trajectory</code> at the episode's rows (<code>docs/models/grasps.md</code>): the gripper opening
+from the pads' centroids (<code>pad_opening</code>), closing strokes of 5 mm or more (<code>closure_events</code>, CLOSE_MM, a default),
+the gripper frame at the stroke's onset (the last row before the fingers move) and the approach over the last 20 mm
+(APPROACH_MM, a default). Mode <code>every</code> takes every Nth row. Pose ids name the episode (<code>e3c1</code>: episode 3, its first
+closing); <code>t</code> is the time in the episode; the settings list each episode's rows, strokes and opening range, the
+format and version, the joint-matching rule and the unit. The poses' kind is <code>trajectory</code> (a recorded trajectory);
+the set's source is <code>dataset</code>.</p>
+<h2 id="hand-eye-capture-from-a-dataset-corecalibcapturecapture_dataset">Hand-eye capture from a dataset (<code>core/calib/capture.capture_dataset</code>)</h2>
+<p>For the sensor's camera stream (the key given; else the only camera; else the key ending with, or holding, the
+sensor's name in lower case without its parenthesised part), for every Nth frame i of each episode:</p>
+<ul>
+<li><strong>Joint reading.</strong> q_i = q(t_i + δ) by the interpolation above, t_i the frame's stored time (LeRobot's frame
+timestamp, a bag's header stamp carried onto the joint clock by the reader), δ the joint time offset (default 0 s:
+one clock, a default). The pose record keeps t_image = t_i, t_joints = t_i + δ and dt_s = t_row − t_i for the
+nearest joint row (the timestamp offset, said per episode as a median and as the camera's first time minus the
+joints' first time).</li>
+<li><strong>Still or moving.</strong> The speed is the fastest joint's |ΔQ| / Δt over the row interval holding t_i + δ (and the one
+before it at a row's own time). Above MOVING_DEG_S (0.5°/s, a default) the frame is moving: left out by default
+(the solve assumes still poses, and a constant clock offset only shows in moving frames), or kept and marked.</li>
+<li><strong>Detection.</strong> The board is detected at the frame's size. A frame of W' × H' from a camera model of W × H with the
+same aspect ratio (within 1 %) is the same lens resampled: the model is scaled (<code>CameraModel.scaled</code>: f' = f s,
+c' = s (c + ½) − ½) for the detector and the corners are carried back to the model's pixels,
+u = (W / W') (u' + ½) − ½ (OpenCV pixel centres). Another shape is refused (a crop cannot be undone).</li>
+<li><strong>One view per held pose.</strong> Consecutive still frames of an episode whose joints all lie within STILL_SAME_DEG
+(0.05°, a default) of the run's first frame are one view: the frame with the most corners, the middle one among
+equals. A robot holding a pose for 2 s at 30 fps then gives one view, not 60 views whose errors are correlated (the
+solver's σ treats views as independent). At most MAX_VIEWS (500, a default) views, evenly spread.</li>
+<li><strong>The session.</strong> Only frames with the board found become poses (<code>episode E frame I</code>); the source records the
+dataset, the camera key, per episode the frames looked at, with joints, still and with the board, and the notes
+above. A dataset camera's own intrinsics (a bag's CameraInfo) are compared with the sensor's lens model (fx, 1 %)
+and the difference said; they are not used.</li>
+</ul>
+<p>The session then solves as any other (<code>docs/models/handeye.md</code>: <code>session_problem</code>, the bundle adjustment).</p>
+<h2 id="references">References</h2>
+<ul>
+<li>LeRobot dataset format v2.1 and v3.0 (<code>lerobot_dataset_format</code>; read from the LeRobot repository, see
+<code>docs/models/datasets.md</code>); ROS 2 bags and their message definitions (<code>docs/models/datasets.md</code>, ROS 2 bags).</li>
+<li>OpenCV ChArUco detection (<code>opencv_charuco</code>) and pixel centres (<code>opencv_calib3d</code>); hand-eye calibration
+(<code>park_martin1994</code> and the solver's references in <code>docs/models/handeye.md</code>).</li>
+</ul>
+<h2 id="validation-measured-2026-11-07">Validation (measured 2026-11-07)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>grasp.dataset_closures</code></td>
+<td>the scripted pick's own closing ranges (<code>checks_grasps.scripted_pick</code>), written as a LeRobot v3.0 dataset of two episodes, the second 1.5 times slower; the gripper frame against MuJoCo forward kinematics of the script's joints at each onset</td>
+<td>10⁻⁶ m, and every stroke row for row</td>
+<td>6.2 × 10⁻⁸ m (float32 state column); strokes (rows 25–35, 70–75; slow episode 38–53, 106–113) all found, the 0.01 rad twitch not</td>
+</tr>
+<tr>
+<td><code>handeye.dataset_capture</code> (cost: study)</td>
+<td>the mount the board frames were rendered through: the UR5e sample's wrist D405 moved by simcapture's default offset (2.69 mm, 0.62°); 12 planned poses (8 in a quick run) held 1 s, 0.8 s minimum-jerk moves, 5 fps, 640 × 360 px (half the stream), AV1-coded</td>
+<td>0.2 mm and 0.05°</td>
+<td>full: 0.046 mm, 0.0097° (σ 0.010–0.014 mm, 0.0035–0.0060°); quick: 0.060 mm, 0.015°</td>
+</tr>
+</tbody>
+</table>
+<p>Why the hand-eye tolerance is wider than the solver's σ (measured on the 10-pose capture of the tests): the error is
+3–4 times the solver's own σ even without video coding, and at full size (uncoded 1280 × 720 frames: 0.020 mm and
+0.0058° against σ 0.005–0.006 mm and 0.0014–0.0034°), because the corner errors of a rendered view are not
+independent, which the σ assumes. Half the stream size doubles the corner error in the sensor's pixels (RMS 0.28 px
+against 0.15 px) and the error with it (0.049 mm uncoded); AV1 coding adds under 0.002 mm (0.051 mm). The camera
+starts 2.7 mm and 0.62° from the truth; corners left in the stream's pixels or joints read at the wrong frame miss by
+millimetres or tenths of a degree, far outside 0.2 mm.</p>
+<p>Tests (<code>tests/test_dataset_links.py</code>, 15): the joint matching (names, LeRobot names in degrees, partial, by order,
+refused) and the interpolation against the closed form; grasps from LeRobot v2.1 and v3.0 against the script's
+closing times and the forward kinematics at the onset (10⁻⁶ m), from episodes generated by <code>core/sim/episodes.py</code>
+(rendered on the RTX 5080, EGL device 0: one grasp per episode within one row of 1.5 s, within 1 mm of the
+trajectory's grasp), and their refusals; hand-eye captures from LeRobot v2.1 and v3.0 (0.05 mm, 0.011° from the
+truth) and from an MCAP bag with its own 2026-epoch nanosecond clock, joints at 50 Hz and images 7 ms after a joint
+row (the 7 ms reported, the same 10 views); the offset and moving-frame rules on a ramp, exactly; the refusals; the
+two pages' commands (synchronously and as window jobs, one undo step) and the dialog's parsing.</p>
+<p>Performance (this machine's CPU): grasps from 200 episodes of 136 rows, 0.87 s (31 000 rows/s); a hand-eye capture
+of 90 frames at 640 × 360 (52 decoded and searched), 0.19 s.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>Joints: one robot per state vector; joint values are taken in the model's convention (no zero offsets, gear
+ratios or gripper percentages converted); matching by order is only as right as the dataset's order.</li>
+<li>Grasps: the limits of <code>from_trajectory</code> (a closing that is not a grasp still counts; fingers closing by less than
+0.1 mm between rows are not seen to close); the onset is the last row before the fingers move, so its time is
+quantised to the row spacing.</li>
+<li>Hand-eye: linear interpolation between joint rows (a curved path between rows is cut short); no clock offset is
+estimated, only the one given is applied; motion blur, rolling shutter and the exposure time are not modelled in
+moving frames (which is why they are left out by default); a dataset's own intrinsics are compared, never used;
+live ROS 2 topics are not read (record a bag); a stream of another shape than the sensor's (a crop) is refused.</li>
+<li>The hand-eye solve study's run-time capture from settings (<code>core/studies/handeye.py</code>, <code>folder</code> and <code>joints</code>) reads a
+folder only; a dataset is captured on the page (or with <code>capture_dataset</code> in a script) and stored as a session.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

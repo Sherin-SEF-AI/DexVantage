@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rendered against predicted: a worked example · DexVantage</title>
+<meta name="description" content="Do the grasp study&#x27;s fingertip-visibility predictions hold up in an image? This walk-through renders the UR5e + Robotiq2F-85 sample in MuJoCo and compares. The model, the equations and the checks are in docs/models/groundtruth.md. Thefigures are what this build computes on the sample (RTX 5080 …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample-and-run-the-comparison">1. Open the sample and run the comparison</a>
+    <a href="#2-read-the-confusion-matrix">2. Read the confusion matrix</a>
+    <a href="#3-look-at-the-worst-disagreements">3. Look at the worst disagreements</a>
+    <a href="#4-depth-validity-against-rendered-depth">4. Depth validity against rendered depth</a>
+    <a href="#5-save-the-scene-for-mujoco">5. Save the scene for MuJoCo</a>
+    <a href="#6-the-so-100-and-the-dexhand-samples">6. The SO-100 and the dexhand samples</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/groundtruth.md"><code>docs/guide/groundtruth.md</code></a></p>
+<h1 id="rendered-against-predicted-a-worked-example">Rendered against predicted: a worked example</h1>
+<p>Do the grasp study's fingertip-visibility predictions hold up in an image? This walk-through renders the UR5e + Robotiq
+2F-85 sample in MuJoCo and compares. The model, the equations and the checks are in <code>docs/models/groundtruth.md</code>. The
+figures are what this build computes on the sample (RTX 5080 through EGL, MuJoCo 3.17.0); they change with your edits.</p>
+<h2 id="1-open-the-sample-and-run-the-comparison">1. Open the sample and run the comparison</h2>
+<pre><code>dexvantage --sample ur5e
+</code></pre>
+<p>Simulate ▸ Rendered against predicted visibility… opens the page; <strong>Run</strong> starts it in the background (about 7 s:
+inverse kinematics for 50 grasps, about 180 rendered frames, the depth study's voxels). In batch mode:</p>
+<pre><code>dexvantage --sample ur5e --groundtruth groundtruth.json
+</code></pre>
+<p>The headline reads <strong>92.8 %, agrees</strong>: of the 20 992 (camera, contact point) pairs in view, over the home pose, the
+32 of the 50 sampled grasps the arm reaches and 8 evenly spaced frames of the sample's scripted pick trajectory, the
+grasp study and MuJoCo agree on 92.8 % (agrees from 90 %, mostly agrees from 75 %: defaults, in the tooltip). The
+sample of 50 grasps is a default, drawn with seed 0; change it in <strong>Grasps</strong>. The 8 trajectory frames are a default too
+(<code>trajectory_frames</code>; 0 leaves the trajectories out); the cases table lists them as &quot;Scripted pick (sample) at 2.25 s&quot;
+and so on, and on their own they agree on 98.9 % (the grasps alone 91.1 %).</p>
+<h2 id="2-read-the-confusion-matrix">2. Read the confusion matrix</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Rendered visible</th>
+<th>Rendered hidden</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Predicted visible</td>
+<td>11 120</td>
+<td>1 457</td>
+</tr>
+<tr>
+<td>Predicted hidden</td>
+<td>64</td>
+<td>8 351</td>
+</tr>
+</tbody>
+</table>
+<p>The IoU of the visible-point sets is 88.0 %. Almost every disagreement is one way: the grasp study calls the point
+visible and the render does not. The table under it says why:</p>
+<table>
+<thead>
+<tr>
+<th>Why</th>
+<th>Points</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>At an edge</td>
+<td>1 076</td>
+<td>the pixel is within a pixel of a segmentation boundary</td>
+</tr>
+<tr>
+<td>Rule</td>
+<td>356</td>
+<td>the two occlusion tests agree; the prediction tests the contact location 2 mm in front of the pad, the render the pad face (a pad seen edge-on)</td>
+</tr>
+<tr>
+<td>Occlusion</td>
+<td>89</td>
+<td>the cube map and the render disagree about what is in front</td>
+</tr>
+</tbody>
+</table>
+<p>So the cube maps and MuJoCo agree on what hides what (89 points, 0.4 %); the rest is how &quot;visible&quot; is defined for a
+pad seen edge-on. The camera table shows where: the Wrist D405 (pads face on) agrees on 96.4 %, the Overhead D435 (pads
+seen from above, nearly edge-on) on 89.1 %. The grasp study's requirement (every fingertip at 50 % in one camera) gives
+the same verdict on all 32 grasps, predicted or rendered.</p>
+<h2 id="3-look-at-the-worst-disagreements">3. Look at the worst disagreements</h2>
+<p>The thumbnails pair the prediction's Camera view render (left) with MuJoCo's RGB (right) for the poses and cameras
+with the most disagreements; each contact point is green where that side calls it visible and orange where hidden,
+ringed where the two differ. Click a row of <strong>Poses</strong> to put the robot there: the 3D view shows its contact points
+(green both visible, orange predicted only, blue rendered only, grey both hidden) and the Camera view outlines MuJoCo's
+segmentation of what it shows, rendered in the background at the view's own pose.</p>
+<p><strong>Preview</strong> jumps to the pose with the most disagreements. <strong>Apply</strong> appears when occlusion disagreements exceed 1 % of
+the points (a default): it doubles the grasp study's cube-map size (one undo step). On the sample it stays off.</p>
+<h2 id="4-depth-validity-against-rendered-depth">4. Depth validity against rendered depth</h2>
+<table>
+<thead>
+<tr>
+<th>Sensor</th>
+<th>Voxels agree</th>
+<th>IoU</th>
+<th>Surfaces agree</th>
+<th>Noise</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wrist D405</td>
+<td>99.89 %</td>
+<td>99.77 %</td>
+<td>99.72 %</td>
+<td>σ_z = z² σ_d / (f B), σ_d 0.08 px (a default), f 710.8 px, B 18 mm</td>
+</tr>
+<tr>
+<td>Overhead D435</td>
+<td>99.66 %</td>
+<td>99.45 %</td>
+<td>91.61 %</td>
+<td>σ_d 0.08 px (a default), f 674.4 px, B 50 mm</td>
+</tr>
+</tbody>
+</table>
+<p>The voxels are the depth study's own (480 000 of the tabletop volume): its cube-map occlusion against the rendered
+depth with the noise model added. The surfaces column tests the points the D435 actually sees; on the table 0.9 m away
+a cube-map texel spans more depth than the study's 1 mm tolerance, so the study calls part of the table hidden from
+itself. Inside the task volume the surfaces agree on 99.6 %.</p>
+<h2 id="5-save-the-scene-for-mujoco">5. Save the scene for MuJoCo</h2>
+<p>Simulate ▸ Build the MuJoCo scene… (or <strong>Save the MuJoCo scene…</strong> on the page) writes a folder:</p>
+<pre><code>scene.xml          the robots at their files' geometry, the table, lights, one camera per imager
+assets/            the robots' meshes
+scene_notes.txt    each camera with its lens model, the defaults and what was left out
+
+python -c &quot;import mujoco; m = mujoco.MjModel.from_xml_path('scene.xml'); print(m.ncam)&quot;     # 6
+</code></pre>
+<p>The cameras carry the imagers' intrinsics (sensorsize, focalpixel, principalpixel, resolution); a lens with distortion
+gets its pinhole part, since MuJoCo cameras are pinhole.</p>
+<h2 id="6-the-so-100-and-the-dexhand-samples">6. The SO-100 and the dexhand samples</h2>
+<p><code>dexvantage --sample so100 --groundtruth gt.json</code> reads <strong>84.2 %, mostly agrees</strong> (22 905 points over 45 poses; edge
+1 440, rule 2 081, occlusion 95; the requirement agrees on all 44 grasps): its jaws' contact patches come from collision
+geometry that is not everywhere on the visual mesh, so more points differ by rule. The dexhand sample has no grasp set,
+so only its head camera's depth is compared: 99.58 % of the voxels agree.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

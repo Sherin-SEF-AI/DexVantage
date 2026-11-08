@@ -61,7 +61,8 @@ def summary(res: ValidationResult) -> dict:
             'passed': res.passed, 'failed': [{'id': c.id, 'error': _report.clean(c.error), 'tolerance': c.tolerance,
                                               'unit': c.unit, 'exception': c.exception} for c in res.failed],
             'ok': res.ok, 'models': models, 'seconds': round(res.seconds, 1), 'seed': res.settings.seed,
-            'quick': res.settings.quick, 'cancelled': res.cancelled}
+            'quick': res.settings.quick, 'cancelled': res.cancelled,
+            **({'not_run': list(getattr(res, 'not_run', []))} if getattr(res, 'not_run', None) else {})}
 
 
 def to_doc(res: ValidationResult, project=None) -> dict:
@@ -79,7 +80,8 @@ def to_doc(res: ValidationResult, project=None) -> dict:
         'seconds': round(res.seconds, 2), 'settings': res.settings.to_dict(), 'environment': res.environment,
         'frame': FRAME, 'limits': LIMITS_TEXT, 'cancelled': res.cancelled,
         'summary': {'checks': len(res.checks), 'passed': res.passed, 'failed': [c.id for c in res.failed],
-                    'ok': res.ok},
+                    'ok': res.ok,
+                    **({'not_run': list(getattr(res, 'not_run', []))} if getattr(res, 'not_run', None) else {})},
         'models': models, 'references': {k: t for k, t in cite(used)}})
 
 

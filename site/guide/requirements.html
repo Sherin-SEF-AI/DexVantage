@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Requirements, the readiness scorecard and the variants compare · DexVantage</title>
+<meta name="description" content="A worked example on the UR5e + Robotiq 2F-85 sample (a wrist D405 and an overhead D435). The model, the equations andthe measured validation are in docs/models/requirements.md.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-the-defaults-on-the-sample-from-the-command-line">1. The defaults on the sample, from the command line</a>
+    <a href="#2-your-own-requirements-file">2. Your own requirements file</a>
+    <a href="#3-the-requirements-page">3. The Requirements page</a>
+    <a href="#4-comparing-variants">4. Comparing variants</a>
+    <a href="#5-reproducing-and-plans">5. Reproducing and plans</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/requirements.md"><code>docs/guide/requirements.md</code></a></p>
+<h1 id="requirements-the-readiness-scorecard-and-the-variants-compare">Requirements, the readiness scorecard and the variants compare</h1>
+<p>A worked example on the UR5e + Robotiq 2F-85 sample (a wrist D405 and an overhead D435). The model, the equations and
+the measured validation are in <code>docs/models/requirements.md</code>.</p>
+<h2 id="1-the-defaults-on-the-sample-from-the-command-line">1. The defaults on the sample, from the command line</h2>
+<pre><code>dexvantage --sample ur5e --check defaults scorecard.json
+</code></pre>
+<p>prints (29 s on the RTX 5080, most of it the grasp study):</p>
+<pre><code>Readiness scorecard · Wrist D405 + overhead D435 (sample)
+Requirement                          Metric                    Value       Threshold         Margin     Status
+Contact visibility                   grasp.contact_visibility  100 %       ≥ 95 % (default)  +5 pp      pass
+Camera to joint-state skew           sync.skew_ms              ≥ 54.43 ms  &lt; 2 ms (default)  −52.43 ms  fail
+No controller over budget            bandwidth.over_budget     —           ≤ 0 (default)     —          not evaluated
+No cable pull or snag                cables.pull_snag          ≥ 3         ≤ 0 (default)     −3         fail
+No sensory blind gap before contact  dexhand.blind_gap_mm      ≥ 50 mm     ≤ 0 mm (default)  −50 mm     fail
+  No controller over budget: The rig has no host controller: add the host on the Bandwidth page.
+Verdict: not ready (1 pass, 3 fail, 1 not evaluated)
+</code></pre>
+<p>and exits 1. Read it row by row:</p>
+<ul>
+<li><strong>Contact visibility</strong> passes: 100 % of the reachable grasps have every fingertip at least half visible.</li>
+<li><strong>Skew</strong> fails although the figure is a bound: the D405's clock figures are not all stated, so the time-sync study
+can only say &quot;at least 54.4 ms&quot;, and at least 54.4 ms is never under 2 ms. Had the bound been &quot;at least 1 ms&quot;, the
+row would read &quot;not evaluated&quot; with the sentence saying which figures are missing.</li>
+<li><strong>Controllers over budget</strong> is not evaluated: the sample has no host. Add one on the Bandwidth page (Apply adds the
+suggested one) and run again.</li>
+<li><strong>Cable pulls and snags</strong>: the suggested wrist cable's slack loop passes through the upper arm at three checked
+poses; &quot;≥&quot; because the cable's length and bend radius are not stated.</li>
+<li><strong>Blind gap</strong>: the parallel gripper's pads are not seen for the last 50 mm of the approach (the whole scan, hence
+&quot;at least&quot;); with a tactile sensor or a camera that sees the pads it closes.</li>
+</ul>
+<p>The defaults are DexVantage's starting points, labelled &quot;(default)&quot;, not standards: write your own file.</p>
+<h2 id="2-your-own-requirements-file">2. Your own requirements file</h2>
+<pre><code>format: dexvantage.requirements
+version: 1
+requirements:
+- {name: Contact visibility, metric: grasp.contact_visibility, comparison: '&gt;=', threshold: 90, unit: '%'}
+- {name: Skew, metric: sync.skew_ms, comparison: '&lt;', threshold: 5}
+- {name: Two cameras at most, metric: rig.camera_count, comparison: '&lt;=', threshold: 2}
+</code></pre>
+<p><code>dexvantage --sample ur5e --check mine.yaml card.json</code> evaluates it; every metric id, with its unit and study, is in
+the table of <code>docs/models/requirements.md</code> (or <code>dexvantage.core.requirements.catalogue()</code>). A threshold in the wrong
+unit, an unknown metric or a broken file stop the gate with one sentence and exit 2. In CI:</p>
+<pre><code>dexvantage rig.dexv --check requirements.yaml card.json || exit $?
+</code></pre>
+<h2 id="3-the-requirements-page">3. The Requirements page</h2>
+<p>Analysis ▸ Requirements and variants (the Review workspace). <strong>Add the defaults</strong> puts the five defaults in the list;
+pick a metric and <strong>Add</strong> for your own. Select a row to edit its name, comparison, threshold and note below the table:
+each edit is one undo step, and changing a default's threshold unticks &quot;DexVantage default&quot;. <strong>Run</strong> evaluates the
+scorecard in the background: the headline reads, on the sample, &quot;1 / 5 pass · not ready&quot;; hover a status for the
+reason. <strong>Save as YAML…</strong> writes the list as a file for <code>--check</code>; <strong>Import…</strong> adds a file's requirements.</p>
+<h2 id="4-comparing-variants">4. Comparing variants</h2>
+<p>Press <strong>New variant from this one</strong> (a copy of the active variant, made active; its sensors keep their wiring),
+turn the overhead D435 off in the copy on the Sensors and mounts page, and press <strong>Compare variants</strong>: the
+table shows every requirement against each variant, the best per requirement marked &quot;best&quot;, and the ranking by
+requirements passed. With requirement &quot;Cameras ≤ 1&quot; the copy ranks first; <strong>Preview</strong> draws its sensors in the 3D view
+next to the active ones, <strong>Use the best variant</strong> makes it active (one undo step).</p>
+<h2 id="5-reproducing-and-plans">5. Reproducing and plans</h2>
+<pre><code>dexvantage --reproduce card.json
+</code></pre>
+<p>re-runs the scorecard with the requirements recorded in the file, on the sample its command names, and prints
+&quot;Reproduces exactly: all 24 numbers are the same.&quot; A changed number is listed with its path, the recorded and the
+re-run value, and the exit code is 1. A plan runs several steps and writes one summary:</p>
+<pre><code>[{&quot;study&quot;: &quot;bandwidth&quot;, &quot;settings&quot;: {&quot;margin_warn&quot;: 0.5}, &quot;out&quot;: &quot;bw.json&quot;},
+ {&quot;check&quot;: &quot;requirements.yaml&quot;, &quot;out&quot;: &quot;card.json&quot;},
+ {&quot;reproduce&quot;: &quot;last-week.json&quot;}]
+
+dexvantage rig.dexv --run-plan plan.json out/
+</code></pre>
+<p><code>--reproduce out/plan-summary.json</code> later reproduces every step's result with that step's settings.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

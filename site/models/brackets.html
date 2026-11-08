@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brackets and mounts · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/brackets.py (the generator, the clearance check, STL export) and dexvantage/core/meshing.py(implicit solids and the watertight mesher), both ported from Vantage core/brackets.py and core/meshing.py.Study: dexvantage/core/studies/brackets.py (study brackets, batch flag …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#bracket-types">Bracket types</a>
+    <a href="#frames-and-the-camera-body">Frames and the camera body</a>
+    <a href="#the-solid">The solid</a>
+    <a href="#clearance">Clearance</a>
+    <a href="#sources">Sources</a>
+    <a href="#validation-measured-2026-11-06">Validation (measured 2026-11-06)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/brackets.md"><code>docs/models/brackets.md</code></a></p>
+<h1 id="brackets">Brackets and mounts</h1>
+<p>Modules: <code>dexvantage/core/brackets.py</code> (the generator, the clearance check, STL export) and <code>dexvantage/core/meshing.py</code>
+(implicit solids and the watertight mesher), both ported from Vantage <code>core/brackets.py</code> and <code>core/meshing.py</code>.
+Study: <code>dexvantage/core/studies/brackets.py</code> (study <code>brackets</code>, batch flag <code>--brackets OUT.json</code>). Page:
+<code>dexvantage/ui/pages/brackets.py</code> (Analysis ▸ Brackets). Checks: <code>dexvantage/validation/checks_brackets.py</code> (model
+<code>brackets</code>). Tests: <code>tests/test_brackets.py</code>. Spec §7.7 and the Brackets checks of §10.</p>
+<p>What was ported and what was left out: Vantage's signed-distance solids, the marching-tetrahedra mesher, the mesh
+check, binary STL, the camera plate with clearance holes and screw-access bores, the convex-hull support and the print
+orientation came over unchanged in method. Vantage's automotive parts did not: the vehicle body as the mount surface,
+the base fitted to a curved panel, the roof-bar tube clamp, VHB tape sized for road shocks, the vehicle frame (ISO
+8855). DexVantage mounts brackets on robot flanges, T-slot profile, pan-tilt units and hands instead.</p>
+<h2 id="bracket-types">Bracket types</h2>
+<p>A sensor's bracket type is <code>Mount.bracket</code> (<code>core/project.py</code>); its options are the study's per-sensor settings
+(<code>project.analysis.studies['brackets']['sensors'][uid]</code>, the fields of <code>BracketSpec</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Type id</th>
+<th>What it is</th>
+<th>Interface figures from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>flange</code></td>
+<td>Wrist-flange adapter: a disc between the robot flange and the gripper, with an arm to the camera</td>
+<td><code>ISO9409</code> (cited per pattern, below)</td>
+</tr>
+<tr>
+<td><code>tslot2020</code>, <code>tslot4040</code></td>
+<td>Camera clamp on 20 × 20 or 40 × 40 T-slot profile: a pad with a key in the slot and two T-nut bolt holes</td>
+<td><code>TSLOT</code> (the maker's page, below)</td>
+</tr>
+<tr>
+<td><code>pantilt</code></td>
+<td>Pan-tilt neck mount: a pad for the unit's own hole pattern</td>
+<td>the user's figures (none by default: no holes, flagged)</td>
+</tr>
+<tr>
+<td><code>palm</code>, <code>dorsal</code></td>
+<td>A sleeve around a micro camera (at most 5 mm) on a pad behind it (palm) or under it (back of the hand)</td>
+<td>design defaults</td>
+</tr>
+<tr>
+<td><code>none</code></td>
+<td>No printed bracket</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="frames-and-the-camera-body">Frames and the camera body</h2>
+<p>The bracket frame is in millimetres, its origin at the centre of the contact face, z out of the mount surface into the
+bracket (the STL prints z up). For a flange adapter it is the flange frame: z along the flange normal, x towards the
+dowel (ISO 9409-1 clause 4.1: the location pin lies on +Xm). <code>T_parent_bracket</code> maps it (in metres) into the sensor's
+mount frame.</p>
+<p><strong>Flange face.</strong> The mount link's fixed child frame (the gripper's coupling in a robot file), moved along its axis to
+the lowest mesh point of the links below the flange within the pattern's pitch circle (where the coupling meets the
+flange). On the UR5e sample that frame is 6.5 mm above the coupling's contact face; the face found lies 100.5 mm out
+on wrist 3, against UR's DH d6 of 99.6 mm (<code>tests/test_brackets.py::test_flange_frame_matches_ur_dh</code>, within 1.5 mm). A
+link with no fixed child uses its own frame (an assumption, said in the result).</p>
+<p><strong>Other kinds.</strong> The interface is placed from the camera: on its back, bottom or top side (<code>side</code>), <code>standoff_mm</code> from
+that face, tilted by <code>tilt_deg</code> about the base's long axis; the clamp's position on the profile and a hand's surface
+are not in the project.</p>
+<p><strong>Camera body.</strong> A box of the library entry's <code>size_mm</code> (x along the optical axis, y across, z up) with the reference
+imager's optical centre at the middle of its front face — an ASSUMPTION, labelled in the result: makers state the size,
+rarely where the optics sit in it. Mounting holes come from the entry's <code>mounting</code> block (added to the schema for this
+study): per group the thread as written, count, face, spacing, maximum insertion depth and the centre where the drawing
+dimensions it. A coordinate the drawing does not dimension is null; such holes are drawn at the face's middle and
+flagged. Entries with stated holes (Intel RealSense D400 datasheet, document 337029-017, read 2026-11-06):</p>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>Holes</th>
+<th>Where stated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D435, D435i</td>
+<td>2 × M3 on the back, 45 mm apart, maximum insertion 3 mm (centre not dimensioned); 1/4-20 underneath, 17.5 mm from the left imager</td>
+<td>Figure 10-9, Table 4-20</td>
+</tr>
+<tr>
+<td>D405</td>
+<td>2 × M3 × 0.5 on the back, 20 mm apart, maximum insert 4.0 mm (centre not dimensioned); 1/4-20, maximum insert 5.0 mm, 9 mm from the left imager (face taken as the bottom: an assumption)</td>
+<td>Figure 10-14, Table 4-22</td>
+</tr>
+</tbody>
+</table>
+<p>Other entries state no holes: their plate has none and the result says so.</p>
+<h2 id="the-solid">The solid</h2>
+<p>Every part is a signed distance function f (negative inside) with a bounding box (<code>core/meshing.py</code>): boxes, rods,
+rounded rectangles and half-spaces are exact distances; the convex hull (the largest of its face-plane distances),
+unions (min), subtractions (max(a, −b)) and fillets (<code>round_union</code>: max(r, min(a, b)) − ‖(max(r − a, 0), max(r − b,
+0))‖) are lower bounds of the distance. The bracket is</p>
+<pre><code>body  = interface ∪ holder ∪ (hull(holder's outer corners, interface anchor) − screw-access bores − keep-outs)
+solid = body − holes − camera box (grown 0.2 mm)
+</code></pre>
+<ul>
+<li><strong>Holder:</strong> a plate of thickness <code>wall_mm</code> on the chosen camera face, <code>margin_mm</code> beyond it, with clearance holes
+of nominal + <code>clearance_mm</code> (0.4 mm, a default: printed holes come out small) and a screwdriver bore behind each of
+twice the nominal plus 1 mm (a default); for a micro camera a sleeve with a tunnel of the camera's section plus
+<code>pocket_mm</code> (0.1 mm, a default), open at the front and the back (the camera slides in from the back).</li>
+<li><strong>Flange disc:</strong> radius from the pattern's raised spigot d2 (when stated), thickness <code>disc_mm</code> (8 mm, a default);
+bolt clearance holes on the pitch circle at the pattern's angles; the dowel hole d5 + <code>fit_mm</code> on +x on the pitch
+circle; a centring spigot of d3 − <code>fit_mm</code> and <code>spigot_mm</code> (3 mm, a default) into the flange's recess and the same
+recess on top for the gripper's spigot; a centre hole for cables (20 mm, a default; ISO 9409-1 §4.4: at most d3).
+The arm leaves from a tab on the rim towards the camera, outside a keep-out cylinder above the disc that the gripper
+occupies (its footprint in the robot model 20 mm up from the adapter, plus 1 mm; 77 mm on the UR5e + 2F-85 sample).</li>
+<li><strong>T-slot pad:</strong> the profile's width, a key of the groove width − <code>clearance_mm</code> and <code>key_mm</code> (2 mm, a default; flagged
+when as deep as the groove), and two holes as wide as the slot opening (any bolt that fits the slot passes), placed
+beyond the camera plate's ends so a screwdriver reaches them.</li>
+<li>Parts that join are made to overlap by up to 1 mm: a join on a shared plane meshes as two touching shells, which the
+validation found in the first version (a 2020 clamp in four pieces).</li>
+</ul>
+<p><strong>Meshing</strong> (<code>meshing.mesh</code>): f is sampled on a grid of <code>res_mm</code> (0.5 mm, a default; a micro camera's sleeve a quarter
+of its smallest side) near the surface only, and each cube is meshed from a table derived from the six tetrahedra of a
+Kuhn split around its main diagonal [Treece 1999]; neighbouring cubes split their shared face alike, so the surface is
+a closed 2-manifold with no ambiguous cases, wound outward. <strong>The check</strong> (<code>meshing.check</code>): every undirected edge in
+exactly two triangles, every directed edge once (consistent orientation), no zero-area triangle, the signed volume
+V = Σ a · (b × c) / 6 over the triangles (a, b, c) positive (outward normals), the shells and the Euler characteristic
+V − E + F = 2 − 2g per shell.</p>
+<p><strong>Out:</strong> binary STL (80-byte header that never starts with &quot;solid&quot;, triangle count, per triangle the unit normal from
+the winding and three float32 vertices) and a JSON sidecar <code>&lt;name&gt;.stl.json</code>: the STL's SHA-256, dimensions, holes,
+interface figures with their sources, flags, print and assembly notes, the defaults used, the clearance and the
+provenance block (<code>core/provenance.stamp</code>). The print orientation is the one of six (base on the bed, upside down, on
+each side) with the least overhang (faces more than 45° down, not on the bed). The mass is the solid volume × 1.27
+g/cm³, the density Prusa Polymers states for Prusament PETG (technical data sheet, &quot;Dichte [g/cm3] 1.27&quot;, ISO 1183,
+updated 16.02.2022, <a href="https://storage.googleapis.com/prusa3d-content-prod-14e8-wordpress-prusament-prod/2023/10/c34f5f47-tds_prusament-petg_n_de.pdf">https://storage.googleapis.com/prusa3d-content-prod-14e8-wordpress-prusament-prod/2023/10/c34f5f47-tds_prusament-petg_n_de.pdf</a>,
+read 2026-11-07); other PETG filaments differ, and the figure is for an estimate only (infill lowers it).</p>
+<h2 id="clearance">Clearance</h2>
+<p>The bracket and the camera body (one solid) against every robot link but the mount link, at the home pose, the pose
+on screen and <code>samples</code> joint states (48, a default) drawn uniformly within the joint limits (±π for unlimited
+joints), seeded; states in which the robot runs into itself (<code>core/robot/collision.self_collision_batch</code>) are dropped
+and more drawn (at most 8 × samples; on the UR5e + 2F-85, 83 of 144 drawn were dropped, mostly the gripper's linkage
+sampled joint by joint). Each link's mesh vertices and triangle centres are put in the bracket frame and the solid's
+signed distance read there: its sign is exact, its value a lower bound of the clearance. For a flange adapter every
+link below the flange is moved out by the adapter's thickness (the model has no adapter) and the gripper's contact
+face on the adapter (within 1 mm of it, inside the keep-out) is its seat. Status: <strong>critical</strong> when a link is inside at
+the home pose, the pose on screen or at every pose (fixed to the mount); <strong>warning</strong> when only some sampled states
+collide (with their share), when a link comes within <code>margin_mm</code> (2 mm, a default), or a cable passes through.</p>
+<p><strong>Cables:</strong> each cable of <code>project.cables</code> laid along its attachments at the pose on screen
+(<code>core/studies/cables.cable_polylines</code>: every run's slack loop at its laid length, as the Cables page draws it; the
+radius is half the stated diameter, 0 when not stated); centre lines sampled 20 points per segment, minus the radius;
+the sensor's own cable is ignored within 15 mm of the camera, where it leaves it by design. Without cables the result
+says the check did not run. (Until the Phases 3, 6 and 7 review this looked for a module that does not exist and read
+no cable at all; <code>tests/test_spec_review_p367.py</code> covers it now.)</p>
+<p><strong>Image:</strong> the share of each imager's pixel rays (about 64 across) that meet the bracket, by sphere tracing its solid
+from the imager's optical centre.</p>
+<h2 id="sources">Sources</h2>
+<table>
+<thead>
+<tr>
+<th>Figure</th>
+<th>Source (read 2026-11-06)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ISO 9409-1-50-4-M6: Ø50 ±0.1 pitch circle, M6-6H ↓ 6, 45° and 4 × 90°, Ø6 H7 ↓ 6.2 dowel on the circle, Ø31.5 H7 recess (depth not legible: null), Ø63 h8 spigot 6.5 high</td>
+<td>Universal Robots, UR5e datasheet, drawing &quot;Tool flange for UR5e&quot;, <a href="https://www.universal-robots.com/manuals/latest/en/datasheets/ur5e/">https://www.universal-robots.com/manuals/latest/en/datasheets/ur5e/</a></td>
+</tr>
+<tr>
+<td>The pin on +Xm; 4 holes at 45° and 4 × 90°, 6 at 30° and 6 × 60°; designation ISO 9409-1-d1-n-thread</td>
+<td>ISO 9409-1:2004 public preview, clauses 4.1 and 5, Figure 1, <a href="https://cdn.standards.iteh.ai/samples/36578/348a837664f444bc83e2902c7a5acf4c/ISO-9409-1-2004.pdf">https://cdn.standards.iteh.ai/samples/36578/348a837664f444bc83e2902c7a5acf4c/ISO-9409-1-2004.pdf</a> (Table 1 is not in the preview: the standard is sold)</td>
+</tr>
+<tr>
+<td>UR bolts: M6, 8.8, ISO 4762, 8.0 Nm; &quot;Do not use bolts that extend beyond 8mm&quot;</td>
+<td><a href="https://www.universal-robots.com/articles/ur/application-installation/end-effector-mounting-on-tool-output-flange/">https://www.universal-robots.com/articles/ur/application-installation/end-effector-mounting-on-tool-output-flange/</a></td>
+</tr>
+<tr>
+<td>20 × 20 profile, groove width 6 mm, depth 5.5 mm</td>
+<td>Motedis, Profile 20x20 B-Type Slot 6, <a href="https://www.motedis.es/en/Profile-20x20-B-type-slot-6">https://www.motedis.es/en/Profile-20x20-B-type-slot-6</a></td>
+</tr>
+<tr>
+<td>40 × 40 profile, groove width 10 mm, depth 12 mm</td>
+<td>Motedis, Profile 40x40 B-type slot 10, <a href="https://www.motedis.es/en/Profile-40x40-B-type-slot-10">https://www.motedis.es/en/Profile-40x40-B-type-slot-10</a></td>
+</tr>
+<tr>
+<td>Camera holes</td>
+<td>the library entries' <code>mounting</code> blocks (above)</td>
+</tr>
+</tbody>
+</table>
+<p>Another ISO 9409-1 size typed as a designation (e.g. <code>80-6-M8</code>) gets its pitch circle, hole count and thread from the
+designation and the angles from Figure 1 (for 4 or 6 holes; other counts are spaced evenly, an assumption said in the
+note); its centring diameters, dowel and depths are null (no public source found), so the adapter has no spigot and
+no dowel hole, and the result says so. Misumi's and 80/20's profile pages refused automated reading on the day; Misumi
+HFS5-2020 and 80/20 figures are therefore not used.</p>
+<h2 id="validation-measured-2026-11-06">Validation (measured 2026-11-06)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>brackets.watertight</code></td>
+<td>edge and orientation counts, Euler characteristic and divergence-theorem volume written out in the check (not <code>meshing.check</code>), on one bracket of each kind</td>
+<td>0 defects</td>
+<td>0 defects on all six (flange adapter, 2020 and 4040 clamps, pan-tilt plate, palm and dorsal sleeves); each one shell</td>
+</tr>
+<tr>
+<td><code>brackets.volume</code></td>
+<td>the flange disc's volume in closed form, π t (R² − rc² − 4 rb² − rp²) + π h (rs² − rc²) − π h (rr² − rc²), and V − E + F = 2 − 2g with g = 6 through holes</td>
+<td>1 %</td>
+<td>0.18 % at 0.25 mm (0.08 % at 0.35 mm, the quick run); V − E + F = −10 as expected</td>
+</tr>
+<tr>
+<td><code>brackets.iso_holes</code></td>
+<td>hole centres and diameters fitted on the mesh (Kåsa circle fit to the wall vertices) against the pattern typed again from UR's drawing and ISO Figure 1</td>
+<td>0.05 mm (a third of UR's ±0.1 mm on the circle's diameter, halved for a radius)</td>
+<td>4.2 × 10⁻⁵ mm; diameters within 0.0015 mm of nominal + clearance</td>
+</tr>
+</tbody>
+</table>
+<p>Why the tolerances: a printable STL must be closed and consistently wound, so any defect fails; the mesher cuts sharp
+edges by a fraction of a grid step, which costs the disc 0.1–0.2 % of its volume, while a wrong hole size (0.4 mm on a
+bolt hole is 1.5 % of its area) or a missing feature exceeds 1 %; the bolt circle is held to ±0.1 mm on the robot,
+and a circle fit to some 2 300 wall vertices locates a centre far better than the grid. The hole check is a second
+reading of the same drawing, not a second source: an error in UR's drawing would pass.</p>
+<p>The tests add: the mesher closed and manifold on 250 random fields; the STL round trip (normals agree with the
+winding, the header never starts with &quot;solid&quot;); the camera holes read from the D435 and D405 entries; nothing of the
+bracket inside the camera body; a link moved through a bracket is found (critical at home); a cable through the base is
+found; the gripper on the UR5e sample, moved out by the adapter, sits on it and never inside it.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The bracket follows the planned pose and does not move the camera. The camera body is a box placed by the assumption
+above; holes a drawing does not dimension are drawn at the face's middle (flagged). The flange face and the ISO +Xm
+direction are taken from the robot file (check the dowel's angle on the robot); the adapter moves the gripper out by
+its thickness, which the robot model does not include (the clearance check moves the links below the flange by it, the
+tool centre point is not changed). Joint states are sampled, not searched: 48 states find a collision that a sixth of
+the joint space shows with probability above 99.98 %, a rarer one less surely; coupled joints are sampled
+independently (conservative). The clearance is read at mesh vertices and triangle centres, so a long thin triangle edge
+through the bracket between its points is missed. A T-slot clamp's place on the profile, a pan-tilt unit's pattern and
+a hand's surface are not in the project. Printed parts are not load-tested: no strength, stiffness or temperature
+figure is given. The display mesh is thinned by vertex clustering (1.5 mm cell); the exported STL is not.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

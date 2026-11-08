@@ -54,6 +54,7 @@ import re
 
 import numpy as np
 
+from ...extras import missing
 from ..jobs import StudyError
 
 PIN = '0.42.0'                      # the version this bridge is written against (pyproject extra 'rerun')
@@ -62,8 +63,8 @@ APP_ID = 'dexvantage'
 RATE_HZ = 30.0                      # default trajectory sampling (a labelled default)
 MAX_FRAMES = 2000                   # default upper bound on trajectory samples
 FRUSTUM_M = 0.15                    # default frustum depth (m) for the Pinhole image plane and the field lines
-INSTALL = ('Rerun is not installed: install the optional extra with pip install "dexvantage[rerun]" (rerun-sdk '
-           + PIN + '), then try again.')
+INSTALL = missing('rerun', 'Rerun is not installed: install the optional extra with pip install "dexvantage[rerun]" '
+                           '(rerun-sdk ' + PIN + '), then try again.')
 LEVEL = {'pass': 'INFO', 'fix': 'WARN', 'recalibrate': 'WARN', 'drop': 'ERROR'}
 
 

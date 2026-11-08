@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-finger occlusion · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/dexhand.py (fingers, contact pads, grasp postures), dexvantage/core/studies/dex_hand_tactile.py(the study, part 1 of spec §7.14 and the extension point of §7.15), dexvantage/core/robot/dexhand_sample.py (thedexhand sample). Page: dexvantage/ui/pages/dexhand.py (Analysis ▸ …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-hand-model">The hand model</a>
+    <a href="#the-study">The study</a>
+    <a href="#measured-on-the-dexhand-sample">Measured on the dexhand sample</a>
+    <a href="#validation">Validation</a>
+    <a href="#references">References</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/dexhand.md"><code>docs/models/dexhand.md</code></a></p>
+<h1 id="dexhand">Multi-finger occlusion</h1>
+<p>Modules: <code>dexvantage/core/dexhand.py</code> (fingers, contact pads, grasp postures), <code>dexvantage/core/studies/dex_hand_tactile.py</code>
+(the study, part 1 of spec §7.14 and the extension point of §7.15), <code>dexvantage/core/robot/dexhand_sample.py</code> (the
+<code>dexhand</code> sample). Page: <code>dexvantage/ui/pages/dexhand.py</code> (Analysis ▸ Multi-finger occlusion). Validation:
+<code>dexvantage/validation/checks_dexhand.py</code> (model <code>dexhand</code>). Tests: <code>tests/test_dexhand.py</code>. Bundling:
+<code>scripts/bundle_dexhand.py</code>. Batch: <code>dexvantage project.dexv --dex-occlusion OUT.json</code>.</p>
+<p>A dexterous hand hides its own fingertips. Which finger hides which fingertip's contact patch from which camera
+changes with the grasp, so a mount that sees a two-finger pinch well can be blind in a power grasp. The study counts
+it, per fingertip and camera, over a sweep of grasp postures or a grasp set, and compares the candidate mounts.</p>
+<h2 id="the-hand-model">The hand model</h2>
+<p><strong>The bundled hand.</strong> MuJoCo Menagerie's licences differ per model; every dexterous hand folder's own <code>LICENSE</code> was read
+(Menagerie commit <code>98a70c5</code>, 2026-11-06; THIRD_PARTY.md lists them all). The Shadow Hand E3M5 (<code>shadow_hand</code>,
+Apache-2.0, 24 joints, 3.4 MB) is bundled byte for byte: it is redistributable, small, has the most joints of the
+candidates and carries named postures of its own (<code>keyframes.xml</code>). The Allegro Hand (<code>wonik_allegro</code>, BSD-2-Clause),
+LEAP Hand (MIT), Shadow DEX-EE, TetherIA Aero Hand and Sharpa Wave (Apache-2.0) and the G1 with hands (<code>unitree_g1</code>,
+BSD-3-Clause, 39.7 MB; its README does not name the hand model, so it is not called Dex3 here) are redistributable
+too and download on request (Robot ▸ Import from MuJoCo Menagerie). Inspire and Ability hands have no Menagerie
+folder.</p>
+<p><code>ur5e_shadow_hand.xml</code> puts the hand on the UR5e's flange the way MuJoCo does it:
+<code>MjSpec.attach(hand, site=&quot;attachment_site&quot;, prefix=&quot;hand_&quot;)</code>, then <code>MjSpec.to_xml()</code>. The prefix is needed (both
+files name a mesh <code>forearm_0</code>). One change is made: the hand file turns its forearm by <code>quat=&quot;0 1 0 1&quot;</code> so the
+stand-alone hand lies along x; here that is identity, so the hand continues the flange axis. The script checks the
+hand's triangles, in the forearm frame, against the hand file compiled alone: largest difference 3 × 10⁻¹⁶ m.</p>
+<p><strong>Fingers</strong> (<code>dexhand.structure</code>). Each tagged fingertip frame ends one finger; the finger's links are the chain of
+bodies from the tip up to, not including, the first body that also carries another fingertip. The palm is the
+lowest common ancestor of the fingertips; every other link (wrist, forearm, arm) is &quot;wrist and arm&quot;. On the sample:
+first, middle, ring finger 4 links each, little finger 5 (with its metacarpal), thumb 5 (to <code>thbase</code>). A tip that is
+itself an ancestor of another tip (a parallel gripper's fixed jaw, as on the SO-100) owns its own link, so its contact
+patch counts for it rather than for the palm. A finger's short name is its tip link's name without the tips' common
+prefix and suffix, cut only at a word boundary (<code>gripper_right_pad</code>, <code>gripper_left_pad</code> give <code>right</code>, <code>left</code>); its
+title spells out Shadow Robot's two-letter names and otherwise is the tip's name without the prefix (&quot;Right pad&quot;,
+&quot;Fixed jaw&quot;).</p>
+<p><strong>Contact pads</strong> (<code>dexhand.pad_faces</code>). A fingertip's pad is the palmar side of its link's collision mesh: the
+triangles whose outward normal n lies within 45° (a default) of the flexion direction</p>
+<pre><code>v = s · a × (c − o)
+</code></pre>
+<p>with a, o the axis and anchor of the nearest joint at or above the tip link, c the mesh centroid and s the sign of
+the joint's larger travel (Shadow's distal joints run 0 to 1.57 rad, so s = +1). Outward normals come from the mesh
+winding, flipped as a whole when the signed volume is negative. The sample stores the pads as <code>Robot.contact_pads</code>
+faces (0.1 mm rounding, collapsed triangles dropped), so <code>core/grasps.py contact_patches</code> (its rule 1) samples 128
+points on each by area, and every study that reads contact patches sees the same pads.</p>
+<p><strong>Grasp postures</strong> (<code>dexhand.Synergy</code>, <code>posture</code>). A posture is a straight line in joint space,
+q(s) = q_open + s (q_closed − q_open), s ∈ [0, 1], on the joints it names, clipped to the limits. For the Shadow Hand
+both ends are the model folder's own keyframes: power = &quot;open hand&quot; → &quot;grasp sphere&quot;, precision = &quot;open hand&quot; → &quot;two
+finger pinch&quot;, tripod = &quot;open hand&quot; → &quot;three finger pinch&quot;. The keyframes are the model's; the straight line between
+them is a sample sweep, not a measured synergy, and no published synergy basis is used. A hand without postures gets
+<code>default_synergies</code>: every finger joint closed 70 % (a default) of the way from home to the end of its larger travel
+(power), or only the thumb and the finger nearest it (precision). Both are labelled sample postures in the result.</p>
+<h2 id="the-study">The study</h2>
+<p>For every case (the open hand, then each posture at closures 1/4, 1/2, 3/4, 1, or every reachable grasp of a grasp
+set with the hand closed in the power posture), every camera c and every patch point P:</p>
+<ul>
+<li>
+<p><strong>in view:</strong> P projects inside the image through the imager's lens model (<code>CameraModel.project</code>), from its optical
+centre o at its pose at the case's joint state;</p>
+</li>
+<li>
+<p><strong>first hit and its owner:</strong> the occluders (robots' visual meshes and tables; task objects only with
+<code>objects_occlude</code>, off by default because a fingertip touching an object is hidden by it by definition; the
+camera's own seat left out, <code>scenegeom.sensor_occluders</code>) are split into owner groups g: each finger, the palm,
+wrist and arm, task objects, the rest. With d_g(P) the distance from o to group g's first triangle along the ray to P,</p>
+<pre><code>d(P) = min_g d_g(P),   owner(P) = argmin_g d_g(P),   seen(P) ⇔ in view ∧ |P − o| ≤ d(P) + ε
+</code></pre>
+<p>with ε = 1 mm (the occlusion module's default). d_g is found by exact ray casting (<code>core/raycast.py first_hit</code>, one
+grid per group, the ray started 5 mm out: the default backend <code>raycast</code>) or read from one cube map per group
+(<code>auto</code>, <code>gl</code>, <code>numpy</code>): a z-buffer of a union keeps the nearest of its parts, so min_g d_g equals the whole
+scene's cube map exactly.</p>
+</li>
+</ul>
+<p>Per finger f and camera c the matrix entry is the share of f's patch not seen by c, averaged over the cases, split
+into &quot;hidden by g&quot; for each group and &quot;outside the image&quot;; the largest part is shown as what hides it. A fingertip
+counts as seen in a case from 50 % of its patch (<code>min_visible_pct</code>, a default), by one camera, or by the rig (a point
+seen by any camera). The headline is the share of fingertip-cases the rig sees; status good ≥ 90 %, warning ≥ 60 %,
+serious ≥ 30 %, else critical (defaults). The mount comparison ranks the cameras by the share of fingertip-cases each
+sees alone, with the share of cases in which it sees every fingertip, the share of patch points outside its image or
+hidden, its worst finger and what hides most.</p>
+<p><strong>What to move.</strong> Each unlocked camera is turned by ±10° (a default) in pitch and in yaw about its optical centre and
+the rig's figure is counted again. Turning about the optical centre changes only which points are in view: the
+first hits are reused, so the search costs no ray casting. The best turn that raises the headline (or, equal, the
+rig's mean patch share by 0.5 points or more) is the suggestion; Apply sets that mount pose in one undo step.</p>
+<p><strong>Part 2</strong> (§7.15, the visual-to-tactile handoff and the blind gap, Phase 5) belongs in the same module:
+<code>tactile_handoff()</code> is its entry point (it says it arrives in Phase 5), <code>visibility_at(project, q, settings)</code> is the
+part 1 kernel for one joint state, to be called along each approach (<code>grasps.pre_contact_poses</code>), and the result
+keeps a <code>handoff</code> key (null) with the fields <code>HANDOFF_FIELDS</code> part 2 will fill.</p>
+<h2 id="measured-on-the-dexhand-sample">Measured on the dexhand sample</h2>
+<p>Synergy sweep at the home arm pose, 13 cases × 3 cameras × 640 patch points, exact ray casting: 4.9 s (2.7 cases/s;
+the cube-map path on the GPU, 286 maps: 3.9 s). The rig sees <strong>93.8 %</strong> of fingertip-cases (&quot;good&quot;), every fingertip
+in 69.2 % of the cases; the thumb is seen least (62.4 % of its patch by any camera).</p>
+<table>
+<thead>
+<tr>
+<th>Not seen (% of the patch)</th>
+<th>Palm micro camera</th>
+<th>Dorsal wrist camera</th>
+<th>Head camera</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>First finger</td>
+<td>43.0 (outside the image)</td>
+<td>99.6 (palm)</td>
+<td>36.7 (thumb)</td>
+</tr>
+<tr>
+<td>Middle finger</td>
+<td>61.0 (outside)</td>
+<td>99.3 (palm)</td>
+<td>14.8 (itself)</td>
+</tr>
+<tr>
+<td>Ring finger</td>
+<td>80.3 (outside)</td>
+<td>99.1 (itself)</td>
+<td>13.7 (itself)</td>
+</tr>
+<tr>
+<td>Little finger</td>
+<td>71.1 (outside)</td>
+<td>97.5 (itself)</td>
+<td>19.4 (itself)</td>
+</tr>
+<tr>
+<td>Thumb</td>
+<td>51.9 (outside)</td>
+<td>98.0 (palm)</td>
+<td>83.7 (itself)</td>
+</tr>
+</tbody>
+</table>
+<p>The dorsal wrist camera looks at the back of the hand: the pads face away from it and the palm is in the way. The
+palm camera's 120° diagonal view misses the spread fingers of the open hand; in a power grasp the fingers curl in
+front of it (on a 30-grasp set with the hand closed in the power posture it sees every fingertip in 100 % of the
+grasps, the head camera in 40.7 %).</p>
+<p>Cube maps against exact ray casting: the cube-map path (n = 512) differs from ray casting on this sample by up to
+6.0 points (thumb, head camera, 77.8 % against 83.7 % not seen) and 4.4 points (ring finger, head camera), in both
+directions. A patch point lies on its own surface; seen from 0.7 m a texel is 2.7 mm wide, and on a curved or grazing
+fingertip the texel-centre ray meets the surface a few millimetres in front of or behind the point. That is why ray
+casting is the default.</p>
+<h2 id="validation">Validation</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dexhand.matrix_vs_analytic</code>: matrix entries (2 pads × 2 cameras × owners) on a scripted two-finger scene with a palm plate</td>
+<td>central projection of finger B's top face onto finger A's pad (camera above) and of the palm plate's edge (low side camera), written out in the check: A hidden by B 44 %, A hidden by the palm 20 %, B's downward pad hidden by B itself 100 %, seen 100 % from the side</td>
+<td>10⁻³ of a pad</td>
+<td>0 on both paths (ray casting; cube maps at n = 2048)</td>
+</tr>
+<tr>
+<td><code>dexhand.owner_vs_bruteforce</code>: owner of the first hit per point</td>
+<td>all-pairs Möller–Trumbore keeping the nearest triangle's index, written out in the check (no grid, nothing shared with <code>core/raycast.py</code>); 30 random scenes, 4 500 points</td>
+<td>10⁻³</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>dexhand.cube_owner_union</code>: min over the group cube maps against one cube map of the scene, sample at the power grasp, 3 cameras</td>
+<td><code>core/occlusion.py CubeMap</code> of the union</td>
+<td>10⁻⁶ m</td>
+<td>2.0 × 10⁻⁸ m (GPU, float32)</td>
+</tr>
+</tbody>
+</table>
+<p>Every pad point of the scripted scene is 0.5 mm from a shadow edge on the pad plane (1.7 mrad from the upper camera,
+against a texel of 1 mrad at n = 2048), so neither path has an ambiguous point and both must match the closed form
+point for point.</p>
+<h2 id="references">References</h2>
+<p>Möller and Trumbore 1997 (ray–triangle intersection); Greene 1986 (the cube map); Hartley and Zisserman 2004
+(central projection). MuJoCo Menagerie <code>shadow_hand</code> (Apache-2.0) and <code>universal_robots_ur5e</code> (BSD-3-Clause) at
+commit <code>98a70c5</code>, https://github.com/google-deepmind/mujoco_menagerie, read 2026-11-06.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The postures are straight lines between two joint vectors (the Shadow Hand's ends are its own keyframes), not
+measured synergies; the Shadow Hand's tendon-coupled middle and distal joints are independent entries of q, so an
+interpolated posture may couple them differently from the real hand. The pad is the whole palmar side of the distal
+link, a fixed point set carried with the link, not the contact area on a given object. The arm's joints stay fixed
+during the posture sweep; grasp-set IK holds the hand at one posture for every grasp and does not check
+self-collision by default (neighbouring fingers of a closed hand touch in the convex hulls the collision test uses).
+With a cube-map backend, visibility is per texel (silhouettes and grazing own surfaces, above). No camera housing
+occludes. The re-aim search tries single 10° turns of one camera, not moves or combinations. The hand's mass (the
+forearm alone is 3 kg in the file) is not checked against the UR5e's payload. The flexion direction of a fingertip
+is taken as its joint's larger travel, which is wrong for a joint whose extension range is the larger. Lighting,
+blur and the tactile handoff (Phase 5) are other studies.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

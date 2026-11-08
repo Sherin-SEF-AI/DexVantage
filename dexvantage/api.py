@@ -72,11 +72,22 @@ import html
 import json
 import math
 import os
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from .core import jobs
 from .core.jobs import StudyError
 
 DexVantageError = StudyError
+
+if TYPE_CHECKING:                                    # names for the type hints only (nothing imported at run time)
+    import datetime
+
+    import pandas as pd
+
+    from .core.datasets.episode import Dataset, Episode
+    from .core.project import Project, Robot, Variant
+    from .core.tracking.store import RunStore
+
 __all__ = ['Rig', 'Result', 'Records', 'Table', 'MetricTable', 'Recording', 'DexVantageError', 'open', 'sample',
            'new', 'samples', 'studies', 'metrics', 'exporters', 'plugins', 'load_plugins', 'datasets', 'runs', 'track',
            'run_store', 'publication', 'campaign', 'cells',
@@ -112,7 +123,7 @@ def _flatten(d: dict, prefix: str = '') -> dict:
     return out
 
 
-def _frame(rows: list, columns=None):
+def _frame(rows: list, columns: list | None = None):
     """A pandas DataFrame of the row dicts when pandas is installed, else Records."""
     rows = [_flatten(r) if isinstance(r, dict) else {'value': r} for r in rows]
     if columns is not None:
@@ -124,7 +135,7 @@ def _frame(rows: list, columns=None):
     return pd.DataFrame(rows, columns=list(columns) if columns is not None else None)
 
 
-def _cell(v) -> str:
+def _cell(v: object) -> str:
     if v is None:
         return '<span title="not stated">—</span>'
     if isinstance(v, float):
@@ -139,7 +150,7 @@ def _cell(v) -> str:
     return html.escape(str(v))
 
 
-def _html_table(rows: list, columns=None) -> str:
+def _html_table(rows: list, columns: list | None = None) -> str:
     rows = [_flatten(r) if isinstance(r, dict) else {'value': r} for r in rows]
     if columns is None:
         columns = []
@@ -162,7 +173,7 @@ def _status_html(level: str, word: str) -> str:
 class Table(list):
     """A list of row dicts (dv.studies(), dv.metrics(), ...) with to_frame() and an HTML view."""
 
-    def to_frame(self):
+    def to_frame(self) -> Records | pd.DataFrame:
         return _frame(list(self))
 
     def _repr_html_(self) -> str:
@@ -181,7 +192,7 @@ class MetricTable(dict):
         """{metric id: value} (None where not stated)."""
         return {k: v.get('value') for k, v in self.items()}
 
-    def to_frame(self):
+    def to_frame(self) -> Records | pd.DataFrame:
         return _frame(self.rows())
 
     def _repr_html_(self) -> str:
@@ -204,7 +215,7 @@ def _status_of(doc: dict) -> tuple:
     return level, word
 
 
-def _fmt(v, unit: str) -> str:
+def _fmt(v: object, unit: str) -> str:
     if v is None:
         return 'not stated'
     if float(v).is_integer() and abs(v) < 1e9:
@@ -217,6 +228,8 @@ def _fmt(v, unit: str) -> str:
         return f'{t}°'
     if unit == 'p':                                    # a p-value: "p = 0.0915", not "0.0915 p"
         return f'p = {t}'
+    if t in ('1', '-1') and len(unit) > 3 and unit.isalpha() and unit.endswith('s'):
+        unit = unit[:-1]                               # a counted word: "1 token", not "1 tokens"
     return f'{t} {unit}' if unit and unit != 'count' else t
 
 
@@ -236,7 +249,7 @@ class Result(dict):
         .save(path)           JSON with the provenance block (core/provenance.py)
     """
 
-    def __init__(self, doc: dict, study: str = '', title: str = '', project=None):
+    def __init__(self, doc: dict, study: str = '', title: str = '', project: Project | None = None):
         super().__init__(doc)
         self.study = study or str(doc.get('study') or '')
         info = jobs.STUDIES.get(self.study)
@@ -308,7 +321,7 @@ class Result(dict):
             return [v]
         return [{key: v}]
 
-    def to_frame(self, key: str | None = None, columns=None):
+    def to_frame(self, key: str | None = None, columns: list | None = None) -> Records | pd.DataFrame:
         """A table of the result (the class docstring); columns: keep only these (dotted names for nested fields)."""
         return _frame(self.rows(key), columns)
 
@@ -362,10 +375,10 @@ class Factors:
         from .core import factors as F
         return F.get(self._rig.project, path)
 
-    def __setitem__(self, path: str, value):
+    def __setitem__(self, path: str, value: object):
         self.update({path: value})
 
-    def update(self, values: dict, allow_locked: bool = False):
+    def update(self, values: dict, allow_locked: bool = False) -> None:
         """Set every factor on the rig itself (in the order given)."""
         from .core import factors as F
         self._rig._p = F.apply(self._rig.project, dict(values), allow_locked=allow_locked)
@@ -427,7 +440,7 @@ class Rig:
     its studies, metrics, exports and requirements. Rig(project) wraps a Project; dv.open / dv.sample / dv.new make
     one."""
 
-    def __init__(self, project):
+    def __init__(self, project: Project):
         from .core.project import Project
         if not isinstance(project, Project):
             raise DexVantageError('Rig() takes a DexVantage Project: use dv.open(path), dv.sample(name) or '
@@ -462,7 +475,7 @@ class Rig:
 
     # ---------------------------------------------------------------- what it holds
     @property
-    def project(self):
+    def project(self) -> Project:
         """The underlying core.project.Project (the same object: changing it changes the rig)."""
         return self._p
 
@@ -488,7 +501,7 @@ class Rig:
         return list(self._p.variants)
 
     @property
-    def variant(self):
+    def variant(self) -> Variant:
         return self._p.variant
 
     def use_variant(self, ident: str) -> 'Rig':
@@ -502,7 +515,7 @@ class Rig:
         return Rig(p)
 
     def add_variant(self, name: str, factors: dict | None = None, from_variant: str | None = None,
-                    allow_locked: bool = False):
+                    allow_locked: bool = False) -> Variant:
         """Add a variant to this rig (edits it, as the window's "New variant from this one"): a copy of from_variant
         (a name or uid; default the active one) called name, with the sensor factors given set on the copy, e.g.
         rig.add_variant('Raised overhead', {'sensor:cam_high (overhead).dz': 0.05}). Its sensors keep their uids, so
@@ -557,17 +570,20 @@ class Rig:
                          'enabled': s.enabled, 'locked': s.locked})
         return rows
 
-    def to_frame(self):
+    def to_frame(self) -> Records | pd.DataFrame:
         """The active variant's sensors, one row each (mount pose in the parent frame)."""
         return _frame(self.sensor_rows())
 
     # ---------------------------------------------------------------- studies and figures
-    def run(self, study: str, *, progress=None, **settings) -> Result:
+    def run(self, study: str, *, progress: Callable[[float, str], None] | None = None, **settings: object) -> Result:
         """Run a study (its id, e.g. 'coverage', or its batch flag, e.g. 'grasp') on a copy of the rig with
-        settings laid over the stored ones; the rig is unchanged. progress: fn(fraction, text)."""
+        settings laid over the stored ones; the rig is unchanged. progress: fn(fraction, text). A setting name the
+        study does not read is refused in one sentence that lists its settings (core/study_settings.py)."""
         sid = _study_id(study)
         p = self._p.snapshot()
         if settings:
+            from .core import study_settings as SST
+            SST.check(sid, settings)                          # an unknown name is refused, never ignored
             st = dict(p.analysis.studies.get(sid) or {})
             st.update(settings)
             p.analysis.studies[sid] = st
@@ -575,7 +591,7 @@ class Rig:
         _autolog(sid, doc, p)                                # core/tracking, when the project's tracking is on
         return Result(doc, sid, project=p)
 
-    def metrics(self, ids) -> MetricTable:
+    def metrics(self, ids: str | list) -> MetricTable:
         """The named metrics (core/metrics.py ids; dv.metrics() lists them), each study run at most once."""
         from .core import metrics as M
         _plugins()
@@ -583,7 +599,7 @@ class Rig:
             ids = [ids]
         return MetricTable(M.evaluate(self._p.snapshot(), list(ids), cache=_CACHE))
 
-    def export(self, out_dir: str, formats, options: dict | None = None) -> dict:
+    def export(self, out_dir: str, formats: str | list, options: dict | None = None) -> dict:
         """Write the rig in the given formats (dv.exporters() lists them) into out_dir; returns the manifest
         (formats with their files, notes and status; every file's SHA-256; export_manifest.json beside them)."""
         from .core import exporters as EX
@@ -592,7 +608,7 @@ class Rig:
             formats = [f.strip() for f in formats.split(',') if f.strip()]
         return EX.export(self._p.snapshot(), os.fspath(out_dir), list(formats), options=options)
 
-    def check(self, requirements=None, variant: str | None = None) -> Result:
+    def check(self, requirements: str | os.PathLike | list | None = None, variant: str | None = None) -> Result:
         """The readiness scorecard: requirements is a requirements file (YAML or JSON), a list of requirement dicts,
         'defaults' (DexVantage's labelled defaults) or None (the rig's own). Returns a Result whose headline is the
         verdict ('ready', 'not ready', 'not evaluated')."""
@@ -610,13 +626,15 @@ class Rig:
         return Result({'schema': RQ.SCHEMA, 'study': 'requirements', **card}, 'requirements',
                       'Readiness scorecard', project=self._p)
 
-    def synth_episodes(self, folder: str, progress=None, **settings) -> dict:
+    def synth_episodes(self, folder: str, progress: Callable[[float, str], None] | None = None,
+                       **settings: object) -> dict:
         """Render synthetic LeRobot episodes with known faults into a new or empty folder (core/sim/episodes.py;
         needs MuJoCo's offscreen renderer); returns its summary."""
         from .core.sim import episodes as E
         return E.generate(self._p.snapshot(), os.fspath(folder), settings or None, progress=progress)
 
-    def sim2real(self, dataset, *, progress=None, **settings) -> Result:
+    def sim2real(self, dataset: str | os.PathLike, *, progress: Callable[[float, str], None] | None = None,
+                 **settings: object) -> Result:
         """The sim-to-real gap of a recorded episode (core/sim2real/gap.py: the episode rendered again through the rig
         and compared per camera, the causes ranked with their changes); dataset is a path (LeRobot, RLDS, ROS 2 bag).
         The same as run('sim2real', dataset=path, ...)."""
@@ -630,7 +648,8 @@ class Rig:
         G.apply_change(p, change)
         return Rig(p)
 
-    def gap_dataset(self, folder: str, gaps: dict, progress=None, **settings) -> dict:
+    def gap_dataset(self, folder: str, gaps: dict, progress: Callable[[float, str], None] | None = None,
+                    **settings: object) -> dict:
         """Render a synthetic LeRobot dataset with KNOWN sim-to-real gaps (brightness_dn, gain, blur_px, noise_dn,
         mount, latency_s, camera: core/sim2real/inject.py) into a new or empty folder; returns its summary."""
         from .core.sim2real import inject as IJ
@@ -679,7 +698,7 @@ class Recording:
     (a Table), episode(i) (a core.datasets.Episode), truth(), to_frame() (the episodes), close(). Use it in a with
     block, or close() it."""
 
-    def __init__(self, ds):
+    def __init__(self, ds: Dataset):
         self.raw = ds
 
     format = property(lambda self: self.raw.format)
@@ -690,10 +709,10 @@ class Recording:
     def episodes(self) -> Table:
         return Table([{'index': e.index, 'id': e.id, 'length': e.length} for e in self.raw.episodes()])
 
-    def episode(self, index: int):
+    def episode(self, index: int) -> Episode:
         return self.raw.load(index)
 
-    def truth(self):
+    def truth(self) -> dict | None:
         return self.raw.truth()
 
     def episode_rows(self, index: int) -> list:
@@ -702,17 +721,17 @@ class Recording:
         names = list(ep.joint_names) or [f'q{i}' for i in range(ep.q.shape[1] if ep.q.ndim == 2 else 0)]
         return [{'t': float(t), **{n: float(v) for n, v in zip(names, row)}} for t, row in zip(ep.t, ep.q)]
 
-    def to_frame(self, episode: int | None = None):
+    def to_frame(self, episode: int | None = None) -> Records | pd.DataFrame:
         """The episodes (one row each), or, with episode=i, that episode's joint-state rows."""
         return _frame(list(self.episodes()) if episode is None else self.episode_rows(episode))
 
-    def close(self):
+    def close(self) -> None:
         self.raw.close()
 
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: object):
         self.close()
 
     def __repr__(self) -> str:
@@ -768,7 +787,7 @@ class _Publication:
     figures (export only) use Qt's PDF writer; nothing else imports Qt."""
 
     @staticmethod
-    def _opts(rig, results, options):
+    def _opts(rig: Rig | Project, results: dict | list | None, options: dict):
         from .core.project import Project
         p = rig.project if isinstance(rig, Rig) else rig
         if not isinstance(p, Project):
@@ -780,7 +799,7 @@ class _Publication:
             o.setdefault('studies', [])
         return p, o
 
-    def kit(self, rig, results=None, **options) -> dict:
+    def kit(self, rig: Rig | Project, results: dict | list | None = None, **options: object) -> dict:
         from .core import publication as PB
         _plugins()
         p, o = self._opts(rig, results, options)
@@ -789,15 +808,15 @@ class _Publication:
         out.update(parts=dict(k['parts']), bib=k['bib'])
         return out
 
-    def methods(self, rig, results=None, **options) -> str:
+    def methods(self, rig: Rig | Project, results: dict | list | None = None, **options: object) -> str:
         options['sections'] = ['methods']
         return self.kit(rig, results, **options)['parts'].get('methods', '')
 
-    def tables(self, rig, results=None, **options) -> dict:
+    def tables(self, rig: Rig | Project, results: dict | list | None = None, **options: object) -> dict:
         parts = self.kit(rig, results, **options)['parts']
         return {k: v for k, v in parts.items() if k not in ('methods', 'appendix')}
 
-    def export(self, rig, out_dir: str, results=None, **options) -> dict:
+    def export(self, rig: Rig | Project, out_dir: str, results: dict | list | None = None, **options: object) -> dict:
         from .core import exporters as EX
         _plugins()
         p, o = self._opts(rig, results, options)
@@ -909,7 +928,7 @@ def price(model_id: str) -> dict | None:
 
 
 # ====================================================================== the experiment tracker (core/tracking)
-def _autolog(study: str, doc: dict, project, kind: str | None = None):
+def _autolog(study: str, doc: dict, project: Project, kind: str | None = None):
     """Log a run when the project's tracking is on (a warning, never an exception, when the store cannot be
     written: the result itself is fine)."""
     from .core import tracking as TR
@@ -922,7 +941,7 @@ def _autolog(study: str, doc: dict, project, kind: str | None = None):
         warnings.warn(f'The run was not logged: {e}', stacklevel=3)
 
 
-def run_store(where):
+def run_store(where: Rig | str | os.PathLike | RunStore | None) -> RunStore:
     """The run store (core/tracking/store.py RunStore) of where: a Rig (its project's store), a .dexv project file
     (the store its tracking settings name, default <name>.runs beside it) or a run store folder."""
     from .core import tracking as TR
@@ -938,7 +957,10 @@ def run_store(where):
     return TR.RunStore(path)
 
 
-def runs(where=None, *, study=None, tag=None, kind=None, since=None, until=None, status=None, project=None):
+def runs(where: Rig | str | os.PathLike | RunStore | None = None, *, study: str | list | None = None,
+         tag: str | list | None = None, kind: str | list | None = None, since: str | datetime.date | None = None,
+         until: str | datetime.date | None = None, status: str | list | None = None,
+         project: str | list | None = None) -> Records | pd.DataFrame:
     """The runs of a run store (run_store(where)) as a table: one row per run (run id, start and end in UTC,
     seconds, kind, study, status, project, its content hash, variant, headline, tags, note, re-run of, DexVantage
     version, git commit, result hash) and one column per metric (a metric id, or id@stat for a distribution's or a
@@ -965,7 +987,8 @@ def runs(where=None, *, study=None, tag=None, kind=None, since=None, until=None,
     return df
 
 
-def track(result, rig=None, *, store=None, tags=(), note: str = '') -> dict:
+def track(result: Result | dict, rig: Rig | None = None, *, store: str | os.PathLike | RunStore | None = None,
+          tags: tuple | list = (), note: str = '') -> dict:
     """Log a Result (from rig.run or rig.check) as a run, whether or not the project's tracking is on: into store
     (a folder or a RunStore; default the rig's project's store). Returns the run record."""
     from .core import tracking as TR
@@ -987,7 +1010,7 @@ class _Campaign:
     alpha=0.05, power=0.8, continuity=True) -> the demonstrations per condition for a difference in success rate;
     balance(result) -> the balance counts; apply(rig, result) writes the plan into the rig's project."""
 
-    def plan(self, rig, spec: dict | str | None = None, **settings) -> Result:
+    def plan(self, rig: Rig | Project, spec: dict | str | None = None, **settings: object) -> Result:
         """The campaign of rig (a Rig or a core Project) with spec (a dict, JSON text or a spec file) and settings
         laid over the project's stored spec; the stored spec is not changed."""
         from .core import campaign as CP
@@ -1002,7 +1025,7 @@ class _Campaign:
         res.spec = dict(snap.analysis.studies[CP.STUDY_ID])          # what apply() stores with the plan
         return res
 
-    def export(self, result, base: str, start_date: str | None = None) -> list:
+    def export(self, result: Result | dict, base: str, start_date: str | None = None) -> list:
         from .core import campaign as CP
         return CP.write_files(dict(result), os.fspath(base), start_date)
 
@@ -1010,11 +1033,11 @@ class _Campaign:
         from .core import campaign as CP
         return CP.power_n(p1, p2, alpha, power, continuity)
 
-    def balance(self, result) -> dict:
+    def balance(self, result: Result | dict) -> dict:
         from .core import campaign as CP
         return CP.balance(dict(result))
 
-    def apply(self, rig, result) -> None:
+    def apply(self, rig: Rig | Project, result: Result | dict) -> None:
         from .core import campaign as CP
         p = rig.project if isinstance(rig, Rig) else rig
         CP.apply_plan(p, dict(result), getattr(result, 'spec', None))
@@ -1081,8 +1104,9 @@ class _Cells:
     (0.0, 'Every cell pools as is.')
     """
 
-    def compare(self, *cells, reference: int = 0, metrics=None, tolerance_draws: int = 0, seed: int = 1,
-                pooling: str = 'auto', variants: bool = False, progress=None) -> CellComparison:
+    def compare(self, *cells: Rig | Project | str | os.PathLike, reference: int = 0, metrics: list | None = None,
+                tolerance_draws: int = 0, seed: int = 1, pooling: str = 'auto', variants: bool = False,
+                progress: Callable[[float, str], None] | None = None) -> CellComparison:
         from .core import cells as CE
         items = []
         for c in cells:
@@ -1129,7 +1153,7 @@ class _Stats:
     ('no clear difference', 0.0915)
     """
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str):
         if name.startswith('_'):
             raise AttributeError(name)
         from .core import stats as ST
@@ -1143,7 +1167,8 @@ class _Stats:
         return sorted(set(dir(type(self))) | {k for k in dir(ST) if not k.startswith('_')})
 
     @staticmethod
-    def _run(spec: dict, rig=None, progress=None) -> Result:
+    def _run(spec: dict, rig: Rig | Project | None = None,
+             progress: Callable[[float, str], None] | None = None) -> Result:
         from .core.studies import stats as SS
         p = rig.project if isinstance(rig, Rig) else rig
         doc, snap = SS.run_spec(spec, p, jobs.Ctx(progress=progress))
@@ -1151,14 +1176,15 @@ class _Stats:
             _autolog(SS.SID, doc, snap)                      # the rig's tracking, when on (rates alone have no rig)
         return Result(doc, SS.SID, project=snap)
 
-    def run(self, spec, rig=None, progress=None) -> Result:
+    def run(self, spec: dict | str | os.PathLike, rig: Rig | Project | None = None,
+            progress: Callable[[float, str], None] | None = None) -> Result:
         """A statistics spec (a dict, JSON text or a spec file: schema dexvantage.stats/1) on rig (None: success
         counts, samples and the power calculator need no project)."""
         from .core.studies import stats as SS
         return self._run(SS.read_spec(spec), rig, progress)
 
-    def compare_rates(self, rows, compare: str = 'reference', test: str = 'fisher', power: dict | None = None,
-                      **settings) -> Result:
+    def compare_rates(self, rows: list, compare: str = 'reference', test: str = 'fisher', power: dict | None = None,
+                      **settings: object) -> Result:
         """rows: [(condition, successes, trials)] or [{'condition', 'successes', 'trials'}]."""
         rr = [r if isinstance(r, dict) else {'condition': r[0], 'successes': r[1], 'trials': r[2]} for r in rows]
         spec = {'source': 'rates', 'rates': rr, 'compare': compare, 'rate_test': test, **settings}
@@ -1166,22 +1192,26 @@ class _Stats:
             spec['power'] = power
         return self._run(spec)
 
-    def compare_samples(self, a, b, paired: bool = False, title: str = 'Value', unit: str = '',
-                        better: str = 'higher', names=('A', 'B'), **settings) -> Result:
+    def compare_samples(self, a: Sequence[float], b: Sequence[float], paired: bool = False, title: str = 'Value',
+                        unit: str = '', better: str = 'higher', names: tuple | list = ('A', 'B'),
+                        **settings: object) -> Result:
         return self._run({'source': 'samples', 'samples': {'a': list(a), 'b': list(b), 'paired': paired,
                                                            'title': title, 'unit': unit, 'better': better,
                                                            'names': list(names)}, **settings})
 
-    def compare_variants(self, rig, a=None, b=None, metrics=None, n: int = 32, seed: int = 0, scale: float = 1.0,
-                         distribution: str = 'uniform', progress=None, **settings) -> Result:
+    def compare_variants(self, rig: Rig | Project, a: str | None = None, b: str | None = None,
+                         metrics: list | None = None, n: int = 32, seed: int = 0, scale: float = 1.0,
+                         distribution: str = 'uniform', progress: Callable[[float, str], None] | None = None,
+                         **settings: object) -> Result:
         """Two variants of rig over the tolerance Monte Carlo with one seed (the draws paired by seed)."""
         v = {'a': a, 'b': b, 'metrics': list(metrics or []), 'n': n, 'seed': seed, 'scale': scale,
              'distribution': distribution}
         return self._run({'source': 'variants', 'variants': {k: x for k, x in v.items() if x not in (None, '')},
                           **settings}, rig, progress)
 
-    def compare_experiment(self, rig, factor: str, levels=None, result=None, responses=None, progress=None,
-                           **settings) -> Result:
+    def compare_experiment(self, rig: Rig | Project, factor: str, levels: list | None = None,
+                           result: Result | dict | str | os.PathLike | None = None, responses: list | None = None,
+                           progress: Callable[[float, str], None] | None = None, **settings: object) -> Result:
         """An experiment's runs split by factor's two levels (result: an experiment Result, its dict or a file;
         default the experiment saved in rig, run)."""
         ex = {'mode': 'factor', 'factor': factor}
@@ -1193,7 +1223,8 @@ class _Stats:
             ex['responses'] = list(responses)
         return self._run({'source': 'experiments', 'experiment': ex, **settings}, rig, progress)
 
-    def compare_runs(self, rig, a, b, folder: str | None = None, metrics=None, **settings) -> Result:
+    def compare_runs(self, rig: Rig | Project, a: str | list | dict, b: str | list | dict, folder: str | None = None,
+                     metrics: list | None = None, **settings: object) -> Result:
         """Tracker runs: a and b each a run id, a list of ids or {'tag': t}."""
         tr = {'a': a, 'b': b, 'folder': os.fspath(folder) if folder else '', 'metrics': list(metrics or [])}
         return self._run({'source': 'tracker', 'tracker': tr, **settings}, rig)
@@ -1216,7 +1247,7 @@ class _RobotIO:
         dv.robot_io.openvla_encoding(rig)            # the OXE state / action encodings the OpenVLA export writes
     """
 
-    def convert_usd(self, path) -> dict:
+    def convert_usd(self, path: str | os.PathLike) -> dict:
         from .core.robot import usd_import as U
         try:
             c = U.convert(os.fspath(path))
@@ -1225,7 +1256,7 @@ class _RobotIO:
         return {'name': c.name, 'mjcf': c.mjcf, 'meshes': sorted(c.meshes), 'notes': list(c.notes),
                 'record': dict(c.record)}
 
-    def add_robot(self, rig, path, name: str | None = None):
+    def add_robot(self, rig: Rig, path: str | os.PathLike, name: str | None = None) -> Robot:
         """Import the robot file at path (URDF, MJCF or USD) into rig's project (the first robot is primary); the
         Robot added. Edits rig."""
         from .core.project import ProjectFormatError
@@ -1240,7 +1271,7 @@ class _RobotIO:
         p.sources.update(sources)
         return robot
 
-    def write_usd(self, rig, path, robot: str | None = None) -> dict:
+    def write_usd(self, rig: Rig, path: str | os.PathLike, robot: str | None = None) -> dict:
         """Write rig's robot (a name or uid; default the primary) as a UsdPhysics articulation at path."""
         from .core.robot.model import RobotModelError
         from .core.robot.usd_import import have_pxr, missing_pxr_message
@@ -1258,7 +1289,7 @@ class _RobotIO:
         except RobotModelError as e:
             raise DexVantageError(str(e)) from None
 
-    def openvla_encoding(self, rig, action_space: str | None = None) -> dict:
+    def openvla_encoding(self, rig: Rig, action_space: str | None = None) -> dict:
         from .core.exporters.lerobot import openvla_encoding
         return openvla_encoding(rig.project, action_space)
 

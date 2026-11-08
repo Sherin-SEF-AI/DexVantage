@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time sync: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="Is each image labelled with the joint state of the moment it was taken? The Time sync page adds up how far eachcamera&#x27;s frame stamps are from the instant of exposure, against the robot&#x27;s joint_states. It turns that skew into theaction-label error: how far the end effector moves in that time along …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample-and-run">1. Open the sample and run</a>
+    <a href="#2-the-hardware-trigger">2. The hardware trigger</a>
+    <a href="#3-make-the-budget-complete">3. Make the budget complete</a>
+    <a href="#the-camera-pair">The camera pair</a>
+    <a href="#batch">Batch</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/time_sync.md"><code>docs/guide/time_sync.md</code></a></p>
+<h1 id="time-sync-a-worked-example-on-the-ur5e-sample">Time sync: a worked example on the UR5e sample</h1>
+<p>Is each image labelled with the joint state of the moment it was taken? The Time sync page adds up how far each
+camera's frame stamps are from the instant of exposure, against the robot's joint_states. It turns that skew into the
+<strong>action-label error</strong>: how far the end effector moves in that time along your trajectory. The model, its sources and
+its validation are in <a href="../models/time_sync.html">Time sync</a>.</p>
+<h2 id="1-open-the-sample-and-run">1. Open the sample and run</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ UR5e</strong> (the wrist D405, the overhead D435 and the 4.5 s scripted pick).</li>
+<li><strong>Analysis ▸ Time sync</strong> opens the page (Placement workspace). Press <strong>Run</strong> (0.2 s).</li>
+</ol>
+<p>No clocks or triggers are set, so every stream is taken as stamped by the host when its frame arrives, and
+free-running. That is the default, and the notes say so. The headline reads <strong>≥ 54.43 ms · out of sync</strong>.</p>
+<p>The budget of the Wrist D405 · IR left stream lists each term with its source:</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Low (ms)</th>
+<th>High (ms)</th>
+<th>From</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>exposure centre to the end of the exposure</td>
+<td>0</td>
+<td>16.7</td>
+<td>no exposure set: up to the frame period at 30 fps; no minimum stated</td>
+</tr>
+<tr>
+<td>readout after the exposure (global shutter)</td>
+<td>0</td>
+<td>33.3</td>
+<td>readout not stated by Intel: at most the frame period</td>
+</tr>
+<tr>
+<td>USB transfer of the frame</td>
+<td>4.30</td>
+<td>4.30</td>
+<td>1.94 MB per frame at 3600 Mbit/s (the device's own USB 3.2 Gen 1)</td>
+</tr>
+<tr>
+<td>USB bus interval</td>
+<td>0</td>
+<td>0.125</td>
+<td>125 µs microframes (Microsoft Learn; USB 2.0 §5.8.4)</td>
+</tr>
+</tbody>
+</table>
+<p>Two terms are <strong>not counted</strong>. The D405 is not assigned to a host controller on the Bandwidth page, so its wait
+behind other devices is not bounded. The processing inside the device before it sends the frame is not stated by
+Intel. That is why the figure says &quot;≥&quot;: the real skew can only be larger. joint_states has its own unstated term, the
+robot controller's latency to the host.</p>
+<p>At the pick's peak TCP speed (0.17 m/s), the skew moves the end effector by up to <strong>9.19 mm</strong>: the action-label error,
+shown in the Label error column. The 3D view draws the TCP's path and joins the TCP at the exposure to the TCP at the
+stamp at the worst moment. <strong>Show worst moment</strong> poses the robot there, and the Camera view draws the same segment.</p>
+<h2 id="2-the-hardware-trigger">2. The hardware trigger</h2>
+<p>The suggestion reads: <em>Trigger Overhead D435 in hardware.</em> It quotes Intel: &quot;For D435, D435i, D435f and D435if, only
+the depth sensor can be synced by an external trigger&quot; (§3.7.4). It predicts the D435 IR stream's worst skew falling
+from 54.4 ms to 16.7 ms, and its label error from 9.19 mm to 2.82 mm. What is left is half the exposure. With a fixed
+exposure (the Motion blur page) that becomes a constant you can subtract.</p>
+<p><strong>Apply</strong> sets the trigger in <code>project.rig['sync']</code> (one undo step) and runs again. The D435's RGB stream stays
+free-running: Intel's statement covers only the depth sensor, and the budget says so. The next suggestion concerns the
+D405. Intel states it &quot;does not support the hardware sync signal&quot; (§7.13), so the advice is to measure its arrival
+latency, or to stamp on a PTP-disciplined clock. The page refuses a hardware trigger on the D405 with Intel's words.</p>
+<h2 id="3-make-the-budget-complete">3. Make the budget complete</h2>
+<ul>
+<li><strong>Bandwidth page:</strong> add a host and plug both cameras into its USB 3 controller. The transfer term then becomes
+1.90 to 7.60 ms for two 848 × 480 16-bit streams per camera on one USB 3.2 Gen 1 controller: the stream's frame
+alone, up to behind one frame of every other stream.</li>
+<li><strong>Motion blur page:</strong> set the exposure (for example 1 ms).</li>
+<li><strong>Measured latencies:</strong> enter each stream's arrival latency in the settings <code>latency_s</code>, for example from the
+RealSense frame metadata (the frame timestamp against the arrival time), with its source, and joint_states' too.
+With these, every stream's budget is complete.</li>
+<li><strong>Clocks:</strong> for a PTP or NTP clock, enter the offset, jitter and drift your servo reports, with their source. The
+study never assumes them.</li>
+<li><strong>Labels:</strong> choose interpolated labels (the default), or the nearest joint_states sample with its rate in Hz and
+its source.</li>
+</ul>
+<h2 id="the-camera-pair">The camera pair</h2>
+<p>The pairs table shows the wrist and overhead cameras. Both are free-running at 30 fps, so frames matched by timestamp
+can be up to 16.7 ms apart, on top of the difference in their stamp errors. A sync cable would lock them, but Intel
+states the D405 has none (&quot;Sync cable possible: no&quot;).</p>
+<h2 id="batch">Batch</h2>
+<pre><code>dexvantage --sample ur5e --time-sync sync.json          # 0.7 s with start-up; CPU only
+</code></pre>
+<p>The SO-100 sample's cameras have no library device. With no frame rate, the budget has only the bus interval and
+says <strong>incomplete</strong>; choose the cameras' devices on the Sensors page.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

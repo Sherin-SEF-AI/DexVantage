@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swept volume of a trajectory · DexVantage</title>
+<meta name="description" content="core/robot/swept.py, drawn by the Tasks page (Swept volume, spec §13 &quot;the ghosted swept volume of atrajectory&quot;). A picture of where the arm goes along a joint trajectory, not a measurement: nothing is computed fromit (the cable study tests snags at its own sampled poses, core/cables.py; the grasp …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-model">The model</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/swept.md"><code>docs/models/swept.md</code></a></p>
+<h1 id="swept">Swept volume of a trajectory</h1>
+<p><code>core/robot/swept.py</code>, drawn by the Tasks page (<strong>Swept volume</strong>, spec §13 &quot;the ghosted swept volume of a
+trajectory&quot;). A picture of where the arm goes along a joint trajectory, not a measurement: nothing is computed from
+it (the cable study tests snags at its own sampled poses, <code>core/cables.py</code>; the grasp study tests collisions at each
+grasp, <code>core/studies/grasp_visibility.py</code>).</p>
+<h2 id="the-model">The model</h2>
+<ul>
+<li><strong>Meshes.</strong> The robot's visual triangles (<code>RobotModel.local_triangles</code>, each in its own link's frame) are simplified
+once per compiled model by vertex clustering (<code>core/scenegeom.decimate</code>, Rossignac and Borrel 1993), link by link
+in the link's own frame, with a cell of 10 mm (<code>GHOST_CELL_M</code>, a default). On the samples: UR5e 193 113 triangles,
+SO-100 60 682, the dexhand sample 179 519 before; the decimation takes about 0.36, 0.08 and 0.32 s (measured
+2026-11-07, Ryzen 9 9900X), so the page runs it as a background job the first time and caches it per model.</li>
+<li><strong>Poses.</strong> <code>GHOST_POSES</code> (8, a default; at most 64) times evenly spaced over the trajectory's time range, its first
+and last sample included; at each the trajectory is mapped onto the model's joints (<code>trajectory.on_model</code>: joints
+it does not name at home, values clipped to the limits) and each link's simplified triangles are carried by its
+forward-kinematics transform: <code>p_world = R_link(q(t)) p_link + t_link(q(t))</code>.</li>
+<li><strong>Drawing.</strong> One translucent <code>TriDraw</code> in the trajectory colour, alpha rising linearly from 0.10 at the first time
+to 0.35 at the last (fainter early, stronger late, so the direction of motion reads).</li>
+</ul>
+<h2 id="validation">Validation</h2>
+<p>No validation check: the ghosts are a display, and the only computation is forward kinematics, which the kinematics
+checks hold against closed-form DH and finite differences. <code>tests/test_spec_review_p367.py</code> checks that each ghost
+is its link's simplified mesh carried by <code>fk_array</code> at that time (10⁻⁵ m, float32 storage) and lies within a cell of
+the full meshes' bounds at that pose.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>A set of poses, not the continuous swept volume: what the arm passes through between two ghosts is not drawn.</li>
+<li>The simplified meshes are coarser than the cell near thin parts (a clamp, a finger, a cable) and can lose them.</li>
+<li>The Camera view does not show the ghosts.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

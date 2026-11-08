@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Technical reference · DexVantage</title>
+<meta name="description" content="The model documents behind DexVantage: equations, references, validation and known limits of every study, reader and exporter.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#samples">Samples</a>
+      <a href="guide.html">Guide</a>
+      <a href="docs.html">Docs</a>
+      <a href="methods.html" aria-current="page">Methods</a>
+      <a href="validation.html">Validation</a>
+      <a href="index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>Reference</p>
+    <a href="#models">Model documents</a>
+    <a href="#reference">Reference</a>
+    <a href="docs.html">Models and methods</a>
+    <a href="validation.html">Validation report</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <h1 id="models">The models behind DexVantage</h1>
+    <p class="intro">One document per model: what it computes and from which inputs, its equations as the code evaluates them, the references it follows, the validation checks that compare it with an independent reference and the agreement they measured, and its known limits. <a href="docs.html">Models and methods</a> gives the overview of all of them; the <a href="validation.html">validation report</a> gives every check with its error and tolerance.</p>
+    <ul class="index">
+      <li><a href="models/robots.html">Robots: import, the MuJoCo model and the samples</a><span>Modules: dexvantage/core/robot/importer.py, model.py, filecheck.py, trajectory.py, samples.py,menagerie.py, catalogue.py (the robot catalogue). Tests: tests/test_robot_core.py,test_samples.py, test_menagerie.py …</span></li>
+      <li><a href="models/kinematics.html">Robot kinematics: forward kinematics and Jacobians</a><span>DexVantage poses a robot&#x27;s links with two separate engines:</span></li>
+      <li><a href="models/ik.html">Inverse kinematics, manipulability and collision distances</a><span>Modules: dexvantage/core/robot/ik.py, manipulability.py, collision.py. Checks: dexvantage/validation/checks_ik.py(model kinematics). Tests: tests/test_ik.py.</span></li>
+      <li><a href="models/library.html">The hardware library: devices from datasheets</a><span>Module: dexvantage/core/library/__init__.py. Schema: dexvantage/resources/library.schema.json (JSON Schema draft2020-12). Data: dexvantage/resources/library/&lt;kind&gt;/&lt;id&gt;.json. Tests: tests/test_library.py. The lens …</span></li>
+      <li><a href="models/optics.html">Optics: lens models, pixel density and defocus</a><span>Module: dexvantage/core/optics/lens.py (exported by dexvantage/core/optics/__init__.py). Checks:dexvantage/validation/checks_optics.py (model optics). Tests: tests/test_optics.py.</span></li>
+      <li><a href="models/occlusion.html">Occlusion: articulated cube maps and exact ray casting</a><span>Modules: dexvantage/core/scenegeom.py (the scene&#x27;s triangles), dexvantage/core/occlusion.py (the cube map, itsnumpy and GPU backends), dexvantage/core/raycast.py (exact ray casting, the independent reference). …</span></li>
+      <li><a href="models/voxels.html">Sparse voxels with adaptive refinement</a><span>Module: dexvantage/core/voxels.py. Tests: tests/test_voxels.py. Spec §7.1.</span></li>
+      <li><a href="models/coverage.html">Coverage and resolution in the task volume</a><span>Module: dexvantage/core/studies/coverage.py (study id coverage, batch flag --coverage OUT.json). Page:dexvantage/ui/pages/coverage.py (Analysis ▸ Coverage and resolution, Placement workspace). …</span></li>
+      <li><a href="models/depth.html">Depth validity</a><span>Module: dexvantage/core/studies/depth_validity.py (study depth_validity, batch flag --depth-validity OUT.json).Page: dexvantage/ui/pages/depth.py (Analysis ▸ Depth validity). Checks …</span></li>
+      <li><a href="models/camview.html">The Camera view: a sensor&#x27;s simulated image</a><span>Modules: dexvantage/core/camrender.py (the image), dexvantage/ui/camview.py (the panel), with the lens models ofcore/optics and the imagers of core/library (library.sensor_imagers). …</span></li>
+      <li><a href="models/grasps.html">Grasp sets</a><span>Module: dexvantage/core/grasps.py. Page: dexvantage/ui/pages/tasks.py (Tasks). Validation:dexvantage/validation/checks_grasps.py. Tests: tests/test_grasps.py. Spec §7.3 (grasp sets), §13 (Tasks page).</span></li>
+      <li><a href="models/grasp.html">Grasp self-occlusion</a><span>Module: dexvantage/core/studies/grasp_visibility.py (study id grasp_visibility, batch flag --grasp OUT.json).Page: dexvantage/ui/pages/grasp.py (Analysis ▸ Grasp self-occlusion, Grasp study workspace). …</span></li>
+      <li><a href="models/policies.html">Policies: what a robot-learning policy takes from each camera</a><span>dexvantage/core/policies.py, the policy library dexvantage/resources/library/policy/*.json, the project&#x27;spolicies section (core/project.py Policy), the Policies page dexvantage/ui/pages/policies.py, the validationcheck …</span></li>
+      <li><a href="models/vla.html">VLA token resolution and Plücker ray maps</a><span>dexvantage/core/studies/vla_tokens.py (study vla_tokens, batch --vla-tokens OUT.json),dexvantage/core/plucker.py (ray maps, the safetensors writer), the page dexvantage/ui/pages/vla.py, the …</span></li>
+      <li><a href="models/dexhand.html">Multi-finger occlusion</a><span>Modules: dexvantage/core/dexhand.py (fingers, contact pads, grasp postures), dexvantage/core/studies/dex_hand_tactile.py(the study, part 1 of spec §7.14 and the extension point of §7.15) …</span></li>
+      <li><a href="models/handoff.html">Visual-to-tactile handoff and the sensory blind gap (spec §7.15)</a><span>Part 2 of dexvantage/core/studies/dex_hand_tactile.py (the multi-finger occlusion study, --dex-occlusion; theresult&#x27;s handoff key; tactile_handoff(project) runs it alone) · the chart on Analysis ▸ Multi-fingerocclusion …</span></li>
+      <li><a href="models/bandwidth.html">Bandwidth, hosts and power</a><span>Module: dexvantage/core/studies/bandwidth.py (study bandwidth, batch flag --bandwidth OUT.json). Page:dexvantage/ui/pages/bandwidth.py (Analysis ▸ Bandwidth, hosts and power). …</span></li>
+      <li><a href="models/cables.html">Cable flex across joints</a><span>Modules: dexvantage/core/cables.py (the cable record, the routed arc model, the slack loop, the bend estimate, thesnag test, suggested attachments) and dexvantage/core/studies/cables.py (study id cables, batch …</span></li>
+      <li><a href="models/brackets.html">Brackets and mounts</a><span>Modules: dexvantage/core/brackets.py (the generator, the clearance check, STL export) and dexvantage/core/meshing.py(implicit solids and the watertight mesher), both ported from Vantage core/brackets.py and …</span></li>
+      <li><a href="models/handeye.html">Hand-eye calibration</a><span>Modules: dexvantage/core/calib/boards.py (ChArUco and AprilGrid boards, printing), detect.py (corner detection,sub-pixel refinement, PnP), axxb.py (closed-form AX = XB and AX = ZB solvers), handeye.py (the bundle …</span></li>
+      <li><a href="models/groundtruth.html">MuJoCo ground truth: rendered against predicted</a><span>Modules: dexvantage/core/sim/scene.py (the scene), dexvantage/core/sim/render.py (renders through each lens),dexvantage/core/studies/groundtruth.py (study groundtruth, batch flag --groundtruth OUT.json).Page …</span></li>
+      <li><a href="models/synth_episodes.html">Synthetic LeRobot episodes with ground truth</a><span>Module: dexvantage/core/sim/episodes.py (settings_of, plan, generate, batch_generate). Command: Simulate ▸Generate synthetic episodes… (dexvantage/ui/dialogs/synth_episodes.py, a window job with progress). …</span></li>
+      <li><a href="models/teleop.html">Teleop overlap and follower dexterity</a><span>Spec §7.4. Module dexvantage/core/studies/teleop.py (study teleop, batch flag --teleop OUT.json, or --teleop-overlap OUT.json, the specification&#x27;s name), pagedexvantage/ui/pages/teleop.py (Analysis ▸ Teleop overlap, the …</span></li>
+      <li><a href="models/lighting.html">Lighting, glare and IR wash-out</a><span>Spec §7.8. Code: dexvantage/core/materials.py (the BRDF and the material tags), dexvantage/core/lights.py (lightsources and their photometry), dexvantage/core/studies/lighting.py (the study, batch flag …</span></li>
+      <li><a href="models/motion_blur.html">Motion blur and rolling shutter</a><span>Module: dexvantage/core/studies/motion_blur.py (study id motion_blur, batch flag --motion-blur OUT.json). Page:dexvantage/ui/pages/motion_blur.py (Analysis ▸ Motion blur and rolling shutter, Placement workspace). …</span></li>
+      <li><a href="models/time_sync.html">Time sync</a><span>Module: dexvantage/core/studies/time_sync.py (study id time_sync, batch flag --time-sync OUT.json, or --sync OUT.json, the specification&#x27;s name). Settings inproject.rig[&#x27;sync&#x27;] (core/project.py sync_from_dict, both …</span></li>
+      <li><a href="models/action_chunk.html">Action-chunk latency and temporal alignment (spec §7.13)</a><span>dexvantage/core/studies/action_chunk_sync.py · study action_chunk_sync · batch --action-chunk OUT.json · pageAnalysis ▸ Action-chunk latency · checks chunk.loop_vs_simulation …</span></li>
+      <li><a href="models/datasets.html">Datasets: readers, writers and the shared episode shape</a><span>dexvantage/core/datasets/: episode.py (the shared Dataset / Episode / CameraStream shape andopen_dataset), one module per format, the validation check formats.lerobot_roundtrip indexvantage/validation/checks_formats.py. …</span></li>
+      <li><a href="models/audit.html">Dataset and episode auditor, plan against recording</a><span>Spec §8.2 (the auditor), §8.3 (plan against recording) and the FiftyOne bridge of §9.4. Code: core/audit/(episode.py per-episode checks, campaign.py the campaign and mount slip, slip.py the …</span></li>
+      <li><a href="models/render_calib.html">Targetless link-silhouette calibration (spec §8.4)</a><span>dexvantage/core/calib/render_calib.py (the method), dexvantage/core/studies/silhouette_calib.py (the study,--silhouette-calib), dexvantage/ui/pages/silhouette.py (Calibrate ▸ Silhouette …</span></li>
+      <li><a href="models/datalinks.html">Data links: grasp sets and hand-eye captures from recorded datasets</a><span>Phase 8 (spec §7.3 &quot;taken from a recorded dataset&quot;, §8.1 &quot;recording and solving: ROS 2 topics, a LeRobot episode&quot;).Two features read a recorded dataset through the shared reader layer (core/datasets: LeRobot v2.1 and …</span></li>
+      <li><a href="models/requirements.html">Requirements, metrics and the readiness scorecard</a><span>Modules: dexvantage/core/metric_defs.py (the named figures of every study), dexvantage/core/requirements.py(requirements, the scorecard, the variants compare), dexvantage/core/studies/requirements.py …</span></li>
+      <li><a href="models/tolerance.html">Monte Carlo tolerances and the perturbation export</a><span>Spec §7.11 (Monte Carlo tolerances) and §8.5 (synthetic camera perturbation). Code: dexvantage/core/tolerance.py(the model, ported from Vantage core/tolerance.py), dexvantage/core/studies/tolerance.py (the study …</span></li>
+      <li><a href="models/experiments.html">Designed experiments</a><span>Module: dexvantage/core/experiments.py (the designs, the runs, the estimators, design.json, the batch run). Study:dexvantage/core/studies/experiments.py (study id experiments; batch flag --experiment-saved OUT.json for …</span></li>
+      <li><a href="models/optimise.html">Optimiser and design agent</a><span>Spec §7.11. Code: dexvantage/core/optimise/ (nsga2.py, objectives.py, search.py, rig.py, designer.py),the studies optimise and design_agent (core/studies/optimise.py), the page Analysis ▸ Optimise(ui/pages/optimise.py) …</span></li>
+      <li><a href="models/exporters_a.html">Exporters, part A: MuJoCo, ROS 2, calibration, masks and wrappers</a><span>Spec §9.2 and §11. The exporters write the project in the formats other tools read. Each registers with@exporter in dexvantage/core/exporters/ and runs through core.exporters.export(project, out_dir, formats, options) …</span></li>
+      <li><a href="models/exporters_b.html">Exporters, part B: Isaac Lab and Isaac Sim, LeRobot and the policy codes, reports</a><span>dexvantage/core/exporters/isaac.py (&#x27;isaac&#x27;), lerobot.py (&#x27;lerobot&#x27;), report.py (&#x27;report&#x27;) with _pdf.py;the round trips in dexvantage/validation/formats_isaac_lerobot.py, registered in checks_formats.py …</span></li>
+      <li><a href="models/canonical_warp.html">Cross-embodiment canonical view warp</a><span>dexvantage/core/exporters/canonical_warp.py (the model and the exporter canonical_warp),dexvantage/core/studies/canonical_view.py (study canonical_view, batch --canonical-view OUT.json), the …</span></li>
+      <li><a href="models/rerun.html">Rerun bridge</a><span>dexvantage/core/bridges/rerun.py, the window command Export ▸ Stream to Rerun… (dexvantage/ui/rerun_stream.py),the batch flags --rerun OUT.rrd [--rerun-audit AUDIT.json], the check …</span></li>
+      <li><a href="models/mcp.html">The assistant&#x27;s tools and the MCP server</a><span>Modules: dexvantage/assistant/tools.py (the tool registry), assistant/figures.py (the figures each study yields,as the tools return them), assistant/session.py (where the tools work: a project file or the …</span></li>
+      <li><a href="models/assistant_dock.html">The Assistant dock: providers, the tool loop, the number check and the Copilot</a><span>Modules: dexvantage/assistant/ — agent.py (the tool loop, the system prompt, the context note), toolbox.py (thetools the dock offers and the session they see), providers.py (models, usage, prices), claude.py (Claude …</span></li>
+      <li><a href="models/samples.html">The ALOHA 2, bimanual Panda and G1 samples</a><span>Modules: dexvantage/core/robot/bimanual_samples.py (the three builders), dexvantage/core/robot/samples.py(SAMPLES, BUNDLED, sample_project). Bundling: scripts/bundle_samples.py. …</span></li>
+      <li><a href="models/versioning.html">Project diff, merge and the Git folder form</a><span>Modules: dexvantage/core/projdiff.py (diff, metric deltas, three-way merge), dexvantage/core/projfolder.py(the unpacked folder and the git diff text), dexvantage/batch_research.py (batch …</span></li>
+      <li><a href="models/publication.html">Citations and publication figures</a><span>Modules: dexvantage/core/cite.py (BibTeX), dexvantage/core/figures.py (SVG and PDF figures),dexvantage/ui/figure_export.py (Export figure… on page charts), dexvantage/batch_research.py (--cite,--figure). Validation …</span></li>
+      <li><a href="models/workspace.html">The workspace check</a><span>dexvantage/core/workspace_check.py (no Qt), shown on the Workspace page (dexvantage/ui/pages/workspace.py,Workspace ▸ Workspace). Validation model workspace.</span></li>
+      <li><a href="models/tracking.html">Experiment tracker</a><span>dexvantage/core/tracking/ keeps a record of every study run, designed experiment, optimiser run, tolerance MonteCarlo and readiness scorecard (--check) as a run, in a run store beside the project, and exports the runs …</span></li>
+      <li><a href="models/stats.html">Statistics and power analysis</a><span>Research tools part 2. Code: dexvantage/core/stats.py (the maths: NumPy and SciPy, no project, no Qt),dexvantage/core/statcompare.py (the comparison sources), dexvantage/core/studies/stats.py (the study stats,batch flag …</span></li>
+      <li><a href="models/campaign.html">Data-collection campaign planner</a><span>Research tools part 2. Code: dexvantage/core/campaign.py (the model), dexvantage/core/studies/campaign.py (thestudy campaign, batch flag --campaign-saved OUT.json), dexvantage/batch_campaign.py (--campaign SPEC.json …</span></li>
+      <li><a href="models/sim2real.html">The sim-to-real gap (research tools part 2)</a><span>dexvantage/core/sim2real/ (gap.py the analysis and Apply, measures.py the image, depth and distributionmeasures, inject.py recordings with known gaps), dexvantage/core/studies/sim2real.py (the study …</span></li>
+      <li><a href="models/paper_kit.html">Publication kit (paper kit)</a><span>Modules: dexvantage/core/publication.py (the kit), dexvantage/core/exporters/paper_kit.py (the paper_kitexport format), dexvantage/ui/pages/publication.py (Export ▸ Paper kit…), dv.publication indexvantage/api.py, the …</span></li>
+      <li><a href="models/cluster.html">Cluster sweeps</a><span>dexvantage/core/cluster/ runs the independent parts of a long study on more than one process: the runs of adesigned experiment (core/experiments.py), the draws of a tolerance Monte Carlo (core/tolerance.py), the designs …</span></li>
+      <li><a href="models/cells.html">Multi-cell comparison</a><span>Several robot cells side by side: other labs&#x27; or benches&#x27; rigs (.dexv files or folders), samples, or variants ofthe open project. Code: dexvantage/core/cells.py (the cell set, the figures table, the geometric gap, the …</span></li>
+      <li><a href="models/robot_io.html">Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point</a><span>Four fixes on the import and export side, each with a validation check of model robot_io(dexvantage/validation/checks_robot_io.py) and a self-test line (robot io).</span></li>
+      <li><a href="models/ui-fixes.html">UI responsiveness and the review round&#x27;s analysis fixes</a><span>What changed in the review round of 2026-11-07 on the UI and analysis side, the rules each fix follows, how it wasmeasured and what it does not do. The worked example is in the guide.</span></li>
+      <li><a href="models/performance.html">Performance: the UI-thread budget</a><span>Spec §16: no UI-thread work over 100 ms. Measured with scripts/measure_ui.py (QT_QPA_PLATFORM=offscreen python scripts/measure_ui.py --json out/ui-timings.json) on 2026-11-06: Linux x86_64, AMD Ryzen 9 9900X, Python …</span></li>
+      <li><a href="models/swept.html">Swept volume of a trajectory</a><span>core/robot/swept.py, drawn by the Tasks page (Swept volume, spec §13 &quot;the ghosted swept volume of atrajectory&quot;). A picture of where the arm goes along a joint trajectory, not a measurement: nothing is computed fromit …</span></li>
+      <li><a href="models/product-review.html">Product review of research tools part 2: a research team on ALOHA 2</a><span>This review used the research tools the way a lab would, on the ALOHA 2 sample (two arms, four D405 cameras), oncefrom a notebook (import dexvantage as dv) and once in the window (offscreen). It covered these steps:</span></li>
+      <li><a href="models/research-api.html">The research tools from Python: diff, merge, BibTeX, figures and run export</a><span>dexvantage/api_research.py (re-exported as dv.diff, dv.merge, dv.bibtex, dv.figures, dv.figure,dv.export_runs), added by the completeness review of research tools part 2. Batch mode already had every one ofthese …</span></li>
+    </ul>
+    <h2 id="reference">Reference</h2>
+    <ul class="index">
+      <li><a href="reference/api.html">Python API reference</a><span>import dexvantage as dv gives every name below without importing Qt. The worked examples are in the user guide and The Python and notebook API; this page is the docstrings of dexvantage/api.py …</span></li>
+      <li><a href="reference/cli.html">Command-line reference</a><span>dexvantage: DexVantage · camera, depth and teleop planning for robot-learning data collection. Every option below is the parser&#x27;s own, in its groups and order; the worked examples are in the user guide. Installed …</span></li>
+    </ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="guide.html">User guide</a>
+      <a href="docs.html">Models and methods</a>
+      <a href="methods.html">Technical reference</a>
+      <a href="validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="assets/js/site.js"></script>
+</body>
+</html>

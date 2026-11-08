@@ -27,7 +27,7 @@ import math
 
 import numpy as np
 
-from .suite import Outcome, check
+from .suite import LEROBOT, Outcome, check
 
 LR_KEY_A = 'observation.images.wrist'
 LR_KEY_B = 'observation.images.hand'
@@ -282,7 +282,8 @@ EXPECTED_B = {('rename', LR_KEY_B), ('resize', LR_KEY_B), ('resample', LR_KEY_B)
        'differing from the frames the LeRobot reader decodes', 'the differences the datasets were written with '
        '(another wrist key and size, 5 against 10 fps, the joints reordered, a gripper over half the range; a fourth '
        'joint), read back through '
-       'core/datasets/lerobot (v3.0 and v2.1)', 0, 'count', refs=('lerobot_dataset_format',), cost='study')
+       'core/datasets/lerobot (v3.0 and v2.1)', 0, 'count', refs=('lerobot_dataset_format',), cost='study',
+       needs=LEROBOT)
 def _pooling(ctx):
     import tempfile
 

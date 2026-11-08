@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The hardware library: devices from datasheets · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/library/__init__.py. Schema: dexvantage/resources/library.schema.json (JSON Schema draft2020-12). Data: dexvantage/resources/library/&lt;kind&gt;/&lt;id&gt;.json. Tests: tests/test_library.py. The lens models thelibrary builds are in dexvantage/core/optics (see Optics: lens models …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-an-entry-is">What an entry is</a>
+    <a href="#where-the-figures-come-from">Where the figures come from</a>
+    <a href="#library-entries">Entries</a>
+    <a href="#library-systems">Systems entries: hosts, policies, lights, cables, teleop devices</a>
+    <a href="#gaps-policy">Gaps policy</a>
+    <a href="#from-a-sensor-to-cameras">From a sensor to cameras</a>
+    <a href="#custom-devices">Custom devices</a>
+    <a href="#prices">Prices</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/library.md"><code>docs/models/library.md</code></a></p>
+<h1 id="library">The hardware library: devices from datasheets</h1>
+<p>Module: <code>dexvantage/core/library/__init__.py</code>. Schema: <code>dexvantage/resources/library.schema.json</code> (JSON Schema draft
+2020-12). Data: <code>dexvantage/resources/library/&lt;kind&gt;/&lt;id&gt;.json</code>. Tests: <code>tests/test_library.py</code>. The lens models the
+library builds are in <code>dexvantage/core/optics</code> (see <a href="optics.html">Optics: lens models, pixel density and defocus</a>).</p>
+<h2 id="what-an-entry-is">What an entry is</h2>
+<p>One JSON file per device, in the folder of its kind (<code>depth</code>, <code>camera</code>, <code>tactile</code>, <code>host</code>, <code>policy</code>, <code>cable</code>,
+<code>light</code>, <code>robot</code>, <code>teleop</code>), named after its <code>id</code>.
+Required: <code>id</code>, <code>kind</code>, <code>maker</code>, <code>name</code>, <code>sources</code> (at least one, each with <code>url</code> and the date <code>read</code>) and <code>note</code>.
+The rest, each a figure or <code>null</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>top level</td>
+<td><code>family</code>, <code>interface</code>, <code>power_w</code>, <code>mass_g</code>, <code>size_mm</code> ([x, y, z] in the device body frame: x the maker's depth or thickness, y the width, z the height)</td>
+</tr>
+<tr>
+<td><code>imagers[]</code></td>
+<td><code>name</code>, <code>role</code> (<code>ir_left</code>, <code>ir_right</code>, <code>rgb</code>, <code>mono</code>, <code>tof</code>), <code>pose</code> + <code>pose_stated</code>, <code>shutter</code>, <code>hfov_deg</code>, <code>vfov_deg</code>, <code>dfov_deg</code>, <code>pixel_um</code>, <code>resolution</code> (native, the one the FOV is for), <code>lens_model</code>, <code>f_number</code>, <code>focus</code>; optional <code>fov_modes</code> (FOVs stated for other stream shapes, such as a depth FOV for 16:9 and 4:3 streams); optional, only where the source states them: <code>focal_length_mm</code>, <code>sensor_size_mm</code> ([w, h] active area), <code>sensor_diagonal_mm</code>, <code>optical_format</code> (the nominal type as written, e.g. <code>1/2.6&quot;</code>, never checked as a size) and <code>figures_conflict</code> (the maker's own figures for the imager disagree: which, and which one the entry uses)</td>
+</tr>
+<tr>
+<td><code>projector</code></td>
+<td><code>hfov_deg</code>, <code>vfov_deg</code>, <code>dfov_deg</code>, <code>pose</code>, <code>pose_stated</code></td>
+</tr>
+<tr>
+<td><code>depth</code></td>
+<td><code>technology</code>, <code>reference_imager</code>, <code>stereo_pair</code>, <code>baseline_m</code>, <code>min_z</code> (the table as stated: width, height, metres), <code>max_range_m</code>, <code>rms_error</code> (<code>text</code> as stated, <code>metric</code>: <code>rms</code>, <code>median_abs</code>, <code>std_dev</code> or <code>unspecified</code>, <code>pct</code>, <code>at_m</code>), <code>subpixel_px</code>, <code>depth_fov</code>; the Intel entries add <code>range_text</code> (the range line as written) and <code>depth_start_mm</code> (the depth zero plane behind the front glass)</td>
+</tr>
+<tr>
+<td><code>streams[]</code></td>
+<td><code>imager</code> (<code>depth</code>, <code>rgb</code> or an imager's name), <code>width</code>, <code>height</code>, <code>fps</code>, <code>format</code>, <code>bits_per_pixel</code></td>
+</tr>
+<tr>
+<td><code>tactile</code></td>
+<td><code>pad_mm</code>, <code>camera_resolution</code>, <code>fps</code>, <code>sensing</code>, <code>taxels</code>; optional <code>area_mm2</code> (a curved pad whose source states only an area)</td>
+</tr>
+<tr>
+<td><code>host</code></td>
+<td><code>type</code>, <code>ports</code>, <code>lanes</code>, <code>stated_mbps</code>, <code>practical_mbps</code> (only when a source states it), <code>gmsl_links</code>; optional <code>ingest[]</code> (each way cameras reach the host as stated: <code>bus</code> <code>usb3</code>/<code>usb2</code>/<code>pcie</code>/<code>csi</code>/<code>gmsl</code>/<code>ethernet</code>/<code>other</code>, <code>count</code>, <code>per_port_mbps</code>, <code>aggregate_mbps</code>, <code>practical_mbps</code> per port, <code>practical_aggregate_mbps</code>, <code>what</code> the source's words; nothing derived)</td>
+</tr>
+<tr>
+<td><code>cable</code></td>
+<td><code>type</code>, <code>diameter_mm</code>, <code>min_bend_static_mm</code>, <code>min_bend_dynamic_mm</code>, <code>flex_cycles</code>, <code>lengths_m</code>, <code>connectors</code>, <code>active</code>; optional <code>stated_mbps</code>, <code>drag_chain_rated</code>, <code>robotics_rated</code> (true / false as the maker says, null when not stated)</td>
+</tr>
+<tr>
+<td><code>light</code></td>
+<td><code>type</code>, <code>luminous_flux_lm</code>, <code>luminance_cd_m2</code>, <code>cct_k</code>, <code>cct_k_range</code>, <code>emitting_size_m</code>, <code>ring_inner_m</code>, <code>beam_deg</code>, <code>ir_irradiance_w_m2</code>, <code>ir_at_m</code>, <code>what</code>; optional <code>cri</code>, <code>illuminance_lux</code> at <code>illuminance_at_m</code> (on-axis, as stated), <code>wavelength_nm</code> (IR illuminators)</td>
+</tr>
+<tr>
+<td><code>policy</code></td>
+<td>each field <code>{value, source, quote}</code> (docs/models/policies.md)</td>
+</tr>
+<tr>
+<td><code>teleop</code></td>
+<td><code>device_kind</code> (<code>leader_arm</code>, <code>gello</code>, <code>vr</code>, <code>spacemouse</code>, <code>glove</code>, <code>hand_tracker</code>), <code>mapping</code> (<code>joint</code>, <code>cartesian</code>), for arms <code>leads</code> and <code>same_joints</code>; each figure <code>{value, source, quote}</code>: <code>dof</code>, <code>tracking_hz</code>, <code>latency_ms</code>, <code>workspace</code> (a study volume, or null), <code>range_text</code>, <code>reach_mm</code>, <code>accuracy_mm</code>, <code>position_resolution_mm</code>, <code>joint_resolution_deg</code>, <code>feedback</code> (<a href="teleop.html#library">Teleop overlap and follower dexterity</a>)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Frames.</strong> A pose is the imager's (or projector's) <strong>optical</strong> frame (z forward, x right, y down) in the device
+<strong>body</strong> frame, which is REP-103 (x forward along the optical axis, y left, z up) with its origin at the optical
+centre of the reference (depth) imager. A sensor's mount (<code>core/project.py</code> <code>Mount</code>) places that body frame. For a
+stereo camera the right imager is one baseline along −y.</p>
+<h2 id="where-the-figures-come-from">Where the figures come from</h2>
+<p>Every number is copied from a cited source: the maker's datasheet or product page, with its URL, title, the date it
+was read and which fields it covers. The source is read when the entry is written; nothing is filled from memory. When
+a page cannot be fetched the figures stay <code>null</code> and the note says so. The six Intel RealSense entries (D405, D415,
+D435, D435i, D455, D457) come from:</p>
+<ul>
+<li><em>RealSense Product Family D400 Series Datasheet</em>, Revision 023, March 2026, document 337029-017 (the former Intel
+RealSense D400 datasheet; the product line is now RealSense, Inc.'s, under licence from Intel), read 2026-11-06:
+baselines and FOVs (Tables 3-11, 3-49), imager, projector and colour-sensor properties (Tables 3-12 to 3-20),
+sizes and masses (3-51 to 3-54), stream modes (4-2 to 4-4), min-Z (4-12), depth quality (4-15), depth start point
+(4-17), depth origin (4.8.1), power (7-7 to 7-10).</li>
+<li><em>RealSense Product Family D457 Datasheet</em>, Revision 006, August 2025, document 337029-011, read 2026-11-06.</li>
+<li>The RealSense store product pages (<code>store.realsenseai.com/buy-realsense-depth-camera-&lt;model&gt;.html</code>), read
+2026-11-06: the RGB shutter of the D435/D435i (the datasheet gives none for the RGB camera outside the module) and
+the connectors; elsewhere a cross-check.</li>
+</ul>
+<p>Where two sources disagree the entry uses the datasheet and the note gives both (examples: the D405 depth FOV is 84° ×
+58° in the datasheet and 87° × 58° on the store page; the D405 connector is &quot;Micro-B&quot; in the datasheet and &quot;USB-C&quot; on
+the store page; the D415 projector FOV is 67/41/75° in the SKU table and 64/41/72° in the projector table).</p>
+<h2 id="library-entries">Entries</h2>
+<p>The camera, depth and tactile kinds hold <strong>76 built-in entries</strong> (33 camera, 33 depth, 10 tactile; the other kinds -
+host, policy, cable, light - are written up in their own model documents). 44 of them were added on 2026-11-07, every
+figure read that day from the source the entry names:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Entries (★ added 2026-11-07)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cameras, USB</td>
+<td>e-con See3CAM_20CUG, _24CUG, ★_10CUG (AR0134 mono), ★_27CUG (OV2312 RGB-IR), ★_37CUG (IMX900 colour), ★_37CUGM (IMX900 mono); Basler dart daA1440-220um, ★dart daA1920-160uc, ★ace 2 a2A1920-160ucBAS; FLIR Blackfly S BFS-U3-16S2M-CS, ★BFS-U3-04S2M-C, ★BFS-U3-16S2C-CS, ★Firefly DL FFY-U3-16S2M-S-DL; ★Allied Vision Alvium 1800 U-240c; ★Luxonis OAK-1 (IMX378), ★OAK-1 OV9782, ★OAK-1 W OV9782</td>
+</tr>
+<tr>
+<td>Cameras, GMSL2</td>
+<td>e-con STURDeCAM25_CUOAGX, ★STURDeCAM29 (OV2311 mono), ★STURDeCAM57 (5 MP RGB-IR), ★NileCAM56 (IMX568), ★STURDeCAM39 (fisheye, 196.7° H); Leopard LI-AR0234CS-GMSL2-OWL (fisheye), LI-OV2312-GMSL2-110H, ★LI-AR0234CSC-GMSL2-060H, ★-120H; ★Stereolabs ZED X One GS wide and narrow</td>
+</tr>
+<tr>
+<td>Cameras, MIPI and micro</td>
+<td>★Allied Vision Alvium 1800 C-158c; ★Arducam B0452 (OV9281), ★B0429 (AR0234, Jetvariety); OmniVision OVM6948, ams OSRAM NanEyeC</td>
+</tr>
+<tr>
+<td>Depth, Intel RealSense</td>
+<td>D405, D415, D435, ★D435f, D435i, ★D435if, ★D436 (global-shutter RGB), D455, ★D455f, ★D456 (IP65), D457</td>
+</tr>
+<tr>
+<td>Depth, Orbbec</td>
+<td>Gemini 2, ★Gemini 2 L, Gemini 335, ★335L, 336, ★336L, Femto Bolt, ★Femto Mega</td>
+</tr>
+<tr>
+<td>Depth, Luxonis</td>
+<td>OAK-D, OAK-D Lite, OAK-D Pro, OAK-D SR, ★OAK-D S2, ★OAK-D W, ★OAK-D Pro W</td>
+</tr>
+<tr>
+<td>Depth, Stereolabs</td>
+<td>ZED 2i (wide, narrow), ZED Mini, ZED X (wide, narrow), ZED X Mini (wide, narrow)</td>
+</tr>
+<tr>
+<td>Tactile</td>
+<td>GelSight Mini, Meta DIGIT, ★Meta Digit 360, ★XELA uSkin uSPa 44 and uSPa 46, ★PaXini PX-6AX GEN3 fingertip DP-S2015 (Elite) and finger pad IP-M2324 (Core), ★AnySkin, ★ReSkin, ★Contactile PapillArray</td>
+</tr>
+</tbody>
+</table>
+<p>Sources of the added entries (all read 2026-11-07): the makers' product pages (e-con Systems, Teledyne FLIR,
+XELA Robotics, PaXini), product documentation (Basler docs.baslerweb.com, Luxonis docs.luxonis.com Markdown pages and
+sensor pages, Arducam docs.arducam.com), data sheets (Allied Vision per-model data sheets, Leopard Imaging
+LI-AR0234CSC-GMSL2-xxxH rev. 1.0, Stereolabs ZED X One GS rev. 2.3, Orbbec Gemini 330 series V1.8, Gemini 2 / 2 L
+V1.7 and Femto Mega v1.1, the RealSense D400 series datasheet rev. 023 and the RealSense store pages, the OAK-1 and
+OAK-D S2 datasheets), Luxonis's depthai-boards files at commit bfa8f36 for the OAK camera positions, and for the
+research sensors the papers (Digit 360: arXiv:2411.02479; AnySkin: arXiv:2409.08276; ReSkin: arXiv:2111.00071, CoRL
+2021; PapillArray: arXiv:2307.04011, because contactile.com did not answer). Variants of an existing family (D435f,
+Gemini 335L, OAK-D W, ...) start from that family's entry and change what the datasheet states differently; the note
+of each says what differs.</p>
+<p>Not added, and why: GelSight Mini variants (the product sheet gives one set of figures for all gels) and a GelSight
+R1.5 (no figures found); Orbbec Gemini 2 XL and Gemini 305 (their pages are rendered by script and no data sheet text
+could be read); the OAK-1 Max (its stated 45° H × 55° V for a 5312 × 6000 image was not entered without a reading of
+the orientation); arducam.com product pages (they refuse automated reads: the Arducam entries come from
+docs.arducam.com).</p>
+<p>Many makers state a stream as &quot;3MP @ 72 fps&quot; without its width and height: such entries list no stream (the note says
+so) rather than a guessed size; where the same page defines the resolution (&quot;2MP (1600 × 1300 pixels)&quot;) it is entered.</p>
+<h2 id="library-systems">Systems entries: hosts, policies, lights, cables, teleop devices</h2>
+<p>Added 2026-11-07, every figure read that day from the source the entry names (the entry's <code>note</code> quotes it and says
+what is not stated). Tests: <code>tests/test_library_systems.py</code>; checks: <code>validation/checks_library_systems.py</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Entries (★ added 2026-11-07)</th>
+<th>Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hosts, Jetson</td>
+<td>AGX Orin 64GB, AGX Orin devkit, Orin Nano 8GB, Orin Nano Super devkit, ★AGX Orin 32GB, ★Orin NX 16GB, ★Orin NX 8GB, ★Orin Nano 4GB, ★AGX Thor developer kit, ★T5000, ★T4000</td>
+<td>NVIDIA's Jetson Orin and Jetson Thor pages (the specifications tables, read column by column through their merged cells)</td>
+</tr>
+<tr>
+<td>Hosts, capture</td>
+<td>USB 3.2 Gen 1/2/2x2 references, Leopard LI-JAG-ADP-GMSL2-8CH, ★Basler USB 3.0 card PCIe FL1100 4 HC x4, ★Leopard LI-PCIEFG-GMSL2, ★Stereolabs ZED Link Quad</td>
+<td>Basler technical specification DG001772 (via its distributor), Leopard datasheet, Stereolabs ZED Link Quad datasheet rev1.1</td>
+</tr>
+<tr>
+<td>Policies</td>
+<td>act, diffusion-policy-cnn, gr00t-n1-2b, octo-base, openvla-7b, pi0, pi0-fast, smolvla-base, ★pi05, ★gr00t-n1.5-3b, ★rdt-1b, ★openvla-oft-libero, ★openvla-oft-plus-aloha, ★smolvla-libero, ★smolvla-metaworld, ★diffusion-policy-cnn-pusht, ★act-lerobot, ★hpt-base, ★octo-small</td>
+<td>papers (arXiv HTML), model cards and the official code at a named commit</td>
+</tr>
+<tr>
+<td>Lights</td>
+<td>Elgato Key Light, Key Light Air MK.2, Ring Light, ★Neewer RL-18 55W ring, ★amaran P60c (45° panel), ★AXIS T90D20 (850 nm IR)</td>
+<td>the makers' product pages and the Axis datasheet</td>
+</tr>
+<tr>
+<td>Cables</td>
+<td>Basler GMSL FAKRA-Z, VA Imaging USB3 HF, Newnex high-flex USB3, ★Stereolabs GMSL2 Fakra F-F, ★Basler USB 3.0 Micro-B/A P (fixed only), ★Basler GigE Cat 6 DrC (drag chain)</td>
+<td>Stereolabs GMSL2 cables datasheet rev1.1, Basler product documentation</td>
+</tr>
+<tr>
+<td>Teleop (new kind)</td>
+<td>★GELLO, ★SO-100 and ★SO-101 leader arms, ★Koch v1.1 leader, ★ALOHA leader (WidowX-250 6DOF), ★3Dconnexion SpaceMouse Compact, ★Meta Quest 3 and ★3S, ★Apple Vision Pro (M5), ★MANUS Quantum Metagloves, ★Rokoko Smartgloves II, ★HaptX Gloves G1, ★Ultraleap Leap Motion Controller 2</td>
+<td>the GELLO and ALOHA papers, LeRobot's docs and the Koch v1.1 README at named commits, Trossen's docs, the makers' specification pages</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Hosts.</strong> A host's ingest is modelled only from what its source states: <code>ports</code> and <code>stated_mbps</code> are the USB 3.2
+ports whose generation is stated and the USB-IF per-port rate of that generation (the Thor developer kit's USB-C ports
+say only &quot;3.1&quot;, so they are listed in <code>ingest</code> without a rate; the Thor modules say &quot;3x USB 3.2&quot; with no generation, so
+their <code>stated_mbps</code> is null), <code>lanes</code> the MIPI CSI-2 lanes, and <code>ingest</code> lists every way in with the source's words.
+Two sources state a sustained figure (<code>practical_mbps</code>): Basler's card, &quot;Up to 380 MBps per port reliably supported&quot;
+and &quot;Up to 1.52 GBps total&quot; (3 040 and 12 160 Mbit/s, decimal megabytes × 8), and Leopard's grabber, &quot;PCIe X8 Gen3 (64
+Gbit/s, ~51 Gbit/s netto)&quot;. No GMSL2 link rate is entered for a deserializer board: none of the boards' pages states
+one. <strong>Desktop GPUs</strong> (RTX 4090/5080/5090) are not host entries: their stated figures (cores, memory, PCIe to the CPU)
+are not camera-ingest figures, and the USB controllers of the machine they sit in are the motherboard's; a desktop
+host is a USB 3.2 reference entry (or a capture card) with your machine's measured figure entered as a custom device.
+The GPUs appear where they matter, as the <code>hardware</code> of a policy's stated inference time.</p>
+<p><strong>Policies.</strong> As <a href="policies.html">Policies: what a robot-learning policy takes from each camera</a>: every field <code>{value, source, quote}</code>, the inference time only where the
+paper or code states it, with the GPU named (π0.5, the SmolVLA fine-tunes, the Push-T diffusion policy and LeRobot's
+ACT state none). Variants are separate entries because their figures differ: the OpenVLA-OFT LIBERO recipe (2 images,
+chunk 8, 112 ms on an A100) and the ALOHA OFT+ recipe (3 images, chunk 25, 321 ms, 25 Hz); SmolVLA's LIBERO (2
+cameras) and Meta-World (1 camera) checkpoints; Diffusion Policy's simulated Push-T (96 → 84 px, one camera) beside its
+real-world setting; LeRobot's ACT defaults (whole chunk executed, no ensembling) beside the paper's ACT.</p>
+<p><strong>Lights.</strong> Makers of video lights state an on-axis illuminance at a distance (&quot;5500lux at 0.5m&quot;, &quot;6,300 lux @ 1m&quot;),
+a CRI and a beam angle, rarely a luminous flux; the illuminance is entered as stated (<code>illuminance_lux</code>,
+<code>illuminance_at_m</code>) and not turned into a flux or an intensity, so the lighting study, which needs a flux or a
+luminance, says those lights' output is not stated until one is entered. The AXIS T90D20 states its wavelength (850
+nm), beam angles and an illumination range for cameras (144 m with the 10° lens), not an irradiance.</p>
+<p><strong>Cables.</strong> Basler states plainly which of its cables suit drag chains and robots (<code>drag_chain_rated</code>,
+<code>robotics_rated</code>); the Micro-B/A P cable is &quot;fixed installation only&quot; (no moving radius, no flex cycles), which the
+cables study then flags on a moving joint. The Stereolabs datasheet's &quot;Bending radius (loaded) 66 mm&quot; is entered as the
+moving radius, an interpretation the note says.</p>
+<p><strong>Teleop devices</strong> (<a href="teleop.html#library">Teleop overlap and follower dexterity</a>): no maker states a tracking volume as a box or cylinder, so every
+entry's <code>workspace</code> is null and says why; latencies are what each maker calls latency (MANUS &quot;Signal latency ≤ 7.5ms&quot;,
+Apple's &quot;12‑millisecond photon‑to‑photon latency&quot; of the passthrough); display refresh rates are not entered as
+tracking rates.</p>
+<h2 id="gaps-policy">Gaps policy</h2>
+<ul>
+<li>A figure the source does not state is <code>null</code>, shown as &quot;—&quot; with the tooltip &quot;not stated by the maker&quot;
+(<code>library.NOT_STATED</code>). No figure is derived from another to fill a gap in the file (pixel size from focal length and
+FOV, say).</li>
+<li>An assumption the model needs is labelled where it is made: an RGB camera whose offset the maker does not state is
+placed at the depth origin with <code>pose_stated: false</code>, and the note says &quot;ASSUMPTION&quot;; the Intel projectors are placed
+at the baseline midpoint the same way. The UI and the studies read <code>pose_stated</code> and say so.</li>
+<li>Intel publishes no lens distortion coefficients (&quot;Distortion &lt;= 1.5%&quot;), so the built-in imagers are pinhole models
+fitted to the stated FOV (<code>lens_model: &quot;pinhole&quot;</code>, an assumption the note states). A unit's calibration replaces it.</li>
+</ul>
+<h2 id="from-a-sensor-to-cameras">From a sensor to cameras</h2>
+<p><code>library.sensor_imagers(sensor, mode=None)</code> returns <code>[Imager]</code>, each a 4-tuple <code>(name, role, pose_in_body, camera)</code>
+(<code>frames.Pose</code>, <code>optics.CameraModel</code>) with the attributes <code>label</code> (what the model is and where its figures come from),
+<code>is_default</code>, <code>pose_stated</code>, <code>calibrated</code> and <code>mode</code>.</p>
+<ol>
+<li><strong>Which stream.</strong> <code>mode=(w, h)</code> applies to every imager that streams that size; the others, and <code>mode=None</code>, use
+the imager's largest listed stream (then its native resolution). <code>mode={'RGB': (1280, 720)}</code> picks per imager.</li>
+<li><strong>Which FOV.</strong> A FOV the maker states for that stream shape (<code>fov_modes</code>, e.g. Intel's depth FOV for HD 16:9 and
+VGA 4:3) comes first; then the imager's own FOV when the stream has the native aspect ratio (scaled). Otherwise the
+FOV is derived from the native one by a <strong>centred crop</strong> at the same focal length scaled to fit (an assumption the
+label says). The camera is <code>CameraModel.from_fov(w, h, hfov, vfov, model)</code>: both stated angles are matched, so the
+pixels need not be square.</li>
+<li><strong>Calibration.</strong> <code>sensor.calibration</code> overrides per imager: <code>{'imagers': {'IR left': {'K': 3 × 3, 'D': [...], 'width': w, 'height': h, 'model': 'brown' | 'kb' | 'pinhole' | ..., 'pose': {'position', 'quaternion'}}}}</code>; a flat
+<code>{'K', 'D', 'width', 'height', 'model'}</code> applies to the first imager. A calibration at another size of the same
+shape is scaled (<code>CameraModel.scaled</code>).</li>
+<li><strong>No device.</strong> A sensor without a <code>model_id</code> (or with one the library does not have) gets one imager, a pinhole
+1280 × 720 px, 90° × 60°, labelled &quot;Default camera (no device chosen) … a default, not a device figure&quot;.</li>
+</ol>
+<p><code>library.projector(sensor)</code> gives the projector's FOV and pose (<code>frames.Pose</code>), <code>library.depth_spec(sensor)</code> a copy of
+the depth block, <code>library.min_z(sensor, w, h)</code> the stated minimum Z for a depth stream (<code>None</code> when not stated).</p>
+<h2 id="custom-devices">Custom devices</h2>
+<p>Sensors ▸ New custom device… (the spec's &quot;Library ▸ New custom device…&quot;: the window has no Library menu; the Library panel's right-click menu has it too) writes <code>$XDG_DATA_HOME/DexVantage/library/&lt;kind&gt;/&lt;id&gt;.json</code> (on macOS and Windows the
+platform's data folder when <code>XDG_DATA_HOME</code> is not set) through <code>library.add_custom(dict)</code>, after the same schema
+check; a custom device cannot take a built-in id. <code>remove_custom(id)</code> deletes it. A file that does not parse or match
+the schema, or reuses an id, is skipped with a plain message (<code>library.problems()</code>, also logged); the app never stops
+on one.</p>
+<h2 id="prices">Prices</h2>
+<p><code>core/prices.py</code>; schema <code>price</code> (<code>library.schema.json</code>). An entry's <code>price</code> block is the price of <strong>one unit</strong> as the
+maker's own online store or official price list states it on the date read:</p>
+<pre><code>&quot;price&quot;: {&quot;amount&quot;: 375, &quot;currency&quot;: &quot;USD&quot;, &quot;unit&quot;: &quot;each&quot;, &quot;kind&quot;: &quot;maker_store&quot;,
+          &quot;source&quot;: &quot;https://store.realsenseai.com/buy-realsense-depth-camera-d435.html&quot;, &quot;read&quot;: &quot;2026-11-07&quot;,
+          &quot;region&quot;: &quot;the store's default price list (USD)&quot;, &quot;what&quot;: &quot;store page price (schema.org offer 375 USD)&quot;}
+</code></pre>
+<ul>
+<li><code>kind</code> is <code>maker_store</code> (a list price from the maker's own store), <code>maker_price_list</code> (the maker's official price
+list page) or <code>reseller</code> (only where the maker sells through that store alone; <code>what</code> says why).</li>
+<li><code>min_quantity</code> marks a volume price (NVIDIA's &quot;(1KU+)&quot; is 1000): such a figure is not what one unit costs.</li>
+<li><code>options</code> lists other variants and their prices (polarizer, enclosure, gripper, control-box cable). When the price
+depends on an option the entry does not fix (a cable sold in four lengths), <code>amount</code> is <code>null</code> and only the options
+carry prices: nothing is picked for the user.</li>
+<li><code>sale_amount</code> keeps a temporary sale price; <code>amount</code> is the regular price.</li>
+<li>No price is estimated, and no exchange rate is applied (every price found is in US dollars). A custom entry may still
+use the older <code>{&quot;value&quot;, &quot;currency&quot;}</code> form; it reads the same.</li>
+</ul>
+<p><strong>What was found (read 2026-11-07).</strong> 81 of the 191 built-in entries state a price, all in USD: 67 from the maker's
+own store, 11 from NVIDIA's official price list, 3 from a reseller the maker sells through.</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Priced / entries</th>
+<th>Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>depth</td>
+<td>33 / 33</td>
+<td>RealSense store (D405 325 … D457 599), Luxonis shop (variant by RGB sensor), Stereolabs store (the no-polarizer SKU; the polarizer SKU as an option), Orbbec store (the store's product data; Femto Bolt and Femto Mega were marked not available)</td>
+</tr>
+<tr>
+<td>camera</td>
+<td>15 / 33</td>
+<td>Luxonis (OAK-1, OAK-1 W OV9782), Stereolabs (ZED X One GS), e-con Systems (the product page's sample price for one unit, read from the site's own price service: See3CAM_10CUG, _20CUG, _24CUG, _27CUG, _37CUGM, STURDeCAM57), Leopard Imaging store (four GMSL2 cameras)</td>
+</tr>
+<tr>
+<td>host</td>
+<td>14 / 18</td>
+<td>NVIDIA Jetson FAQ &quot;What is the price of Jetson products?&quot; (MSRP USD; modules are volume prices at 1000+), Stereolabs ZED Link Quad, Leopard LI-JAG-ADP-GMSL2-8CH and LI-PCIEFG-GMSL2</td>
+</tr>
+<tr>
+<td>cable</td>
+<td>1 / 6</td>
+<td>Stereolabs GMSL2 FAKRA F-F: four lengths as options, amount null</td>
+</tr>
+<tr>
+<td>light</td>
+<td>4 / 6</td>
+<td>Elgato US store (regular price, discount 0), amaran store (regular 349, sale 279 on the date read)</td>
+</tr>
+<tr>
+<td>tactile</td>
+<td>2 / 10</td>
+<td>GelSight store: GelSight Mini System 510; DIGIT 355 (reseller: Meta does not sell DIGIT; GelSight does)</td>
+</tr>
+<tr>
+<td>teleop</td>
+<td>4 / 13</td>
+<td>3Dconnexion US store (SpaceMouse Compact 179), Apple US store (Vision Pro 256 GB 3699), Rokoko (Smartgloves II 1995, the pair), ROBOTIS America (Koch v1.1 leader kit, reseller: the open design has no maker's store)</td>
+</tr>
+<tr>
+<td>robot</td>
+<td>8 / 53</td>
+<td>UFACTORY global store (Lite 6, xArm 7), AgileX (PiPER), I2RT (YAM), ROBOTIS America (OMY-F3M, OP3; Koch v1.1 follower kit as reseller), Trossen (WidowX AI base configuration)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What was not found, and why</strong> (the price stays &quot;not stated&quot;):</p>
+<ul>
+<li><em>The page read sells by quote or contact only</em>: MANUS, HaptX, e-con NileCAM56 / STURDeCAM25 / 29 / 39 and
+See3CAM_37CUG (&quot;Contact us&quot; and no price), Unitree H1 (the store says &quot;Contact us for the real price&quot;; its 90000
+figure is a placeholder and is not entered), UFACTORY's own pages also offer &quot;Request a Quote&quot; but its store states
+prices (entered).</li>
+<li><em>No maker store page with a price was found in this pass</em> (most of these sell through distributors or by quote; that
+was not verified page by page): Allied Vision, OmniVision, ams-OSRAM, Axis, XELA, PaXini, Contactile, Franka,
+Universal Robots, KUKA, FANUC, Kinova, Flexiv, Robotiq, Shadow, PAL, Apptronik, Fourier, PNDbotics, Rainbow, Sharpa,
+Wonik, ARX, Booster, TetherIA, Hello Robot (Stretch 2 and 3), Rethink (Sawyer), Ultraleap, Newnex, VA Imaging and
+the Basler USB card.</li>
+<li><em>The store's variant is not the entry's</em>: Unitree G1 (store: G1 and G1 Pro; the entry is the G1 EDU) and Z1 (store:
+Z1 Pro; the entry's figures are the Z1 AIR).</li>
+<li><em>Marked &quot;DISCONTINUED&quot; on the maker's store</em>: Trossen ViperX-300, WidowX-250 and the WidowX ALOHA set (so the
+ALOHA leader arm).</li>
+<li><em>Not sold as the unit the entry describes on the pages read</em>: GELLO (ROBOTIS America sells a bundle per target arm),
+LEAP Hand (ROBOTIS America sells a &quot;Lite&quot; bundle, another version). SO-100 / SO-101 arms and leaders and the Seeed
+reBot DevArm: no maker page with a single-arm price was read (search results showed only resellers' kit bundles,
+which are not entered).</li>
+<li><em>Research designs with no store</em>: ALOHA 2, AnySkin, ReSkin, Digit 360, TidyBot++, ToddlerBot, UMI, Berkeley Humanoid,
+Google Robot.</li>
+<li><em>The page could not be read by an automated fetch</em> (left not stated rather than reconstructed): Arducam (a bot check),
+Basler shop (refused), Neewer (rate-limited on every attempt), Meta Quest (the page reached showed &quot;Unavailable&quot; and no
+price), Teledyne FLIR (the price is filled in by script; the figure in the page's analytics data was not taken as the
+displayed price).</li>
+<li><em>Not products</em>: the three USB 3.2 host-port specification entries.</li>
+</ul>
+<h3 id="rig-cost">The rig cost</h3>
+<p><code>core/prices.total</code>, read by the rig inventory (<code>core/studies/rig_inventory.py</code>) and the metric <code>rig.cost</code> (USD):</p>
+<pre><code>cost = Σ amount_i over the enabled sensors that state a price
+every sensor priced            -&gt; cost (exact)
+some priced, k of n unpriced   -&gt; cost with bound 'at_least'; the reason names and counts the k parts
+none priced                    -&gt; not stated
+more than one currency         -&gt; refused: &quot;no exchange rate is assumed&quot;; a non-USD total is not stated as rig.cost
+</code></pre>
+<p>A lower bound was chosen over &quot;not stated&quot; because it still decides one direction of a requirement: &quot;cost ≤ 500 USD&quot;
+fails on &quot;at least 574 USD&quot; (the dexhand sample), while &quot;cost ≤ 1000 USD&quot; stays not evaluated until the missing part
+is priced (<code>core/requirements.decide</code>). The optimiser uses the cost objective only when every device it can choose
+states a price in US dollars, rig.cost's unit (<code>optimise/objectives.price_stated</code>, <code>optimise/rig._price_gaps</code>), so it never ranks designs by a bound or by a cost that is not stated; a price without a currency counts as not stated.</p>
+<p>On the samples (2026-11-07): ur5e 700 USD (D405 + D435), aloha 1300 (four D405), panda-bimanual 1025, g1 375,
+dexhand at least 574 (See3CAM_24CUG 199 + D435 375; the OVM6948 states no price), so100 not stated (sample placements
+with no library device).</p>
+<h2 id="validation">Validation</h2>
+<p><code>tests/test_library.py</code> validates <strong>every file in the folder</strong> (any kind, whoever added it) against the schema with
+<code>jsonschema</code> and with the fallback structural check, checks a set of figures against the datasheet tables (baselines,
+min-Z, shutters, the D405's missing projector), and checks that the D435's imagers come out one stated baseline apart
+along −y with optical frames per REP-103 and the stated 87° × 58° depth FOV.</p>
+<h3 id="data-consistency-validationchecks_librarypy-model-library">Data consistency (validation/checks_library.py, model <code>library</code>)</h3>
+<p>Three checks cross-check the figures of every built-in camera and depth imager against each other with closed forms
+written out again in the check; they test the entries, not a model, and are labelled data-consistency:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Bound</th>
+<th>Tolerance and why</th>
+<th>Measured 2026-11-07</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>library.sensor_geometry</code></td>
+<td>pixel pitch × resolution against the stated active-area width, height and diagonal: w = pW, h = pH, d = p√(W² + H²)</td>
+<td>2 % (sizes are rounded to 0.1 mm: 0.05 / 3.8 mm = 1.3 %)</td>
+<td>1.2 % worst (Alvium 1800 C-158c height, 3.754 vs &quot;3.8&quot; mm), 8 figures on 4 entries</td>
+</tr>
+<tr>
+<td><code>library.fov_shape</code></td>
+<td>for a centred, radially symmetric lens whose field angle θ(r) is concave in the image radius (pinhole, barrel distortion, stereographic and, as the limit, equidistant fisheye), θ(r)/r cannot grow: θ_v ≤ θ_h ≤ θ_v·W/H and max(θ_h, θ_v) ≤ θ_d ≤ min(θ_h·r_d/r_h, θ_v·r_d/r_v) (full angles, square pixels)</td>
+<td>3° (makers state FOVs to about ±3°, Intel Table 3-49 note 3, Orbbec &quot;± 3°&quot;, plus up to 1° of rounding)</td>
+<td>2.92° worst (Leopard LI-OV2312-GMSL2-110H, horizontal against vertical × W/H) over 182 FOV statements</td>
+</tr>
+<tr>
+<td><code>library.fov_focal</code></td>
+<td>a stated FOV is at least the pinhole FOV of the stated focal length, 2 atan(pN / 2f), for any lens without pincushion distortion; the implied barrel distortion r / (f tan θ) − 1 is reported</td>
+<td>3° (the FOV tolerance)</td>
+<td>0.48° worst (OAK-D Pro IMX378: EFL 4.81 mm gives 66.3° against the stated 66°), 16 statements</td>
+</tr>
+</tbody>
+</table>
+<p>Six imagers state angles that no such lens can show together - the diagonal is 4 to 14° wider than the horizontal and
+vertical allow (Arducam B0429; e-con See3CAM_24CUG, See3CAM_37CUGM, STURDeCAM25, STURDeCAM29, STURDeCAM57), most
+likely a diagonal quoted for the lens's image circle or angles measured on different crops. Their entries say so in
+<code>figures_conflict</code>; the check lists them instead of failing, and the library uses the horizontal and vertical angles.
+Fisheye imagers (a fisheye lens model or an angle of 180° or more) are listed, not counted: the equisolid and
+orthographic projections grow faster than linearly and may exceed the bounds legitimately. The bounds are tested in
+<code>tests/test_library_added_entries.py</code> on lenses built there (pinhole, equidistant, stereographic and barrel lenses
+satisfy them to 10⁻⁹°; an equisolid fisheye and a strong pincushion break them), and a mistyped pixel pitch or swapped
+H/V is shown to fail the checks.</p>
+<h3 id="systems-entries-validationchecks_library_systemspy-model-library">Systems entries (validation/checks_library_systems.py, model <code>library</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance and why</th>
+<th>Measured 2026-11-07</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>library.teleop_figures</code></td>
+<td>every teleop block consistent (<code>teleop_devices.entry_problems</code>) and every stated number found again in its own quote</td>
+<td>0 problems (each is a data error)</td>
+<td>0 problems; 13 entries, 17 stated numbers</td>
+</tr>
+<tr>
+<td><code>library.policy_token_grid</code></td>
+<td>the ViT patch grid (w / p)(h / p) / s² of the stated input size and patch (s = 4 for SmolVLM2's pixel shuffle) against the stated token count</td>
+<td>0 tokens (integers)</td>
+<td>0 over 13 counts (π0, π0-FAST, π0.5, Octo-Base and -Small with their wrist inputs, SmolVLA base and fine-tunes, both OpenVLA-OFT entries)</td>
+</tr>
+<tr>
+<td><code>library.stated_totals</code></td>
+<td>count × per-port figure against the stated total over the same ports, and each unit conversion redone from the quoted words (1 byte = 8 bit; 1 lb = 0.45359237 kg, NIST SP 811)</td>
+<td>0.005 relative (converted figures are rounded to 3–4 significant digits)</td>
+<td>9.0 × 10⁻⁴ worst (HaptX &quot;~ 1 lb&quot; entered as 454 g against 453.59 g); the Basler card 4 × 3 040 = 12 160 Mbit/s and its MB/s conversions 0; the Leopard grabber 4 × 10 Gbit/s = 40 Gbit/s per adapter 0</td>
+</tr>
+</tbody>
+</table>
+<p>A typed figure that drifts from its quote (a glove's 120 Hz entered as 100) or a MB/s figure typed as Mbit/s is shown
+to fail the checks in <code>tests/test_library_systems.py</code>.</p>
+<h3 id="prices-validationchecks_pricespy-model-library">Prices (validation/checks_prices.py, model <code>library</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance and why</th>
+<th>Measured 2026-11-07</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>library.prices_sound</code></td>
+<td>the rules written out again over the entry files read with <code>json</code>: amount &gt; 0 (or null with priced options), currency in ISO 4217 list one (SIX, published 2026-09-17), unit <code>each</code>, an https source, the kind, and the date read not in the future and at most 730 days old (a default); <code>core/prices.problems</code> must flag the same entries</td>
+<td>0 entries (each break is a data error, and a stale price is one)</td>
+<td>0 of 81 priced entries</td>
+</tr>
+<tr>
+<td><code>library.rig_cost_sum</code></td>
+<td>the rig inventory's cost on 60 seeded random rigs (1–6 sensors from every camera, depth and tactile entry, priced or not) and the samples, against the stated amounts added up again from the entry files; a wrong bound, missing count or not-stated counts as infinite</td>
+<td>0.005 USD (the total is rounded to cents)</td>
+<td>0.0 over 66 rigs (57 with a cost, 40 of them lower bounds)</td>
+</tr>
+</tbody>
+</table>
+<p><code>tests/test_prices.py</code> checks the schema (a full block, the older <code>value</code> form, the options-only cable; eight broken
+blocks refused), that every built-in price has a URL, a date, a kind and a unit, the bound and currency rules, and
+rig.cost on every sample; the self-test line <code>prices</code> checks every block and a D405 + D435 rig (700.00 USD).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>Prices are list prices on the date read: no tax, shipping, duty or discount, and a store can show another price in
+another region (the <code>region</code> field says which list was read; several stores redirected to a regional locale but
+priced in USD). NVIDIA's module prices are volume prices (1000+). They go stale: <code>library.prices_sound</code> fails a price
+read more than two years before the run, so re-read and update them.</li>
+<li>The rig cost counts only the enabled sensors (hosts, cables, lights, robots and brackets are priced in the library
+but not added to <code>rig.cost</code>).</li>
+<li>The figures are the makers' typical values; FOVs vary unit to unit (Intel: about ±3°, mechanical tolerance ±5%).</li>
+<li>Distortion and pixel size are not published for the Intel cameras: pinhole models fitted to the stated FOV, so pixel
+densities near the image corners carry the unmodelled ≤ 1.5 % distortion. Calibrate a unit for its own K and D.</li>
+<li><code>max_range_m</code> is the upper figure of a line such as &quot;0.2 m to over 3 m (varies with lighting conditions)&quot;: a lower
+bound on the usable range under good conditions, not a hard limit; <code>range_text</code> keeps the words.</li>
+<li>Stream tables are the USB 3.1 Gen 1 (or GMSL) ones; USB 2.0 modes are not entered. Simultaneous-stream limits
+(Tables 4-6, 4-7) are not modelled by the library.</li>
+<li>The RGB offsets of the D415, D435, D435i, D455 and D457 are not stated by the maker; their RGB imagers sit at the
+depth origin as a labelled assumption until a unit is calibrated.</li>
+<li>The IMUs of the D435i, D455 and D457 are mentioned in the notes but not modelled.</li>
+<li>Without <code>jsonschema</code> installed the fallback check does not test every bound of the schema.</li>
+<li>The data-consistency checks catch figures that contradict each other, not figures that are consistently wrong; a
+decentred or anamorphic lens, or a FOV measured on a crop other than the native image, can trip <code>library.fov_shape</code>
+without a typing error.</li>
+<li>Most added cameras state no distortion, so their imagers are pinhole fits to the stated FOV (wide lenses such as the
+OAK-1 W's 127° or the Leopard 120H with &quot;&lt; -66.5%&quot; distortion are poorly described by a pinhole: calibrate). The
+STURDeCAM39 fisheye is a Kannala-Brandt fit to its stated angles.</li>
+<li>Tactile entries with magnetic or force-array sensing (XELA, PaXini, AnySkin, ReSkin, PapillArray) list no stream:
+their readings are not images, and the bandwidth study needs their data rate entered as a figure.</li>
+<li>Research-sensor figures (Digit 360, AnySkin, ReSkin) are what the papers report for their prototypes; units built from
+the open designs can differ.</li>
+<li>Host entries are specification tables, not measurements: NVIDIA's CSI figures are aggregates, its USB, PCIe and
+Ethernet share UPHY lanes (&quot;not every listed port is available together&quot;), and the module data sheets (downloads
+from NVIDIA's developer site) were not read. Only two capture cards state a sustained rate; measure yours.</li>
+<li>The Meta Quest pages are rendered by script and were read through a text fetch of the page; the Basler card's
+specification is Basler's document hosted by a distributor (Basler's own pages refused automated reads).</li>
+<li>Policy timings are each source's single measurement on the named GPU, batch 1; they do not carry over to other
+hardware, and the README's &quot;slightly slower&quot; or &quot;3-4 times faster&quot; are not entered.</li>
+<li>Lights stated only by an illuminance give the lighting study no flux; the illuminance is not converted because the
+beam profile behind it is not stated.</li>
+<li>Custom teleop devices cannot be made in the custom-device dialog (it covers the sensor and host kinds); write the
+JSON by hand into the user library, and the Library panel has no Teleop group (devices are added on the Teleop page).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

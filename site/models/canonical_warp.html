@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cross-embodiment canonical view warp · DexVantage</title>
+<meta name="description" content="dexvantage/core/exporters/canonical_warp.py (the model and the exporter canonical_warp),dexvantage/core/studies/canonical_view.py (study canonical_view, batch --canonical-view OUT.json), the pagedexvantage/ui/pages/canonical_view.py (Export ▸ Canonical view), the checks …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-contact-frame">The contact frame</a>
+    <a href="#conventions">Conventions</a>
+    <a href="#the-homography">The homography</a>
+    <a href="#the-full-remap-lut">The full remap LUT</a>
+    <a href="#the-residual-parallax">The residual parallax</a>
+    <a href="#what-is-exported">What is exported</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/canonical_warp.md"><code>docs/models/canonical_warp.md</code></a></p>
+<h1 id="cross-embodiment-canonical-view-warp">Cross-embodiment canonical view warp</h1>
+<p><code>dexvantage/core/exporters/canonical_warp.py</code> (the model and the exporter <code>canonical_warp</code>),
+<code>dexvantage/core/studies/canonical_view.py</code> (study <code>canonical_view</code>, batch <code>--canonical-view OUT.json</code>), the page
+<code>dexvantage/ui/pages/canonical_view.py</code> (Export ▸ Canonical view), the checks <code>dexvantage/validation/checks_warp.py</code>
+(model <code>vla</code>, plus <code>formats.canonical_warp_files</code>). Spec §7.16.</p>
+<p>When wrist-camera datasets are pooled across embodiments (an ALOHA, a Franka, an SO-101), every wrist camera sits
+somewhere else relative to its gripper. The warp maps robot B's wrist image to robot A's canonical viewpoint. It is
+exact for one plane, the fingertip contact plane, where the object is held, and wrong elsewhere by the residual
+parallax, which the study reports over the task volume's depth range. The output is a homography (for undistorted
+images), a full remap LUT that includes both lenses, and the parallax map.</p>
+<h2 id="the-contact-frame">The contact frame</h2>
+<p>Each robot gets its own contact frame, measured from its contact pads at its home pose by
+<code>core/grasps.py gripper_geometry</code>:</p>
+<ul>
+<li>origin: the tool centre point, the mean of the pads' centroids;</li>
+<li>z: the approach axis;</li>
+<li>x: the closing axis, times <code>closing_sign</code> (±1, a user setting: which pad comes first is arbitrary, and −1 turns the
+frame half a turn about the approach);</li>
+<li>y = z × x.</li>
+</ul>
+<p>The frame is posed at q with the robot's gripper frame. The warp <strong>identifies the two robots' contact frames</strong>: that
+identification is what &quot;canonical&quot; means here. A robot with no tagged pads gets its gripper frame's axes, and the
+result says so.</p>
+<p>The contact plane is z = <code>plane_offset_m</code> in the contact frame (default 0, the plane through the TCP, normal along
+the approach axis).</p>
+<h2 id="conventions">Conventions</h2>
+<ul>
+<li>Optical frames follow OpenCV (x right, y down, z forward), and pixel centres sit at integers. These are
+DexVantage's conventions (docs/models/optics.md).</li>
+<li>(R, t) maps source to canonical: X_A = R X_B + t. From the cameras' poses in their contact frames,
+T_AB = T_cA⁻¹ T_cB.</li>
+<li>In camera B the plane is n_Bᵀ X_B + d_B = 0. n_B is the unit normal pointing from the plane towards camera B, and
+d_B &gt; 0 is B's distance to the plane. In camera A the same plane is n_A = R n_B, d_A = d_B − n_Aᵀ t. A negative
+d_A means A sees the plane from behind; the result says so, and the warp is still exact on the plane.</li>
+</ul>
+<h2 id="the-homography">The homography</h2>
+<p>For every point X of the plane, −n_Bᵀ X / d_B = 1, so R X + t = (R − t n_Bᵀ / d_B) X. Projecting through each
+camera's matrix K = [[fx, 0, cx], [0, fy, cy], [0, 0, 1]] gives</p>
+<pre><code>x_A ~ H x_B,      H = K_A (R − t n_Bᵀ / d_B) K_B⁻¹        [Hartley and Zisserman 2004, ch. 13]
+</code></pre>
+<p>with x the homogeneous pixels of the pinhole (undistorted) images. H is scaled so that H[2][2] = 1. It maps source
+pixels to canonical pixels: <code>cv2.warpPerspective(img_B, H, (W_A, H_A))</code> applies it, because OpenCV computes
+dst(x) = src(H⁻¹ x) when WARP_INVERSE_MAP is not set (the installed OpenCV 5.0.0's docstring, read 2026-11-07).</p>
+<h2 id="the-full-remap-lut">The full remap LUT</h2>
+<p>A lens that is not a pinhole is not described by H. For every canonical pixel p the LUT:</p>
+<ol>
+<li>unprojects p through A's real lens (<code>CameraModel.unproject</code>, iterative for Brown-Conrady);</li>
+<li>intersects the ray with the plane, s = −d_A / (n_Aᵀ r), keeping s &gt; 0;</li>
+<li>moves the point into B's frame, X_B = Rᵀ (X_A − t);</li>
+<li>projects it through B's real lens.</li>
+</ol>
+<p>The result is <code>map_x, map_y</code> for <code>cv2.remap(img_B, map_x, map_y, cv2.INTER_LINEAR)</code>. A pixel whose ray misses the
+plane, meets it behind either camera, or lands outside B's image holds −1, and OpenCV's remap gives it the border
+value. The GPU form is the same LUT as a <code>torch.nn.functional.grid_sample</code> grid (align_corners=False):
+x_n = (2u + 1) / W_B − 1, y_n = (2v + 1) / H_B − 1, so ±1 are the image's outer edges and integer pixel u is a
+pixel centre. Invalid pixels hold −2, which falls outside the grid and samples as 0 with padding 'zeros'.</p>
+<h2 id="the-residual-parallax">The residual parallax</h2>
+<p>At canonical pixel p the warp shows what B sees along its ray through the plane point X(p). Suppose the surface
+there is not on the plane but at signed distance h from it, measured along that ray (h &gt; 0 towards camera B, h &lt; 0
+beyond the plane). Then the true canonical image shows the point at π_A(X_h), and the warp is off by</p>
+<pre><code>Δ(p, h) = π_A(X_h) − p,   X_h = s r_B,  s = (h − d_B) / (n_Bᵀ r_B)
+</code></pre>
+<p>in canonical pixels, through A's real lens (<code>parallax_at</code>).</p>
+<p>For pinhole cameras this is the plane-plus-parallax term [Irani and Anandan 1996]. Write K_A(R X + t) as
+K_A(R − t nᵀ/d) X + K_A t (h / d), with h = nᵀX + d. The first term dehomogenises to p, and the third component of
+the sum is Z_A, the point's depth in A. So:</p>
+<pre><code>Δ = h / (d_B Z_A) · ((K_A t)_xy − p (K_A t)_z)
+</code></pre>
+<p>Δ vanishes on the plane (h = 0), and it vanishes at every depth when the two cameras share a centre (t = 0). When
+t_z ≠ 0, Δ points along the epipolar line, towards or away from the epipole e = K_A t.</p>
+<p><strong>The map.</strong> As a point moves along one source ray, its canonical image moves monotonically along the epipolar line.
+Over a depth range [h_lo, h_hi] the largest |Δ| is therefore at one end. The map is max(|Δ(p, h_lo)|, |Δ(p, h_hi)|)
+over the canonical pixels the LUT fills; <code>tests/test_canonical_warp.py</code> checks this monotonicity on 16 depths. The
+study samples the map on a grid of at most 64 cells across and reports max, P95 and median at each extreme. The
+export computes it at every pixel.</p>
+<p><strong>The depth range (defaults, labelled).</strong></p>
+<ul>
+<li>Beyond the plane: at a grasp the TCP can be anywhere in the task volume. A volume point can therefore lie up to
+D = Σᵢ |aᵢ| sᵢ beyond the plane, where a is the approach axis in the world (at the source robot's q) and s the
+volume's edge lengths. With several volumes, D is the largest.</li>
+<li>Towards the camera: an object held between the pads comes no nearer the camera than the pads' far end, because the
+gripper fills the rest. The near end is the largest distance of a contact-pad point from the plane on the camera's
+side (<code>core/grasps.py contact_points</code>), capped at D and at d_B − 5 mm (the point must stay in front of B).</li>
+</ul>
+<p>The user can set the range instead (<code>depth_range_m</code>).</p>
+<p><strong>The headline.</strong> The P95 at the worse extreme, with a status word (DexVantage defaults, not standards):</p>
+<table>
+<thead>
+<tr>
+<th>Word</th>
+<th>P95 of the residual parallax</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>aligned</td>
+<td>≤ 1 px</td>
+</tr>
+<tr>
+<td>mild parallax</td>
+<td>≤ 4 px</td>
+</tr>
+<tr>
+<td>parallax</td>
+<td>≤ 16 px</td>
+</tr>
+<tr>
+<td>large parallax</td>
+<td>above 16 px</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The suggestion (Apply).</strong> The page offers to mount the source camera at the canonical camera's pose relative to
+its own fingertips. That pose is the source contact frame composed with A's pose in the contact frame, then the
+imager's pose in the body removed, written in the mount's parent link at q. The cameras then share a centre (t = 0),
+the warp is the pure homography K_A K_B⁻¹ (R = I and t = 0: the position and the orientation are copied), and the
+parallax is 0 px at every depth. A locked camera is
+not moved.</p>
+<h2 id="what-is-exported">What is exported</h2>
+<p>The exporter <code>canonical_warp</code> writes <code>--export OUT --formats canonical_warp</code>, or Export warp maps… on the page.
+Every file goes under <code>canonical_warp/</code> with the stem <code>&lt;source&gt;_to_&lt;canonical&gt;</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>_map1.npy</code>, <code>_map2.npy</code></td>
+<td>float32 map_x, map_y (H_A × W_A), for <code>cv2.remap</code></td>
+</tr>
+<tr>
+<td><code>_remap.yml</code></td>
+<td>the same maps as <code>map1</code>, <code>map2</code> in OpenCV FileStorage YAML, with <code>homography</code>, the sizes, the invalid value and the convention</td>
+</tr>
+<tr>
+<td><code>_grid.npy</code>, <code>_valid.npy</code></td>
+<td>(H_A, W_A, 2) float32 grid_sample grid, uint8 mask</td>
+</tr>
+<tr>
+<td><code>_parallax.npy</code></td>
+<td>float32 |Δ| px at every canonical pixel (the worse extreme; NaN where not covered)</td>
+</tr>
+<tr>
+<td><code>_homography.json</code></td>
+<td>H, H⁻¹, the convention, both views (lens, pose in the contact frame), the plane, the depth range, the parallax summary at full resolution, the files and usage lines; stamped with provenance</td>
+</tr>
+<tr>
+<td><code>_canonical_view.json</code></td>
+<td>the canonical camera and its pose in the contact frame (<code>dexvantage.canonical_view/1</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Robot B's project can load <code>_canonical_view.json</code> as its canonical camera (page: Load canonical view…; settings
+<code>canonical: {...}</code>), so robot A and robot B need not be in the same project. <code>export_manifest.json</code> lists every
+file's SHA-256.</p>
+<p>The YAML is text. A 1280 × 720 pair writes about 20 MB of <code>.yml</code> against 3.7 MB per <code>.npy</code> map. Leave <code>yml</code> out of
+<code>formats</code> (<code>{&quot;canonical_warp&quot;: {&quot;formats&quot;: [&quot;npy&quot;, &quot;grid&quot;, &quot;json&quot;]}}</code>) when it is not needed.</p>
+<h2 id="validation">Validation</h2>
+<p>Every case is synthetic and seeded. The two cameras are posed 0.10 to 0.20 m above the plane with random tilts of up
+to ±0.25 rad: a pinhole pair, and a Brown-Conrady canonical camera with a Kannala-Brandt fisheye source. Measured on
+2026-11-07 (OpenCV 5.0.0):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance (why)</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vla.warp_plane_exact</code></td>
+<td>plane points projected by K (R X + t), written out in the check; 4 pairs, 1 102 points</td>
+<td>1e-9 px (closed form: double rounding only)</td>
+<td>2.3 × 10⁻¹³ px</td>
+</tr>
+<tr>
+<td><code>vla.warp_lut_lens_cv2</code></td>
+<td>cv2.projectPoints and cv2.fisheye.projectPoints of plane points; 4 pairs, 1 519 points</td>
+<td>1e-6 px (the LUT runs the lens's iterative inverse)</td>
+<td>2.3 × 10⁻¹³ px</td>
+</tr>
+<tr>
+<td><code>vla.warp_parallax_bruteforce</code></td>
+<td>off-plane points projected by OpenCV directly and through the plane point on their source ray; the closed form on pinhole pairs; 2 279 points from −0.2 to +0.03 m, parallax up to 119 px</td>
+<td>1e-6 px</td>
+<td>closed form 1.5 × 10⁻¹³ px, model 2.8 × 10⁻¹³ px</td>
+</tr>
+<tr>
+<td><code>vla.warp_lut_vs_warpperspective</code></td>
+<td>cv2.warpPerspective(img, H) against cv2.remap through the maps, undistorted pair, smooth image (gradient ≤ 9 grey levels/px), 183 131 pixels; the float64 LUT against H⁻¹</td>
+<td>1 grey level (both quantise sample positions to 1/32 px; float32 maps can round to the neighbouring step, ≤ 9/32 level, then both round to integers)</td>
+<td>1 grey level on 16 pixels (mean 8.7 × 10⁻⁵); LUT against H⁻¹ 5.7 × 10⁻¹³ px</td>
+</tr>
+<tr>
+<td><code>formats.canonical_warp_files</code></td>
+<td>the UR5e sample's export read back: .yml through cv2.FileStorage against the .npy maps, the grid against its formula, H from JSON and YAML against the model, the canonical view file loaded back</td>
+<td>1e-12</td>
+<td>0 (arrays bit-exact), 1.3 × 10⁻¹⁵ (JSON decimal text)</td>
+</tr>
+</tbody>
+</table>
+<p>The self-test line <code>warp</code> runs one homography case and one lens case (both 1 × 10⁻¹³ px, 0.1 s).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The warp is exact only on the contact plane. Elsewhere the parallax report bounds the error over the depth range;
+nothing corrects it (no depth-based reprojection).</li>
+<li>Occlusion is not modelled. What B sees behind the fingers is warped as if it lay on the plane, and parts of A's
+view that B cannot see stay empty (−1).</li>
+<li>The two grippers' contact frames are identified by their measured TCP, approach and closing axes, and the closing
+sign is a user choice. A gripper without tagged pads uses its gripper frame's axes.</li>
+<li>A camera that is not fixed in its gripper frame (a static or forearm camera) is related to the contact frame at
+the q given, home by default. The result says when this applies.</li>
+<li>The default depth range is a bound from the task volume and the pads, not a measurement of the scene.</li>
+<li>The image is resampled once (OpenCV bilinear by default), with no anti-aliasing when the warp minifies. Rolling
+shutter, exposure and colour differences between the cameras are not modelled.</li>
+</ul>
+<h2 id="references">References</h2>
+<ul>
+<li>R. Hartley and A. Zisserman, <em>Multiple View Geometry in Computer Vision</em>, 2nd ed., Cambridge University Press,
+2004, chapter 13 (homographies induced by a plane). The equation number was not re-read; the checks prove the
+convention used.</li>
+<li>M. Irani and P. Anandan, &quot;Parallax geometry of pairs of points for 3D scene analysis&quot;, ECCV 1996, LNCS 1064,
+17–30, doi:10.1007/BFb0015520 (bibliographic details read at dblp.org, 2026-11-07).</li>
+<li>OpenCV imgproc, <code>cv2.warpPerspective</code> and <code>cv2.remap</code> (the docstrings of the installed 5.0.0, read 2026-11-07;
+docs.opencv.org returned HTTP 403 that day); <code>cv::FileStorage</code>.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

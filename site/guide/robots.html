@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robots: the robot catalogue · DexVantage</title>
+<meta name="description" content="The Library dock&#x27;s Robots group holds two commands (Import a URDF or MJCF file…, Import from MuJoCo Menagerie…)and, under them, the robot catalogue: 53 arms, hands, grippers, humanoids and mobile manipulators, each with thefigures its maker publishes and the official MuJoCo Menagerie model it …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#read-a-robots-figures">Read a robot&#x27;s figures</a>
+    <a href="#import-a-catalogue-robot">Import a catalogue robot</a>
+    <a href="#what-verified-means">What &quot;verified&quot; means</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/robots.md"><code>docs/guide/robots.md</code></a></p>
+<h1 id="robots">Robots: the robot catalogue</h1>
+<p>The Library dock's <strong>Robots</strong> group holds two commands (Import a URDF or MJCF file…, Import from MuJoCo Menagerie…)
+and, under them, the robot catalogue: 53 arms, hands, grippers, humanoids and mobile manipulators, each with the
+figures its maker publishes and the official MuJoCo Menagerie model it imports from. The model behind it is in
+<a href="../models/robots.html#catalogue">Robots: import, the MuJoCo model and the samples</a>.</p>
+<h2 id="read-a-robots-figures">Read a robot's figures</h2>
+<ol>
+<li>Open any project (File ▸ Open sample ▸ LeRobot SO-100 arm with a wrist and a third-person camera, for example) and show the Library dock.</li>
+<li>Expand <strong>Robots</strong>. Each catalogue row reads like <code>Arm · 7 DoF · 855 mm · 3 kg</code>: type, degrees of freedom, reach
+and payload as the maker states them. A &quot;—&quot; means no source read states the figure (&quot;not stated by the maker&quot;);
+nothing is guessed.</li>
+<li>Hover <strong>Franka Robotics Franka Research 3</strong>. The tooltip lists every figure with the source it comes from
+(here Franka's datasheet R02212, release 2.4): 7 DoF, 855 mm, 3 kg, ± 0.1 mm (ISO 9283), 18.3 kg, 1 kHz, the
+interfaces and the joint ranges &quot;A1 -166 to 166; … A7 -175 to 175 deg&quot;; then the model (<code>franka_fr3/fr3.xml</code> at
+Menagerie commit <code>98a70c569c4c</code>, Apache-2.0) and what DexVantage measured when it imported that model: 7 joints, 7
+actuators, 9 links, DoF 7.</li>
+<li>Type <code>hand</code> in the Library search box: the Allegro Hand V4 (16 DoF, CAN at 333 Hz), the LEAP Hand (16, 595 g), the
+Shadow Dexterous Hand (24 joints, 20 actuated, 1 kHz EtherCAT), the other hands and the hand-held UMI gripper
+remain.</li>
+</ol>
+<p>The catalogue's joint ranges are the datasheet's, for comparison. The robot you import uses the limits in its own
+model file (Robot page, joint sliders).</p>
+<h2 id="import-a-catalogue-robot">Import a catalogue robot</h2>
+<ol>
+<li>Double-click <strong>The Robot Studio SO-ARM100</strong> (or right-click ▸ Import from MuJoCo Menagerie…). The Menagerie dialog
+opens on <code>trs_so_arm100</code> only and starts the download (it needs the internet: GitHub allows 60 requests an hour
+without signing in, and a download uses three).</li>
+<li>When the files are here, the dialog shows the folder's own LICENSE (Apache-2.0) and the Menagerie commit, and
+picks the catalogue's file (<code>so_arm100.xml</code>) in the Model file box.</li>
+<li>Read the licence. <strong>Import</strong> stays disabled until you tick <em>I accept the licence of this model</em>.</li>
+<li>Import. The robot is added as one undo step (Edit ▸ Undo removes it); its licence, the Menagerie commit and the
+date you accepted it are recorded on the robot, and the LICENSE text travels with the project.</li>
+</ol>
+<p>Each Menagerie model has its own licence. Every model the catalogue names carried a permissive licence (Apache-2.0,
+BSD or MIT) when it was checked, but the dialog always shows the licence of the version you actually download.</p>
+<h2 id="what-verified-means">What &quot;verified&quot; means</h2>
+<p>Each entry records what DexVantage counted when the model was downloaded once at Menagerie commit <code>98a70c569c4c</code> and
+imported: joints in q (the joints the sliders move), actuators and links. The DoF it compares with the maker's leaves
+out a gripper's finger joints when an arm file includes its gripper (the Panda's <code>finger_joint1</code> and <code>finger_joint2</code>,
+say), or counts actuators for a linkage gripper (the Robotiq 2F-85: eight hinges, one actuator). Validation (Help ▸
+Validate the models…, model &quot;Robot catalogue (data consistency)&quot;) checks these records against the makers' DoF and counts the bundled
+Menagerie models again; it is a data-consistency check, not an accuracy figure.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The figures describe the product, not the simplified Menagerie model. 22 entries have no maker figure yet (the
+maker's page could not be read or was not read for this build); their notes say which. A catalogue entry describes
+one version of a product (the Z1's figures are the Z1 AIR's; the G1's DoF is the G1 EDU's 23–43): check the variant
+line in the tooltip against your unit.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cluster sweeps · DexVantage</title>
+<meta name="description" content="dexvantage/core/cluster/ runs the independent parts of a long study on more than one process: the runs of adesigned experiment (core/experiments.py), the draws of a tolerance Monte Carlo (core/tolerance.py), the designs ofeach optimiser generation (core/optimise/rig.py) and any list of (project …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-model">The model</a>
+    <a href="#the-shard-output-and-gather">The shard output and gather</a>
+    <a href="#the-slurm-job-folder">The Slurm job folder</a>
+    <a href="#the-shared-result-cache">The shared result cache</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/cluster.md"><code>docs/models/cluster.md</code></a></p>
+<h1 id="cluster-sweeps">Cluster sweeps</h1>
+<p><code>dexvantage/core/cluster/</code> runs the independent parts of a long study on more than one process: the runs of a
+designed experiment (core/experiments.py), the draws of a tolerance Monte Carlo (core/tolerance.py), the designs of
+each optimiser generation (core/optimise/rig.py) and any list of (project, study, settings) jobs. It runs them on this
+machine's cores (a process pool) or on a Slurm cluster (job arrays). The result is the result one process gives.</p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>work.py</code></td>
+<td>the work (items, parameters, projects), the shard split, one item's computation, the assembly</td>
+</tr>
+<tr>
+<td><code>local.py</code></td>
+<td>the process pool: workers, memory per worker, progress, cancel, resume</td>
+</tr>
+<tr>
+<td><code>shards.py</code></td>
+<td>one shard's run and its output file; gather, the report, the resubmit list</td>
+</tr>
+<tr>
+<td><code>slurm.py</code></td>
+<td>the sbatch settings, the array script, the job folder, resubmit, submit</td>
+</tr>
+<tr>
+<td><code>cache.py</code></td>
+<td>the shared on-disk result cache (content keys, atomic rename, no locks)</td>
+</tr>
+<tr>
+<td><code>optimiser.py</code></td>
+<td>the optimiser's generations in the pool, and the optimiser on Slurm in rounds</td>
+</tr>
+</tbody>
+</table>
+<p>The batch flags are in <code>dexvantage/batch_cluster.py</code>, the Python API is <code>dv.cluster</code> (<code>dexvantage/api_cluster.py</code>) and
+the pages' <strong>Run on…</strong> is <code>dexvantage/ui/cluster_run.py</code>.</p>
+<h2 id="the-model">The model</h2>
+<p><strong>Work.</strong> A work is a list of M items that do not depend on each other:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Item 0</th>
+<th>Items 1 … M − 1</th>
+<th>Computed by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>experiment</code></td>
+<td>the rig as it is</td>
+<td>the design's runs, in plan order</td>
+<td><code>core.experiments.evaluate_row</code></td>
+</tr>
+<tr>
+<td><code>tolerance</code></td>
+<td>the nominal rig</td>
+<td>draw <em>i</em> − 1</td>
+<td><code>core.metrics.evaluate</code> on <code>core.tolerance.apply_draw</code></td>
+</tr>
+<tr>
+<td><code>studies</code></td>
+<td>job 1</td>
+<td>job 2 …</td>
+<td><code>core.jobs.run_study</code> with the job's settings</td>
+</tr>
+<tr>
+<td><code>designs</code></td>
+<td>design 1</td>
+<td>design 2 … (one optimiser generation)</td>
+<td>the optimiser's own evaluator (<code>search.Evaluator</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The work file <code>work.json</code> has the schema <code>dexvantage.cluster-work/1</code>. It holds the kind, the items, the parameters, the
+modules a worker must import (studies and metrics added outside core), and each project's file and content hash. The
+projects are saved as <code>.dexv</code> files beside it. The work id is the first 32 hex digits of the SHA-256 of the canonical
+JSON of {kind, items, parameters, the projects' content hashes}. Every shard output carries the work id, so outputs
+of another work in the same folder are left out (gather lists them as foreign).</p>
+<p><strong>Shards.</strong> Shard <em>i</em> of <em>N</em> takes the items <em>i</em>, <em>i</em> + <em>N</em>, <em>i</em> + 2<em>N</em>, … below M. For every M ≥ 0 and N ≥ 1, the N
+shards together hold each index in range(M) exactly once. The shard sizes differ by at most one. The split is
+strided, so the slow runs at the end of a design spread over every shard.</p>
+<p><strong>Why the gathered result is the serial one.</strong> Each item is computed by the same function the in-process run calls,
+on the same project. The saved project's content hash is checked on load, and a work file edited by hand is refused.
+The tolerance draws are made again from the seed in every process, in <code>monte_carlo</code>'s order (sensor by sensor, draw by
+draw), so draw <em>i</em> is the same everywhere. The assembly calls the in-process code's own analysis:</p>
+<ul>
+<li>an experiment: <code>core.experiments._result</code>, with the plan made again from the design;</li>
+<li>the tolerance study: <code>core.studies.tolerance.run</code>, with an evaluator that hands back the shards' figures in draw
+order;</li>
+<li>the optimiser: its own search, which finds every design already scored in its memo.</li>
+</ul>
+<p>Item results go through a JSON round trip, and Python's JSON writes floats exactly (the shortest repr that reads back
+the same double). The only parts that differ say how the work ran:</p>
+<ul>
+<li>an experiment's <code>execution</code> block (mode, workers, seconds, peak memory);</li>
+<li>a study's <code>seconds</code> and <code>cached</code>;</li>
+<li>the optimiser's <code>search</code> counts (studies scored, results reused, seconds) and its added <code>cluster</code> block.</li>
+</ul>
+<p><strong>The optimiser.</strong> NSGA-II is sequential across generations, but the designs of one generation are independent.
+<code>nsga2.run</code> calls a <code>prefetch(rows)</code> hook with each generation's decoded genomes before it evaluates them one by one.
+<code>rig.optimise</code> passes the hook (with the base project, the factors and the evaluator) to core/cluster. The pool
+scores the designs not in the memo and stores each score under the memo key <code>rig._key(values)</code>. The search then
+finds each design already scored. On Slurm, each round replays the seeded search from the start:</p>
+<ol>
+<li>Designs scored in earlier rounds are filled into the memo from the gathered rounds.</li>
+<li>The current rig and the confirm step come from the shared result cache.</li>
+<li>The first generation with unscored designs becomes the next round's job folder.</li>
+</ol>
+<p>Both hooks are optional arguments that change no result (additive).</p>
+<p><strong>Memory per worker.</strong> Each worker holds its own project copy, robot models, the studies' caches and, on the GPU path,
+an EGL context. The planning figure is <code>MEM_PER_WORKER_MB</code> = 2 048 MiB (a labelled default). The default number of
+workers is min(CPUs, MemAvailable / 2 048 MiB, 64). Every run reports each worker's measured peak (<code>VmHWM</code> of <code>/proc/self/status</code> on Linux, <code>ru_maxrss</code> elsewhere: on Linux <code>ru_maxrss</code> keeps, across the exec that starts a spawned worker, the peak of the process it was forked from, so a worker of a 2.9 GB parent reported 2918 MB; found at integration).
+Measured on 2026-11-07 (a spawned worker running the tolerance study's four default metrics: coverage, depth, motion
+blur, VLA tokens):</p>
+<table>
+<thead>
+<tr>
+<th>Sample</th>
+<th>Worker peak</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SO-100 (coverage only)</td>
+<td>360–500 MB</td>
+</tr>
+<tr>
+<td>UR5e</td>
+<td>638 MB</td>
+</tr>
+<tr>
+<td>G1</td>
+<td>698 MB</td>
+</tr>
+<tr>
+<td>ALOHA 2</td>
+<td>999 MB</td>
+</tr>
+</tbody>
+</table>
+<p>The job script's default of 4G per task (a DexVantage default, not Slurm's: Slurm's own is the site's DefMemPerNode) is above all of these. The grasp study on large grasp sets was not measured; give
+it more.</p>
+<p><strong>Cancel.</strong> The pool is terminated at once. An item in progress is discarded, as core/experiments discards a run that
+a cancel interrupts. With an output folder, the items done are kept, and the next run skips them.</p>
+<h2 id="the-shard-output-and-gather">The shard output and gather</h2>
+<p>Each attempt of a shard writes its own file <code>out/shard-&lt;i&gt;-of-&lt;N&gt;.&lt;attempt&gt;.jsonl</code>. The file holds a header line
+(work id, shard, item count), one line per item (index, status, result or error, seconds) and an end line (peak
+memory, seconds). Each line is a single <code>write</code>, fsynced, and the file is closed after every line. A line cut short by
+a killed task is not valid JSON, so it is skipped and its item counts as not done. A resubmitted shard first reads the
+earlier attempts and skips the items they finished.</p>
+<p><code>gather</code> sorts every shard into one of four states:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>complete</td>
+<td>every item has a result</td>
+</tr>
+<tr>
+<td>failed</td>
+<td>an item raised; the item's sentence is shown</td>
+</tr>
+<tr>
+<td>incomplete</td>
+<td>the shard started but stopped</td>
+</tr>
+<tr>
+<td>missing</td>
+<td>the shard has no output at all</td>
+</tr>
+</tbody>
+</table>
+<p>When every item has a result, gather assembles the result and writes <code>result.json</code> with provenance (an experiment
+also writes <code>result.csv</code>). Otherwise it writes <code>resubmit.sbatch</code>: the same script with <code>--array=</code> set to just the
+shards still to do (for example <code>1-2,7</code>).</p>
+<h2 id="the-slurm-job-folder">The Slurm job folder</h2>
+<pre><code>job/
+  work.json  projects/base.dexv   the work and its project(s)
+  run.sbatch                      the array script (bash -n clean; #SBATCH lines first)
+  job.json                        shards, the settings, which of them are defaults
+  out/  logs/  cache/             shard outputs, task logs (logs/shard-%A_%a.out), the shared result cache
+  README.txt                      how to submit, gather and run a shard by hand
+</code></pre>
+<p>Each array task runs <code>python -m dexvantage --run-shard work.json --shard $SLURM_ARRAY_TASK_ID --of N --out out</code> in
+<code>JOB_DIR=&quot;${DEXVANTAGE_JOB_DIR:-${SLURM_SUBMIT_DIR:-$PWD}}&quot;</code>. Submit from the folder. Slurm creates no folders for
+<code>--output</code>, which is why <code>logs/</code> is written with the job. The script sets <code>OMP_NUM_THREADS</code>, <code>OPENBLAS_NUM_THREADS</code>
+and <code>MKL_NUM_THREADS</code> to the CPUs per task (a default, <code>threads_from_cpus</code>), so a task does not oversubscribe its
+allocation.</p>
+<p>The settings below are labelled DexVantage defaults; <code>job.json</code> lists which ones were left at their default:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cpus_per_task</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>mem</code></td>
+<td>4G</td>
+</tr>
+<tr>
+<td><code>time</code></td>
+<td>02:00:00</td>
+</tr>
+<tr>
+<td><code>partition</code></td>
+<td>the cluster's default</td>
+</tr>
+<tr>
+<td><code>account</code></td>
+<td>the user's default</td>
+</tr>
+<tr>
+<td><code>gpus</code></td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>throttle</code></td>
+<td>0 (none)</td>
+</tr>
+<tr>
+<td><code>job_name</code></td>
+<td>dexvantage</td>
+</tr>
+<tr>
+<td><code>python</code></td>
+<td>python</td>
+</tr>
+<tr>
+<td><code>max_array</code></td>
+<td>1001</td>
+</tr>
+</tbody>
+</table>
+<p>The activation line (<code>activate</code>) has no default, so no path is ever written for the user. The other settings are
+<code>setup</code> lines (for example <code>module load</code>) and <code>extra</code> #SBATCH options. Values Slurm would refuse are refused in a
+sentence:</p>
+<ul>
+<li>a memory size that is not a number with an optional K, M, G or T;</li>
+<li>a time that is not one of Slurm's six time forms;</li>
+<li>an extra option that does not start with <code>--</code>;</li>
+<li>more shards than <code>max_array</code>.</li>
+</ul>
+<p>The Slurm facts used, from the Slurm 26.05 documentation, read 2026-11-07:</p>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--array</code> takes ranges, comma lists and a <code>%</code> throttle</td>
+<td><a href="https://slurm.schedmd.com/job_array.html">job_array.html</a></td>
+</tr>
+<tr>
+<td><code>SLURM_ARRAY_TASK_ID</code> is &quot;the job array index value&quot;</td>
+<td>job_array.html</td>
+</tr>
+<tr>
+<td><code>%A</code> and <code>%a</code> in <code>--output</code> are the array job id and the task index</td>
+<td>job_array.html</td>
+</tr>
+<tr>
+<td>&quot;The default value of MaxArraySize is 1001&quot;</td>
+<td>job_array.html</td>
+</tr>
+<tr>
+<td><code>--mem</code>'s &quot;Default units are mebibytes&quot;</td>
+<td><a href="https://slurm.schedmd.com/sbatch.html">sbatch.html</a></td>
+</tr>
+<tr>
+<td>the <code>--time</code> forms</td>
+<td>sbatch.html</td>
+</tr>
+<tr>
+<td>without <code>--cpus-per-task</code>, one processor per task</td>
+<td>sbatch.html</td>
+</tr>
+<tr>
+<td><code>SLURM_SUBMIT_DIR</code> is &quot;The directory from which sbatch was invoked&quot;</td>
+<td>sbatch.html</td>
+</tr>
+<tr>
+<td>#SBATCH lines are read up to the first non-comment, non-whitespace line</td>
+<td>sbatch.html</td>
+</tr>
+<tr>
+<td><code>--parsable</code> prints the job id (<code>;cluster</code>)</td>
+<td>sbatch.html</td>
+</tr>
+<tr>
+<td><code>afterany</code> waits for the named jobs to end</td>
+<td>sbatch.html</td>
+</tr>
+</tbody>
+</table>
+<p><strong>PBS, LSF and other schedulers are out of scope.</strong> Only Slurm job arrays are written. Any scheduler can still run
+the <code>--run-shard</code> lines, and gather does not care who ran them.</p>
+<h2 id="the-shared-result-cache">The shared result cache</h2>
+<p><code>DiskResultCache(folder)</code> is a <code>core.jobs.ResultCache</code> with a folder behind its memory. A study result is stored under
+the SHA-256 of the canonical JSON of the ResultCache key: study, project content hash, settings hash, library entries'
+hash, active variant, dataset fingerprint. The key is the content, so an entry is never stale; it is only rewritten
+with the same bytes. The file is one header line (schema, key, payload length, payload SHA-256) followed by the
+payload. A reader checks the length and the hash, so a short or corrupt file reads as a miss.</p>
+<p><strong>Concurrent writers without locks.</strong> Each writer works in four steps:</p>
+<ol>
+<li>Write the whole file to a name no other writer uses: <code>.&lt;name&gt;.&lt;pid&gt;.&lt;uuid4&gt;.tmp</code> in the same folder.</li>
+<li>Flush and fsync it.</li>
+<li>Rename it over the final name. <a href="https://man7.org/linux/man-pages/man2/rename.2.html">rename(2)</a> replaces an
+existing name atomically, &quot;so that there is no point at which another process attempting to access newpath will
+find it missing&quot;.</li>
+<li>If the rename seems to fail but the target exists, take it as done. rename(2) warns that on NFS a retransmitted
+RPC can report failure for a rename that was done.</li>
+</ol>
+<p><a href="https://man7.org/linux/man-pages/man5/nfs.5.html">nfs(5)</a>'s close-to-open consistency (write-back on close, a server
+check on open) makes the file visible in full on other nodes.</p>
+<p><strong>Why there is no flock.</strong></p>
+<ul>
+<li>On NFS, <a href="https://man7.org/linux/man-pages/man2/flock.2.html">flock(2)</a> is emulated with fcntl byte-range locks
+(Linux 2.6.12 and later) and needs a write-open file.</li>
+<li>An NFS mount with <code>nolock</code> gives locks that exclude only processes on the same client (nfs(5)).</li>
+<li>On SMB, flock is not propagated before Linux 5.5 and is mandatory after it (flock(2)).</li>
+</ul>
+<p>A lock that silently does not lock is worse than none. (Pages read 2026-11-07.)</p>
+<p>A result that does not survive a JSON round trip exactly (a tuple, an integer key, a NumPy scalar) stays in memory
+only. <code>prune(folder)</code> removes temporary files left by writers that were killed.</p>
+<h2 id="validation">Validation</h2>
+<p><code>dexvantage --validate OUT --models cluster</code> (validation/checks_cluster.py). Measured 2026-11-07 on the development
+machine: 4 of 4 pass (full run 9.5 s, quick run 5.1 s). Each check is compared with an independent reference:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cluster.gather_equals_serial</code>: a 6-run Latin hypercube and a 6-draw tolerance Monte Carlo on the SO-100 sample (coverage), 3 shards each (full run: separate <code>--run-shard</code> processes)</td>
+<td>the same design and seed run serially in one process</td>
+<td>0 differing values (the code is the serial code, so any difference is a bug)</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>cluster.partition_exact</code>: m = 0 … 300, N = 1 … 40</td>
+<td>range(m), each index once</td>
+<td>0 pairs</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>cluster.cache_concurrent_writers</code>: 3 processes write and read the same 24 keys (about 200 kB each) at once</td>
+<td>each key's deterministic payload, compared in full</td>
+<td>0 bad reads or torn files, no temporary file left</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>cluster.sbatch_directives</code>: the #SBATCH options as Slurm reads them, and <code>bash -n</code></td>
+<td>the settings given, bash's own parser</td>
+<td>0 mismatches</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>The tests (tests/test_cluster.py, tests/test_cluster_ui.py) also check these:</p>
+<ul>
+<li>separate-process shards against the serial experiment and tolerance study, bit for bit as canonical JSON;</li>
+<li>the local pool against serial;</li>
+<li>the optimiser's pool and its three Slurm rounds against the serial search;</li>
+<li>four concurrent writers;</li>
+<li>cut, corrupt and foreign files;</li>
+<li>a mock <code>sbatch</code> on PATH (<code>--submit</code> and the optimiser's afterany chain);</li>
+<li>the job script run with Slurm's variables set.</li>
+</ul>
+<p>On a saved SO-100 project, <code>--tolerance-mc</code> (64 draws) gives the same result through three routes: in process,
+<code>--jobs 1</code> and <code>--jobs 4</code>. <code>--jobs 1</code> took 26.9 s and <code>--jobs 4</code> took 7.9 s (24 CPUs).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li><strong>Slurm only:</strong> no PBS or LSF scripts.</li>
+<li><strong>A shared filesystem:</strong> the job folder must be on a filesystem every node mounts (no staging to node-local disk).
+Filesystems without close-to-open consistency (some object-store mounts) are not supported.</li>
+<li><strong>Like machines:</strong> a figure that depends on the machine is identical only between like machines. For example, the
+GPU and CPU occlusion paths can differ at a silhouette.</li>
+<li><strong>The occlusion cube-map cache (fixed at integration):</strong> <code>core/occlusion.CubeCache</code> keyed a map by its origin
+rounded to 0.1 mm, so a process that had already built a map for an origin less than 0.1 mm away reused it.
+Measured: run 1 of an 8-run Latin hypercube on the SO-100 sample read 69.2431 % after other studies had run in the
+process, and 69.2448 % from a cold cache. The origin is now keyed exactly, so a long-lived process (the window, a
+notebook) and fresh shards build the same maps; the tests and the validation check still compare cold runs.</li>
+<li><strong>What must be installed:</strong> plugins and the modules a work names must be installed where the shards run. A dataset
+a data study reads by path must be at the same path on every node.</li>
+<li><strong>The optimiser on Slurm:</strong> one queue wait per generation; the design agent is not distributed.</li>
+<li><strong>Pool start-up:</strong> a worker costs the import of DexVantage (about a second) and its robot models.</li>
+<li><strong>Frozen bundles:</strong> they need multiprocessing's freeze support (Phase 11).</li>
+<li><strong>Untested items are trusted:</strong> gather assumes items are deterministic. When two attempts give an item, the first
+read is used.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

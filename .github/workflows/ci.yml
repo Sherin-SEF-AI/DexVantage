@@ -1,0 +1,214 @@
+# Lint, the test suite in shards, the self-test and the quick validation run, on every push and pull request.
+#
+# Third-party actions are pinned by commit SHA (the release tag in the comment; read 2026-11-08). To update one, read
+# its release notes, take the commit its new tag points to (git ls-remote https://github.com/OWNER/REPO TAG) and
+# change the SHA and the comment together. tests/test_ci_workflows.py refuses a `uses:` that is not SHA-pinned.
+#
+# Runners: GitHub retired macos-14 on 2026-11-02 (github.com/actions/runner-images/issues/15226), so macOS runs on
+# macos-15, which is Apple silicon (arm64) like macos-14 was. Every runner is named by its version, never -latest
+# (which moves to a new image over one to two months, the runner-images README says): Windows is windows-2025
+# (Windows Server 2025, the image windows-latest pointed to when read on 2026-11-08, with Inno Setup 6.7.1).
+#
+# Rendering without a GPU: DexVantage renders MuJoCo scenes in a worker process that sets MUJOCO_GL=egl itself
+# (dexvantage/validation/mjrender.py worker_env); the test and validation processes run as a user's would, with
+# MUJOCO_GL unset. On Linux, Mesa's EGL with the llvmpipe software renderer stands in for a GPU (the apt step below):
+# the rendered tests passed on llvmpipe with MUJOCO_GL unset and DEXVANTAGE_TEST_RENDER=require (2026-11-08, Mesa
+# alone through __EGL_VENDOR_LIBRARY_FILENAMES with LIBGL_ALWAYS_SOFTWARE=1: 213 tests, 21 minutes on a 12-core
+# desktop, docs/packaging.md). OSMesa is not used (MUJOCO_GL=osmesa without libOSMesa makes `import mujoco` itself
+# fail). Windows and macOS have no EGL: there the tests marked `mujoco_render` skip with that reason
+# (tests/render_support.py), and the validation run, whose rendered checks need EGL, runs on Linux only.
+# DEXVANTAGE_TEST_RENDER=require on Linux turns a missing renderer into a failure, so those tests are never skipped
+# there unnoticed.
+#
+# Memory: a runner has 7 GB. The whole suite in one process peaked at 6.4 GB (docs/BUILD_STATE.md), so it runs as six
+# shards of whole test files (scripts/ci_shards.py), each in a fresh process; test_validation, the heaviest by memory,
+# has a shard of its own.
+#
+# Caches: pip's download cache (actions/setup-python). The MuJoCo Menagerie models the samples and tests use are
+# bundled in the repository (dexvantage/resources/robots, THIRD_PARTY.md) and the tests never download any, so there
+# is no asset cache.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PYTHONUNBUFFERED: '1'
+  # Python's UTF-8 mode, as in the bundles (X utf8, packaging/dexvantage.spec); on Linux and macOS the locale's
+  # encoding is UTF-8 anyway. 77 opens in the tests (ruff --preview --select PLW1514 tests) read the UTF-8 files the
+  # app writes without naming an encoding, which on Windows would otherwise be its ANSI code page. The app's own code
+  # names its encodings (the same rule on dexvantage/ finds four opens without one, each writing ASCII only).
+  PYTHONUTF8: '1'
+  QT_QPA_PLATFORM: offscreen
+  EXTRAS: test,lerobot,bags,usd,assistant,rerun,step,research,tracking,dev
+
+jobs:
+  lint:
+    name: Lint (ruff, actionlint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+
+      - name: Ruff
+        run: |
+          python -m pip install ruff==0.17.4
+          python -m ruff check dexvantage tests scripts examples packaging
+
+      - name: Workflows (actionlint, with the runner's shellcheck)
+        run: |
+          # downloads actionlint 1.7.12 into out/tools and refuses it unless its SHA-256 is the published one
+          ACTIONLINT=$(python scripts/get_actionlint.py)
+          "$ACTIONLINT" -color
+
+  tests:
+    name: Tests ${{ matrix.target.os }} py${{ matrix.target.python }} shard ${{ matrix.shard }}/6
+    runs-on: ${{ matrix.target.os }}
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        # requires-python is >=3.10 (pyproject.toml): 3.12 and 3.14, the newest the dependencies' wheels and the
+        # suite were run on, here; 3.10, the oldest, in the job "oldest-python" below
+        target:
+          - {os: ubuntu-24.04, python: '3.12'}
+          - {os: ubuntu-24.04, python: '3.14'}
+          - {os: windows-2025, python: '3.12'}
+          - {os: macos-15, python: '3.12'}
+        shard: [0, 1, 2, 3, 4, 5]
+    env:
+      DEXVANTAGE_TEST_RENDER: ${{ startsWith(matrix.target.os, 'ubuntu') && 'require' || 'auto' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.target.python }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            .github/ci-constraints.txt
+
+      - name: Qt, OpenGL and EGL libraries (Linux)
+        if: runner.os == 'Linux'
+        run: bash .github/scripts/apt-gl-qt.sh
+
+      - name: Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c .github/ci-constraints.txt -e ".[${EXTRAS}]"
+
+      - name: Test shard ${{ matrix.shard }} of 6
+        run: |
+          mkdir -p out
+          python scripts/ci_shards.py --shards 6 --index "${{ matrix.shard }}" --run -- \
+            -q -p no:cacheprovider -rs --junitxml="out/junit-${{ matrix.shard }}.xml"
+
+      - name: Keep the test report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: junit-${{ matrix.target.os }}-py${{ matrix.target.python }}-shard${{ matrix.shard }}
+          path: out/junit-*.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  checks:
+    name: Self-test and validation ${{ matrix.target.os }} py${{ matrix.target.python }}
+    runs-on: ${{ matrix.target.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {os: ubuntu-24.04, python: '3.12'}
+          - {os: ubuntu-24.04, python: '3.14'}
+          - {os: windows-2025, python: '3.12'}
+          - {os: macos-15, python: '3.12'}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.target.python }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            .github/ci-constraints.txt
+
+      - name: Qt, OpenGL and EGL libraries (Linux)
+        if: runner.os == 'Linux'
+        run: bash .github/scripts/apt-gl-qt.sh
+
+      - name: Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c .github/ci-constraints.txt -e ".[${EXTRAS}]"
+
+      - name: Self-test
+        run: python -m dexvantage --self-test
+
+      - name: Validation suite, quick run (Linux; the rendered checks need EGL)
+        if: runner.os == 'Linux'
+        run: python -m dexvantage --validate out/validation --quick
+
+      - name: Keep the validation report
+        if: always() && runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: validation-${{ matrix.target.os }}-py${{ matrix.target.python }}
+          path: out/validation
+          if-no-files-found: warn
+          retention-days: 30
+
+  oldest-python:
+    name: Oldest supported Python (3.10), install and self-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.10'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Qt, OpenGL and EGL libraries
+        run: bash .github/scripts/apt-gl-qt.sh
+
+      - name: Install from the source tree, without the CI constraints
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+          python -m pip list
+
+      - name: Self-test
+        run: |
+          cd "$RUNNER_TEMP"
+          python -m dexvantage --self-test

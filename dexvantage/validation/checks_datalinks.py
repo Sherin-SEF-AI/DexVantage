@@ -18,7 +18,7 @@ import math
 
 import numpy as np
 
-from .suite import Outcome, check
+from .suite import LEROBOT, Outcome, check
 
 FPS = 20
 
@@ -27,7 +27,7 @@ FPS = 20
        'largest |gripper frame at a stroke\'s onset − the forward kinematics of the script at that time| (m); the '
        'strokes found must be the script\'s closing ranges, row for row, in both episodes',
        'the closing ranges the scripted pick is built with, and MuJoCo forward kinematics of its joint vectors', 1e-6,
-       'm', refs=('lerobot_dataset_format', 'mujoco_todorov2012'))
+       'm', refs=('lerobot_dataset_format', 'mujoco_todorov2012'), needs=LEROBOT)
 def _dataset_closures(ctx):
     from ..core import grasps as GR
     from ..core.datasets import lerobot as L
@@ -74,7 +74,7 @@ def _dataset_closures(ctx):
        'distance of the calibrated camera from the mount the frames were rendered through (mm); its rotation must '
        'also be within 0.05°', 'the true mount: the project\'s mount moved by simcapture\'s default offset (2.06 mm, '
        '0.62°), through which the board images were rendered', 0.2, 'mm',
-       refs=('lerobot_dataset_format', 'opencv_charuco', 'park_martin1994'), cost='study')
+       refs=('lerobot_dataset_format', 'opencv_charuco', 'park_martin1994'), cost='study', needs=LEROBOT)
 def _dataset_capture(ctx):
     from ..core.calib import capture as CAP
     from ..core.calib import handeye as HE

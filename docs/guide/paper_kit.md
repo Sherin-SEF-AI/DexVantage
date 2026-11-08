@@ -38,7 +38,7 @@ batch result files you already have, and `"siunitx": true`, `"widths": ["single"
 
 `out/paper_kit/methods.tex` starts:
 
-> We planned the sensing rig with DexVantage~\cite{dexvantage} version \texttt{0.1.0.dev0} (commit …), which loads
+> We planned the sensing rig with DexVantage~\cite{dexvantage} version \texttt{0.1.0rc1} (commit …), which loads
 > the robot models with MuJoCo~\cite{mujoco_todorov2012} version 3.17.0 under Python 3.14.4.
 >
 > UR5e + Robotiq 2F-85 is the primary robot, whose base is the world frame (x forward, y left, z up), modelled from

@@ -40,7 +40,7 @@ def test_entry_is_valid_and_every_stated_figure_names_its_source(path):
     assert d['kind'] == 'policy'
     assert L.validate(d) == [] and L.validate_minimal(d) == []
     assert PO.entry_problems(d) == []
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     jsonschema.Draft202012Validator(L.schema()).validate(d)
     for s in d['sources']:
         assert s['url'].startswith('https://') and s['read'] in ('2026-11-06', '2026-11-07') and s.get('title')
@@ -159,7 +159,7 @@ def test_schema_copies_are_identical_and_validate_policies():
     a = open(os.path.join(ROOT, 'docs', 'project.schema.json'), encoding='utf-8').read()
     b = open(os.path.join(ROOT, 'dexvantage', 'resources', 'project.schema.json'), encoding='utf-8').read()
     assert a == b
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     schema = json.loads(a)
     doc = json.loads(json.dumps(_project().to_dict()))
     jsonschema.validate(doc, schema)

@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grasp self-occlusion · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/studies/grasp_visibility.py (study id grasp_visibility, batch flag --grasp OUT.json).Page: dexvantage/ui/pages/grasp.py (Analysis ▸ Grasp self-occlusion, Grasp study workspace). Checks:dexvantage/validation/checks_grasp.py (grasp.visibility_vs_raycast …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-it-computes">What it computes</a>
+    <a href="#measures-and-the-score">Measures and the score</a>
+    <a href="#outputs">Outputs</a>
+    <a href="#performance-budget-measured">Performance budget (measured)</a>
+    <a href="#validation">Validation</a>
+    <a href="#on-the-samples">On the samples</a>
+    <a href="#settings">Settings</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/grasp.md"><code>docs/models/grasp.md</code></a></p>
+<h1 id="grasp">Grasp self-occlusion</h1>
+<p>Module: <code>dexvantage/core/studies/grasp_visibility.py</code> (study id <code>grasp_visibility</code>, batch flag <code>--grasp OUT.json</code>).
+Page: <code>dexvantage/ui/pages/grasp.py</code> (Analysis ▸ Grasp self-occlusion, Grasp study workspace). Checks:
+<code>dexvantage/validation/checks_grasp.py</code> (<code>grasp.visibility_vs_raycast</code>, <code>grasp.bootstrap_coverage</code>,
+<code>grasp.qbucket_vs_exact</code>). Tests: <code>tests/test_grasp_visibility.py</code>. Timing script: <code>scripts/measure_grasp.py</code>. Spec
+§7.3 and the §16 performance budget. Builds on <a href="grasps.html">Grasp sets</a> (grasp sets, contact patches, the TCP),
+<a href="ik.html">Inverse kinematics, manipulability and collision distances</a>, <a href="occlusion.html">Occlusion: articulated cube maps and exact ray casting</a>, <a href="optics.html">Optics: lens models, pixel density and defocus</a> and <a href="camview.html">The Camera view: a sensor's simulated image</a>.</p>
+<p>The question: at the moment of grasp, can the rig's cameras see the fingertips and the object, and on the way in? A
+policy trained on images can only learn contact it can see.</p>
+<h2 id="what-it-computes">What it computes</h2>
+<p><strong>1. Inverse kinematics.</strong> The grasp set (<code>project.tasks.grasp_sets</code>, read through <code>core/grasps.py</code>; settings
+<code>grasp_set</code>, default the first set) holds gripper-frame poses at contact. <code>grasps.ik_targets</code> turns each into a target
+for the grasp centre (TCP), and <code>ik.solve_batch</code> solves them all at once: damped least squares with joint-limit
+avoidance and <code>ik_seeds</code> seeds (default 8), retrying unsolved targets from fresh seeds (see <a href="ik.html">Inverse kinematics, manipulability and collision distances</a>). A
+solution must be free of self-collision (<code>ik</code>'s own test) and of the project's obstacles by <code>collision_margin_m</code>
+(default 0 m): <code>collision.obstacle_distance</code> against the task objects, the tables and the static geoms of the robot's
+file. A grasp whose solution hits an obstacle is solved again twice, each time from seeds drawn uniformly within the
+limits and keeping the solution nearest such a draw (<code>nearest_q0</code>), so that another IK branch can be found; if none
+is clear, it is infeasible with the reason <code>obstacle collision</code>. Infeasible grasps are counted by reason
+(<code>out of reach</code>, <code>joint limit</code>, <code>orientation unreachable</code>, <code>self-collision</code>, <code>no convergence</code>, <code>obstacle collision</code>),
+and the result names the link and obstacle of each obstacle hit (<code>ik.obstacle_pairs</code>). Among several solutions,
+<code>rule</code> picks one: <code>nearest_home</code> (default) or <code>most_manipulable</code>. Joints that do not move the gripper (its fingers,
+another arm) stay at the joint state of the settings <code>q</code> (else home).</p>
+<p>Optional backends (<code>ik_backend</code>): <code>pinocchio</code> (<code>pip install pin</code>) and <code>curobo</code> (NVIDIA cuRobo, CUDA). They are
+imported only when asked for, only for a robot read from a URDF (the file is in the project), and every solution they
+return is checked again with DexVantage's forward kinematics (target within 10 × the IK tolerance) and self-collision
+test. Without the package the study says how to install it or to use <code>dls</code>. Neither package was installed where this
+was built, so these two paths are untested here.</p>
+<p><strong>2. Contact points.</strong> Each fingertip's contact patch (<code>grasps.contact_patches</code>: the robot's tagged pads, else the inner
+faces of the fingertip links' collision geoms, 128 points per pad) is held in its link's frame and carried to each
+solution q. Because the patch comes from the collision geometry and the cameras see the visual meshes, each point is
+first moved onto the visual surface in front of it: a ray from <code>snap_mm</code> (default 5 mm) outside the point, back along
+its normal, against the robot's visual meshes at home. On the UR5e sample no point moves; on the SO-100, 3 of the fixed
+jaw's 128 points and 14 of the moving jaw's do. For a grasp on a task object, the object's grasp region is the part of
+<code>object_points</code> (400 points drawn on its surface by area, seeded) within <code>region_radius_m</code> (default 30 mm) of the grasp
+centre (the 8 nearest when fewer lie within it).</p>
+<p><strong>3. Visibility.</strong> What is tested is the <em>contact location</em>: each patch point P lifted <code>lift_mm</code> (default 2 mm) along
+its outward normal n, just in front of the pad's face, where the object meets it. From a camera with optical centre o
+and rotation R, the point is visible when</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>in image</td>
+<td><code>CameraModel.project(Rᵀ (P − o))</code> is ok: in front, within the lens model's valid angle, inside the image (the imager's library model at its stream)</td>
+</tr>
+<tr>
+<td>not hidden</td>
+<td>nothing of the scene is nearer along the line of sight to P + lift · n, less ε: <code>CubeMap.visible</code>, ε = <code>eps_mm</code> (default 1 mm), with the cube map of distances around o of the robots' visual meshes posed at q, the task objects and the tables (the camera's seat on its mount link left out by <code>scenegeom.sensor_occluders</code>' rule)</td>
+</tr>
+<tr>
+<td>facing (optional)</td>
+<td>with <code>max_view_angle_deg</code> set (off by default): the angle between n and o − P is at most that</td>
+</tr>
+</tbody>
+</table>
+<p>Why the lift. The two inner faces of a parallel gripper face each other, so no camera outside the gap sees both of them
+head-on, and a camera looking at the pinch from the side (in profile) sees both at a grazing angle. Testing the faces
+themselves (an earlier draft required the face to turn within 80° of the camera) called every profile view blind: on
+the SO-100 sample, 0 % of grasps had both fingertips at 50 % visible. Testing the location in front of the face asks
+what an image shows: a camera behind a finger has that finger in the way (the segment to the lifted point crosses the
+pad), a camera in profile sees both contact locations. The object region is tested the same way (lifted along the
+object's normals).</p>
+<p>The camera of a sensor is chosen as in coverage (<code>coverage.pick_imager</code>): a depth sensor's RGB imager when it has one.
+Settings <code>sensors</code> limits the study to some cameras; <code>modes</code> and <code>imagers</code> as in coverage.</p>
+<p><strong>Culling.</strong> Each map draws only the triangles that can lie between o and the points: those whose bounding sphere (per
+link, then per triangle; centre and radius held in the link's frame) meets the cone from o around the lifted points,
+widened by 2° and 2 cm. The test is conservative: with w = C − o, the cone's axis a and half-angle θ, a sphere of
+radius r is kept when |w − (w · a) a| cos θ − (w · a) sin θ ≤ r (the distance from its centre to the cone's surface
+when it is within θ + 90° of the axis; beyond that the nearest point is the apex, which is never nearer) and
+|w| − r ≤ the cone's length. A triangle outside the cone cannot hide any of the points, so a culled map answers as the
+full scene's does for them; the validation check compares with ray casting of the full scene. A link of more than 64
+triangles is tested in runs of 256 consecutive triangles first (<code>CULL_CHUNK</code>, a speed setting), each run's sphere
+holding its triangles' spheres: the test's distance is 1-Lipschitz in the sphere's centre, so a run whose sphere misses
+the cone holds no triangle that meets it, and the triangles kept are exactly the per-triangle test's
+(<code>tests/test_grasp_cull.py</code>). A camera with no point in its image draws no map.</p>
+<p><strong>4. The q-bucket cache.</strong> The joint state is quantised: the grasp robot's joint vector divided by <code>q_bucket_deg</code>
+(default 0.1°; prismatic joints by <code>q_bucket_mm</code>, default 0.5 mm) and rounded is the bucket key. Every grasp or
+pre-contact pose in a bucket is evaluated at the bucket's first joint vector: its maps, its camera poses and its
+contact points (world-fixed points, the object region, keep their own positions). A map is reused when the points lie
+inside the cone it was drawn for (else it is drawn again). Grasps are evaluated in a seeded random order with the
+members of a bucket together, so partial results are an unbiased sample and a bucket's map is used while it is fresh
+(an LRU of 256 MB of maps). Why not reuse a map for a slightly different q: a map holds the pads' own surfaces, and at
+another q the pad points move by up to about 2.6 mm against them, more than ε; an early version did that and the
+reported visible share of a patch changed by up to 75 points. Quantising q keeps the points and the map consistent.
+On sampled sets almost every grasp has its own bucket (hit rate 0 % on the samples); duplicates and the still phases
+of a trajectory reuse.</p>
+<p><strong>5. Pre-contact.</strong> The gripper backed off along −approach by <code>precontact_cm</code> (default 5 cm) in <code>precontact_steps</code>
+equal steps (default 2: 2.5 and 5 cm). Each step is solved by IK from the previous one (rule <code>nearest_q0</code>, one seed
+plus home, so the arm does not change branch; self-collision checked, obstacles not), and the same visibility measured
+there.</p>
+<h2 id="measures-and-the-score">Measures and the score</h2>
+<p>Per grasp and camera: each fingertip's visible fraction (the share of its patch's points visible; the points are spread
+evenly by area, so this is the visible share of the patch), the object region's visible fraction, and both at each
+pre-contact step.</p>
+<p><strong>The requirement</strong> (<code>requirement</code>, <code>min_visible</code>, <code>min_cameras</code>, <code>same_camera</code>; defaults <code>all_fingertips</code>, 50 %, 1,
+true: one camera sees every fingertip at 50 % or more; DexVantage defaults, not standards) gives each grasp a score:</p>
+<table>
+<thead>
+<tr>
+<th>requirement</th>
+<th>per camera c</th>
+<th>over cameras</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>all_fingertips</code></td>
+<td>s_c = min over fingertips of the visible fraction</td>
+<td>the <code>min_cameras</code>-th largest s_c</td>
+</tr>
+<tr>
+<td><code>any_fingertip</code></td>
+<td>s_c = max over fingertips</td>
+<td>the <code>min_cameras</code>-th largest</td>
+</tr>
+<tr>
+<td><code>object</code></td>
+<td>s_c = the object region's fraction</td>
+<td>the <code>min_cameras</code>-th largest</td>
+</tr>
+<tr>
+<td><code>fingertips_and_object</code></td>
+<td>s_c = min(min over fingertips, object)</td>
+<td>the <code>min_cameras</code>-th largest</td>
+</tr>
+</tbody>
+</table>
+<p>With <code>same_camera</code> false (<code>all_fingertips</code>, <code>fingertips_and_object</code>), each fingertip takes its own <code>min_cameras</code>-th
+best camera and the score is the weakest of those. The requirement holds when score ≥ <code>min_visible</code>.</p>
+<p><strong>The Contact Visibility Score</strong> (CVS) is the share of the feasible grasps where it holds (for the object requirements,
+of those with an object region), CVS = k / n. Its interval is the percentile bootstrap [Efron 1979] at <code>ci</code> (default
+95 %) from <code>bootstrap</code> resamples (default 2000) seeded by <code>rng_seed</code>: the resampled mean of a 0/1 indicator of n
+grasps is Binomial(n, p̂)/n exactly, so that is drawn directly instead of resampling the grasps (the same
+distribution). Wilson's score interval [Wilson 1927],</p>
+<pre><code>(p̂ + z²/2n ± z √(p̂(1 − p̂)/n + z²/4n²)) / (1 + z²/n),
+</code></pre>
+<p>is given beside it. When every grasp passes (or none does) the bootstrap interval is a point, and the page says so and
+shows Wilson's. Also reported: the CVS of all grasps (infeasible ones failing), the both-fingertips-visible rate per
+camera and for the rig, the object's visibility, the pre-contact visibility per step, and per camera why contact
+points are not seen: outside the image, behind their own finger (n · (o − P) ≤ 0, the face turned away), or hidden by
+the scene. The headline's status is <code>good</code> from <code>good_pct</code> (90 %), <code>warning</code> from <code>warn_pct</code> (70 %), <code>serious</code> from
+<code>serious_pct</code> (40 %), else <code>critical</code> (defaults, not standards).</p>
+<h2 id="outputs">Outputs</h2>
+<ul>
+<li><strong>Per-grasp table</strong> (<code>grasps</code>, <code>decode(doc)</code>): id, kind, object, TCP, feasible and reason, score, meets,
+manipulability, q (float32, NaN when infeasible), the fingertip fractions (N, C, F), the object fractions (N, C) and
+the pre-contact fractions (S, N, C, F); arrays zlib-compressed in base64 as coverage stores voxels.</li>
+<li><strong>Heatmap over the task volume</strong>: the page draws each grasp centre as a small octahedron coloured by score on a
+diverging ramp centred on <code>min_visible</code> (blue at or above, orange below, grey unreachable), and the Camera view the
+same centres as crosses by pass, fail, unreachable.</li>
+<li><strong>Worst-case gallery</strong>: Camera view renders (<code>core/camrender.render</code>, <code>gallery_px</code> wide, default 320) of the
+<code>gallery</code> (default 6) lowest-scoring feasible grasps from every camera (up to 4), each contact point marked by state.</li>
+<li><strong>What to move</strong>: on a seeded subset of <code>sens_grasps</code> feasible grasps (default 250), one camera at a time moved by
+±<code>sens_step_m</code> (default 2 cm) along each axis of its mount's parent frame (the world for a fixed mount, the link for
+one on a robot) or turned by ±<code>sens_step_deg</code> (default 5°) about its optical x (tilt), y (pan) or z (roll) axis
+(the turn is about the optical centre, written back as a mount pose: mount′ = mount · T_bo · Rot · T_bo⁻¹). The CVS
+on the subset is recomputed with only that camera changed; moves are ranked by ΔCVS (paired; a paired bootstrap
+interval of 1000 resamples) and then by the mean change of the score. A turn reuses the maps (they are aligned with
+the world, and the centre does not move); a move draws new ones at the new centre. The best move (the first with
+ΔCVS &gt; 0, else the first that raises the mean score) carries its new mount pose: the page's Apply.</li>
+<li><strong>Throughput</strong>: grasps per second overall and of the visibility step, maps drawn and per second, the cache hit rate,
+the renderer, and the timing of each phase. Above <code>BACKGROUND_GRASPS</code> (2,000) grasps the study hands partial
+results to the page (<code>ctx.partial</code>, the running CVS and throughput).</li>
+</ul>
+<h2 id="performance-budget-measured">Performance budget (measured)</h2>
+<p>The current figures for every sample, with the budget used and where the time goes, are in
+<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/performance.md">../performance.md</a> (<code>scripts/benchmarks.py</code>); the table below is the Phase 3 measurement.</p>
+<p><code>scripts/measure_grasp.py --n 2000</code> on the UR5e sample: 2,000 grasps sampled by <code>grasps.sample</code> (top-down, side and
+angled, seed 0), default settings (cube maps of 512 texels, two pre-contact steps, sensitivity on 250 grasps, a
+gallery of 6). 1,322 grasps are reachable (the rest mostly bring the wrist into the table); 10,808 cube maps are drawn.
+Measured 2026-11-06 with the GPU through EGL in the study's own process, numpy 2 on Python 3.14:</p>
+<table>
+<thead>
+<tr>
+<th>Renderer (EGL device)</th>
+<th>Total</th>
+<th>IK</th>
+<th>Pre-contact IK</th>
+<th>Visibility</th>
+<th>What to move</th>
+<th>Gallery</th>
+<th>Grasps/s</th>
+<th>Maps/s</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NVIDIA GeForce RTX 5080 (EGL device 0)</td>
+<td>111.6 s</td>
+<td>13.2 s</td>
+<td>1.0 s</td>
+<td>68.8 s</td>
+<td>27.3 s</td>
+<td>1.1 s</td>
+<td>17.9</td>
+<td>171</td>
+</tr>
+<tr>
+<td>AMD Radeon Graphics, the Ryzen 9 9900X's integrated GPU (radeonsi, EGL device 2)</td>
+<td>131.3 s</td>
+<td>13.3 s</td>
+<td>0.9 s</td>
+<td>83.7 s</td>
+<td>31.8 s</td>
+<td>1.3 s</td>
+<td>15.2</td>
+<td>132</td>
+</tr>
+<tr>
+<td>RTX 5080, <code>cube_n</code> 256</td>
+<td>85.5 s</td>
+<td>13.3 s</td>
+<td>0.9 s</td>
+<td>51.1 s</td>
+<td>18.7 s</td>
+<td>1.1 s</td>
+<td>23.4</td>
+<td>283</td>
+</tr>
+<tr>
+<td>RTX 5080, <code>sensitivity</code> off</td>
+<td>83.6 s</td>
+<td>13.2 s</td>
+<td>1.0 s</td>
+<td>68.0 s</td>
+<td>—</td>
+<td>1.2 s</td>
+<td>23.9</td>
+<td>173</td>
+</tr>
+</tbody>
+</table>
+<p>The two GPUs give identical results (the same 1,322 grasps, CVS 100 %). The integrated GPU is only 18 % slower: the
+time goes into each map's upload, draw and read-back of 6 × 512² floats and the numpy work around it (<code>occlusion.py</code>),
+not into the triangles. In the window, PyOpenGL may already be loaded for the display, and then the maps are drawn in a
+worker process (<code>occlusion._GLWorkerClient</code>); forcing that path (<code>PYOPENGL_PLATFORM=glx</code>, 300 grasps, sensitivity off)
+measured 100 maps/s against 168 in process, so expect about 1.5 × the visibility time there. Without a GPU
+(<code>backend: numpy</code>) the reference rasteriser draws 7 maps/s (20 grasps, sensitivity off: 14.4 s), about 25 × slower:
+use a smaller set. Knobs, in the order they help: <code>sensitivity</code> off or a smaller <code>sens_grasps</code>; <code>cube_n</code> 256 (a texel
+of 7.8 mrad at a face centre: 6 mm at the overhead camera's 0.8 m, so check the validation figures before relying on
+it); <code>precontact_steps</code> 1.</p>
+<h2 id="validation">Validation</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured (seed 20261027, full run, RTX 5080)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>grasp.visibility_vs_raycast</code></td>
+<td>exact ray casting (<code>raycast.visible_exact</code>) of the full scene from <code>scenegeom.sensor_occluders</code>: no culling, no cube map, no q-bucket; UR5e sample with a 50 mm box, 10 feasible grasps of 40 sampled, both cameras, pads and object region, all 7,892 lifted contact locations</td>
+<td>10⁻³ of the points away from an edge (and under 2 % overall)</td>
+<td>0 away from an edge; 71 (0.90 %) within two texels of an edge</td>
+</tr>
+<tr>
+<td><code>grasp.bootstrap_coverage</code></td>
+<td>the known p of synthetic binomial samples (n = 100, 300, 1000; p = 0.3, 0.7, 0.9; 1000 seeded samples each); Wilson's interval on the same samples</td>
+<td>coverage within 0.01 + 3 standard errors (0.031) of 95 %; mean endpoint gap to Wilson ≤ 0.02</td>
+<td>largest coverage gap 0.017 (bootstrap 0.939 to 0.967, Wilson 0.935 to 0.966 over the nine cases); mean endpoint gap at most 0.013 (n = 100), 0.0012 to 0.0015 at n = 1000</td>
+</tr>
+<tr>
+<td><code>grasp.qbucket_vs_exact</code></td>
+<td>the same visibility evaluated at each joint vector with maps drawn there; UR5e sample, 12 pairs of joint vectors drawn in one 0.1° bucket</td>
+<td>mean difference of a patch's visible fraction ≤ 0.02; largest ≤ 0.15; the cache was used</td>
+<td>mean 0.0024, largest 0.055 (7 of 128 points); over four seeds the mean ranged 0.0005 to 0.008 and the largest reached 0.07</td>
+</tr>
+</tbody>
+</table>
+<p>The edge test of the first check moves each point by two texels' angle within the plane of its own surface (not across
+the line of sight, as <code>raycast.near_silhouette</code> does: that moves a point on a surface off it, and flagged 239 of 256 pad
+points as near an edge). The q-bucket check's largest differences come from an occluder's edge crossing a patch: a
+row of the 2F-85 pad's grid (about 11 points) flips at once. That is a real change of the view between two joint
+vectors 0.1° apart, so the tolerance holds the mean.</p>
+<h2 id="on-the-samples">On the samples</h2>
+<p>With the defaults, 200 grasps (top-down, side and angled, seed 0): the UR5e sample's Wrist D405 sees 95 % of each pad
+in every reachable grasp (133 of 200; 64 put the wrist into the table), CVS 100 % [100–100] (Wilson 97.2–100 %). The
+Overhead D435 alone (<code>sensors</code> set to it) scores 34.6 % [26.3–42.9] (Wilson 27.0–43.0 %): it sees 42 % of the contact
+points, 25 % are behind their own finger and 33 % hidden by the scene, mostly the gripper above the pads in top-down
+grasps. The SO-100 sample: 120 of 200 reachable (47 joint limit, 33 out of reach), CVS 100 %; its third-person camera
+sees 50 % of the contact points (38 % are behind their own finger). The worked example is in <a href="../guide/grasp.html">Grasp self-occlusion: a worked example on the UR5e sample</a>.</p>
+<h2 id="settings">Settings</h2>
+<p><code>project.analysis.studies['grasp_visibility']</code>, every key optional, defaults in <code>grasp_visibility.DEFAULTS</code>:
+<code>grasp_set</code>, <code>q</code>, <code>rule</code>, <code>ik_backend</code>, <code>ik_seeds</code>, <code>collision_margin_m</code>, <code>requirement</code>, <code>min_visible</code>,
+<code>min_cameras</code>, <code>same_camera</code>, <code>precontact_cm</code>, <code>precontact_steps</code>, <code>region_radius_m</code>, <code>object_points</code>, <code>lift_mm</code>,
+<code>max_view_angle_deg</code>, <code>snap_mm</code>, <code>eps_mm</code>, <code>cube_n</code>, <code>backend</code>, <code>q_bucket_deg</code>, <code>q_bucket_mm</code>, <code>bootstrap</code>, <code>ci</code>,
+<code>rng_seed</code>, <code>good_pct</code>, <code>warn_pct</code>, <code>serious_pct</code>, <code>sensitivity</code>, <code>sens_grasps</code>, <code>sens_step_m</code>, <code>sens_step_deg</code>,
+<code>gallery</code>, <code>gallery_px</code>, <code>sensors</code>, <code>modes</code>, <code>imagers</code>, <code>depth_imager</code>, <code>limit</code> (evaluate at most this many grasps,
+evenly picked), <code>chunk</code>. The result's <code>settings.defaults</code> lists the keys left at their default. The page's Run passes
+the 3D view's joint state for the robots the grasps do not move.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>Visibility is per cube-map texel: a point within about a texel of an edge may be judged either way (0.9 % of the
+points in the check; a texel is 3.9 mrad at a face centre at 512).</li>
+<li>The fingers stay at their home opening; they are not closed to the object's width. The 2F-85's linkage joints are
+independent entries of q (core/robot/model.py).</li>
+<li>The contact patch comes from the collision geometry, moved onto the visual mesh only within <code>snap_mm</code>; the tested
+location is <code>lift_mm</code> in front of it, a convention, not a contact model.</li>
+<li>The object's grasp region is a ball around the grasp centre on the object's surface, not the true contact footprint.</li>
+<li>IK is a local method: a reachable grasp can be reported infeasible (<code>no convergence</code>). A 5-joint arm (the SO-100) is
+solved position-first, so its orientation may differ from the grasp's.</li>
+<li>Obstacles are checked at contact, not along the approach; the approach is a straight line along <code>approach</code>.</li>
+<li>No sensor housings occlude (scenegeom); materials, lighting and motion blur are other studies.</li>
+<li>What to move is one camera and one axis at a time on a subset (interactions between moves are not explored); a
+change within its interval's reach of zero may be noise, and the page says so.</li>
+<li>The pinocchio and cuRobo backends are untested here (not installed).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

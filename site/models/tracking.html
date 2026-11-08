@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experiment tracker · DexVantage</title>
+<meta name="description" content="dexvantage/core/tracking/ keeps a record of every study run, designed experiment, optimiser run, tolerance MonteCarlo and readiness scorecard (--check) as a run, in a run store beside the project, and exports the runs tothe tools research teams already use (CSV, Parquet, MLflow, Weights &amp; Biases). …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#opt-in">Opt-in</a>
+    <a href="#a-run-schema-dexvantagerun1-coretrackingrecordpy">A run (schema dexvantage.run/1, core/tracking/record.py)</a>
+    <a href="#the-run-store-coretrackingstorepy">The run store (core/tracking/store.py)</a>
+    <a href="#comparing-runs-compare">Comparing runs (compare())</a>
+    <a href="#re-running-a-run-rerun">Re-running a run (rerun())</a>
+    <a href="#exports-export">Exports (export())</a>
+    <a href="#validation-dexvantagevalidationchecks_trackingpy">Validation (dexvantage/validation/checks_tracking.py)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/tracking.md"><code>docs/models/tracking.md</code></a></p>
+<h1 id="experiment-tracker">Experiment tracker</h1>
+<p><code>dexvantage/core/tracking/</code> keeps a record of every study run, designed experiment, optimiser run, tolerance Monte
+Carlo and readiness scorecard (<code>--check</code>) as a <strong>run</strong>, in a <strong>run store</strong> beside the project, and exports the runs to
+the tools research teams already use (CSV, Parquet, MLflow, Weights &amp; Biases). The Runs page (Analysis ▸ Runs), batch
+mode (<code>--track</code>, <code>--runs</code>, <code>--runs-export</code>), the Python API (<code>dv.runs</code>, <code>dv.track</code>) and the assistant (<code>get_runs</code>)
+read the same store.</p>
+<p>The tracker computes no figure of its own: every number in a run is a number its study's result states, read
+through <code>core/metrics</code> (<code>read()</code>: <code>None</code> with status &quot;not stated&quot; when the result does not state it, <code>bound</code> kept
+when the study states only a bound).</p>
+<h2 id="opt-in">Opt-in</h2>
+<p>Nothing is logged unless the project turns tracking on, <code>project.analysis.studies['tracking']</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default (a labelled default)</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td><code>false</code></td>
+<td>log runs of this project</td>
+</tr>
+<tr>
+<td><code>folder</code></td>
+<td><code>''</code></td>
+<td>the run store; empty: <code>&lt;project file name&gt;.runs</code> beside the project file; relative paths from the project's folder</td>
+</tr>
+<tr>
+<td><code>quick</code></td>
+<td><code>false</code></td>
+<td>also log the quick studies the window re-runs after each edit (off: they would log a run per edit)</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td><code>[]</code></td>
+<td>tags added to every run logged from this project</td>
+</tr>
+</tbody>
+</table>
+<p>or batch mode is given <code>--track DIR</code>. The setting is left out of the project's content hash
+(<code>core/provenance.py</code>, <code>_UI_STUDIES</code>, as the live toggle is): turning tracking on does not make the project &quot;differ&quot;
+from the runs logged before it, and a project that never had the setting hashes exactly as before.</p>
+<p>In the window, a result is logged when the analysis controller finishes it (a worker thread writes it), unless it is
+a quick study and <code>quick</code> is off, the tracker's own summary, a result already logged in the session (the same store,
+study, project hash, variant and result hash, so a result from the cache is not logged twice), or a result made
+before the latest edit (its project is no longer the one in the window). A study that refuses is logged as a
+<strong>failed</strong> run with its plain sentence. In batch mode and the API every requested run is logged: study flags,
+<code>--experiment</code>, <code>--check</code>, <code>--stats</code>, <code>--campaign</code>, <code>--cells</code>, the study and check steps of a <code>--run-plan</code>, the
+cluster runs (<code>--jobs N</code>, and a complete <code>--gather</code> of an experiment or a Monte Carlo) and <code>dv.cluster</code>'s results
+(integration of research tools part 2).</p>
+<h2 id="a-run-schema-dexvantagerun1-coretrackingrecordpy">A run (schema <code>dexvantage.run/1</code>, <code>core/tracking/record.py</code>)</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run_id</code></td>
+<td>uuid4 hex (32 characters): unique without coordination, and a valid MLflow run id</td>
+</tr>
+<tr>
+<td><code>kind</code></td>
+<td><code>study</code>, <code>experiment</code> (study <code>experiments</code>), <code>optimise</code> (<code>optimise</code>, <code>design_agent</code>), <code>tolerance</code>, <code>check</code> (<code>requirements</code>, <code>--check</code>)</td>
+</tr>
+<tr>
+<td><code>study</code>, <code>title</code>, <code>name</code>, <code>interface</code></td>
+<td>the core.jobs study id, its title, a display name, <code>app</code> / <code>batch</code> / <code>api</code></td>
+</tr>
+<tr>
+<td><code>started_utc</code>, <code>ended_utc</code>, <code>seconds</code></td>
+<td>UTC, <code>YYYY-MM-DDTHH:MM:SS.mmmZ</code> (sorts as time); <code>seconds</code> is the study's own computation time; <code>started_utc</code> = end − seconds unless given</td>
+</tr>
+<tr>
+<td><code>status</code>, <code>reason</code></td>
+<td><code>finished</code>, <code>cancelled</code>, <code>failed</code> (with the study's sentence)</td>
+</tr>
+<tr>
+<td><code>project</code>, <code>variant</code></td>
+<td>name, file name (never its folder), content hash (core/provenance); variant name, index, uid, own hash</td>
+</tr>
+<tr>
+<td><code>settings</code>, <code>seeds</code></td>
+<td>the study's settings with defaults filled in and every seed, as core/provenance records them</td>
+</tr>
+<tr>
+<td><code>metrics</code></td>
+<td><code>{key: {metric, stat, title, unit, better, value, status, bound?, reason?, check?}}</code> (below)</td>
+</tr>
+<tr>
+<td><code>headline</code></td>
+<td><code>{text, status, word}</code>: the study's headline metric and its status word</td>
+</tr>
+<tr>
+<td><code>result</code></td>
+<td><code>{file: result.json, schema, sha256 (the result hash), output (where batch wrote it)}</code></td>
+</tr>
+<tr>
+<td><code>provenance</code></td>
+<td>DexVantage version, code hash, git commit and dirty flag (from a checkout), library versions, platform, interface, command, inputs, plan</td>
+</tr>
+<tr>
+<td><code>tags</code>, <code>note</code></td>
+<td>free; tags are trimmed, without repeats, commas turned into spaces</td>
+</tr>
+<tr>
+<td><code>rerun_of</code>, <code>reproduce</code></td>
+<td>for a re-run: the run it re-ran and <code>{verdict, verdict_text, message, reasons}</code> (core/reproduce)</td>
+</tr>
+<tr>
+<td><code>samples</code></td>
+<td>(run.json only) per-draw values of a tolerance Monte Carlo: the replicates a significance test can use, in draw order with <code>null</code> for a draw that states no value (so two runs with one seed pair draw by draw; a pair with a missing side is dropped)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Metric keys.</strong> Every core/metrics figure registered for the study, read off its result; plus, per kind:</p>
+<ul>
+<li>tolerance: each metric's nominal value (key = the metric id) and <code>id@p5</code>, <code>@p50</code>, <code>@p95</code>, <code>@mean</code>, <code>@std</code> over the
+draws; the draws themselves as <code>samples[id]</code>;</li>
+<li>experiment: each response at the baseline (the id) and <code>objective@best</code> (the best run's value);</li>
+<li>optimiser and design agent: each objective of the current rig (the id), <code>id@best</code> (the best of the designs
+offered, by the metric's direction) and <code>optimise.options</code>;</li>
+<li>scorecard: each requirement's figure (the id; a second requirement on the same metric <code>id@&lt;uid&gt;</code>) with <code>check</code>
+(<code>pass</code>, <code>fail</code>, <code>not_evaluated</code>), its bound and requirement text; <code>requirements.pass</code>, <code>.fail</code>, <code>.not_evaluated</code>.</li>
+</ul>
+<h2 id="the-run-store-coretrackingstorepy">The run store (<code>core/tracking/store.py</code>)</h2>
+<pre><code>&lt;store&gt;/store.json            {schema dexvantage.runstore/1, created_utc}
+&lt;store&gt;/runs.jsonl            the index: one JSON object per line (JSON Lines)
+                              {op: add, run: {record without samples}} | {op: update, run_id, tags, note, at}
+                              | {op: delete, run_id, at}
+&lt;store&gt;/runs/&lt;run_id&gt;/run.json, result.json
+&lt;store&gt;/deleted/&lt;run_id&gt;/     a deleted run (moved, not erased)
+&lt;store&gt;/.lock                 the lock appends and updates take
+</code></pre>
+<p><strong>Adding a run.</strong> The run's folder is written under a temporary name inside <code>runs/</code> (each file written to a
+temporary file, fsync'd and renamed) and renamed to <code>runs/&lt;run_id&gt;</code> in one step; then its index line is appended
+under an exclusive advisory lock (<code>fcntl.flock</code>; <code>msvcrt.locking</code> on Windows) as one <code>write()</code> followed by <code>fsync</code>.
+POSIX <code>rename()</code> keeps the new name &quot;visible … and refer[ring] either to the file referred to by new or old before the
+operation began&quot;: a reader sees a run folder whole or not at all. Updates (tags, note) rewrite <code>run.json</code> by
+write-then-rename and append their index line, both under the lock. Nothing is edited in place.</p>
+<p><strong>Reading.</strong> The index is folded in order (add, then updates, deletes); a line that does not parse is counted as
+damaged and skipped (a final line without its newline may be mid-write and is not counted); a run folder the index
+does not name is read from its <code>run.json</code> (&quot;recovered&quot;); an indexed run whose folder is gone is marked
+<code>folder_missing</code>. So:</p>
+<table>
+<thead>
+<tr>
+<th>A writer that dies …</th>
+<th>leaves</th>
+<th>readers see</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>before its rename</td>
+<td>a <code>runs/.tmp-…</code> folder</td>
+<td>nothing (not a run id)</td>
+</tr>
+<tr>
+<td>between rename and index line</td>
+<td>a folder without an index line</td>
+<td>the run, recovered from its folder</td>
+</tr>
+<tr>
+<td>inside its append</td>
+<td>a line without its newline</td>
+<td>the next writer starts a new line; the cut line is one damaged line; the run is recovered from its folder</td>
+</tr>
+</tbody>
+</table>
+<h2 id="comparing-runs-compare">Comparing runs (<code>compare()</code>)</h2>
+<p>For runs r₁ … rₙ (r₁ the baseline, the oldest selected) and each metric key: the values vᵢ, the deltas
+dᵢ = vᵢ − v₁, the relative changes dᵢ / |v₁| (none when v₁ is 0 or not stated), the best run by the metric's
+direction (none when all stated values are equal), and the settings, seeds, project content hash, variant and
+DexVantage version that differ. For two runs that kept replicates (a tolerance Monte Carlo's draws) the comparison of
+the base metric adds a <strong>significance note</strong> from <code>core/stats.compare_samples(a, b, better, paired)</code> (a permutation
+test with a bootstrap interval, written by the statistics module; paired when both runs drew with the same seed, so
+draw k of each saw the same perturbation). Without replicates, or in a build without <code>core/stats</code>, the note says why
+there is no test; a p-value is never made up.</p>
+<h2 id="re-running-a-run-rerun">Re-running a run (<code>rerun()</code>)</h2>
+<p><code>core/reproduce.rerun</code> runs the run's study again on the project given (the window's project as it is now) with the
+settings it now holds, <code>core/provenance.report</code> compares every number and text with the stored result, and the new
+result is logged as a run with <code>rerun_of</code> and the verdict (<code>reproduces</code>, <code>reproduces within the tolerances</code>, <code>does not reproduce</code> with the reasons: a different project content, code, library, …).</p>
+<h2 id="exports-export">Exports (<code>export()</code>)</h2>
+<ul>
+<li><strong>CSV</strong> (<code>runs.csv</code> wide: one row per run, one column per metric key; <code>runs_long.csv</code>: one row per run and metric
+with unit, status, bound, check; <code>units.json</code>), RFC 4180 through Python's <code>csv</code> module. Numbers are written with
+<code>repr()</code>, Python's shortest text that reads back as the same float64, so the CSV and the Parquet files hold
+identical values; not stated is an empty cell.</li>
+<li><strong>Parquet</strong> (<code>runs.parquet</code>, <code>runs_long.parquet</code>) through pyarrow: float64 numbers, UTF-8 strings, each metric's
+unit in its field metadata, null where not stated.</li>
+<li><strong>MLflow</strong> (<code>mlruns/</code>): the layout of MLflow 3.17.2's <code>FileStore</code> (<code>mlflow/store/tracking/file_store.py</code>, read at
+the v3.17.2 tag on 2026-11-07), written directly: <code>&lt;experiment&gt;/meta.yaml</code>, <code>&lt;experiment&gt;/&lt;run_id&gt;/meta.yaml</code>
+(the persisted RunInfo: status as the <code>RunStatus</code> integer, FINISHED 3, FAILED 4, KILLED 5 for a cancelled run;
+<code>source_type</code> 4, LOCAL), <code>metrics/&lt;name&gt;</code> lines <code>&quot;&lt;timestamp ms&gt; &lt;value&gt; &lt;step&gt;&quot;</code>, <code>params/&lt;name&gt;</code> (the study, kind,
+flattened settings, seeds; at most 6000 characters), <code>tags/&lt;name&gt;</code> (<code>mlflow.runName</code>, <code>mlflow.note.content</code> = the
+note, <code>mlflow.source.git.commit</code>, <code>dexvantage.*</code>, <code>tag.&lt;user tag&gt;</code>, <code>dexvantage.unit.&lt;metric&gt;</code>,
+<code>dexvantage.not_stated</code>; at most 8000 characters), <code>artifacts/</code> (result.json, run.json). One experiment per project
+name (&quot;DexVantage · &lt;project&gt;&quot;, its id the first 12 hex digits of the name's SHA-256 as an integer), plus the
+&quot;Default&quot; experiment 0. Names keep only what MLflow's <code>validate_param_and_metric_name</code> accepts; <code>@</code> and <code>/</code> become
+<code>_</code> (<code>coverage.covered@p5</code> → <code>coverage.covered_p5</code>). MLflow 3.13 and later put the file store &quot;in maintenance mode&quot;
+(3.7 to 3.12 only warn): open it with <code>MLFLOW_ALLOW_FILE_STORE=true</code> (or migrate it with <code>mlflow migrate-filestore</code>).</li>
+<li><strong>Weights &amp; Biases</strong> (<code>wandb/wandb_runs.json</code>, <code>wandb/replay_wandb.py</code>): W&amp;B's offline run format is internal to
+its client and is not written. The standalone script replays each run through the official API of wandb 0.30.0
+(<code>wandb/sdk/wandb_init.py</code>, <code>wandb_run.py</code>, read 2026-11-07): <code>wandb.init(project, entity, id=&lt;run id&gt;, name, notes=&lt;note&gt;, tags, config=&lt;study, kind, project, variant, settings, seeds, provenance&gt;, group=&lt;study&gt;, job_type=&lt;kind&gt;, dir, mode=&quot;offline&quot;, reinit=&quot;finish_previous&quot;, resume=&quot;allow&quot;)</code>, <code>run.log(figures)</code>,
+<code>run.summary.update(figures)</code>, <code>run.finish()</code>; offline by default (<code>--online</code> to log directly), so <code>wandb sync</code>
+uploads later.</li>
+<li><code>export_runs_manifest.json</code>: every file with its size and SHA-256, and the provenance block.</li>
+</ul>
+<p><code>mlflow-skinny 3.17.2</code> and <code>wandb 0.30.0</code> are the optional extra <code>tracking</code> (Apache-2.0; MIT): writing the exports
+never needs them; the MLflow read-back check uses MLflow when it is installed, and the replay script needs wandb.</p>
+<h2 id="validation-dexvantagevalidationchecks_trackingpy">Validation (<code>dexvantage/validation/checks_tracking.py</code>)</h2>
+<p>Measured 2026-11-07 (full run; tmpfs <code>/tmp</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tracking.store_round_trip</code></td>
+<td>four records built in the check (a rig-inventory result, a tolerance result with draws, a value not stated and samples, a scorecard with a bound and the three check states, a failed run; Unicode tags, a two-line note, rerun_of, reproduce), through a JSON round trip</td>
+<td>0 fields</td>
+<td>0 of 443 fields differ (run.json, index line, result.json, after an update, read by a new RunStore)</td>
+</tr>
+<tr>
+<td><code>tracking.concurrent_writers</code></td>
+<td>what each of N writer processes reports it wrote (run ids; figures writer × 1000 + i)</td>
+<td>0 runs</td>
+<td>8 writers × 100 runs (and an update of every third): 800 stored, 0 lost, 0 foreign, 0 corrupt, 0 damaged lines, 0 temporary files; all 8 writing at once at the busiest; 0.16 s on tmpfs, 1.8 s on ext4 (16 × 100 also 0 lost)</td>
+</tr>
+<tr>
+<td><code>tracking.crash_recovery</code></td>
+<td>the meaning of each crash, written out in the check</td>
+<td>0 cases</td>
+<td>7 of 7 cases hold (1 damaged line, 2 recovered folders, the temporary folder ignored, the later run intact)</td>
+</tr>
+<tr>
+<td><code>tracking.csv_parquet_identical</code></td>
+<td>the records' own values; read back with Python's <code>csv</code> module and <code>pyarrow.parquet</code></td>
+<td>0 cells</td>
+<td>0 of 8 240 cells differ; numbers compared bit for bit over magnitudes 10⁻³⁰⁰ to 10³⁰⁰, both signs, −0.0 and integers</td>
+</tr>
+<tr>
+<td><code>tracking.mlflow_reader</code></td>
+<td>MLflow 3.17.2's <code>MlflowClient</code> (mlflow-skinny installed); without it, a reader of the layout written out from file_store.py</td>
+<td>0 fields</td>
+<td>0 of 80 fields differ (ids, names, statuses, start and end ms, metrics bit for bit, params, note, run name and user tags)</td>
+</tr>
+</tbody>
+</table>
+<p>Why tolerance 0: storage and file formats are exact or wrong; <code>repr()</code> of a float64 reads back to the same bits, and
+MLflow parses metric values with <code>float()</code>.</p>
+<p>The self-test line <code>tracking</code> runs the round trip, the crash recovery and the table check (0.9 s in a fresh process,
+most of it imports and the built-in sample).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>A run records the project's content hash, not the project: keep the project file (or its Git history, the folder
+form of <code>core/projfolder.py</code>) to re-run an old run on the project it was made from; a re-run on a changed project
+says that the project differs.</li>
+<li>The lock is advisory, and a store on a network file system is as safe as that file system's <code>flock</code> and <code>rename</code>
+(NFS v4 honours both; some SMB shares do not).</li>
+<li>The index is read whole on each listing (about 2 kB per run).</li>
+<li>Significance needs replicates: single figures are compared by their difference only; more than two runs get deltas
+against the first and no significance note.</li>
+<li>MLflow: artifact URIs are absolute <code>file:</code> URIs of the folder as written (as MLflow writes them), so a moved
+<code>mlruns/</code> keeps its metrics, params and tags but its artifact links point to the old place; MLflow datasets, inputs,
+traces and logged models are not written; MLflow ≥ 3.13 needs <code>MLFLOW_ALLOW_FILE_STORE=true</code> to read a file store.</li>
+<li>W&amp;B: units go in the run's config (W&amp;B has no unit field); figures not stated are left out of history and summary
+(listed in config); running the replay twice resumes the same runs and logs the figures again as a new step.</li>
+<li>In the window, logging hangs off the Runs page, which the window builds when it starts; the page listens to the
+analysis controller itself, not to its own held signals (<code>ui/pages/_gate.py</code>), so runs are logged while it is
+hidden. If pages are ever built only when first opened, the hook must move into the window.</li>
+</ul>
+<h2 id="references">References</h2>
+<ul>
+<li>MLflow 3.17.2, <code>mlflow/store/tracking/file_store.py</code>, <code>mlflow/entities/run_info.py</code>, <code>run_status.py</code>,
+<code>source_type.py</code>, <code>mlflow/utils/validation.py</code>, <code>mlflow/utils/yaml_utils.py</code>,
+https://github.com/mlflow/mlflow/tree/v3.17.2 (read 2026-11-07); <code>mlflow/protos/service.proto</code> (RunStatus).</li>
+<li>wandb 0.30.0, <code>wandb/sdk/wandb_init.py</code>, <code>wandb/sdk/wandb_run.py</code>, https://github.com/wandb/wandb/tree/v0.30.0
+(read 2026-11-07).</li>
+<li>POSIX.1-2017 <code>rename()</code>, https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html; Linux <code>flock(2)</code>,
+https://man7.org/linux/man-pages/man2/flock.2.html (read 2026-11-07).</li>
+<li>JSON Lines, https://jsonlines.org/ (read 2026-11-07); RFC 4180 (CSV); Apache Parquet file format.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VLA token resolution and Plücker ray maps · DexVantage</title>
+<meta name="description" content="dexvantage/core/studies/vla_tokens.py (study vla_tokens, batch --vla-tokens OUT.json),dexvantage/core/plucker.py (ray maps, the safetensors writer), the page dexvantage/ui/pages/vla.py, the checksdexvantage/validation/checks_vla.py (model vla). Spec §7.12.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-image--input-mapping">The image → input mapping</a>
+    <a href="#the-token-grid">The token grid</a>
+    <a href="#the-silhouette-and-the-counts">The silhouette and the counts</a>
+    <a href="#the-poses">The poses</a>
+    <a href="#headline-and-suggestion">Headline and suggestion</a>
+    <a href="#plücker-ray-maps">Plücker ray maps</a>
+    <a href="#validation-measured-2026-11-06-default-seed">Validation (measured 2026-11-06, default seed)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/vla.md"><code>docs/models/vla.md</code></a></p>
+<h1 id="vla-token-resolution-and-plücker-ray-maps">VLA token resolution and Plücker ray maps</h1>
+<p><code>dexvantage/core/studies/vla_tokens.py</code> (study <code>vla_tokens</code>, batch <code>--vla-tokens OUT.json</code>),
+<code>dexvantage/core/plucker.py</code> (ray maps, the safetensors writer), the page <code>dexvantage/ui/pages/vla.py</code>, the checks
+<code>dexvantage/validation/checks_vla.py</code> (model <code>vla</code>). Spec §7.12.</p>
+<p>A vision-language-action policy resizes or crops each camera stream to a fixed input (224 × 224 for π0 and OpenVLA,
+256 × 256 for Octo, 512 × 512 for SmolVLA) and slices it into ViT patches (14 or 16 px). An object that covers one or
+two patches gives the policy almost nothing to condition on. The study counts, per policy and per camera the policy
+takes, the tokens each task object and each fingertip covers at the pre-grasp and contact poses of a grasp set, and
+warns when a critical object spans fewer than 2 × 2 tokens (a default) or falls outside the crop. The input
+resolution, crop rule, patch and token count come from the policy (core/policies.py <code>resolve</code>: the library entry,
+cited from the model card, paper or official code, or the user's measured figure; docs/models/policies.md).</p>
+<h2 id="the-image--input-mapping">The image → input mapping</h2>
+<p>Each camera is modelled at its stream (<code>Sensor.stream</code>, else the imager's largest listed stream) through its RGB
+imager (else its first; the Camera view's rule) and its lens model (<code>optics.CameraModel</code>). The policy's crop rule
+gives a <code>CropGeometry</code> (core/policies.py, validated by <code>policies.crop_geometry</code> against each rule's own code): the
+crop box in the sensor, <code>src_rect = (x0, y0, x1, y1)</code> in pixel-edge coordinates (OpenCV pixel <em>u</em> spans <em>x</em> = <em>u</em> to
+<em>u</em> + 1), the rectangle it fills in the input, <code>dst_rect</code>, and the scales <em>s</em>ₓ, <em>s</em>ᵧ (input pixels per sensor pixel):</p>
+<pre><code>x_in = dst_x0 + (u + ½ − x0) · sx,      y_in = dst_y0 + (v + ½ − y0) · sy
+</code></pre>
+<p>Every camera record of the result carries this mapping (<code>mapping</code>: <code>crop_box_sensor_px</code> in OpenCV pixel
+coordinates, <code>scale_input_per_sensor_px</code>, <code>content_rect_input_px</code>, the padding share and the equation written out).
+On the UR5e sample with π0 (<code>resize_pad</code>), the Overhead D435's 1920 × 1080 colour stream is used whole
+(<em>u</em> −0.5 … 1919.5) at 0.1167 input px per sensor px, filling rows 49 to 175 of the 224 × 224 input: 43.75 % of the
+input, and so of its tokens, is black padding.</p>
+<h2 id="the-token-grid">The token grid</h2>
+<p>The input is sliced into square cells of <code>patch_px</code>: cols = ⌊<em>w</em> / <em>p</em>⌋, rows = ⌊<em>h</em> / <em>p</em>⌋ (a strided patch
+embedding drops a remainder). A policy whose entry states no patch but states <code>tokens_per_image</code> <em>T</em> gets the cell
+<em>c</em> = √(<em>w h</em> / <em>T</em>) when that is a whole number of pixels dividing both sides; it is labelled <em>derived from tokens per
+image</em> (it assumes the tokens tile the input on a square grid). The library's policies:</p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Input</th>
+<th>Grid</th>
+<th>From</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>π0, π0-FAST, OpenVLA</td>
+<td>224 × 224</td>
+<td>14 px, 16 × 16</td>
+<td>the patch</td>
+</tr>
+<tr>
+<td>Octo</td>
+<td>256 × 256</td>
+<td>16 px, 16 × 16</td>
+<td>the patch</td>
+</tr>
+<tr>
+<td>SmolVLA</td>
+<td>512 × 512</td>
+<td>16 px, 32 × 32 (64 tokens of 64 px after the pixel shuffle, reported beside)</td>
+<td>the patch</td>
+</tr>
+<tr>
+<td>ACT</td>
+<td>640 × 480</td>
+<td>32 px, 20 × 15</td>
+<td>derived (300 tokens)</td>
+</tr>
+<tr>
+<td>GR00T N1</td>
+<td>224 × 224</td>
+<td>28 px, 8 × 8</td>
+<td>derived (64 tokens)</td>
+</tr>
+<tr>
+<td>Diffusion Policy</td>
+<td>288 × 216</td>
+<td>none: pixels only, said so</td>
+<td>neither stated</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-silhouette-and-the-counts">The silhouette and the counts</h2>
+<p>A task object's world triangles (<code>scenegeom.object_triangles</code>) are projected through the lens and the mapping and
+rasterised at input resolution: an input pixel is covered when its centre lies inside a projected triangle (three
+edge functions with the triangle's winding, edges inclusive). A lens that bends straight lines (Brown-Conrady, the
+fisheyes) is handled by subdividing each triangle into four at its edge midpoints until every projected edge midpoint
+lies within <code>raster_tol_px</code> (default 0.01 input px) of the midpoint of its projected ends, at most <code>max_subdiv</code>
+levels (default 8). A triangle with a corner behind a pinhole camera or beyond the valid angle is split the same way;
+what is still invalid at the last level is dropped and named in the notes. The raster covers the whole camera image
+mapped into input coordinates, so the part of an object the camera sees but the crop cuts away is measured.</p>
+<p>Per object, camera and pose: <strong>tokens touched</strong> (cells with at least one covered pixel), <strong>tokens at least half
+covered</strong>, covered input pixels, the <strong>extent</strong> (the silhouette's bounding box in input pixels divided by the cell:
+width × height in tokens), the share <strong>outside the crop</strong> (of what the camera sees of it), in view or not.</p>
+<p><strong>Warnings</strong> (critical objects only: <code>critical_objects</code>, default every task object):</p>
+<ul>
+<li><em>spans fewer than 2 × 2 tokens</em> (serious): its extent is below <code>min_tokens_side</code> (default 2, a default, not a
+standard) along either side at its worst pose. The extent, not the touched count, decides: a 3 px object straddling
+a cell corner touches 4 tokens but spans 0.2 × 0.2.</li>
+<li><em>partly cropped</em> (warning): more than <code>crop_warn_fraction</code> (default 1 %) of what the camera sees of it is cut away.</li>
+<li><em>falls outside the crop</em> (serious): the camera sees it, the input does not.</li>
+<li><em>not in the input</em> (critical): no camera of the policy has it in its input at any pose counted.</li>
+</ul>
+<p><strong>Fingertips</strong>: the contact pads' sample points (<code>grasps.contact_points</code>, 128 area-weighted points per pad by
+default): tokens touched are the cells holding a point inside the input; the extent is the points' bounding box.</p>
+<h2 id="the-poses">The poses</h2>
+<p>With a grasp set (<code>grasp_set</code>, else the project's first), up to <code>max_grasps</code> (default 12) grasps evenly through the
+set, each at <strong>contact</strong> (the grasp's gripper pose) and <strong>pre-grasp</strong> (backed off <code>pre_grasp_m</code> along the approach,
+default 100 mm). The pads are carried rigidly from home with the gripper frame. A camera mounted on that robot moves
+with it: the arm is posed by IK of the grasp centre (<code>ik.solve_batch</code> with <code>grasps.ik_targets</code>' tool offset, 4 seeds,
+collision checks off); a pose IK does not reach is left out for that camera and counted in the notes. Without a grasp
+set the robots stand at home, or at the joint state passed in the run's settings (the page passes the pose on
+screen), and the notes say so.</p>
+<h2 id="headline-and-suggestion">Headline and suggestion</h2>
+<p>The headline is the fewest tokens a critical object touches in a camera that has it in its input (over every policy,
+camera and pose), with its extent; the status is the worst warning (<em>resolved</em>, <em>partly cropped</em>, <em>too few tokens</em>,
+<em>not in the input</em>). With no critical object counted at all (no task object, as on the samples) the headline is the
+fewest tokens on a fingertip and the status is a warning, <em>no task object</em>, never <em>resolved</em>. The suggestion tries each stream mode the camera's device lists (<code>entry.streams(imager)</code>) at the
+warned objects' worst poses and proposes the one under which the worst warned object's narrower extent grows most:
+a 4:3 stream padded into a square input wastes less of it than a 16:9 one. Apply sets <code>Sensor.stream</code> (one undo step).</p>
+<h2 id="plücker-ray-maps">Plücker ray maps</h2>
+<p>Ported from Vantage <code>core/plucker.py</code> (the per-pixel field of origin <em>o</em>, unit direction <em>d</em> through the exact lens
+and moment <em>m</em> = <em>o</em> × <em>d</em>, channel order <code>dm</code> or <code>md</code>, one file per camera plus provenance); here the grid is the
+policy's input, not a stride grid over the sensor, and the frame is the robot base, not ISO 8855.</p>
+<p>Input pixel (row <em>j</em>, column <em>i</em>) has its centre at input edge coordinates (<em>i</em> + ½, <em>j</em> + ½);
+<code>CropGeometry.to_source</code> maps it to sensor edge coordinates (<em>x</em>, <em>y</em>), the sensor pixel is (<em>u</em>, <em>v</em>) = (<em>x</em> − ½,
+<em>y</em> − ½), <code>CameraModel.unproject</code> gives the optical ray, and the imager's pose at <em>q</em> turns it into the frame:
+<code>base</code> (default: the base of <code>robot_uid</code>, default the project's first robot, <code>Robot.base</code>), <code>world</code>, or <code>camera</code>
+(<em>o</em> = 0, so <em>m</em> = 0). Valid: inside the crop's content (not padding), inside the sensor image and within the lens's
+valid angle. Invalid pixels are zero in all six channels with <code>valid = false</code>. The mapping is separable, so <code>u</code> (<em>w</em>,)
+and <code>v</code> (<em>h</em>,) are stored as vectors.</p>
+<p><code>export_plucker(project, out_dir, policy_uid, q=None, frame='base', dtype='float32', order='dm')</code> writes, per camera
+the policy takes, <code>plucker_&lt;policy&gt;_&lt;camera&gt;.npy</code> ((<em>h</em>, <em>w</em>, 6)), <code>.safetensors</code> (tensors <code>plucker</code>, <code>valid</code>, <code>u</code>,
+<code>v</code>, <code>origin</code>, <code>rotation</code>; metadata schema, frame, order, convention) and <code>.json</code> (the convention, the lens, the crop
+with its sensor-pixel box, the share valid and padded, <em>q</em>, and the provenance block).</p>
+<p><strong>safetensors</strong> is written here (the package is optional): 8 bytes of header length <em>N</em> (unsigned little-endian
+64-bit), <em>N</em> bytes of UTF-8 JSON starting with <code>{</code> and padded with spaces to a multiple of 8, mapping each name to
+<code>{&quot;dtype&quot;, &quot;shape&quot;, &quot;data_offsets&quot;: [begin, end]}</code> relative to the byte buffer, plus <code>__metadata__</code> (strings only);
+then the buffer, little-endian row-major, no holes [safetensors README &quot;Format&quot; and <code>safetensors/src/tensor.rs</code>,
+https://github.com/huggingface/safetensors, read 2026-11-06]. <code>read_safetensors</code> refuses holes, overlaps, trailing
+bytes and offsets that do not match the shape.</p>
+<h2 id="validation-measured-2026-11-06-default-seed">Validation (measured 2026-11-06, default seed)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vla.patch_counts_raycast</code></td>
+<td>every input pixel's centre mapped back through the crop, unprojected, ray-cast against the object (core/raycast.py), tokens counted with a plain loop; pinhole, Brown-Conrady (k1 = −0.28), Kannala-Brandt fisheye; <code>resize_pad</code>, <code>center_crop_resize</code>, <code>resize</code>, <code>center_crop</code>, <code>resize_pad_top_left</code>; 45 boxes, cylinders and spheres</td>
+<td>0 tokens</td>
+<td>0 tokens; 0 of 84 586 covered pixels differ</td>
+</tr>
+<tr>
+<td><code>vla.plucker_moment_cv2</code></td>
+<td>the crop rectangle written out again, <code>cv2.undistortPoints</code> (<code>cv2.fisheye.undistortPoints</code>) from <code>to_opencv</code>, run to 10⁻¹⁴, the base-frame pose composed in the check, <em>m</em> = <em>o</em> × <em>d</em>; also <em>m</em> · <em>d</em> and the moment of <em>o</em> + 2.7 <em>d</em></td>
+<td>10⁻⁶</td>
+<td>1.3 × 10⁻¹⁵</td>
+</tr>
+<tr>
+<td><code>vla.safetensors_roundtrip</code></td>
+<td>a parser written from the public format (and the <code>safetensors</code> package when installed: not in <code>.venv</code>)</td>
+<td>0, bit-exact</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>The reference of the first check is sensitive: with subdivision off (0 levels, seed 1) 162 pixels differ on the distorted
+lenses and one token count is off by one; at 0.05 px and 6 levels a few pixel centres within 0.05 px of an edge
+differ. OpenCV's undistortion returns <em>x</em>/<em>z</em>, <em>y</em>/<em>z</em>, which has no ray at or beyond 90° and is ill-conditioned close
+to it (0.018 apart at 89° on the scripted fisheye), so the ray check compares rays within 85° of the axis and reports
+how many it left out.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>Silhouettes are not occlusion-tested (an object hidden behind the gripper still counts its tokens: the grasp
+self-occlusion study treats visibility). Objects are their triangle models (cylinders and spheres tessellated as
+scenegeom does). Tokens are counted on the inference-time crop (training augmentation is not modelled) and on a
+square cell grid (other merging schemes are not modelled); interpolation filters are not modelled, so a token touched
+by a sliver of an object may carry little of it. Octo's 128 × 128 wrist input is listed by the Policies page but not
+applied per camera role. The fingertip pads are carried rigidly from home (the finger opening at home), and IK picks
+one arm configuration per grasp. A ray is that of its pixel's centre (no footprint averaging); ray maps are not
+masked by the scene; a wrist camera's map is for the pose it was exported at.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

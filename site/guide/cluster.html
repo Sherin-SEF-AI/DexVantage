@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cluster sweeps: a worked example on the SO-100 sample · DexVantage</title>
+<meta name="description" content="This guide shows two ways to make a long study faster. A tolerance Monte Carlo or a designed experiment runs the samestudies many times, so you can spread those runs:">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-on-this-machine">1. On this machine</a>
+    <a href="#2-on-a-slurm-cluster">2. On a Slurm cluster</a>
+    <a href="#3-the-optimiser-on-slurm">3. The optimiser on Slurm</a>
+    <a href="#4-from-python">4. From Python</a>
+    <a href="#what-to-watch">What to watch</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/cluster.md"><code>docs/guide/cluster.md</code></a></p>
+<h1 id="cluster-sweeps-a-worked-example-on-the-so-100-sample">Cluster sweeps: a worked example on the SO-100 sample</h1>
+<p>This guide shows two ways to make a long study faster. A tolerance Monte Carlo or a designed experiment runs the same
+studies many times, so you can spread those runs:</p>
+<ul>
+<li>over this machine's cores (<strong>Run on… ▸ This machine</strong>, or <code>--jobs N</code>);</li>
+<li>over a Slurm cluster (<strong>Run on… ▸ Write a Slurm job folder</strong>, or <code>--slurm FOLDER</code>).</li>
+</ul>
+<p>The result is the one a single process gives. The model and its validation are in
+<a href="../models/cluster.html">Cluster sweeps</a>. The figures below were measured on the development machine (24 CPUs)
+on 2026-11-07.</p>
+<h2 id="1-on-this-machine">1. On this machine</h2>
+<ol>
+<li>Save the sample: <strong>File ▸ Open sample ▸ SO-100</strong>, then <strong>File ▸ Save as…</strong> <code>so100.dexv</code>. A saved file keeps its
+sensor ids. <code>--sample</code> makes new ids each time, so two <code>--sample</code> runs label their sensors differently.</li>
+<li>Open <strong>Analysis ▸ Tolerances</strong> and press <strong>Run on…</strong>.</li>
+<li>Leave <strong>This machine</strong> selected. The dialog proposes a number of processes: the CPUs, within the memory available
+at about 2 GiB per worker. That is a planning default; the run reports each worker's measured peak.</li>
+<li>Press <strong>Run</strong>. The job bar shows progress and <strong>Cancel</strong> stops the workers at once. The result arrives on the page
+as a normal run, and <strong>Export…</strong> writes it with provenance.</li>
+</ol>
+<p>The same run in batch mode:</p>
+<pre><code>dexvantage so100.dexv --tolerance-mc tol.json --jobs 4
+Monte Carlo tolerances (64 draws): the nominal rig and 64 draws on 4 processes in 7.9 s, peak 560 MB per worker.
+</code></pre>
+<p>The same run with <code>--jobs 1</code> took 26.9 s, and the result was the same, number for number, as the run without
+<code>--jobs</code>. A designed experiment works the same way:</p>
+<ul>
+<li>with a design file: <code>--experiment DESIGN.json --jobs N</code>;</li>
+<li>with the experiment saved in the project: <code>--experiment-saved OUT.json --jobs N</code>.</li>
+</ul>
+<p>The optimiser scores each generation's designs in the pool (<code>--optimise OUT.json --jobs N</code>). Its search and its
+options are the serial ones.</p>
+<p>Any list of studies on any projects can run the same way:</p>
+<pre><code>[{&quot;project&quot;: &quot;cell_a.dexv&quot;, &quot;study&quot;: &quot;coverage&quot;},
+ {&quot;project&quot;: &quot;cell_b.dexv&quot;, &quot;study&quot;: &quot;coverage&quot;, &quot;settings&quot;: {&quot;cube_n&quot;: 256}}]
+
+dexvantage --cluster-studies jobs.json --jobs 4          → jobs.results.json
+</code></pre>
+<h2 id="2-on-a-slurm-cluster">2. On a Slurm cluster</h2>
+<ol>
+<li>
+<p>Choose a folder on the cluster's shared filesystem, for example <code>tol-job</code>.</p>
+</li>
+<li>
+<p>Write the job folder:</p>
+<pre><code>dexvantage so100.dexv --tolerance-mc tol.json --slurm tol-job --shards 16 \
+    --slurm-settings '{&quot;mem&quot;: &quot;4G&quot;, &quot;time&quot;: &quot;00:30:00&quot;, &quot;partition&quot;: &quot;cpu&quot;,
+                       &quot;activate&quot;: &quot;source &lt;your venv&gt;/bin/activate&quot;}'
+</code></pre>
+<p>The <strong>Run on…</strong> dialog writes the same folder: pick <strong>Write a Slurm job folder</strong> and fill in the settings. CPUs (1),
+memory (4G), time (2 hours) and no GPU are DexVantage defaults, not your site's. Set them for your cluster;
+<code>job.json</code> records which ones you left at their default. The activation line has no default: write the line that
+makes <code>python -m dexvantage</code> work on a compute node.</p>
+</li>
+<li>
+<p>On the cluster, from the folder:</p>
+<pre><code>cd tol-job
+sbatch run.sbatch                     # 16 array tasks, logs in logs/shard-&lt;job&gt;_&lt;task&gt;.out
+python -m dexvantage --gather .      # → result.json, or which shards are still to do
+</code></pre>
+</li>
+<li>
+<p>If some tasks hit their time limit or a node failed, gather says which shards are left. It writes
+<code>resubmit.sbatch</code> for just those (here a 4-run experiment in 2 shards with shard 1 not yet run):</p>
+<pre><code>3 of 5 runs done; of 2 shards, 1 missing (1). Submit resubmit.sbatch to run just those.
+sbatch resubmit.sbatch
+python -m dexvantage --gather .
+</code></pre>
+<p>A resubmitted shard skips the draws it finished before.</p>
+</li>
+<li>
+<p>Back on your machine, <strong>Run on… ▸ Gather a job folder…</strong> reads the folder into the page.</p>
+</li>
+</ol>
+<p><code>--submit</code> also calls <code>sbatch</code> for you (on a login node). Each task stores its study results in the folder's <code>cache/</code>
+(safe for many writers at once, without file locks), so a resubmitted or repeated job reuses them.</p>
+<h2 id="3-the-optimiser-on-slurm">3. The optimiser on Slurm</h2>
+<p>The generations of NSGA-II follow each other, so the optimiser runs on Slurm in rounds, one array job per generation:</p>
+<pre><code>dexvantage so100.dexv --optimise opt.json --slurm opt-job --shards 2 --submit \
+    --optimise-settings '{&quot;budget&quot;: 12, &quot;population&quot;: 4, &quot;objectives&quot;: [&quot;coverage.covered&quot;]}'
+Round 1: 3 designs of the next generation in 2 shards → round-001/. Submitted (array …, then the continue job …).
+</code></pre>
+<p>The continue job waits for the round to end (<code>afterany</code>). It then gathers the round and submits the next one, until
+the budget is spent and <code>opt-job/result.json</code> is written. Without <code>--submit</code>, run the round yourself, then:</p>
+<pre><code>dexvantage --optimise-continue opt-job
+</code></pre>
+<p>With these settings the search took 3 rounds on the SO-100 sample and gave the serial options (the first round's
+three designs are the initial population of four less the current rig, which the driver scores itself).</p>
+<h2 id="4-from-python">4. From Python</h2>
+<pre><code>import dexvantage as dv
+rig = dv.open('so100.dexv')
+res = dv.cluster.tolerance(rig, jobs=4)                         # a dv.Result
+job = dv.cluster.slurm(rig, 'tol-job', tolerance=True, shards=16, mem='4G', activate='module load python')
+rep = dv.cluster.gather('tol-job')                              # rep['complete'], rep['result'], rep['text']
+rep = dv.cluster.gather('tol-job', rig=rig)                     # also logs a complete result in rig's run store
+dv.cluster.settings()                                           # the Slurm settings and their defaults
+</code></pre>
+<h2 id="what-to-watch">What to watch</h2>
+<ul>
+<li><strong>The job folder</strong> must be on a filesystem every node mounts.</li>
+<li><strong>Machine-dependent figures</strong> are identical only between like machines (GPU and CPU occlusion can differ at a
+silhouette).</li>
+<li><strong>Long-lived processes:</strong> a window or notebook that has run other studies can differ from fresh shards in the last
+digits of a coverage figure (the model document's known limits say why).</li>
+<li><strong>Plugins</strong> must be installed where the shards run.</li>
+<li><strong>PBS and LSF</strong> are not supported. Their jobs can still run the <code>--run-shard</code> lines by hand.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

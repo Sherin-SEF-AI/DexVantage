@@ -37,7 +37,10 @@ order a new user meets them.
 
 Ported from Vantage selftest.py (the runner and the headless EGL context); the checks are DexVantage's. Nothing is
 written outside a temporary folder and no network connection is made. The exit code is 0 when everything the app needs
-works, 1 otherwise; a warning says what does not work here and what the app does instead.
+works, 1 otherwise; a warning says what does not work here and what the app does instead. A check that needs an
+optional extra (OPTIONAL_PACKAGES) that is not installed is a warning naming the extra, not a failure: a plain
+`pip install dexvantage` has none of them, and the downloadable bundles carry the ones these checks use, so there it
+stays a failure (packaging/build.py allows warnings only in BUNDLE_MAY_WARN).
 """
 from __future__ import annotations
 
@@ -50,6 +53,9 @@ import time
 import traceback
 
 OK, WARN, FAIL = 'ok', 'warning', 'FAILED'
+# optional packages some checks need, and the extra of pyproject.toml that installs each
+OPTIONAL_PACKAGES = {'pyarrow': 'lerobot', 'av': 'lerobot', 'zstandard': 'bags', 'lz4': 'bags', 'jsonschema': 'test',
+                     'mcap': 'test', 'google.protobuf': 'test'}
 # EGL platform enums (EGL_EXT_platform_device, EGL_MESA_platform_surfaceless); PyOpenGL has no constants for them
 _EGL_PLATFORM_DEVICE = 0x313F
 _EGL_PLATFORM_SURFACELESS = 0x31DD
@@ -373,11 +379,46 @@ def _run_checks(ids) -> list:
         ctx.close()
 
 
+def _optional_missing(*texts) -> str | None:
+    """The optional package (OPTIONAL_PACKAGES) that a failure's texts say is missing, when it really is not
+    installed here; else None."""
+    import importlib.util
+    import re
+    text = ' '.join(str(t) for t in texts if t)
+    for mod in OPTIONAL_PACKAGES:
+        name = mod.split('.')[-1]
+        if re.search(rf"needs the Python package {name}\b|No module named '{re.escape(mod)}|import of {re.escape(mod)}"
+                     rf"\b|\b{name} is not installed", text):
+            try:
+                if importlib.util.find_spec(mod) is None:
+                    return mod
+            except (ImportError, ValueError):
+                return mod
+    return None
+
+
+def _check_missing(c) -> str | None:
+    """The optional package a validation check result failed for want of, or None."""
+    d = c.detail if isinstance(c.detail, dict) else {}
+    return _optional_missing(c.exception, c.note, d.get('skipped'))
+
+
+def _not_checked(mods) -> tuple:
+    mods = sorted(set(mods))
+    extras = sorted({OPTIONAL_PACKAGES[m] for m in mods})
+    return WARN, (f'not checked: needs {", ".join(mods)}, not installed here (pip install '
+                  f'"dexvantage[{",".join(extras)}]")')
+
+
 def _checks_line(ids, ok_text) -> tuple:
     t0 = time.perf_counter()
     res = _run_checks(ids)
     ms = (time.perf_counter() - t0) * 1000
     bad = [c for c in res if not c.passed]
+    missing = [_check_missing(c) for c in bad]
+    if bad and all(missing):
+        return _not_checked(missing)
+    bad = [c for c, m in zip(bad, missing) if not m]
     if bad:
         c = bad[0]
         why = c.exception or f'error {c.error:.3g} {c.unit} against {c.tolerance:.3g}'
@@ -768,10 +809,18 @@ def _check_software_3d(S):
 def _check_validation(S):
     from . import validation as VA
     res = VA.run(settings=VA.ValidationSettings(quick=True, cheap_only=True))
-    if not res.ok:
-        return FAIL, f'{len(res.failed)} of {len(res.checks)} checks failed: ' + ', '.join(c.id for c in res.failed[:4])
-    return OK, (f'{res.passed} of {len(res.checks)} cheap checks passed (quick run, {res.seconds:.1f} s; the '
-                f'study-scale checks run with --validate)')
+    missing = {c.id: _check_missing(c) for c in res.failed}
+    failed = [c for c in res.failed if not missing[c.id]]
+    if failed:
+        return FAIL, f'{len(failed)} of {len(res.checks)} checks failed: ' + ', '.join(c.id for c in failed[:4])
+    text = (f'{res.passed} of {len(res.checks)} cheap checks passed (quick run, {res.seconds:.1f} s; the '
+            f'study-scale checks run with --validate)')
+    if missing:
+        mods = sorted(set(missing.values()))
+        extras = sorted({OPTIONAL_PACKAGES[m] for m in mods})
+        return WARN, (f'{text}; {len(missing)} not run: they need {", ".join(mods)}, not installed here (pip install '
+                      f'"dexvantage[{",".join(extras)}]")')
+    return OK, text
 
 
 def _check_assistant(S):
@@ -822,6 +871,9 @@ def _check_isaac_lerobot(S):
     (validation checks formats.isaac_usd, formats.isaac_config and formats.lerobot_export run the full comparison)."""
     from .validation.formats_isaac_lerobot import selftest_isaac_lerobot
     ok, text = selftest_isaac_lerobot(os.path.join(S['tmp'], 'export_b'))
+    missing = None if ok else _optional_missing(text)
+    if missing:
+        return _not_checked([missing])
     return (OK if ok else FAIL), text
 
 
@@ -992,7 +1044,8 @@ def run() -> int:
             try:
                 status, msg = fn(S)
             except Exception as e:
-                status, msg = FAIL, f'{type(e).__name__}: {_first_line(e)}'
+                missing = _optional_missing(f'{type(e).__name__}: {e}')
+                status, msg = _not_checked([missing]) if missing else (FAIL, f'{type(e).__name__}: {_first_line(e)}')
             if len(S['errors']) > n0 and status != FAIL:
                 status, msg = FAIL, S['errors'][-1].strip().splitlines()[-1]
             failed |= status == FAIL

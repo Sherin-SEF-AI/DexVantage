@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparing cells: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="Three benches were built from the UR5e + Robotiq 2F-85 sample&#x27;s design, and a fourth lab runs an SO-100. This comparesthem on their figures of merit, the geometric gap a policy trained on one meets on another, whether their recordingspool for training, and how far the built copies drifted from the …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-build-the-cell-set">1. Build the cell set</a>
+    <a href="#2-run">2. Run</a>
+    <a href="#3-figures-side-by-side">3. Figures side by side</a>
+    <a href="#4-pooling">4. Pooling</a>
+    <a href="#5-drift-of-the-built-copies">5. Drift of the built copies</a>
+    <a href="#6-apply">6. Apply</a>
+    <a href="#the-same-from-the-command-line-and-python">The same from the command line and Python</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/cells.md"><code>docs/guide/cells.md</code></a></p>
+<h1 id="comparing-cells-a-worked-example-on-the-ur5e-sample">Comparing cells: a worked example on the UR5e sample</h1>
+<p>Three benches were built from the UR5e + Robotiq 2F-85 sample's design, and a fourth lab runs an SO-100. This compares
+them on their figures of merit, the geometric gap a policy trained on one meets on another, whether their recordings
+pool for training, and how far the built copies drifted from the design. The model is in <code>docs/models/cells.md</code>.
+Figures below are from runs on 2026-11-07.</p>
+<p>The cells:</p>
+<ul>
+<li><strong>UR5e + Robotiq 2F-85 sample</strong>: the design, open in the window (cell 0, the reference).</li>
+<li><strong>UR5e bench B</strong>: the overhead D435 was mounted tilted 10° about its optical frame's x axis (the image's horizontal
+axis; the body frame's x is the optical axis itself), and its wrist D405 was calibrated
+on the Hand-eye page (a solved session, not applied) 2.5 mm off along the link's x and 0.3° about its z.</li>
+<li><strong>UR5e bench C</strong>: as designed; its wrist D405 calibrated 0.2 mm and 0.1 mm off.</li>
+<li><strong>SO-100 sample</strong>: another lab's arm (<code>sample:so100</code>).</li>
+</ul>
+<h2 id="1-build-the-cell-set">1. Build the cell set</h2>
+<p>Open the UR5e sample (<code>dexvantage --sample ur5e</code>), then File ▸ <strong>Compare cells…</strong> (the command after Compare with…).
+<strong>Add cells…</strong> takes the benches' <code>.dexv</code> files; the sample box adds the SO-100. Each addition is one undo step and
+is kept with the project (<code>project.analysis.studies['cells']</code>). Leave the reference at <code>0: UR5e + Robotiq 2F-85 sample</code>, the figures at the quick set (the default) and, for this run, the tolerance spread at 8 draws.</p>
+<h2 id="2-run">2. Run</h2>
+<p><strong>Run</strong> works in the background (17 s here: the 8 tolerance draws re-run coverage on every cell; without draws the
+same set takes about 3 s). The headline reads <strong>0.298</strong>, status <strong>moderate gap</strong>:</p>
+<blockquote>
+<p>Largest geometric gap to UR5e + Robotiq 2F-85 sample: 0.298 (SO-100 sample). 3 of 4 cells pool; 1 cannot be pooled.</p>
+</blockquote>
+<p>The gap table:</p>
+<table>
+<thead>
+<tr>
+<th>Cell</th>
+<th>Gap index</th>
+<th>Band</th>
+<th>Largest component</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UR5e bench B</td>
+<td>0.023</td>
+<td>small</td>
+<td>viewpoint 0.06</td>
+</tr>
+<tr>
+<td>UR5e bench C</td>
+<td>0.000</td>
+<td>small</td>
+<td>—</td>
+</tr>
+<tr>
+<td>SO-100 sample</td>
+<td>0.298</td>
+<td>moderate</td>
+<td>position 0.53</td>
+</tr>
+</tbody>
+</table>
+<p>Selecting bench B shows its matched cameras: the wrist D405 identical (the gap compares the designs; the calibration
+is in the drift below), the overhead D435 <strong>10.00°</strong> apart on its axis (rotation 10.00°, distance 0 mm), the task
+volume over 38.7 % of its image as designed against 30.2 % as built. Against the SO-100 the wrist cameras are 6.5°
+apart on their axes and 31 mm apart relative to the fingertips, but their images are rolled 179.9° against each other
+(the rotation column); the scene cameras are 57.5° and 1.29 m apart, the SO-100's has 21° less HFOV and 0.46× the
+pixels per degree, and its table fills 9.5 % of the image against 38.7 %.</p>
+<h2 id="3-figures-side-by-side">3. Figures side by side</h2>
+<p>With 8 draws per cell (± 1 mm, ± 0.5° per mount, the labelled defaults), a star marks a difference beyond
+2 √(σ_ref² + σ_cell²) of the build spread that is also significant over the draws (core/stats' permutation test,
+Holm-adjusted across the table):</p>
+<table>
+<thead>
+<tr>
+<th>Figure</th>
+<th>Design</th>
+<th>Bench B</th>
+<th>Bench C</th>
+<th>SO-100</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Task volume seen</td>
+<td>91.90 %</td>
+<td>81.62 % *</td>
+<td>91.90 %</td>
+<td>94.52 % * (best)</td>
+</tr>
+<tr>
+<td>Seen by two or more cameras</td>
+<td>26.44 %</td>
+<td>19.77 % *</td>
+<td>26.44 %</td>
+<td>47.30 % * (best)</td>
+</tr>
+</tbody>
+</table>
+<p>Bench B's turned overhead camera costs 10.3 points of coverage (18 σ of the build spread: not something the mount
+tolerances explain; Holm-adjusted p 0.006); bench C's figures are the design's (Δ 0, adjusted p 1, not
+meaningful). 4 of the 6 differences are meaningful.</p>
+<h2 id="4-pooling">4. Pooling</h2>
+<p>The pooling table says the three UR5e benches pool <strong>as is</strong> (the same cameras, keys, sizes, rates, codec, joints and
+control rate in their LeRobot features). The SO-100 is <strong>not poolable</strong>: 6 state and action values against 14 (another
+embodiment); the steps that would map the rest are listed (rename both cameras, resize the scene camera 1280 × 720 →
+1920 × 1080, resample the rows and actions 30 → 50 Hz, rescale the gripper from the Jaw's range to the 2F-85 driver
+joint's). <strong>Export…</strong> writes <code>cells_pooling.json</code> with these steps per cell.</p>
+<h2 id="5-drift-of-the-built-copies">5. Drift of the built copies</h2>
+<table>
+<thead>
+<tr>
+<th>Camera</th>
+<th>Cell</th>
+<th>Kind</th>
+<th>Offset</th>
+<th>Rotation</th>
+<th>Share of tolerance</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wrist D405</td>
+<td>bench B</td>
+<td>measured</td>
+<td>2.50 mm</td>
+<td>0.300°</td>
+<td>2.50</td>
+<td>adjust</td>
+</tr>
+<tr>
+<td>Wrist D405</td>
+<td>bench C</td>
+<td>measured</td>
+<td>0.22 mm</td>
+<td>0.000°</td>
+<td>0.20</td>
+<td>ok</td>
+</tr>
+<tr>
+<td>Overhead D435</td>
+<td>bench B</td>
+<td>as designed</td>
+<td>0.00 mm</td>
+<td>10.000°</td>
+<td>20.00</td>
+<td>re-mount</td>
+</tr>
+<tr>
+<td>Overhead D435</td>
+<td>bench C</td>
+<td>as designed</td>
+<td>0.00 mm</td>
+<td>0.000°</td>
+<td>0.00</td>
+<td>ok</td>
+</tr>
+</tbody>
+</table>
+<p>The wrist rows come from the calibrations; the overhead rows compare the benches' designs (no calibration of that
+camera), so bench B's &quot;re-mount&quot; says its file places the camera 10° off the plan. With two measured copies there is
+no outlier test (three are needed) and the copies' median (1.35 mm) is beyond the tolerance but neither copy is near
+it, so the build is not called systematic and there is no as-built variant to add.</p>
+<h2 id="6-apply">6. Apply</h2>
+<p>With the reference the open project, the page has no placement to suggest (it says to choose another reference).
+Open bench B instead, add the design as a cell and choose it as the reference: the suggestion reads</p>
+<blockquote>
+<p>Mount Overhead D435 where UR5e + Robotiq 2F-85 sample's Overhead D435 sits in the world: 0 mm and 10.0° from its
+mount now; that pair's viewpoint gap is then zero (the lenses may still differ).</p>
+</blockquote>
+<p><strong>Preview</strong> draws the pose as a dashed frustum; <strong>Apply</strong> moves the camera (one undo step).</p>
+<h2 id="the-same-from-the-command-line-and-python">The same from the command line and Python</h2>
+<pre><code>dexvantage --sample ur5e --cells benchB.dexv benchC.dexv sample:so100 --cells-out cells.json \
+    --cells-pooling cells_pooling.json --cells-html cells.html --cells-settings '{&quot;tolerance_draws&quot;: 8}'
+
+import dexvantage as dv
+res = dv.cells.compare(dv.sample('ur5e'), 'benchB.dexv', 'benchC.dexv', 'sample:so100', tolerance_draws=8)
+res.headline['value'], res['pooling']['text']
+res.to_frame('cells'); res.metric_rows(); res.gap_rows(); res.save_files('out/')
+</code></pre>
+<p><code>--cells-compare OUT.json</code> runs the study on the cell set stored in the project. The export format <code>cells</code> writes
+the same three files with the other exports (<code>--export out/ --formats cells</code>).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

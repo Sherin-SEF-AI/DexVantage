@@ -349,6 +349,8 @@ class RobotPage(StudyPage):
     and read the gripper frame's pose, manipulability, condition number and self-collision at that pose."""
     STUDY = None
     TITLE = 'Robot'
+    MODEL = ('Model: the robot at the pose on screen: Yoshikawa manipulability (core/robot/manipulability.py), the '
+             'self-collision and obstacle checks (core/robot/collision.py) and the joint limits of its model file.')
     HEADLINE = 'Robot pose'
 
     def __init__(self, ctx):

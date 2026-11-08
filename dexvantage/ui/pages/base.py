@@ -6,6 +6,10 @@ page re-renders whenever the controller finishes its study. Overlays for the 3D 
 drawn while the page is the Analysis dock's current tab (return [] to draw nothing). page_context() is what the
 assistant reads of the page (the headline as shown and what the page is about); a page may add to it.
 
+The headline figure's tooltip names its model and inputs (spec §18): headline_tip() puts the page's own tip first,
+then "Model: …" (the study's title and module, core/studies/<module>.py, or MODEL for a page that runs no study) and
+"Inputs: …" (the active variant and the result's settings, those left at their default marked so).
+
 A page the window builds (pages/_gate.build_page) is held while hidden: its store and study signals wait until it is
 shown, then replay once, coalesced, so an edit does not rebuild every hidden page. page_context, apply, preview,
 export and explain replay what is held first, in subclasses too; flush_pending() does it for any other reader. Set
@@ -16,6 +20,8 @@ from __future__ import annotations
 import functools
 import json
 import os
+import traceback
+from typing import Callable
 
 from PyQt6.QtWidgets import QFileDialog, QHBoxLayout, QScrollArea, QVBoxLayout, QWidget
 
@@ -27,13 +33,19 @@ class _Headline(Headline):
     """The page's headline, remembering what it shows (the figure, its unit, the status and its word, the
     explanation) for page_context(): the assistant reads the page as the user sees it."""
 
-    def __init__(self, title: str, parent=None):
+    def __init__(self, title: str, parent: QWidget | None = None, compose: Callable[[str], str] | None = None):
         super().__init__(title, parent)
         self.state = {'figure': '—', 'unit': '', 'status': '', 'word': '', 'explain': ''}
+        self.compose = compose             # the page's headline_tip: the tooltip with its model and inputs
 
     def set(self, figure: str, unit: str, sev: str, word: str, explain: str, tip: str = ''):
         self.state = {'figure': str(figure), 'unit': str(unit), 'status': str(sev), 'word': str(word),
                       'explain': str(explain)}
+        if self.compose is not None:
+            try:
+                tip = self.compose(tip)
+            except Exception:                  # noqa: BLE001 — a tooltip must never stop the page; logged
+                traceback.print_exc()
         super().set(figure, unit, sev, word, explain, tip)
 
 
@@ -53,6 +65,7 @@ class StudyPage(QWidget):
     STUDY: str | None = None
     TITLE = ''
     HEADLINE = ''                      # the headline's title line
+    MODEL = ''                         # the headline's model sentence for a page that runs no study (headline_tip)
     DEFER_HIDDEN = True                # held while hidden (pages/_gate.py) when the window built the page
 
     def __init_subclass__(cls, **kw):
@@ -75,7 +88,7 @@ class StudyPage(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
-        self.head = _Headline(self.HEADLINE or self.TITLE)
+        self.head = _Headline(self.HEADLINE or self.TITLE, compose=self.headline_tip)
         self.b_run = button('Run', icon_name='play', tip='Run the study now (long studies run in the background)')
         self.b_apply = button('Apply', role='primary', tip='Make the suggested change (one undo step)')
         self.b_preview = button('Preview', role='ghost', tip='Show the suggested change without making it')
@@ -119,6 +132,47 @@ class StudyPage(QWidget):
 
     def show_result(self, doc: dict):
         """Fill the page from the study's result."""
+
+    def model_text(self) -> str:
+        """'Model: …' for the headline's tooltip: MODEL, else the study's title and the module that computes it."""
+        if self.MODEL:
+            return self.MODEL if self.MODEL.startswith('Model:') else f'Model: {self.MODEL}'
+        if self.STUDY:
+            from ...core import jobs
+            info = jobs.STUDIES.get(self.STUDY)
+            if info is not None:
+                mod = getattr(info.fn, '__module__', '') or ''
+                where = (mod.split('.', 1)[1].replace('.', '/') + '.py') if mod.startswith('dexvantage.') else mod
+                return f'Model: {info.title} ({where}).'
+            return f'Model: the {self.STUDY} study.'
+        return f'Model: none is run; {self.TITLE.lower() or "the page"} counts what the project holds as stored.'
+
+    def inputs_text(self) -> str:
+        """'Inputs: …' for the headline's tooltip: the active variant, and the settings the result states (those
+        left at their default marked so), else that the study has not run."""
+        try:
+            v = self.ctx.store.project.variant.name
+        except AttributeError:
+            v = ''
+        parts = [f'the rig variant {v} as it is now' if v else 'the project as it is now']
+        doc = self.doc if isinstance(self.doc, dict) else None
+        st = doc.get('settings') if doc else None
+        if isinstance(st, dict):
+            dflt = st.get('defaults') if isinstance(st.get('defaults'), (list, tuple)) else doc.get('defaults')
+            dflt = set(dflt) if isinstance(dflt, (list, tuple)) else set()
+            items = [(k, x) for k, x in st.items() if k != 'defaults' and isinstance(x, (int, float, str, bool))
+                     and not (isinstance(x, str) and (not x or len(x) > 24))]   # scalars; short words only
+            shown = [f'{k} {x:g}' if isinstance(x, float) else f'{k} {x}' for k, x in items[:8]]
+            shown = [t + (' (default)' if k in dflt else '') for t, (k, _x) in zip(shown, items[:8])]
+            if shown:
+                parts.append('settings ' + ', '.join(shown) + (f' and {len(items) - 8} more' if len(items) > 8 else ''))
+        elif self.STUDY and doc is None:
+            parts.append('the study has not run yet')
+        return 'Inputs: ' + '; '.join(parts) + '.'
+
+    def headline_tip(self, tip: str = '') -> str:
+        """The headline figure's tooltip: the page's own tip, then its model and its inputs."""
+        return '\n'.join(t for t in (str(tip or '').strip(), self.model_text(), self.inputs_text()) if t)
 
     def empty(self):
         self.head.set('—', '', 'warning', 'not run yet', f'Run {self.TITLE.lower() or "the study"} to see its figures.')

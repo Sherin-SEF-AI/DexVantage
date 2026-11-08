@@ -349,7 +349,7 @@ def test_step_without_gmsh_is_a_plain_refusal(tmp_path, monkeypatch):
 
 
 def test_step_through_gmsh_reads_back(tmp_path):
-    pytest.importorskip('gmsh')
+    pytest.importorskip('gmsh', reason='gmsh (the step extra) is not installed')
     import gmsh
 
     from dexvantage.core.exporters.bridges import step_from_mesh
@@ -418,6 +418,7 @@ def test_export_dialog_runs_a_job_and_shows_the_manifest(app, win, tmp_path):
     d.close()
 
 
+@pytest.mark.mujoco_render                  # the dataset's frames are MuJoCo renders
 def test_lerobot_dataset_and_fiftyone_wrappers(tmp_path):
     p = sample_project('so100')
     out = str(tmp_path / 'd')

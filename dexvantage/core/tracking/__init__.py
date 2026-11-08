@@ -39,9 +39,15 @@ import json
 import math
 import os
 import threading
+from typing import TYPE_CHECKING
 
 from .record import KINDS, NOT_LOGGED, SCHEMA, build, kind_of, metrics_of  # noqa: F401
 from .store import RunStore, StoreError, clean_tags, filter_runs, utc_now  # noqa: F401
+
+if TYPE_CHECKING:                                    # names for the type hints only
+    import datetime
+
+    from ..project import Project
 
 SETTINGS_KEY = 'tracking'
 DEFAULTS = {'enabled': False, 'folder': '', 'quick': False, 'tags': []}
@@ -52,7 +58,7 @@ TrackingError = StoreError
 
 
 # ====================================================================== settings and the store
-def settings_of(project) -> dict:
+def settings_of(project: Project | None) -> dict:
     """The project's tracking settings with the defaults filled in (DEFAULTS: off, the default folder, quick studies
     not logged, no tags)."""
     raw = project.analysis.studies.get(SETTINGS_KEY) if project is not None else None
@@ -65,16 +71,16 @@ def settings_of(project) -> dict:
     return out
 
 
-def enabled(project) -> bool:
+def enabled(project: Project | None) -> bool:
     return project is not None and settings_of(project)['enabled']
 
 
-def default_folder_name(project) -> str:
+def default_folder_name(project: Project | None) -> str:
     base = os.path.splitext(os.path.basename(getattr(project, 'path', '') or ''))[0]
     return (base or 'project') + STORE_SUFFIX
 
 
-def store_folder(project, folder: str | None = None) -> str:
+def store_folder(project: Project, folder: str | None = None) -> str:
     """The run store folder: folder if given, else the project's setting (relative paths from the project file's
     folder), else <project file name>.runs beside the project file. A project never saved has no folder beside it:
     TrackingError says so."""
@@ -89,11 +95,11 @@ def store_folder(project, folder: str | None = None) -> str:
     return os.path.abspath(os.path.join(here, f or default_folder_name(project)))
 
 
-def store_for(project, folder: str | None = None) -> RunStore:
+def store_for(project: Project, folder: str | None = None) -> RunStore:
     return RunStore(store_folder(project, folder))
 
 
-def should_log(study: str, project, requested: bool = True) -> bool:
+def should_log(study: str, project: Project | None, requested: bool = True) -> bool:
     """Whether a run of study is logged from this project: tracking on, not the tracker's own summary, and (for a
     quick study the window re-runs after each edit, requested=False) only when the setting 'quick' is on."""
     from .. import jobs
@@ -106,8 +112,9 @@ def should_log(study: str, project, requested: bool = True) -> bool:
 
 
 # ====================================================================== logging
-def log(study: str, doc: dict, project, *, store: RunStore | None = None, folder: str | None = None,
-        kind: str | None = None, interface: str = 'app', tags=(), note: str = '', started=None, ended=None,
+def log(study: str, doc: dict, project: Project | None, *, store: RunStore | None = None, folder: str | None = None,
+        kind: str | None = None, interface: str = 'app', tags: tuple | list = (), note: str = '',
+        started: str | datetime.datetime | None = None, ended: str | datetime.datetime | None = None,
         rerun_of: str | None = None, reproduce: dict | None = None) -> dict:
     """Log one run of study (its result doc) made on project into store (default: the project's). The project's
     own tracking tags are added to tags. Returns the record as stored."""
@@ -118,8 +125,9 @@ def log(study: str, doc: dict, project, *, store: RunStore | None = None, folder
     return store.add(rec, stamped)
 
 
-def log_failure(study: str, reason: str, project, *, store: RunStore | None = None, folder: str | None = None,
-                kind: str | None = None, interface: str = 'app', tags=(), note: str = '', started=None) -> dict:
+def log_failure(study: str, reason: str, project: Project | None, *, store: RunStore | None = None,
+                folder: str | None = None, kind: str | None = None, interface: str = 'app', tags: tuple | list = (),
+                note: str = '', started: str | datetime.datetime | None = None) -> dict:
     """Log a run that could not run (a study's refusal, in its plain sentence)."""
     store = store or store_for(project, folder)
     t = clean_tags(list(settings_of(project)['tags'] if project is not None else []) + clean_tags(tags))
@@ -136,13 +144,13 @@ class SessionLog:
         self._seen: set = set()
         self._lock = threading.Lock()
 
-    def key(self, store: RunStore, study: str, doc: dict, project) -> tuple:
+    def key(self, store: RunStore, study: str, doc: dict, project: Project) -> tuple:
         from .. import provenance as PV
         doc = {k: v for k, v in doc.items() if k not in ('cached', 'revision', PV.KEY)}
         return (store.folder, study, PV.project_digest(project)['sha256'],
                 project.variant.uid if project.variants else '', PV.result_digest(doc))
 
-    def log(self, study: str, doc: dict, project, **kw) -> dict | None:
+    def log(self, study: str, doc: dict, project: Project | None, **kw: object) -> dict | None:
         """Log unless already logged this session; None when it was."""
         store = kw.pop('store', None) or store_for(project)
         k = self.key(store, study, doc, project)
@@ -159,7 +167,7 @@ class SessionLog:
 
 
 # ====================================================================== comparing
-def _flat(o, prefix='') -> dict:
+def _flat(o: object, prefix: str = '') -> dict:
     out = {}
     if isinstance(o, dict):
         for k, v in o.items():
@@ -202,7 +210,7 @@ def significance(a: list, b: list, better: str, paired: bool = False) -> dict:
     return res
 
 
-def compare(records: list, keys=None) -> dict:
+def compare(records: list, keys: list | None = None) -> dict:
     """The runs side by side: for each metric key (default: every key any run states), each run's value, its delta
     and relative change against the first run (the baseline), which run is best by the metric's direction, and a
     significance note; plus the settings and inputs that differ between the runs. records: full run records
@@ -257,16 +265,18 @@ def compare(records: list, keys=None) -> dict:
             'started': [r.get('started_utc') for r in records], 'rows': rows, 'differences': diffs, 'notes': notes}
 
 
-def delta_text(v, unit: str = '') -> str:
+def delta_text(v: float | None, unit: str = '') -> str:
+    """A change against the baseline run with its unit: a change of a percentage is in percentage points ('pp')."""
     if v is None:
         return '—'
+    from ..metrics import delta_unit
     s = f'{v:+.4g}'
-    return f'{s} {unit}'.strip()
+    return f'{s} {delta_unit(unit)}'.strip()
 
 
 # ====================================================================== re-running
-def rerun(store: RunStore, run_id: str, project, *, interface: str = 'app', tags=(), dataset: str | None = None,
-          log_it: bool = True) -> tuple[dict | None, dict]:
+def rerun(store: RunStore, run_id: str, project: Project, *, interface: str = 'app', tags: tuple | list = (),
+          dataset: str | None = None, log_it: bool = True) -> tuple[dict | None, dict]:
     """Re-run what a run's result was made from on project (core/reproduce: the same study and settings as the
     project now holds) and compare every number. (the new run's record, logged with rerun_of and the verdict, or None
     when log_it is False; the reproduction report)."""
@@ -300,7 +310,8 @@ def _sha(path: str) -> str:
     return h.hexdigest()
 
 
-def export(store: RunStore, out_dir: str, formats=FORMATS, runs: list | None = None, **filters) -> dict:
+def export(store: RunStore, out_dir: str, formats: str | list | tuple = FORMATS, runs: list | None = None,
+           **filters: object) -> dict:
     """Write the runs (default: every run of the store, or those the filters of RunStore.runs pick) into out_dir:
     runs.csv, runs_long.csv, units.json (csv); runs.parquet, runs_long.parquet (parquet); mlruns/ (mlflow);
     wandb/wandb_runs.json and wandb/replay_wandb.py (wandb); and export_runs_manifest.json (every file's SHA-256 and
@@ -376,5 +387,5 @@ def rows_text(r: dict) -> str:
            f'{r.get("status")}' + (f' · {h}' if h else '')
 
 
-def finite(v) -> bool:
+def finite(v: object) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canonical view: pooling wrist cameras across robots · DexVantage</title>
+<meta name="description" content="You want an SO-100&#x27;s wrist images to look as if they were taken by the UR5e&#x27;s wrist D405, so that one policy can betrained on both datasets. The Canonical view page (Export ▸ Canonical view) computes the warp. The warp is exact forthe fingertip contact plane. The page also shows how far off it is …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#a-worked-example-an-so-100-warped-to-the-ur5es-wrist-d405">A worked example: an SO-100 warped to the UR5e&#x27;s wrist D405</a>
+    <a href="#using-the-exported-warp">Using the exported warp</a>
+    <a href="#batch">Batch</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/canonical_warp.md"><code>docs/guide/canonical_warp.md</code></a></p>
+<h1 id="canonical-view-pooling-wrist-cameras-across-robots">Canonical view: pooling wrist cameras across robots</h1>
+<p>You want an SO-100's wrist images to look as if they were taken by the UR5e's wrist D405, so that one policy can be
+trained on both datasets. The Canonical view page (Export ▸ Canonical view) computes the warp. The warp is exact for
+the fingertip contact plane. The page also shows how far off it is for anything nearer or farther, and it writes the
+warp in the formats a data pipeline reads. The model is in <a href="../models/canonical_warp.html">Cross-embodiment canonical view warp</a>.</p>
+<h2 id="a-worked-example-an-so-100-warped-to-the-ur5es-wrist-d405">A worked example: an SO-100 warped to the UR5e's wrist D405</h2>
+<ol>
+<li>
+<p>File ▸ Open sample ▸ UR5e + Robotiq 2F-85.</p>
+</li>
+<li>
+<p>Add the SO-100 arm and its wrist camera to the project.</p>
+<p>In Python, the test file does this in <code>tests/test_canonical_warp.py _merged()</code>. It puts the SO-100 0.8 m along −y,
+as a second, non-primary robot, together with its sample wrist camera (a 1280 × 720 default camera: no maker in
+the library states a camera for the SO-100).</p>
+<p>Alternatively, keep the two robots in separate projects. Export the warp once in the UR5e project; that export
+writes <code>&lt;stem&gt;_canonical_view.json</code>. Then, in the SO-100 project, use <strong>Load canonical view…</strong> on the page.</p>
+</li>
+<li>
+<p>Open Export ▸ Canonical view. The page picks <strong>Source (robot B)</strong> = the SO-100's <em>Wrist camera (sample placement)</em>
+and <strong>Canonical (robot A)</strong> = <em>Wrist D405</em>. With two robots it always picks a camera on the second robot's link
+and one on the primary robot's link. Press <strong>Run</strong>.</p>
+</li>
+</ol>
+<p>What the page shows (measured 2026-11-07, the study takes 0.07 s):</p>
+<ul>
+<li>
+<p><strong>Headline: 163.9 px, &quot;large parallax&quot;.</strong> This is the P95 of the residual parallax at the worse depth extreme, in
+the D405's pixels; the maximum is 215.3 px.</p>
+</li>
+<li>
+<p><strong>Geometry.</strong> The two cameras are 30.7 mm apart relative to their fingertips. The contact plane is 83.4 mm from the
+SO-100's camera and 110.7 mm from the D405. The warp fills 70.8 % of the D405's image.</p>
+</li>
+<li>
+<p><strong>Depth range.</strong> The defaults give −305 mm to +35 mm. Beyond the plane, the range is the task volume's height along
+the approach axis, because the TCP can be anywhere in the volume. Towards the camera, it is the SO-100 pads' far
+end.</p>
+<table>
+<thead>
+<tr>
+<th>Depth extreme</th>
+<th>Distance</th>
+<th>Max</th>
+<th>P95</th>
+<th>Median</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Beyond the plane</td>
+<td>−305 mm</td>
+<td>215.3 px</td>
+<td>163.9 px</td>
+<td>73.6 px</td>
+</tr>
+<tr>
+<td>Towards the camera</td>
+<td>+35 mm</td>
+<td>127.9 px</td>
+<td>102.1 px</td>
+<td>47.3 px</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li>
+<p><strong>Homography.</strong> H ≈ [[−0.854, −0.025, 1142.3], [0.0001, −0.897, 594.4], [0, 2 × 10⁻⁵, 1]]. The negative diagonal
+is a half turn: the SO-100 sample's wrist camera is mounted rolled 180° relative to the D405's view of the
+fingertips.</p>
+</li>
+<li>
+<p><strong>Parallax map.</strong> It shows where in the D405's image the warp is good (light) and poor (dark).</p>
+</li>
+<li>
+<p><strong>3D view.</strong> It draws the contact plane at the SO-100's TCP (green), the SO-100 camera's frustum (blue) and, dashed,
+where the D405 sits relative to those fingertips.</p>
+</li>
+<li>
+<p><strong>Camera view.</strong> Choose the D405 and you see the SO-100's image grid warped into it. Choose the SO-100 camera and
+you see which of its pixels the warp reads.</p>
+</li>
+</ul>
+<p>The figure says that a 30 mm difference in mounting, with things up to 30 cm beyond the fingertips, moves image
+content by more than 100 px. The warp is fine for the object between the fingers; it is not fine for the table
+behind it.</p>
+<p><strong>Make it smaller.</strong></p>
+<ul>
+<li><strong>Apply</strong> mounts the SO-100's camera at the D405's pose relative to the fingertips. It is one undo step, and the
+camera moves 31 mm. Run again: the headline reads 5 × 10⁻¹³ px, &quot;aligned&quot;. The warp is then the pure homography
+K_A K_B⁻¹ and holds at every depth. <strong>Preview</strong> draws the pose first. A locked camera is not moved.</li>
+<li>If the scene really is shallow, set the depth range in the project's settings, e.g.
+<code>{&quot;canonical_view&quot;: {&quot;depth_range_m&quot;: [-0.05, 0.02]}}</code>. The headline then reads 69.0 px.</li>
+<li><strong>Plane offset</strong> moves the plane along the approach axis. <strong>Flip the source's closing axis</strong> turns the source's
+contact frame half a turn about the approach axis. On this pair the flip is wrong: it puts the cameras on opposite
+sides of the gripper, 133 mm apart and 1 899 px.</li>
+</ul>
+<h2 id="using-the-exported-warp">Using the exported warp</h2>
+<p>Export warp maps… (or <code>dexvantage project.dexv --export out/ --formats canonical_warp</code>) writes into
+<code>out/canonical_warp/</code>. On the example the files come to about 40 MB, written in 1.0 s; the <code>.yml</code> is 20 MB of that.</p>
+<pre><code class="language-python">import cv2, numpy as np
+stem = 'out/canonical_warp/Wrist_camera_sample_placement_to_Wrist_D405'
+map1, map2 = np.load(stem + '_map1.npy'), np.load(stem + '_map2.npy')
+canonical = cv2.remap(img_so100, map1, map2, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+
+import torch
+grid = torch.from_numpy(np.load(stem + '_grid.npy'))[None]          # (1, 720, 1280, 2)
+canonical_t = torch.nn.functional.grid_sample(img_t, grid, mode='bilinear', padding_mode='zeros',
+                                              align_corners=False)
+</code></pre>
+<p><code>_homography.json</code> carries H for undistorted images, the conventions, both cameras and the parallax summary at full
+resolution, with provenance. <code>_parallax.npy</code> is the per-pixel error map, which can mask or weight the loss where the
+warp is poor.</p>
+<h2 id="batch">Batch</h2>
+<pre><code>dexvantage project.dexv --canonical-view result.json
+dexvantage project.dexv --export out/ --formats canonical_warp --export-options '{&quot;canonical_warp&quot;: {&quot;formats&quot;: [&quot;npy&quot;, &quot;grid&quot;, &quot;json&quot;]}}'
+</code></pre>
+<p>The study's settings live in <code>project.analysis.studies[&quot;canonical_view&quot;]</code>: <code>source</code>, <code>canonical</code> (a sensor uid or a
+canonical view document), <code>q</code>, <code>plane_offset_m</code>, <code>closing_sign_source</code>, <code>closing_sign_canonical</code>, <code>depth_range_m</code>
+and <code>thresholds_px</code>.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

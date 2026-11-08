@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silhouette calibration: a worked example · DexVantage</title>
+<meta name="description" content="Has the overhead camera moved since the rig was calibrated? There is no board in the episodes, but the robot is inevery frame. This walk-through checks the UR5e sample&#x27;s overhead D435 against the robot&#x27;s own silhouette, episode byepisode. It finds the episode where the mount slipped and writes the …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#a-a-dataset-to-check">A. A dataset to check</a>
+    <a href="#b-run-it-calibrate--silhouette-calibration">B. Run it (Calibrate ▸ Silhouette calibration)</a>
+    <a href="#c-what-it-says">C. What it says</a>
+    <a href="#d-apply">D. Apply</a>
+    <a href="#when-it-says-not-observable">When it says &quot;not observable&quot;</a>
+    <a href="#batch">Batch</a>
+    <a href="#from-code-the-auditors-entry-point">From code (the auditor&#x27;s entry point)</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/render_calib.md"><code>docs/guide/render_calib.md</code></a></p>
+<h1 id="silhouette-calibration-a-worked-example">Silhouette calibration: a worked example</h1>
+<p>Has the overhead camera moved since the rig was calibrated? There is no board in the episodes, but the robot is in
+every frame. This walk-through checks the UR5e sample's overhead D435 against the robot's own silhouette, episode by
+episode. It finds the episode where the mount slipped and writes the recovered mount back. The method, its
+equations, its checks and its limits are in <code>docs/models/render_calib.md</code>.</p>
+<p>The episodes here are synthetic (Simulate ▸ Generate synthetic episodes…, <code>core/sim/episodes.py</code>), so the true mount is known.
+On a real rig they are the LeRobot, RLDS or ROS 2 bag recordings of your data collection.</p>
+<h2 id="a-a-dataset-to-check">A. A dataset to check</h2>
+<ol>
+<li>Open the sample: File ▸ Open sample ▸ &quot;UR5e and Robotiq 2F-85 with a wrist D405 and an overhead D435&quot;.</li>
+<li>Make a dataset: Simulate ▸ Generate synthetic episodes… with its defaults (4 episodes of the sample's pick trajectory,
+LeRobot v3.0, 640 × 360). Every fault is on by default. The one that matters here is the mount slip: from episode
+2 on, the overhead camera's mount is moved 3 mm along its body x axis and turned 1.5° about its y axis (defaults
+chosen to show, not measured knocks). The overhead camera also gets a 50 ms camera–joint desync in episodes 0–2
+and a 5000 ppm clock drift in episodes 2–3, among others. Generating took 16 s on the RTX 5080.</li>
+</ol>
+<h2 id="b-run-it-calibrate--silhouette-calibration">B. Run it (Calibrate ▸ Silhouette calibration)</h2>
+<p>Switch to the Calibration workspace: the page is next to the hand-eye pages.</p>
+<ol>
+<li><strong>Dataset…</strong>: choose the dataset's folder. The page shows its name. The path is stored in the project's study
+settings, one undo step.</li>
+<li><strong>Camera</strong>: &quot;Overhead D435&quot;, the only static camera. The wrist D405 rides on the arm, so it uses the hand-eye
+solve instead.</li>
+<li><strong>Frames</strong> (default 12 per episode, chosen where the joints differ most) and <strong>Episodes</strong> (default the first 8)
+are yours to set; the line under them lists the defaults in use.</li>
+<li><strong>Run</strong>. The four episodes take 17.7 s, about 4.5 s each (about 1 500 renders through EGL on the RTX 5080).</li>
+</ol>
+<h2 id="c-what-it-says">C. What it says</h2>
+<p>The headline is the last observable episode:</p>
+<pre><code>4.2 mm · 1.53°    ± 0.9 mm · 0.06° (1σ), episode 3        mount moved
+The camera is 4.2 mm and 1.53° from its mount: Apply writes the recovered mount.
+</code></pre>
+<p>The per-episode table (offset from the project's mount; the truth from the dataset's sidecar, which the page does not
+read):</p>
+<table>
+<thead>
+<tr>
+<th>episode</th>
+<th>offset</th>
+<th>1σ</th>
+<th>error against the truth</th>
+<th>IoU before → after</th>
+<th>edge RMS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1.34 mm, 0.080°</td>
+<td>2.3 mm, 0.13°</td>
+<td>1.34 mm, 0.080°</td>
+<td>0.26 → 0.26</td>
+<td>1.11 px</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0.68 mm, 0.062°</td>
+<td>2.3 mm, 0.15°</td>
+<td>0.68 mm, 0.062°</td>
+<td>0.23 → 0.23</td>
+<td>1.13 px</td>
+</tr>
+<tr>
+<td>2</td>
+<td>2.76 mm, 1.387°</td>
+<td>1.6 mm, 0.10°</td>
+<td>2.65 mm, 0.230°</td>
+<td>0.19 → 0.23</td>
+<td>1.02 px</td>
+</tr>
+<tr>
+<td>3</td>
+<td>4.21 mm, 1.534°</td>
+<td>0.9 mm, 0.06°</td>
+<td>1.35 mm, 0.056°</td>
+<td>0.14 → 0.17</td>
+<td>0.80 px</td>
+</tr>
+</tbody>
+</table>
+<p>Below the table:</p>
+<blockquote>
+<p>Mount steps: between episodes 1 and 2, 2.5 mm and 1.42° (19.6 σ).</p>
+</blockquote>
+<p>That is the slip: 1.5° about the camera's y axis is recovered as 1.37–1.53°. The change from episode 2 to 3
+(3.9 mm, 0.28°) stays under 3 σ, so it is not called a step.</p>
+<p>Read the errors with the faults in mind. Episode 2 is off by 2.65 mm and 0.23° because its overhead stream also
+carries a 50 ms desync and a clock drift: the images show the arm where the joint log says it was earlier, and the
+silhouette calibration takes that as a mount error. Fix the timing first (Analysis ▸ Time sync, and the dataset
+auditor's camera–joint checks). The page's notes say which lens model it used: the project's imager, because the
+LeRobot format stores no intrinsics.</p>
+<p>The thumbnail shows the frame with the largest silhouette in the headline episode. The grey dashed outline is the
+robot rendered through the project's mount; the green one is the robot through the recovered mount, which should hug
+the arm's edges. With the Camera view on &quot;Overhead D435&quot;, the page draws the robot's outline through the recovered
+mount over the view in orange, at the joint state on screen.</p>
+<h2 id="d-apply">D. Apply</h2>
+<p><strong>Preview</strong> shows both camera frames in the 3D view: grey is the mount now, coloured is the recovered one, with a
+dashed line between them. <strong>Apply</strong> writes the recovered mount (the sensor body pose in its parent frame, 4.2 mm and
+1.53° away) to the D435, one undo step. Every study that depends on the camera's pose re-runs against the new mount.</p>
+<h2 id="when-it-says-not-observable">When it says &quot;not observable&quot;</h2>
+<ul>
+<li><strong>The robot is too small in the image</strong>: it covers less than 0.5 % of the image (a default), or its outline gives
+fewer than 30 points per frame. Move the camera closer or record at a higher resolution.</li>
+<li><strong>The robot is too static</strong>: the frames hold fewer than 3 distinct joint states (a default; two frames are distinct
+when a joint differs by 5°). An episode where the arm sits still cannot separate a mount error from the arm's own
+outline. Choose episodes with motion, or more frames.</li>
+<li><strong>The weakest direction is beyond the requirement</strong>: the page names it, for example &quot;the camera's position along
+the view (distance)&quot;, and says how far beyond 5 mm and 0.5° (defaults) its σ is. More frames with the arm spread
+across the image tighten it.</li>
+</ul>
+<h2 id="batch">Batch</h2>
+<pre><code>dexvantage project.dexv --silhouette-calib silhouette.json
+</code></pre>
+<p>The dataset is the one in the project's settings (<code>analysis.studies.silhouette_calib.dataset</code>, set by the page's
+Dataset… button), together with <code>sensor</code>, <code>max_frames</code>, <code>episodes</code> and the other settings of
+<code>docs/models/render_calib.md</code>. Without a dataset the run refuses in one sentence and exits 2. The result is JSON with
+a provenance block.</p>
+<h2 id="from-code-the-auditors-entry-point">From code (the auditor's entry point)</h2>
+<pre><code>from dexvantage.core.calib import render_calib as RC
+from dexvantage.core.datasets import open_dataset
+with open_dataset(path) as ds:
+    one = RC.estimate(ds, project, sensor_uid)          # the first episode (settings {'episode': k} for another)
+    all_ = RC.drift(ds, project, sensor_uid)             # every episode, and the steps between them
+one['delta'], one['sigma'], one['observable'], one['why'], one['frames_used']
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

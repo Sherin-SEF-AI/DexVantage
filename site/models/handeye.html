@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hand-eye calibration · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/calib/boards.py (ChArUco and AprilGrid boards, printing), detect.py (corner detection,sub-pixel refinement, PnP), axxb.py (closed-form AX = XB and AX = ZB solvers), handeye.py (the bundle adjustmentand its covariance), synthetic.py (rendered board images and synthetic …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#boards">Boards</a>
+    <a href="#detection-and-pnp">Detection and PnP</a>
+    <a href="#closed-form-solvers">Closed-form solvers</a>
+    <a href="#the-bundle-adjustment">The bundle adjustment</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#handeye-planner">Pose planning, recording and the coach</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/handeye.md"><code>docs/models/handeye.md</code></a></p>
+<h1 id="handeye">Hand-eye calibration</h1>
+<p>Modules: <code>dexvantage/core/calib/boards.py</code> (ChArUco and AprilGrid boards, printing), <code>detect.py</code> (corner detection,
+sub-pixel refinement, PnP), <code>axxb.py</code> (closed-form AX = XB and AX = ZB solvers), <code>handeye.py</code> (the bundle adjustment
+and its covariance), <code>synthetic.py</code> (rendered board images and synthetic hand-eye problems for the checks and tests).
+Checks: <code>dexvantage/validation/checks_handeye.py</code> (model <code>handeye</code>). Tests: <code>tests/test_calib.py</code>. Spec §8.1 (board
+detection and solvers) and the hand-eye checks of §10. Ported from Vantage <code>core/targets.py</code> (board points) and
+<code>core/calib.py</code> (grey conversion, PnP on lens-undistorted rays, per-view reprojection error, the outlier rule); the
+ChArUco and AprilGrid detectors, the hand-eye solvers and the bundle adjustment are new.</p>
+<p>The pose planner, the recording and the coach of §8.1 (<code>planner.py</code>, <code>capture.py</code>, <code>coach.py</code>, <code>records.py</code>, the
+studies of <code>dexvantage/core/studies/handeye.py</code> and the pages of <code>dexvantage/ui/pages/handeye.py</code>) are described in
+<a href="#handeye-planner">Pose planning, recording and the coach</a> below. Tests: <code>tests/test_calib_planner.py</code>,
+<code>tests/test_calib_ui.py</code>. The planner ports the Fisher-information model of Vantage <code>core/observability.py</code> and the
+next-best-view idea of Vantage <code>core/calib_coach.py</code>.</p>
+<h2 id="boards">Boards</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>ChArUco</th>
+<th>AprilGrid (Kalibr layout)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Definition</td>
+<td><code>CharucoBoard(squares_x, squares_y, square_m, marker_m, dictionary='DICT_5X5_100', legacy=False)</code></td>
+<td><code>AprilGrid(tag_cols, tag_rows, tag_m, spacing=0.3, first_id=0, corner_squares=True)</code></td>
+</tr>
+<tr>
+<td>Points</td>
+<td>the (squares_x − 1)(squares_y − 1) inner chessboard corners, OpenCV's <code>getChessboardCorners</code> order</td>
+<td>4 corners per tag, Kalibr's order: a (2 rows) × (2 cols) grid, index R · 2 cols + C</td>
+</tr>
+<tr>
+<td>Board frame</td>
+<td>origin at the pattern's top-left outer corner, x right, y down, z into the board (OpenCV's)</td>
+<td>origin at the bottom-left corner of tag 0, x right, y up, z out of the face (Kalibr's)</td>
+</tr>
+<tr>
+<td>Detector</td>
+<td><code>cv2.aruco.CharucoDetector.detectBoard</code></td>
+<td><code>cv2.aruco.ArucoDetector</code>, <code>DICT_APRILTAG_36h11</code>, <code>markerBorderBits = 2</code>, contour corners, then <code>cornerSubPix</code></td>
+</tr>
+<tr>
+<td>Minimum per view</td>
+<td>6 corners (<code>detect.MIN_POINTS</code>, a default)</td>
+<td>4 tags (<code>APRILGRID_MIN_TAGS</code>, Kalibr's <code>minTagsForValidObs</code> default)</td>
+</tr>
+</tbody>
+</table>
+<p>The AprilGrid layout was read from Kalibr's sources on 2026-11-06 (<code>kalibr</code> in <code>validation/references.py</code>): the wiki
+page &quot;Calibration targets&quot; (tagSize &quot;edge to edge&quot;, tagSpacing the ratio of the gap to tagSize, 0.3 in the example),
+<code>GridCalibrationTargetAprilgrid.cpp</code> and its header (the point order, <code>blackTagBorder</code> 2, <code>minTagsForValidObs</code> 4) and
+<code>kalibr_create_target_pdf</code> (ids row by row from the bottom left, a 2-bit black border, a black square of side
+spacing × tag at each tag corner). A tag is 6 × 6 data bits in a 2-bit black border, so a bit is tag_m / 10. The
+dictionary default <code>DICT_5X5_100</code> is a default, not a recommendation from a source; any predefined dictionary with
+enough markers works.</p>
+<p><strong>Printing.</strong> <code>save_board(board, 'board.pdf')</code> writes one page of exactly the pattern's size plus a white margin
+(default one square or one tag, after Kalibr's &quot;a white border around the calibration target of min. the size of one
+grid element&quot;), drawn in vectors with a caption in the margin; <code>save_board(board, 'board.png', dpi=300)</code> writes a
+grey PNG with its resolution in the file (pHYs). <code>render_board(board, dpi)</code> returns the image. Print at 100 % and
+measure a square or a tag with a ruler: the measured size is what the solver must be given.</p>
+<h2 id="detection-and-pnp">Detection and PnP</h2>
+<p>ChArUco corners are OpenCV's (markers, then the chessboard corners between them interpolated and refined by
+<code>cornerSubPix</code>). A second <code>cornerSubPix</code> pass was tried and dropped: on rendered boards it made the corners worse at
+25–40° of tilt (0.09 → 0.10–0.13 px).</p>
+<p>AprilGrid tag corners come from OpenCV's contour corners, then <code>cornerSubPix</code> with a half-window of 0.33 of the gap
+between tags in pixels (2–8 px; defaults), so the window stays inside the gap. With Kalibr's corner squares each tag
+corner is a chessboard-like X corner; measured on rendered grids with 1 grey level of noise, 0.08–0.12 px RMS
+against the projected truth, against 0.13–0.26 px without the squares (L corners are biased inwards). OpenCV 5.0.0's
+<code>CORNER_REFINE_APRILTAG</code> was measured on the same renders at about +0.5 px in both axes (a half-pixel convention
+difference) and lost tags next to the corner squares, so it is not used.</p>
+<p><code>solve_pnp(points, corners, camera)</code> turns the corners into rays with the camera model (<code>core.optics.CameraModel</code>,
+any of its lens models), solves the planar pose on the normalised plane z = 1 (<code>cv2.solvePnPGeneric</code> with IPPE, the
+better of its two solutions), refines it with <code>cv2.solvePnPRefineLM</code>, then once more in pixels through the camera
+model (<code>scipy.optimize.least_squares</code>). The per-corner error is <code>|uv_detected − project(T · P)|</code> and the view RMS
+is <code>√(mean e²)</code>.</p>
+<h2 id="closed-form-solvers">Closed-form solvers</h2>
+<p>With <code>T_g2b</code> the gripper (or any mount link) in the base frame from forward kinematics and <code>T_t2c</code> the board in the
+camera frame from PnP:</p>
+<ul>
+<li><strong>AX = XB</strong> (<code>axxb.hand_eye</code>, OpenCV's <code>calibrateHandEye</code> conventions): for every pair i &lt; j,
+<code>A = T_g2b[j]⁻¹ T_g2b[i]</code>, <code>B = T_t2c[j] T_t2c[i]⁻¹</code>, <code>X = T_cam2gripper</code>. Eye-to-hand passes <code>T_base2gripper</code> and
+gets <code>T_cam2base</code>. Methods: Tsai-Lenz (modified Rodrigues vectors), Park-Martin (log map, (MᵀM)^(−½) Mᵀ),
+Horaud-Dornaika (quaternions, smallest eigenvector), Andreff (Kronecker linear system), Daniilidis (dual
+quaternions). The four rotation-first methods share the translation step <code>(R_A − I) t = R_X t_B − t_A</code>.</li>
+<li><strong>AX = ZB</strong> (<code>axxb.robot_world</code>, OpenCV's <code>calibrateRobotWorldHandEye</code> conventions): <code>A = T_world2cam</code>,
+<code>B = T_base2gripper</code>, <code>X = T_base2world</code>, <code>Z = T_gripper2cam</code>. Methods: Shah (the leading singular pair of
+Σ R_B ⊗ R_A, then the translations in least squares) and Li (one linear system in the rotations and translations).</li>
+</ul>
+<p>OpenCV's functions are used when the installed OpenCV has them. <strong>OpenCV 5.0.0's Python package (the <code>.venv</code> of this
+build) exposes only the method constants, not the functions</strong>, so the NumPy versions in <code>axxb.py</code>, written from the
+papers, run here; every result names its backend. The check <code>handeye.numpy_vs_opencv</code> compares the two on exact
+poses and is registered only where OpenCV has the functions; it has not run in the suite of this build.</p>
+<p><strong>Measured once against OpenCV 4.10.0</strong> (2026-11-07, <code>opencv-python-headless</code> 4.10.0.84 loaded from a scratch folder
+ahead of the <code>.venv</code>'s 5.0.0, not installed; the synthetic UR5e scenes of <code>core/calib/synthetic.py</code>, 15 poses, 5
+seeds, eye-in-hand and eye-to-hand; noise added to the board poses as Gaussian 1σ per axis). Largest difference of X or
+Z between the NumPy and the OpenCV result of the same method:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>exact poses</th>
+<th>0.5 mm, 0.05°</th>
+<th>2 mm, 0.2°</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Park-Martin, Horaud-Dornaika, Daniilidis, Shah</td>
+<td>≤ 2.6 × 10⁻¹² mm</td>
+<td>≤ 3.1 × 10⁻¹² mm</td>
+<td>≤ 7.7 × 10⁻¹² mm</td>
+</tr>
+<tr>
+<td>Tsai-Lenz</td>
+<td>6.4 × 10⁻¹³ mm</td>
+<td>0.11 mm, 0.005°</td>
+<td>0.40 mm, 0.022°</td>
+</tr>
+<tr>
+<td>Andreff</td>
+<td>2.3 × 10⁻¹² mm</td>
+<td>2.3 mm, 0.030°</td>
+<td>13.6 mm, 0.11°</td>
+</tr>
+<tr>
+<td>Li</td>
+<td>2.9 × 10⁻¹² mm</td>
+<td>2.4 mm (rotation identical)</td>
+<td>14.0 mm (rotation identical)</td>
+</tr>
+</tbody>
+</table>
+<p>Four methods are OpenCV's to rounding. Andreff and Li differ by several times the pose noise, as their design says
+(OpenCV keeps the linear system's translation; these re-solve it with the projected rotation): against the truth the
+NumPy versions were the closer ones (worst 6.2 and 6.0 mm at 2 mm noise, OpenCV's 14.0 and 14.5 mm), so a NumPy
+result labelled Andreff or Li is not what OpenCV's method of that name returns. Tsai-Lenz differs by a few tenths of a
+millimetre under noise for a reason not traced here (the solution is not OpenCV's to rounding, though both are within
+0.25 mm of each other's error against the truth). All these are initialisers; the bundle adjustment starts from one
+and does not depend on which.</p>
+<h2 id="the-bundle-adjustment">The bundle adjustment</h2>
+<p><code>handeye.solve(Problem, Settings)</code> estimates, in one sparse non-linear least-squares problem
+(<code>scipy.optimize.least_squares</code>, trust-region reflective):</p>
+<ul>
+<li>X_c for every camera: its optical frame in its mount frame (a robot link, or the world for a static camera);</li>
+<li>Z_b for every board: its frame in its mount frame (the world, or a link when the robot holds it);</li>
+<li>optionally each camera's intrinsics (fx, fy, cx, cy and its lens model's distortion terms);</li>
+<li>optionally joint offsets δ (encoder zero errors) of the joints that move the mount links of the robots named in
+<code>Settings.joint_offsets</code>, with a prior δ ~ N(0, σ_δ²), σ_δ = 1° by default;</li>
+<li>optionally per-pose joint corrections ε when the encoders are given a noise σ_q (<code>Settings.encoder_sigma_deg</code>):
+the readings then enter as measurements, ε ~ N(0, σ_q²).</li>
+</ul>
+<p>For a corner k seen in view j (camera c, board b, robot pose p):</p>
+<pre><code>M(link, p)   = FK_world_link(q_p + δ + ε_p)      (identity for a world mount; RobotModel.fk_array)
+T_cam_board  = (M_c(p) X_c)⁻¹ M_b(p) Z_b
+uv_k         = project_c(T_cam_board · P_k)
+cost         = Σ |uv_k − uv_detected|² / σ_px² + Σ |δ|² / σ_δ² + Σ |ε|² / σ_q²
+</code></pre>
+<p>Several cameras, several boards and several robots enter the same problem (multi-camera, multi-arm). Eye-in-hand,
+eye-to-hand and the general case (a camera on one arm, a board held by another: AX = ZB with both sides moving) are
+the same model with different mounts.</p>
+<p><strong>Parameterisation.</strong> Each transform is updated as <code>T = [R₀ Exp(ω) | t₀ + v]</code>: ω (rad) about the transform's own
+axes, v (m) along its parent's.</p>
+<p><strong>Sparse Jacobian.</strong> A view's residuals depend only on its camera's X and intrinsics, its board's Z, its robots'
+offsets and the joints of its pose. The Jacobian is formed by central differences over groups of columns that share
+no row (a greedy colouring of that pattern), so all poses' joint columns cost one evaluation per joint together;
+<code>tests/test_calib.py</code> checks the grouped Jacobian against a column-by-column difference.</p>
+<p><strong>Initial values.</strong> Every view's board pose from PnP; then, for each camera-board pair not yet placed, every
+applicable closed-form method (the five AX = XB methods when exactly one of the two is static, Shah and Li always);
+the one with the smallest pixel RMS starts the adjustment (<code>Settings.initialiser = 'best'</code>, or a named method).
+Cameras and boards linked only through others are placed from the ones already known. The result lists every method's
+X, Z and RMS, so the closed-form results can be compared with the adjustment.</p>
+<p><strong>Covariance.</strong> At the optimum the problem is re-linearised (the estimates become the origins, the deltas zero) and</p>
+<pre><code>Σ = (Jᵀ J)⁻¹,   pixel rows weighted by 1/σ̂,   σ̂² = Σ r² / (m − n)
+</code></pre>
+<p>with m the pixel residuals and n the parameters (the Gauss-Newton covariance with the residual variance; the priors
+keep their stated σ). Directions with eigenvalues below 10⁻¹² of the largest are reported as not determined. σ of X
+and Z are given in mm (x, y, z along the parent's axes) and degrees (rx, ry, rz about the frame's own axes), with the
+full 6 × 6 blocks in the order (rx, ry, rz, x, y, z) in rad and m. A joint offset whose σ stays above half its prior
+σ (a default) is marked &quot;not determined&quot;: the views cannot tell it from X or Z.</p>
+<p><strong>Outliers.</strong> After a solve, a view whose RMS exceeds max(3 × the median view RMS, 1 px) is dropped and the problem
+solved again, up to 5 rounds, while at least 3 views per camera remain (the rule and its numbers are defaults, ported
+from Vantage's per-unit lens calibration). Dropped views are listed with the reason.</p>
+<p><strong>Output</strong> (<code>HandEyeResult.to_dict()</code>, schema <code>dexvantage.handeye/1</code>): per camera and board the pose, matrix, frame
+(&quot;wrist optical frame in link wrist_3_link of UR5e + Robotiq 2F-85&quot;), σ and covariance; estimated intrinsics with σ;
+joint offsets with σ and &quot;determined&quot;; per view the corners, RMS and whether it was used; the overall RMS, σ̂, degrees
+of freedom, the initialisers tried and the settings with their defaults.</p>
+<h2 id="validation">Validation</h2>
+<p>Measured with the suite's default seed (20261027) on 2026-11-06, OpenCV 5.0.0 (backend <code>numpy</code> for the closed-form
+solvers, see above), full run of the seven checks 16 s (quick run 10 s):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Measured</th>
+<th>Tolerance</th>
+<th>Why that tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>handeye.closed_form_exact</code>: all 7 closed-form methods on exact poses, eye-in-hand and eye-to-hand</td>
+<td>1.8 × 10⁻¹⁵ m (rotation 3.5 × 10⁻¹⁵ rad)</td>
+<td>10⁻⁹ m, 10⁻⁹ rad</td>
+<td>exact on noise-free motions; a convention error gives centimetres</td>
+</tr>
+<tr>
+<td><code>handeye.closed_form_noisy</code>: the same on PnP poses from 0.3 px corners, 5 seeds</td>
+<td>5.87 mm, 0.47°</td>
+<td>15 mm, 1.5°</td>
+<td>measured spread 3–8 mm, up to 0.6°, when set; a convention error gives tens of mm and degrees</td>
+</tr>
+<tr>
+<td><code>handeye.ba_truth</code>: the adjustment against the truth in units of its σ (two cameras eye-in-hand and eye-to-hand, intrinsics, encoder noise, joint offsets)</td>
+<td>3.11 σ; translation of the wrist and held-board transforms 0.18 mm</td>
+<td>5 σ and 1 mm</td>
+<td>an unbiased estimate is within about 3σ per component; a model error is off by tens of σ or more</td>
+</tr>
+<tr>
+<td><code>handeye.ba_covariance_mc</code>: empirical / predicted σ over 40 noise draws (0.5 px, 15 poses), 12 components of X and Z</td>
+<td>ratios 0.94–1.20; 0.56 of the band</td>
+<td>the 99 % χ² band for 40 draws, Bonferroni over 12: 0.65–1.39</td>
+<td>the χ² spread of a σ estimated from n draws</td>
+</tr>
+<tr>
+<td><code>handeye.axzb_two_arms</code>: camera on one UR5e, board held by a second; the adjustment against Shah and Li</td>
+<td>3.50 mm (Shah); the adjustment 0.08 mm and 1.18 σ from the truth</td>
+<td>15 mm, and 5 σ to the truth</td>
+<td>as <code>closed_form_noisy</code> and <code>ba_truth</code></td>
+</tr>
+<tr>
+<td><code>handeye.charuco_render</code>: rendered ChArUco (Brown-Conrady camera, 0.38–0.6 m, up to 40° tilt) detected, corner RMS against the projected truth</td>
+<td>0.113 px; PnP 0.21 mm, 0.044°</td>
+<td>0.25 px; 1 mm, 0.2°</td>
+<td>sub-pixel detectors reach about 0.1 px; a half-pixel or layout error fails</td>
+</tr>
+<tr>
+<td><code>handeye.aprilgrid_render</code>: the same for an AprilGrid with corner squares</td>
+<td>0.118 px; PnP 0.046 mm, 0.019°</td>
+<td>0.25 px; 1 mm, 0.2°</td>
+<td>as above</td>
+</tr>
+</tbody>
+</table>
+<p>A larger Monte Carlo run during development (150 draws on one geometry) gave ratios of 0.91–1.13. End to end from
+rendered images (20 poses of the eye-in-hand scene, 1 grey level of noise, <code>docs/guide/handeye.md</code>), the adjustment
+recovered the wrist camera to 0.023 mm and 0.0013°, about 2.5 times its predicted σ: rendered-corner errors are
+not perfectly independent from corner to corner, so treat the σ as a lower bound when the corner noise is not white.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li><strong>OpenCV 5.0.0</strong> has no <code>calibrateHandEye</code> or <code>calibrateRobotWorldHandEye</code> in its Python bindings; the NumPy
+solvers stand in and follow the papers, not OpenCV's source. Compared once with OpenCV 4.10.0 (above): Park-Martin,
+Horaud-Dornaika, Daniilidis and Shah agree to rounding; Andreff and Li re-solve the translation and differ from
+OpenCV's by several times the pose noise; Tsai-Lenz by a few tenths of a millimetre under noise, not traced.</li>
+<li><strong>Tsai-Lenz</strong> is singular for a camera rotation (in the static frame) near 180° (its modified Rodrigues vector
+grows without bound): an eye-to-hand camera looking straight back along the base's axes gave 181 mm and 41° of
+error in development. With <code>initialiser='best'</code> another method starts the adjustment.</li>
+<li>Robot base poses are taken as exact; a second arm's base is not estimated. Link lengths and joint-axis errors are
+not modelled, only zero offsets. The first joint's offset with a world board, and the last joint's with a camera
+on the last link, trade off against Z and X and stay at their prior.</li>
+<li>Corner noise is modelled as independent and equal on every corner; images and joint readings are taken at the same
+instant (still poses); boards are flat and printed true to the size entered.</li>
+<li>Detection has been measured on rendered boards only (no blur, vignetting, glare or real print texture); a board
+printed by Kalibr's own <code>kalibr_create_target_pdf</code> (which turns its code matrix by 180° before drawing) was not
+tested for the corner order OpenCV reports.</li>
+<li>ChArUco corner interpolation uses the lens model only for pinhole and Brown-Conrady cameras; a strongly distorted
+fisheye may lose corners near the image edge.</li>
+<li>The planner, the coach and the capture have their own limits, listed in their section below.</li>
+</ul>
+<h2 id="handeye-planner">Pose planning, recording and the coach</h2>
+<h3 id="the-planner-plannerpy-study-handeye_plan-batch---handeye-plan-outjson">The planner (<code>planner.py</code>, study <code>handeye_plan</code>, batch <code>--handeye-plan OUT.json</code>)</h3>
+<p>A calibration pose set for one camera and one board, exactly one of them on a robot link: eye-in-hand (the camera on
+the link, the board in the world) or eye-to-hand (the camera fixed, the board held on the link). The number of poses
+is the user's (default 20; the specification asks for 15–25).</p>
+<p><strong>The model</strong> (ported from Vantage <code>core/observability.py</code>: corner pixels with independent noise σ on each axis,
+differentiated with respect to the unknowns, the information summed, the covariance its inverse, σ per axis in mm and
+degrees, a direction nothing pins reported as not determined). The unknowns are the bundle adjustment's X and Z in its
+own parameterisation <code>T = [R₀ Exp(ω) | t₀ + v]</code> (12 parameters). A corner P of the board seen at joint vector q:</p>
+<pre><code>P_c = Rxᵀ (Rcᵀ (M_b(q) Z P − t_c) − t_x),    M_c(q) = [Rc | t_c], M_b(q) the mount frames in the world
+∂P_c/∂ω_X = [P_c]ₓ     ∂P_c/∂v_X = −Rxᵀ     ∂P_c/∂ω_Z = −G Rz [P]ₓ     ∂P_c/∂v_Z = G,   G = Rxᵀ Rcᵀ Rb
+J = ∂uv/∂P_c · ∂P_c/∂θ        (∂uv/∂P_c by central differences of the lens model, any core.optics model)
+H = Σ_views Σ_corners Jᵀ J / σ²,      Σ = H⁻¹
+</code></pre>
+<p>Σ is the Gauss-Newton covariance the bundle adjustment reports when its residual σ̂ equals σ (<code>tests/test_calib_planner.py</code>
+checks the Jacobian against the adjustment's own, column for column, and H⁻¹ against its covariance at a fixed σ).</p>
+<p><strong>Which corners count</strong> (each a setting with a default): inside the image 3 px from its border; the camera on the
+printed side; the line of sight within 60° of the board's normal; the squares (an AprilGrid's tags) at least 8 px wide
+in the image along both board axes (Vantage's <code>min_square_px</code> rule); an AprilGrid tag only whole, at least 4 tags
+(Kalibr's <code>minTagsForValidObs</code>); at least 6 ChArUco corners (<code>detect.MIN_POINTS</code>); and none hidden by the posed robot,
+the task objects or the tables (a cube map around the camera's centre, <code>core/occlusion.py</code>, the camera's own seat left
+out by <code>scenegeom.sensor_occluders</code>). Occlusion is checked for each pose the selection is about to take; its hidden
+corners leave its information and it is scored again.</p>
+<p><strong>Candidates</strong>: the camera on a hemisphere around the board's centre on its printed side, at three distances (the
+board's longer side filling 80, 55 and 35 % of the image width when faced squarely, from the lens model's horizontal
+FOV), tilted 0, 20, 35 and 50° from the board's normal towards 8 directions, rolled −90, −45, 0, 45 and 90° about the
+optical axis, looking at the board's centre: 375 candidates by default. The moving link's target follows (eye-in-hand
+<code>Z · T_board_cam · X⁻¹</code>, eye-to-hand <code>X · T_cam_board · Z⁻¹</code>) and is solved by <code>core.robot.ik.solve_batch</code> (full pose,
+4 seeds, self-collision checked; a chain of fewer than six joints, such as the SO-100's five, is solved position first
+with the orientation as close as its joints allow, and the candidate is judged where the camera then looks, its
+corners and information computed at the pose reached, and the plan's notes say so); a solution is kept when it keeps 10 mm (a default) from the project's obstacles
+(<code>collision.obstacle_distance</code>). A link already within that margin at the robot's own pose (the UR5e's shoulder sits
+3 mm above the table it stands on) counts only if a candidate brings it closer still.</p>
+<p><strong>Selection</strong>: greedy D-optimal. From a vague prior (1 rad and 1 m on every parameter, so the log determinant is
+finite before every axis is pinned; it is not part of the reported covariance), each step adds the candidate that
+maximises <code>log det(H + J_cᵀ J_c / σ²)</code> — the classical D-optimal design criterion (the volume of the uncertainty
+ellipsoid; Kiefer and Wolfowitz, Fedorov's <em>Theory of Optimal Experiments</em>, 1972). log det does not depend on the units
+of the parameters (a change of units adds a constant), so millimetres and degrees need no weights. Greedy selection is
+not guaranteed optimal; the test <code>test_greedy_d_optimal_beats_random_sets</code> checks it beats 20 random sets of the same
+size from the same candidates. The chosen poses are ordered by a nearest-neighbour tour in joint space from the
+robot's current pose.</p>
+<p><strong>Reported</strong> (<code>dexvantage.handeye_plan/1</code>): per pose its joint vector, the camera's, the link's and the board's world
+poses, the corner ids, how many were hidden, and how much the camera's loosest σ grows without it; σ of X and Z (mm and
+degrees), the 12 × 12 covariance; the camera's loosest axis against the requirement (0.5 mm and 0.05°, DexVantage
+defaults, not standards) with Vantage's status rule (good within it, warning to twice it, serious beyond, critical when
+not determined); the best next pose and what it would gain; the candidates kept and why the others were left out.</p>
+<h3 id="recording-capturepy">Recording (<code>capture.py</code>)</h3>
+<p>Offline capture from a folder of board images and a joint_states file. The joint file is CSV (a time column <code>t</code>, one
+column per joint, radians or degrees; in degrees only the revolute joints are converted, prismatic ones stay in metres) or JSON (columns, rows, or ROS-style <code>{t, name, position}</code> samples). Image times
+come from a sidecar <code>images.csv</code> / <code>timestamps.csv</code> / <code>images.json</code>, else from the file names (the last decimal number in
+seconds; a 19-, 16-, 13- or 10-digit integer in ns, µs, ms or s), else images and samples are paired in order when their
+counts are equal. Each image takes the nearest joint sample within the tolerance (50 ms, a default); an image taken
+while the joints moved faster than 0.5°/s (a default) is flagged. Every matched image is detected with the sensor's
+camera model (<code>detect.detect</code>). The session (<code>project.calibration.sessions</code>) stores the file names (no folders), the
+times, the joint vectors and the detected corners. ROS 2 topics and LeRobot episodes arrive in Phase 8 and say so.</p>
+<p><strong>A simulated capture</strong> (<code>simcapture.py</code>, the solve page's <strong>Simulate a capture…</strong>). Board images rendered at the
+pose plan's joint vectors through the sensor's lens model (<code>synthetic.render_view</code>, 2 × 2 supersampling, image noise σ
+1 grey level), with the camera's true mount the project's X followed by a known offset in its optical frame
+(2.0, −1.5, 1.0 mm and 0.3°, −0.2°, 0.5°, defaults: 2.69 mm and 0.62°), written as <code>images/pose_NN_&lt;t&gt;.png</code>,
+<code>joint_states.csv</code> (each pose read 4 ms after its image and again 0.5 s later, the arm still) and <code>truth.json</code>, then
+imported as a session named &quot;(simulated)&quot; whose source records the offset and X_true. It tests the whole loop before the rig exists; it is never a
+measurement. The solve of such a session says it is simulated and how far it lands from the truth
+(<code>doc['simulated']</code>). Measured on the UR5e sample (20 planned poses): the solve moves the camera 2.69 mm and 0.619°
+(truth 2.69 mm and 0.62°); on the SO-100 (19 of 20 detected) 2.69 mm and 0.616°; <code>tests/test_phase3_product_review.py</code>
+requires the solve within 0.2 mm and 0.05° of the truth on 12 poses. Known limits: no lighting, blur, rolling shutter,
+defocus or encoder error, and a perfectly flat board printed at its nominal size, so a simulated solve is tighter than
+a real one.</p>
+<h3 id="solving-and-applying-study-handeye_solve-batch---handeye-solve-outjson">Solving and applying (study <code>handeye_solve</code>, batch <code>--handeye-solve OUT.json</code>)</h3>
+<p><code>handeye.solve</code> on the session's views (optionally joint offsets and intrinsics); the output adds per view its image,
+time offset, RMS and whether it was used, the status of the camera's σ against the requirement, and the mount Apply
+writes: the sensor body pose in its parent frame, <code>X · (pose of the imager in the body)⁻¹</code>, its change from the current
+mount, and the refined lens model as the sensor's per-imager calibration when the intrinsics were estimated. Apply is
+one undo step (the sensor and the session's result). For batch runs the settings may name a folder and a joint file to
+capture at run time.</p>
+<p><strong>Several sessions together</strong> (settings <code>sessions</code>: a list of session uids, or <code>'all'</code>; the page's <strong>Every session
+together</strong>): <code>capture.sessions_problem</code> reads each session as above and merges them into one problem for one
+adjustment. A camera (a sensor) in several sessions is one camera with one X; a board record used by several sessions
+is one board with one Z; images taken at the same joint vector (to 10⁻⁹) of the same robot are one robot pose; every
+robot of every session takes part with its own readings (so two arms are calibrated together, and <code>joint_offsets</code>
+estimates the offsets of each). This calibrates a camera that alone cannot be: a static camera that sees a board
+fixed in the world (nothing moves between them, so its own session is refused) is located through that board's Z,
+which a wrist camera's eye-in-hand views of the same board determine:</p>
+<pre><code>M_c X_c C_j = Z      (wrist camera, view j)          X_s C'_j = Z      (static camera)
+</code></pre>
+<p>The closed-form start skips a camera-board pair that does not move relative to each other (both fixed, or on one
+link) and takes such a camera from the other side once that is known (<code>handeye.initialise</code>). The output adds per
+camera its σ, status against the requirement and the mount Apply writes (<code>cameras</code>, <code>applies</code>), the boards, and the
+views with their session; <code>camera</code> and <code>apply</code> are the camera furthest from the requirement. Apply writes every
+camera's mount and marks every session applied, one undo step. A camera no view links to the others is named in the
+refusal. The coach advises the session of the robot-mounted camera (or held board) furthest from the requirement; for
+a static camera seeing a static board the notes say it cannot help (its σ depends on how much of the image the board
+fills and on the board's own σ).</p>
+<h3 id="the-coach-coachpy">The coach (<code>coach.py</code>)</h3>
+<p>Ported from the next-best-view idea of Vantage <code>core/calib_coach.py</code>. The information of the poses taken (their detected
+corner ids; for planned poses the corners the planner counts) at the solve's σ̂ and linearised at the solve's X and Z;
+every feasible candidate that is not a duplicate of a pose taken (camera within 20 mm and turned less than 5°, Vantage's
+rule) is scored, and the coach names the one that leaves the camera's loosest σ smallest (D-optimal while not every axis
+is pinned, and between ties), says which axis is loosest now, what that pose brings it to, and the joint moves from the
+current pose. It says &quot;Enough&quot; when every axis meets the requirement.</p>
+<h3 id="validation-1">Validation</h3>
+<p><code>handeye.planner_vs_ba</code> (cost &quot;study&quot;): the planner on the UR5e sample (eye-in-hand, the sample's wrist D405 RGB
+imager, the default ChArUco 9 × 7 board of 30 mm squares on the table), corners simulated at the planned poses with
+0.5 px Gaussian noise (the same corner ids, projected in the check from the nominal mounts), solved by the bundle
+adjustment (σ estimated from its residuals). Measured on 2026-11-06 with the suite's default seed:</p>
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Poses, corners, dof</th>
+<th>σ_BA / σ_plan over the 12 components</th>
+<th>max |ln ratio| (tolerance ln 1.1 = 0.095)</th>
+<th>Shape (σ̂/σ taken out; tolerance 0.01)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>quick (coarser grid: rolls −45, 0, 45°; no occlusion check)</td>
+<td>10, 422, 832</td>
+<td>0.9855–0.9858</td>
+<td>0.0146</td>
+<td>2.2 × 10⁻⁴</td>
+</tr>
+<tr>
+<td>full</td>
+<td>15, 485, 958</td>
+<td>0.9913–0.9915</td>
+<td>0.0087</td>
+<td>3.4 × 10⁻⁴</td>
+</tr>
+</tbody>
+</table>
+<p>The ratios are all σ̂/σ (0.493 and 0.496 px against 0.5 px): the planner's covariance has the adjustment's shape to
+3 × 10⁻⁴ and its scale differs only by the residual σ̂, whose relative scatter is 1/√(2·dof) (2.5 % and 2.3 %). The
+quick run takes 1.1 s, the full one 6.6 s. A
+wrong sign, frame or a missing rotation coupling in the Jacobian gives factors of 2 or more. The adjustment's own
+covariance is held to a Monte Carlo spread by <code>handeye.ba_covariance_mc</code>.</p>
+<p>End to end (<code>docs/guide/handeye.md</code>): 20 planned poses rendered (1 grey level of noise), captured and solved recovered the
+wrist camera to 0.0077 mm and 0.0020°; its σ was 0.0032–0.0038 mm and 0.0008–0.0021°, so the error is about 2 times
+σ, as with the rendered views above (corner errors in rendered images are not independent).</p>
+<p><code>handeye.sessions_joint</code> (cost &quot;study&quot;): two sessions on the UR5e sample with the default table board: the wrist
+D405's eye-in-hand views at planned poses and the overhead D435 seeing the same board at the same joint vectors,
+corners projected from the truth with 0.2 px noise, the overhead camera's mount moved 10 mm before the solve; both
+calibrated X against the truth per translation axis in units of their own σ (tolerance 5 σ: an unbiased estimate is
+within it with probability above 99.9 % per component; a camera located through the wrong board pose, or a shared
+board estimated twice, shows its 10 mm start offset). Measured on 2026-11-07 with the suite's default seed:</p>
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Views</th>
+<th>Wrist D405 error (σ)</th>
+<th>Overhead D435 error</th>
+<th>Worst</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>quick (10 poses)</td>
+<td>20</td>
+<td>0.43, 0.07, 0.30 σ (4 µm at most)</td>
+<td>0.71, 0.80, 0.04 mm (0.59, 0.52, 0.53 σ)</td>
+<td>0.59 σ</td>
+</tr>
+<tr>
+<td>full (15 poses)</td>
+<td>30</td>
+<td>0.11, 0.84, 0.25 σ</td>
+<td>1.07, 0.78, 0.08 mm (1.10, 0.62, 1.28 σ)</td>
+<td>1.28 σ</td>
+</tr>
+</tbody>
+</table>
+<p>The overhead camera's σ is about 1 mm across the image plane: it sees the 9 × 7 board of 30 mm squares from about a
+metre, the same view at every pose, so more poses of the wrist camera do not help it.</p>
+<p>Timing (UR5e sample, 375 candidates, 20 poses, occlusion on EGL device 0, an NVIDIA GeForce RTX 5080): 6–7 s, of which
+inverse kinematics 0.8 s and the occlusion checks of the poses the selection considered 5 s (133 checks).</p>
+<h3 id="known-limits-1">Known limits</h3>
+<ul>
+<li>One camera and one board per plan, exactly one of them on the robot; multi-camera and two-arm problems are solved
+(<code>handeye.solve</code>, and from the project's sessions with <strong>Every session together</strong>) but not planned.</li>
+<li>A joint solve merges poses by their joint vectors only: two sessions recorded at different times but at the same
+joint vector are taken as one pose (as they should be for still poses), and sessions recorded together but whose
+joint files differ by rounding stay separate poses (harmless: the adjustment couples them through X and Z).</li>
+<li>The prediction takes the joint readings and the intrinsics as exact; estimating joint offsets or intrinsics in the
+solve loosens X and Z beyond it.</li>
+<li>Corner noise is modelled as independent and equal on every corner, so the prediction is a lower bound for detected
+corners (about 2 to 2.5 times on rendered images).</li>
+<li>A linearisation at the nominal X and Z (the project's mounts); the candidates are a fixed grid and the selection is
+greedy.</li>
+<li>Collision: the camera body and the board are not collision geometry; the motion between poses is not checked (only
+the poses); IK solutions are those nearest the robot's home, not the ones with the most clearance.</li>
+<li>Occlusion by sensor housings, cables and the board's holder (beyond the robot's meshes) is not modelled; the focus
+range of the camera is not checked (makers rarely state it).</li>
+<li>Capture: the nearest joint sample, not an interpolation; image and joint clocks taken as one clock; ROS 2 and
+LeRobot sources arrive in Phase 8.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

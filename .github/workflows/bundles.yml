@@ -1,0 +1,172 @@
+# Builds the downloadable DexVantage bundles with PyInstaller (packaging/build.py): Linux x86_64 and arm64 (tar.gz),
+# Windows x64 (zip, and the per-user installer when Inno Setup is there) and macOS Apple silicon (app zip). Each
+# bundle is smoke-tested on the machine that built it (build.py --smoke: --version, a batch run, the spawned process
+# pools and the bundle's own --self-test, where every line must pass), and kept as a workflow artefact.
+#
+# Runs on a version tag (git tag v0.1.0 && git push origin v0.1.0) and by hand (Actions > Bundles > Run workflow).
+# On a tag, once every bundle passed, the release job makes a DRAFT GitHub release with the bundles, SHA256SUMS.txt
+# and the CHANGELOG entry as notes. It never publishes: a draft is visible only to the repository's maintainers, and
+# the maintainer decides whether and when to publish it (Releases > the draft > Publish release). Nothing here pushes,
+# tags or uploads anywhere else.
+#
+# Third-party actions are pinned by commit SHA (the release tag in the comment; read 2026-11-08); see ci.yml.
+# GitHub retired macos-14 on 2026-11-02 (github.com/actions/runner-images/issues/15226): macOS builds on macos-15,
+# Apple silicon (arm64) like macos-14 was.
+name: Bundles
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PYTHONUNBUFFERED: '1'
+  QT_QPA_PLATFORM: offscreen
+
+jobs:
+  bundle:
+    name: Bundle ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux bundles build on 22.04 (glibc 2.35): a PyInstaller bundle runs only on a glibc at least as new as
+        # the build machine's, and NVIDIA Jetson with JetPack 6 is Ubuntu 22.04
+        os: [ubuntu-22.04, ubuntu-22.04-arm, windows-2025, macos-15]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            packaging/*.txt
+            .github/ci-constraints.txt
+
+      - name: Check the tag, the version and the CHANGELOG agree
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: python packaging/release.py notes --tag "${GITHUB_REF_NAME}" > /dev/null
+
+      - name: Qt, OpenGL and EGL libraries (Linux)
+        if: runner.os == 'Linux'
+        run: bash .github/scripts/apt-gl-qt.sh
+
+      - name: Inno Setup (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup --no-progress -y }
+
+      - name: Python packages
+        run: |
+          python -m pip install --upgrade pip
+          # packaging/build.py: the bundle's pinned requirements, or the development install it names
+          if [ -f packaging/requirements-bundle.txt ]; then
+            python -m pip install -r packaging/requirements-bundle.txt
+          else
+            python -m pip install -c .github/ci-constraints.txt -e ".[bundle,lerobot,bags,assistant]"
+          fi
+          python -m pip list
+
+      - name: Build, smoke-test (the bundle's --self-test) and pack
+        run: python packaging/build.py --smoke
+
+      - name: The bundle's self-test, on its own
+        run: |
+          # the console executable, where packaging/build.py put it
+          # with forward slashes (chr(92) is the backslash): on Windows os.path.join writes backslashes, and Git Bash
+          # reads forward slashes reliably
+          exe=$(python -c "import sys; sys.path.insert(0, 'packaging'); import build; print(build.cli_path('out/dist').replace(chr(92), '/'))")
+          if [ ! -f "$exe" ]; then
+            echo "The bundle has no console executable at $exe."
+            ls -la out/dist
+            exit 1
+          fi
+          # throw-away folders as the system writes them (mktemp's /tmp/… is Git Bash's name, not Windows')
+          tmp=$(python -c "import tempfile; print(tempfile.mkdtemp(prefix='dexvantage-self-test-'))")
+          TMPDIR="$tmp" TMP="$tmp" TEMP="$tmp" XDG_CONFIG_HOME="$tmp/c" XDG_DATA_HOME="$tmp/d" XDG_CACHE_HOME="$tmp/k" "$exe" --self-test
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dexvantage-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            out/dist/*.tar.gz
+            out/dist/*.zip
+            out/dist/*-setup.exe
+            out/dist/smoke-report.json
+          if-no-files-found: error
+          retention-days: 30
+
+  # On a version tag, once every bundle above built and passed its smoke test: a DRAFT release. The maintainer
+  # publishes it by hand, or deletes it; this job never publishes.
+  draft-release:
+    name: Draft release (not published)
+    if: success() && startsWith(github.ref, 'refs/tags/v')
+    needs: bundle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          pattern: dexvantage-*
+          merge-multiple: true
+
+      - name: Checksums and release notes
+        run: |
+          rm -f dist/smoke-report.json
+          ls -la dist
+          n=$(find dist -maxdepth 1 -type f | wc -l)
+          if [ "$n" -lt 4 ]; then
+            echo "Expected the two Linux archives, the Windows zip and the macOS zip; found $n files."
+            exit 1
+          fi
+          (cd dist && sha256sum -- * > ../SHA256SUMS.txt)
+          mv SHA256SUMS.txt dist/
+          cat dist/SHA256SUMS.txt
+          python3 packaging/release.py notes --tag "${GITHUB_REF_NAME}" > notes.md
+          cat notes.md
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(python3 packaging/release.py version)
+          # a release candidate or other pre-release is marked as one, so publishing the draft does not make it the
+          # repository's "latest" release (release.py is_prerelease, the same rule as its own gh command)
+          PRE=$(python3 -c "import sys; sys.path.insert(0, 'packaging'); import release; print(int(release.is_prerelease(release.version())))")
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft > draft.txt 2>/dev/null; then
+            if [ "$(cat draft.txt)" != "true" ]; then
+              echo "Release $TAG is already published; this workflow changes only drafts, so it leaves it alone."
+              exit 1
+            fi
+            # a re-run: replace the files of the draft, keep its notes as they are
+            gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            flags=(--verify-tag --draft)
+            if [ "$PRE" = "1" ]; then flags+=(--prerelease); fi
+            gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" "${flags[@]}" \
+              --title "DexVantage $VERSION" --notes-file notes.md
+          fi
+          echo "Draft release $TAG made. It is not published: the maintainer decides whether to publish it." \
+            >> "$GITHUB_STEP_SUMMARY"

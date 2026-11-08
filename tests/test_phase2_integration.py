@@ -35,7 +35,7 @@ def test_ur5e_sample_sensors_resolve_to_datasheet_imagers(samples):
 
 
 def test_every_library_file_validates_against_the_schema():
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     import glob
     from dexvantage.core import library as L
     v = jsonschema.Draft202012Validator(L.schema())

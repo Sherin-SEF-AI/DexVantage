@@ -925,6 +925,87 @@ _add(Tool('check_robot_file', 'Check a robot file',
           'Reads the file only; nothing is imported.',
           _obj({'path': {'type': 'string', 'description': 'the robot file'}}, ('path',)), check_robot_file))
 
+
+def _only_variant(project, v, uid: str):
+    """project with v as its one variant, under uid (so two variants of one project diff item by item)."""
+    q = project.snapshot()
+    keep = q.variant_by_uid(v.uid)
+    keep.uid = uid
+    q.variants, q.active_uid = [keep], uid
+    return q
+
+
+def get_project_diff(session, path='', variant='', metrics=None, **_):
+    """What changed (core/projdiff.py, File ▸ Compare with…): from another project file to this project, or from the
+    active variant to another variant of it; with metrics, each one's value on both sides and the delta. Reads only."""
+    from ..core import metrics as M
+    from ..core import projdiff as D
+    from ..core.project import Project, ProjectFormatError
+    if bool(path) == bool(variant):
+        raise ToolError('Name either another project file (path) or another variant of this project (variant), '
+                        'not both.' if path else 'Name another project file (path) or another variant of this '
+                        'project (variant) to compare with.')
+    here = session.project()
+    if path:
+        p = os.path.expanduser(str(path))
+        if not os.path.isabs(p) and here.path:
+            p = os.path.join(os.path.dirname(here.path), p)
+        name = os.path.basename(p.rstrip('/\\'))
+        if not os.path.exists(p):
+            raise ToolError(f'There is no project at {name}: give a .dexv file or an unpacked project folder.')
+        try:
+            a = Project.load(p)
+        except ProjectFormatError as e:                  # a plain sentence already
+            raise ToolError(str(e)) from None
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            raise ToolError(f'Could not read {name} as a DexVantage project ({type(e).__name__}).') from None
+        b, how = here, f'from {name} to this project'
+    else:
+        other = (here.variant_by_uid(str(variant)) or
+                 next((v for v in here.variants if v.name == str(variant)), None))
+        if other is None:
+            raise ToolError(f'This project has no variant {variant!r} (it has: '
+                            f'{", ".join(v.name for v in here.variants)}).')
+        if other.uid == here.variant.uid:
+            raise ToolError(f'{other.name} is the active variant: name another one to compare with.')
+        act = here.variant.uid
+        a, b = _only_variant(here, here.variant, act), _only_variant(here, other, act)
+        how = f'from the active variant {here.variant.name} to {other.name}'
+    try:
+        doc = D.diff(a, b)
+    except jobs.StudyError as e:
+        raise ToolError(str(e)) from None
+    ids = [metrics] if isinstance(metrics, str) else [str(m) for m in metrics or []]
+    if ids:
+        M.load_metrics()
+        unknown = [m for m in ids if m not in M.METRICS]
+        if unknown:
+            raise ToolError(f'There is no metric {", ".join(unknown)} (list_metrics lists them).')
+        sids = sorted({M.METRICS[m].study for m in ids})
+        ra = {sid: _doc(session, a, sid, use_last=False) for sid in sids}
+        rb = {sid: _doc(session, b, sid, use_last=bool(path)) for sid in sids}     # the window's own result
+        doc['metrics'] = D.metric_deltas(ra, rb, ids)
+    n = len(doc['changes'])
+    return {'compared': how, 'identical': doc['identical'], 'counts': doc['counts'],
+            'changes': [{k: c.get(k) for k in ('section', 'op', 'kind', 'item', 'field', 'text')}
+                        for c in doc['changes'][:80]],
+            'metrics': [{k: r.get(k) for k in ('id', 'title', 'unit', 'a', 'b', 'delta', 'verdict')}
+                        | {'delta_unit': M.delta_unit(r.get('unit'))} for r in doc['metrics']],
+            **({'note': f'{n - 80} more changes not listed.'} if n > 80 else {})}
+
+
+_add(Tool('get_project_diff', 'Compare with another project or variant',
+          'What changed, item by item (robots, sensors and their mounts, variants, task volumes, requirements, '
+          'settings, files), from another project file (path: a .dexv file or an unpacked folder; a relative path '
+          'is read beside this project) to this project, or from the active variant to another variant of this '
+          'project (variant: its name or uid). With metrics (metric ids), each figure on both sides and its delta '
+          '(delta_unit: a change of a percentage is in percentage points, pp). Reads only; nothing is changed.',
+          _obj({'path': {'type': 'string', 'description': 'another project file or folder'},
+                'variant': {'type': 'string', 'description': 'another variant of this project (name or uid)'},
+                'metrics': {'type': 'array', 'items': {'type': 'string'},
+                            'description': 'metric ids to compare on both sides (list_metrics lists them)'}}),
+          get_project_diff))
+
 def input_schemas() -> dict:
     return {n: t.input_schema for n, t in TOOLS.items()}
 

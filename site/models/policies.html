@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Policies: what a robot-learning policy takes from each camera · DexVantage</title>
+<meta name="description" content="dexvantage/core/policies.py, the policy library dexvantage/resources/library/policy/*.json, the project&#x27;spolicies section (core/project.py Policy), the Policies page dexvantage/ui/pages/policies.py, the validationcheck dexvantage/validation/checks_policies.py.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-fields">The fields</a>
+    <a href="#the-library">The library</a>
+    <a href="#the-crop-geometry">The crop geometry</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/policies.md"><code>docs/models/policies.md</code></a></p>
+<h1 id="policies-what-a-robot-learning-policy-takes-from-each-camera">Policies: what a robot-learning policy takes from each camera</h1>
+<p><code>dexvantage/core/policies.py</code>, the policy library <code>dexvantage/resources/library/policy/*.json</code>, the project's
+<code>policies</code> section (<code>core/project.py</code> <code>Policy</code>), the Policies page <code>dexvantage/ui/pages/policies.py</code>, the validation
+check <code>dexvantage/validation/checks_policies.py</code>.</p>
+<p>A project names the policies its data is for (spec §5). Each is a <strong>policy library entry</strong> plus the <strong>cameras it
+takes</strong> plus the <strong>user's own figures</strong> over the entry's. The token, latency and action-chunk studies (§7.12, §7.13)
+read a policy through one call:</p>
+<pre><code class="language-python">from dexvantage.core import policies
+fields = policies.resolve(project, policy_uid)   # {field: (value, source text)}, overrides applied
+geom = policies.input_geometry(project, policy_uid, (width, height))   # where camera pixels land in the input
+</code></pre>
+<h2 id="the-fields">The fields</h2>
+<p>Every field of an entry is <code>{&quot;value&quot;: …, &quot;source&quot;: &lt;index into the entry's sources&gt; | null, &quot;quote&quot;: &quot;…&quot;}</code>; a
+figure no source states is <code>null</code> and shows as &quot;—&quot;, <em>not stated by the source</em> (§1.1.1, §1.1.6). Nothing fills a gap.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>input_resolution</code></td>
+<td><code>[w, h]</code> px of each image the model takes</td>
+</tr>
+<tr>
+<td><code>crop_rule</code></td>
+<td>how a camera image becomes the input (below)</td>
+</tr>
+<tr>
+<td><code>crop_side_fraction</code></td>
+<td><code>center_crop_resize</code>: the fraction of each side the centred crop keeps</td>
+</tr>
+<tr>
+<td><code>pre_resize</code></td>
+<td><code>center_crop</code>: <code>[w, h]</code> the image is resized to before the crop</td>
+</tr>
+<tr>
+<td><code>patch_px</code></td>
+<td>ViT patch edge in input pixels (<code>null</code> for a CNN encoder)</td>
+</tr>
+<tr>
+<td><code>tokens_per_image</code></td>
+<td>visual tokens per image (after any pixel shuffle)</td>
+</tr>
+<tr>
+<td><code>wrist_input_resolution</code>, <code>wrist_tokens_per_image</code></td>
+<td>where wrist images are sized differently (Octo)</td>
+</tr>
+<tr>
+<td><code>n_cameras</code></td>
+<td>camera images per step</td>
+</tr>
+<tr>
+<td><code>action_chunk</code></td>
+<td>H, actions predicted per inference</td>
+</tr>
+<tr>
+<td><code>execute_steps</code></td>
+<td>actions executed before the next inference</td>
+</tr>
+<tr>
+<td><code>temporal_ensemble_m</code></td>
+<td>m in the weights exp(−m·i); <code>false</code> when the source says it uses none</td>
+</tr>
+<tr>
+<td><code>inference_ms</code></td>
+<td>one inference, with <code>hardware</code> naming what it was measured on</td>
+</tr>
+<tr>
+<td><code>control_hz</code></td>
+<td>the rate actions are sent; <code>null</code> where a source gives several robots' rates and none is the policy's own</td>
+</tr>
+</tbody>
+</table>
+<p><code>resolve()</code> returns the source as text: the source's title, URL and date read, and what it says. A user's figure
+(an override, entered on the Policies page) carries its own source, always prefixed &quot;measured by the user: …&quot;;
+<code>check_value()</code> normalises it (a size as whole pixels, a count as an integer) and refuses what cannot be a figure.</p>
+<h2 id="the-library">The library</h2>
+<p>Entries were written on 2026-11-06 from the model card, the paper and the official code; each source is listed with
+its URL, title, date read and the fields it gave. Figures in the code (configuration defaults, preprocessing
+constants) are cited to a commit.</p>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th>Input</th>
+<th>Crop rule</th>
+<th>Patch</th>
+<th>Tokens</th>
+<th>H</th>
+<th>Executed</th>
+<th>m</th>
+<th>Inference</th>
+<th>Control</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenVLA 7B</td>
+<td>224 × 224</td>
+<td>resize</td>
+<td>14</td>
+<td>—</td>
+<td>1</td>
+<td>1</td>
+<td>—</td>
+<td>166.7 ms (6 Hz, RTX 4090)</td>
+<td>— (5 and 15 Hz)</td>
+</tr>
+<tr>
+<td>π0</td>
+<td>224 × 224</td>
+<td>resize_pad</td>
+<td>14</td>
+<td>256</td>
+<td>50</td>
+<td>25</td>
+<td>not used</td>
+<td>73 ms (RTX 4090)</td>
+<td>50 Hz (up to)</td>
+</tr>
+<tr>
+<td>π0-FAST</td>
+<td>224 × 224</td>
+<td>resize_pad</td>
+<td>14</td>
+<td>256</td>
+<td>32 (default)</td>
+<td>—</td>
+<td>—</td>
+<td>750 ms (GPU not stated)</td>
+<td>— (5–50 Hz)</td>
+</tr>
+<tr>
+<td>SmolVLA base</td>
+<td>512 × 512</td>
+<td>resize_pad_top_left</td>
+<td>16</td>
+<td>64</td>
+<td>50</td>
+<td>50</td>
+<td>—</td>
+<td>—</td>
+<td>30 Hz</td>
+</tr>
+<tr>
+<td>ACT</td>
+<td>640 × 480</td>
+<td>none</td>
+<td>— (CNN)</td>
+<td>300</td>
+<td>100</td>
+<td>1</td>
+<td>0.01</td>
+<td>10 ms (RTX 2080 Ti)</td>
+<td>50 Hz</td>
+</tr>
+<tr>
+<td>Diffusion Policy (CNN, real)</td>
+<td>288 × 216</td>
+<td>center_crop of 320 × 240</td>
+<td>— (CNN)</td>
+<td>—</td>
+<td>16</td>
+<td>8</td>
+<td>—</td>
+<td>100 ms (3080)</td>
+<td>10 Hz</td>
+</tr>
+<tr>
+<td>Octo-Base</td>
+<td>256 × 256 (wrist 128 × 128)</td>
+<td>center_crop_resize, 0.9487</td>
+<td>16</td>
+<td>256 (wrist 64)</td>
+<td>4</td>
+<td>—</td>
+<td>—</td>
+<td>76.9 ms (13 it/s, 4090)</td>
+<td>— (5–15 Hz)</td>
+</tr>
+<tr>
+<td>GR00T N1 2B</td>
+<td>224 × 224</td>
+<td>center_crop_resize, 0.95</td>
+<td>—</td>
+<td>64</td>
+<td>16</td>
+<td>—</td>
+<td>—</td>
+<td>63.9 ms (L40, bf16)</td>
+<td>120 Hz (action module)</td>
+</tr>
+</tbody>
+</table>
+<p>What the sources say about crops and resizing:</p>
+<ul>
+<li><strong>OpenVLA</strong>: <code>&quot;image_resize_strategy&quot;: &quot;resize-naive&quot;</code>, no letterbox (checkpoint config). A fine-tune with image
+augmentation expects &quot;the center 90% crop&quot; at test time (README): override <code>crop_rule</code> with <code>center_crop_resize</code>
+and <code>crop_side_fraction</code> 0.949 (√0.9) for such a model.</li>
+<li><strong>π0, π0-FAST</strong> (openpi): <code>resize_with_pad</code> keeps the aspect ratio and pads with black, split evenly
+(<code>divmod(h − resized_h, 2)</code>). Training adds a 95 % random crop and ±5° rotation to non-wrist images; not at inference.</li>
+<li><strong>SmolVLA</strong> (LeRobot): the same fit, but padded on the <strong>left and top</strong> (&quot;the smolvla/xvla convention&quot;), so a 16:9
+image sits at the bottom of the square.</li>
+<li><strong>ACT</strong>: images go in as captured (<code>get_image</code> only reorders the axes); the paper's rig streams 480 × 640.</li>
+<li><strong>Diffusion Policy</strong>: video &quot;down-sampled to 320x240&quot;, random crop in training, &quot;a static center crop with the same
+size&quot; (288 × 216) at inference. How a 16:9 stream becomes 320 × 240 is not stated: DexVantage stretches it, an
+assumption.</li>
+<li><strong>Octo</strong>: the primary image's random crop is replaced at inference by its average, a centred crop of √0.9 of each
+side and a resize to 256 × 256; the wrist image is only resized to 128 × 128.</li>
+<li><strong>GR00T N1</strong> (Isaac-GR00T <code>n1-release</code>): <code>VideoCrop(scale=0.95)</code> (centred in eval) then <code>VideoResize</code> to 224 × 224,
+not keeping the aspect ratio.</li>
+</ul>
+<p>The token counts agree with the patch grids where both are cited from different sources: π0 (224 / 14)² = 256 from
+the PaliGemma paper; Octo (256 / 16)² = 256 and (128 / 16)² = 64; SmolVLA (512 / 16)² / 4² = 64 with SmolVLM2's
+pixel-shuffle <code>scale_factor</code> 4 (test <code>test_token_counts_agree_with_the_patch_grid</code>).</p>
+<p>DexVantage bundles these figures only, never the models or weights; the weights' licences differ (OpenVLA may carry
+the Llama 2 licence, GR00T N1 is non-commercial) and each entry's note says so.</p>
+<h2 id="the-crop-geometry">The crop geometry</h2>
+<p><code>crop_geometry(rule, (W, H), (w, h), crop_side_fraction, pre_resize)</code> gives the camera rectangle the input shows
+(<code>src_rect</code>), where it lands in the input (<code>dst_rect</code>; the rest is padding) and the scales <code>sx</code>, <code>sy</code> (input pixels
+per camera pixel). Coordinates are pixel edges: x from 0 at the image's left edge to W at its right; an OpenCV pixel
+centre u is at x = u + 0.5. The integer rounding is each source's own:</p>
+<ul>
+<li><code>resize</code>, <code>none</code>: src = the whole image, dst = the whole input, sx = w / W, sy = h / H.</li>
+<li><code>resize_pad</code>, <code>resize_pad_top_left</code>: r = max(W / w, H / h); content int(W / r) × int(H / r); offset
+((w − rw) // 2, (h − rh) // 2) or (w − rw, h − rh); sx = rw / W, sy = rh / H.</li>
+<li><code>center_crop</code>: the image stretched to pre_resize (W′, H′) if given; left = int(round((W′ − w) / 2.0)), top likewise
+(torchvision <code>center_crop</code>); sx = W′ / W.</li>
+<li><code>center_crop_resize</code>: crop int(W·f) × int(H·f) at int(round((W − cw) / 2.0)), then stretched to w × h.</li>
+</ul>
+<p>A camera point (x, y) maps to <code>dst0 + (x − src0)·s</code>; <code>to_source</code> is the inverse. Example, π0 on a 1280 × 720
+stream: the whole image becomes 224 × 126 at y = 49 to 175, 43.8 % of the input is padding, 0.175 input pixels per
+camera pixel (one 14 px patch covers 80 camera pixels).</p>
+<h2 id="validation">Validation</h2>
+<p>Check <code>policies.crop_geometry</code> (model <code>vla</code>): each crop rule's pipeline is written out again in the check from its
+source code (openpi <code>resize_with_pad</code>, LeRobot's left-top variant, torchvision <code>center_crop</code>, GR00T <code>VideoCrop</code>) as
+array operations, with OpenCV's <code>cv2.resize</code> (bilinear, centre-aligned) doing the resampling. It runs on an image
+whose channels are each camera pixel's own x and y (a linear ramp, which bilinear resampling reproduces exactly away
+from the border) and a channel of ones (zero where padded). For every input pixel, the camera point the pipeline
+shows is compared with <code>CropGeometry.to_source</code>, and the padded pixels with <code>dst_rect</code>.</p>
+<ul>
+<li>Cases: 16, covering the six rules, landscape and portrait streams, odd sizes (847 × 479, 333 × 517, 853 × 481) and
+the library's inputs (224, 256, 512, 288 × 216); 1 420 672 input pixels compared (those whose camera point lies
+between the outer pixel centres, where bilinear resampling does not clamp).</li>
+<li>Tolerance: 10⁻⁶ px. Why: both sides are exact in real arithmetic; the bound leaves room for double-precision
+rounding only, so any off-by-one in a size, an offset or a rounding direction (a whole pixel) fails.</li>
+<li>Measured: worst 2.5 × 10⁻¹³ px; 0 padding mismatches. The test also shows the check fails (padding mismatches,
+errors above 1 px) when the geometry pads on the wrong side.</li>
+</ul>
+<p>The library figures are checked against the sources by pinned values in <code>tests/test_policies.py</code>, each with the
+quote it came from in the entry.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>Entries hold what the sources publish, mostly one configuration: a fine-tune can change the input size, the crop and
+the chunk length, so enter your own as overrides. Inference times are for the hardware each source names, and
+π0-FAST's 750 ms names none; measure on your host. <code>control_hz</code> is null where a source lists several robots' rates.
+The crop geometry is the inference-time crop: training augmentation (random crops, rotation, colour jitter) is not
+modelled, nor are the interpolation filters (bilinear, bicubic, Lanczos, antialiasing), only where each camera pixel
+lands. Diffusion Policy's stretch to 320 × 240 is an assumption. Per-camera-role inputs (Octo's wrist image) are
+listed, not yet applied per camera. A policy's camera count is compared with the cameras assigned to it; which slot
+(base or wrist) each camera fills is not modelled.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

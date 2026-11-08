@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dataset and episode auditor, plan against recording · DexVantage</title>
+<meta name="description" content="Spec §8.2 (the auditor), §8.3 (plan against recording) and the FiftyOne bridge of §9.4. Code: core/audit/(episode.py per-episode checks, campaign.py the campaign and mount slip, slip.py the step-against-gradualclassifier ported from Vantage core/online_calib.py, plan.py what the plan says about a …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#requirements">Requirements</a>
+    <a href="#per-episode-checks-coreauditepisodepy">Per-episode checks (core/audit/episode.py)</a>
+    <a href="#campaign-checks-and-mount-slip-coreauditcampaignpy-coreauditslippy">Campaign checks and mount slip (core/audit/campaign.py, core/audit/slip.py)</a>
+    <a href="#plan-against-recording-corestudiesplan_vs_recordingpy">Plan against recording (core/studies/plan_vs_recording.py)</a>
+    <a href="#fiftyone-export-coreauditreportpy">FiftyOne export (core/audit/report.py)</a>
+    <a href="#validation-measured-2026-11-07---validate---models-data-53-s-24-gb-peak">Validation (measured 2026-11-07, --validate --models data, 53 s, 2.4 GB peak)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/audit.md"><code>docs/models/audit.md</code></a></p>
+<h1 id="dataset-and-episode-auditor-plan-against-recording">Dataset and episode auditor, plan against recording</h1>
+<p>Spec §8.2 (the auditor), §8.3 (plan against recording) and the FiftyOne bridge of §9.4. Code: <code>core/audit/</code>
+(<code>episode.py</code> per-episode checks, <code>campaign.py</code> the campaign and mount slip, <code>slip.py</code> the step-against-gradual
+classifier ported from Vantage <code>core/online_calib.py</code>, <code>plan.py</code> what the plan says about a recorded camera,
+<code>report.py</code> JSON, HTML and FiftyOne), the studies <code>core/studies/audit.py</code> and <code>core/studies/plan_vs_recording.py</code>, the
+pages <code>ui/pages/audit.py</code> and <code>ui/pages/plan_vs_recording.py</code>, the checks <code>validation/checks_audit.py</code>.</p>
+<p>Every check reads only the dataset (core/datasets: LeRobot v2.1 and v3.0, RLDS, ROS 2 bags) and, where it helps, the
+project's plan. A synthetic dataset's ground-truth sidecar is never read by the auditor; the tests and the validation
+check audit a copy of the dataset with the sidecar removed and compare afterwards.</p>
+<h2 id="requirements">Requirements</h2>
+<p>Every limit is a DexVantage default, user-settable in <code>project.data['requirements']</code> (the page's settings, or the
+project file). None is a standard.</p>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Default</th>
+<th>Compared</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_dropped_frames</code></td>
+<td>0</td>
+<td>dropped frames per camera</td>
+</tr>
+<tr>
+<td><code>max_duplicate_frames</code></td>
+<td>0</td>
+<td>duplicated frames per camera</td>
+</tr>
+<tr>
+<td><code>fps_tolerance_pct</code></td>
+<td>1 %</td>
+<td>measured against stated frame rate</td>
+</tr>
+<tr>
+<td><code>max_jitter_ms</code></td>
+<td>1 ms</td>
+<td>robust spread of the stamps about a regular grid</td>
+</tr>
+<tr>
+<td><code>max_gaps</code></td>
+<td>0</td>
+<td>gaps of <code>usb_gap_s</code> (0.1 s) or longer per camera</td>
+</tr>
+<tr>
+<td><code>max_offset_ms</code></td>
+<td>25 ms</td>
+<td>camera–joint offset, failing only beyond 3 σ too</td>
+</tr>
+<tr>
+<td><code>max_drift_ppm</code></td>
+<td>2000 ppm</td>
+<td>drift within the episode, failing only beyond 3 σ too</td>
+</tr>
+<tr>
+<td><code>max_exposure_changes</code></td>
+<td>0</td>
+<td>exposure or gain steps over <code>exposure_step</code> (15 %)</td>
+</tr>
+<tr>
+<td><code>max_blur_frames</code></td>
+<td>0</td>
+<td>frames under <code>blur_ratio</code> (0.85)</td>
+</tr>
+<tr>
+<td><code>max_gripper_hidden_frames</code></td>
+<td>0</td>
+<td>wrist-camera frames whose gripper correlation is under <code>gripper_ncc</code> (0.5)</td>
+</tr>
+<tr>
+<td><code>action_lag_rows</code></td>
+<td>0 … 3 rows</td>
+<td>row lag of the action against the state</td>
+</tr>
+<tr>
+<td><code>max_mount_shift_deg</code> / <code>_mm</code></td>
+<td>0.5° / 2 mm</td>
+<td>mount change from the first episode's estimate</td>
+</tr>
+</tbody>
+</table>
+<p>An episode's verdict: <strong>pass</strong>; <strong>fix</strong> (only an offset or drift fails: re-stamping corrects it); <strong>recalibrate</strong>
+(only the mount moved: the episodes need the new extrinsics); <strong>drop</strong> (drop it or re-record it).</p>
+<p>An episode that cannot be read (a damaged Parquet, video or bag file) or that holds no joint states and no camera
+frames (a bag with no readable messages) fails the requirement <strong>Episode readable</strong> (<code>readable</code>, no limit to set):
+its verdict is drop, its flag <code>unreadable</code>, and the reader's sentence is kept in the episode's <code>error</code>; the other
+episodes are audited as usual and it is left out of the mount series and the FiftyOne media. When no episode can be
+read the study refuses with that sentence (product review, 2026-11-07: a truncated MCAP audited as &quot;ready&quot; and a
+damaged Parquet stopped the audit with a traceback). A recording whose joint states do not match the project's robot
+(by name or by count) is audited from the data alone: the plan's cameras are not posed (said in <code>plan_notes</code>).</p>
+<h2 id="per-episode-checks-coreauditepisodepy">Per-episode checks (<code>core/audit/episode.py</code>)</h2>
+<p><strong>Timing.</strong> P = 1 / the stated fps (else the median spacing). A spacing d ≥ 1.5 P is a gap of round(d/P) − 1 frames:
+a dropped frame below <code>usb_gap_s</code>, a USB reset or stall from it on. With slots n_k = Σ round(d/P) the stamps are fitted
+t_k = a + P′ n_k by least squares; the measured rate is 1/P′, the jitter 1.4826 · MAD of the residuals. With device
+timestamps, (host − device) is fitted against the device time: the slope is the clock drift in ppm.</p>
+<p><strong>Duplicates.</strong> Exact: the frame's BLAKE2b digest equals the previous frame's. Near: on frames low-passed with a
+Gaussian (σ 1.5 px), the change e_k = mean|I_k − I_{k−1}| under <code>dup_ratio</code> (0.3) of the median change of the eight
+frames around it (itself and the next, which carries the double step, left out). Both are tested only where the scene
+should change: the plan's sample points move at least 1 px between the two frames (or, without a plan, the joints move
+at 10 % of their top speed). A stale frame re-encoded by LeRobot's codec (g = 2: every other frame a keyframe) is not
+bit-identical (36–40 dB from the frame it repeats), so equality alone misses it, and on a still scene identical
+decoded frames are normal (counted as <code>identical_still</code>, not as faults).</p>
+<p><strong>Exposure and gain.</strong> Per pair, the median over pixels (both in 16…200) of ln((I_k + 1)/(I_{k−1} + 1)): a global
+gain multiplies every pixel, so the median is ln(gain) while the moving part of the scene is a minority. |median| &gt;
+ln(1 + <code>exposure_step</code>) is a step; steps of opposite sign pair into runs. A recorded exposure or gain column is used
+instead when the episode has one for the camera.</p>
+<p><strong>Motion blur.</strong> The variance of the Laplacian (Pech-Pacheco et al. 2000), normalised by the mean squared intensity
+(gain-invariant), over the pixels that move (|I_{k+1} − I_{k−1}| &gt; 8 grey levels, dilated), divided by the smaller of
+the same measure's mean over k ± 1 and over k ± 2. The second pair is there because frames between keyframes keep less
+fine detail (about 0.6 of their neighbours' Laplacian energy, measured): each frame is compared with frames of its own
+kind. Cameras on the robot are not tested by default (<code>blur_on_moving_cameras</code> 0): on synthetic wrist cameras the
+codec's loss of detail on fast motion gave dozens of false alarms per episode.</p>
+<p><strong>Camera–joint desync.</strong> The offset δ that lines the image motion up with the joints'. Observed: e_k (above). Predicted
+(with a plan camera): at points sampled on the robot's surface (and, for a camera on a link, the static scene), the
+linearised brightness-constancy change |∇I_{k−1}(u) · Δu|, Δu the point's image displacement between the two frames'
+times shifted by δ, posed at the recorded joint states through the plan's lens and mount. Without a plan: the joint
+speed |q̇| × spacing. δ maximises Spearman's rank correlation of observed and predicted over a 4 ms grid within
+±0.25 s, refined by a parabola. The rank correlation needs only a monotone relation (frame differences saturate and
+depend on texture), which is the robust fit; time-delay estimation by cross-correlation is Knapp and Carter 1976.
+σ_δ: the spread of the peak over a moving-block bootstrap (Künsch 1989; blocks of 10 pairs, 40 resamples). Drift:
+δ(t) = δ0 + d (t − t̄) by the same correlation over a grid of d (±30 000 ppm, 1000 ppm steps), σ_d by the bootstrap but
+at least σ_δ √12 / T (a drift cannot be known better than the offset over the episode's span T). Pairs next to a gap,
+a duplicate, an exposure step or a blurred frame are left out.</p>
+<p><strong>Gripper hidden.</strong> For a camera on the robot with gripper links in the plan: the plan's gripper mask (core/camrender's
+z-buffer of the gripper links alone, at the recorded joint state, cached by the gripper's pose relative to the camera)
+and the zero-mean normalised cross-correlation of the frame inside it with the median of the frames within ±15. NCC
+under <code>gripper_ncc</code> means something else is there. NCC is gain-invariant, so an exposure step does not read as
+hidden. Which mask: core/camrender's, not core/occlusion's cube maps (the pixels are what is compared).</p>
+<p><strong>Action alignment.</strong> The row lag k in −10…10 minimising the RMS of action[t] − q[t + k] (joints matched by name, else
+by order), refined by a parabola.</p>
+<h2 id="campaign-checks-and-mount-slip-coreauditcampaignpy-coreauditslippy">Campaign checks and mount slip (<code>core/audit/campaign.py</code>, <code>core/audit/slip.py</code>)</h2>
+<p>One mount estimate per camera per episode (setting <code>mount_source</code>, default <code>auto</code>: a board when one is found, else
+registration): (1) a calibration board in the frames (core/calib/detect.detect_and_solve on up to 8 frames, the board's
+placement from its record); (2) with <code>mount_source</code> <code>silhouette</code>, for a static camera, the link-silhouette fit
+<code>core/calib/render_calib.estimate</code>, called only through that API, absolute against the plan (about 3 s per episode and
+camera on the SO-100 sample; it refuses frames whose shape differs from the plan's imager, and the registration is then
+used, with the reason in the notes; measured in tests/test_audit.py: 1.15° recovered for an injected 1.5° pitch on 90
+frames at 320 × 180); (3) image registration: the episode's median image over its static pixels (temporal σ under 6 grey levels:
+for a static camera the background, for a wrist camera the gripper parts fixed in its view) registered to the first
+episode's by a pure rotation A = Exp(ω) of the optical frame (each reference ray r looked up at project(Aᵀ r), any lens
+model), with a gain and an offset, by Gauss-Newton on a three-level pyramid with Huber weights (Lucas and Kanade 1981;
+Baker and Matthews 2004), over the pixels with a grey gradient over 1 per px; σ by a block bootstrap (16 × 16 px blocks,
+20 resamples). The rotation is reported in the sensor's body frame, ΔR = R_so A R_soᵀ, as a rotation vector in degrees
+(render_calib's and the synthetic mount_slip fault's convention). Registration measures rotation only, relative to the
+first episode.</p>
+<p>Each axis series (over the episodes, in days when the dataset records when each was taken, else in episode order)
+goes through Vantage's model selection, ported unchanged but for two constants: y_i = level + Σ size_s [i ≥ j_s] +
+slope (t_i − t_0) + e_i, terms added greedily while they lower BIC = n ln(RSS/n) + p ln n by more than 6 (Kass and
+Raftery 1995, &quot;strong&quot;), a pair of steps tried when no single one pays, Huber-weighted final fit, terms within 3 σ (or
+under 0.1°) pruned, slopes checked with each episode left out. A step back to the earlier level is an <strong>excursion</strong>,
+one that stays a <strong>step</strong> (slip), a significant slope <strong>gradual</strong> drift. Changed from Vantage: two estimates on either
+side of a step (MIN_SEG 2, Vantage 3: a campaign has few episodes), and the residual-scale floor as half the median
+stated σ (Vantage: 0.5° fixed).</p>
+<h2 id="plan-against-recording-corestudiesplan_vs_recordingpy">Plan against recording (<code>core/studies/plan_vs_recording.py</code>)</h2>
+<p>Per recorded camera, matched to the plan by name (or the dataset entry's mapping): present; resolution (same, scaled
+with the same aspect ratio within 1 %, or different); frame rate against the bandwidth study's stream choice (or &quot;not
+stated by the plan&quot;); stored intrinsics; the mount (stored extrinsics against the plan's optical frame, else the
+audit's estimates: absolute from a board or the silhouette, else the change over the campaign); sync (the audit's
+offsets against the limit, and against the plan's own prediction: the time-sync study's skew interval of the stream,
+negated because the audit's offset is content time minus stamp and the skew stamp minus exposure, widened by 2 σ_δ;
+&quot;as planned&quot; or &quot;outside the prediction&quot; counts as a comparison when the plan's budget is complete, while an
+incomplete budget, a lower bound, is shown without a verdict); visibility at up to 8 frames of up to 4 episodes: the grasp study's prediction (its Evaluator at the recorded
+joint state: at least 10 % of the contact points visible) against the recorded frame (a wrist camera: the gripper
+correlation; a static camera: at least 30 % of the plan's gripper-mask pixels differ from the episode's median image by
+more than 25 grey levels). The headline is the share of these comparisons that match.</p>
+<h2 id="fiftyone-export-coreauditreportpy">FiftyOne export (<code>core/audit/report.py</code>)</h2>
+<p>From the page (Export to FiftyOne…) or in batch with the audit:
+<code>dexvantage project.dexv --audit audit.json --dataset DATASET --audit-html audit.html --fiftyone fiftyone/</code> (the HTML
+report and the FiftyOne folder; a folder that is not empty is refused in one sentence).</p>
+<p>FiftyOne's importer for its own format (<code>FiftyOneDatasetImporter</code>) hands a folder whose <code>metadata.json</code> has no
+<code>version</code> key to <code>LegacyFiftyOneDatasetImporter</code>, read from the FiftyOne source on 2026-11-07
+(github.com/voxel51/fiftyone, branch develop: <code>fiftyone/utils/data/importers.py</code>, <code>fiftyone/core/sample.py</code>). The
+export writes that layout: <code>metadata.json</code> {name, media_type &quot;video&quot;, info}, <code>samples.json</code> {&quot;samples&quot;: [...]}, one
+<code>frames/&lt;sample&gt;.json</code> {&quot;frames&quot;: {&quot;1&quot;: {...}}} per sample, and <code>data/&lt;clip&gt;.mp4</code> (each camera of each episode re-encoded
+as H.264 at its own timestamps, so frame k of the clip is frame k of the audit). Sample tags: <code>audit:&lt;verdict&gt;</code> and the
+fault kinds found on that camera; sample fields: the episode's index and id, the camera, the offset and σ, drift,
+jitter, measured fps, counts of dropped, gap, duplicated, blurred and gripper-hidden frames, exposure steps, the mount
+shift, the action lag; frame fields: time, change, sharpness ratio, gain step, gripper correlation, the gap before,
+and the per-frame flags. The <code>fiftyone</code> package is optional and not installed here, so FiftyOne's own importer has
+not been run on these files (the test imports them with FiftyOne when it is installed); load with
+<code>fiftyone.Dataset.from_dir(folder, dataset_type=fiftyone.types.FiftyOneDataset)</code>.</p>
+<h2 id="validation-measured-2026-11-07---validate---models-data-53-s-24-gb-peak">Validation (measured 2026-11-07, <code>--validate --models data</code>, 53 s, 2.4 GB peak)</h2>
+<p>A seeded campaign (<code>checks_audit.SETTINGS</code>): the SO-100 sample, 6 episodes × 240 rows at 30 fps, 320 × 240, each fault
+injected into two episodes (the other four clean for it), mount slip from episode 3 (body pitch 1.5°, 3 mm). Rendered by
+MuJoCo through EGL on the RTX 5080 (device 0, the generator's <code>auto</code>); the audit itself runs on the CPU (numpy, OpenCV).</p>
+<p><code>audit.fault_recall</code> (recall over injected (episode, camera) faults, false-positive rate over the 10 clean pairs per
+kind; floors stated in <code>RECALL_FLOOR</code>, ceilings in <code>FP_CEILING</code>): passes.</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Recall</th>
+<th>FP rate</th>
+<th>Frames found</th>
+<th>Floor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>drop</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>4/4</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>usb_reset</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>2/2</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>jitter</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>—</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>exposure_change</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>120/120</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>gripper_hidden</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>6/6</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>mount_slip</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>—</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>duplicate</td>
+<td>0.5</td>
+<td>0.0</td>
+<td>2/4</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>desync</td>
+<td>0.5</td>
+<td>0.0</td>
+<td>—</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>blur</td>
+<td>1.0</td>
+<td>0.1</td>
+<td>2/4</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>drift</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>—</td>
+<td>0 (not resolved)</td>
+</tr>
+</tbody>
+</table>
+<p>Duplicates on the third-person camera are missed (the robot is small and the change drop is near the codec's noise);
+desync is found on one of its two episodes (47 ± 17 ms is within 3 σ of the 25 ms limit); drift at 5000 ppm moves the
+offset by 40 ms over 8 s, about the estimator's own scatter, so it is reported, never claimed.</p>
+<p><code>audit.desync_offset</code>: the largest error over the six static-camera estimates is <strong>16.9 ms</strong> against 20 ms (two thirds
+of a frame period). Estimates against the truth's mean offset: 44.6/50.0, 25.3/19.9, 47.2/49.9, 5.2/0.1, −7.7/0.0,
+36.8/19.9 ms (σ 9–20 ms). The wrist camera, on the robot, is listed and not counted: −46, −49, 1, −43, −44, 7 ms against
+0 (σ 20–31 ms: its predicted motion comes from the few edges of a textureless synthetic scene). The 3 σ rule keeps
+those from failing the requirement.</p>
+<p><code>audit.slip_vs_vantage</code>: twelve seeded series (steps, returning shifts, slopes, noise, a step with a slope, outliers)
+through Vantage's <code>select_model</code> (recorded by <code>scripts/record_vantage_slip.py</code> from the Vantage checkout at commit
+89eeab82, 2026-11-07; <code>validation/VANTAGE_SLIP.json</code>) and the port: the same terms on all twelve, levels, sizes and
+slopes equal to <strong>0</strong> (bit for bit) against 10⁻⁹.</p>
+<p><code>audit.plan_vs_recording</code>: both cameras matched to their sensors; the slipped camera's recovered rotation change
+(0.19, 1.47, −0.06)° against the truth's (0, 1.5, 0)° (rotation vectors in the sensor's body frame): <strong>0.20°</strong> apart,
+against 0.3°. The sizes alone (1.48° against 1.5°) differ by 0.020°, which is what this check first compared; that hid
+the 0.19° about the other axes. The registration fits a pure rotation, and the slip also moves the camera 3 mm, which at
+the scene's 0.56 m subtends up to 0.31°: the tolerance states that bound.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>LeRobot stores camera timestamps on the nominal grid (its frames are decoded at the rows' times), so drops and jitter
+that were resampled away before writing do not show (a resampled drop shows as a duplicate). RLDS without an fps has
+step counts for times. The desync estimate needs motion of varying speed; it is resolved to about ±17 ms on static
+cameras and poorly on cameras on the robot over textureless scenes. In-episode drift under several thousand ppm is not
+resolved (real clocks drift tens of ppm: the campaign's per-episode offsets show that). Blur is relative to the
+neighbouring frames (a whole episode blurred alike is not flagged) and off for cameras on the robot. Duplicates of a
+still scene cannot be told from stillness. The gripper check and the predicted motion need the plan's mount and lens to
+be close to the real ones. Mount registration measures rotation only, relative to the first episode, and needs static
+texture; a campaign of fewer than five episodes cannot be classified (step against gradual), only compared with the
+limit. Plan-against-recording visibility from images is evidence, not segmentation (on the guide's worked example the
+third-person camera agreed with the grasp study on 75 % of 32 frames, the wrist camera on 100 %: a static camera's median
+image holds the gripper where it rests, and the grasp study's contact points are a stricter test than &quot;the gripper is
+in view&quot;).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -32,7 +32,7 @@ import os
 
 import numpy as np
 
-from .suite import Outcome, check
+from .suite import LEROBOT, Outcome, check
 
 SLIP_MM = (4.0, -3.0, 0.0)          # a default of this check: the mount slip (sensor body frame)
 SLIP_DEG = (0.6, 0.0, 0.8)          # a default of this check: its rotation vector (degrees)
@@ -124,7 +124,7 @@ def recover(ctx, sample: str) -> dict:
        'default of this check), on the SO-100 third-person and UR5e overhead cameras; every estimate must be '
        'observable and the slip found as a step between the episodes',
        'the true mount in the generator\'s ground-truth sidecar, read only after the estimate', PX_TOL, 'px',
-       refs=REFS, cost='study')
+       refs=REFS, cost='study', needs=LEROBOT)
 def _recovery(ctx):
     samples = ('ur5e',) if ctx.quick else ('so100', 'ur5e')
     per, worst, worst_mm, worst_deg, ok, why = [], 0.0, 0.0, 0.0, True, []
@@ -161,7 +161,7 @@ def _recovery(ctx):
        'dataset) and from the board-based bundle adjustment of a simulated ChArUco capture (15 planned poses) of the '
        f'same rig with the same slip; the board solve must be within {BOARD_TOL_MM} mm and {BOARD_TOL_DEG}° of the '
        'truth', 'the board-based hand-eye bundle adjustment (core/calib/handeye.py) on the same synthetic rig', PX_TOL,
-       'px', refs=REFS + ('triggs2000', 'garrido2014'), cost='study')
+       'px', refs=REFS + ('triggs2000', 'garrido2014'), cost='study', needs=LEROBOT)
 def _vs_board(ctx):
     from ..core.calib import capture as CAP
     from ..core.calib import handeye as HE

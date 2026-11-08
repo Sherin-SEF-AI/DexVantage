@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-finger occlusion: a worked example on the dexhand sample · DexVantage</title>
+<meta name="description" content="A dexterous hand hides its own fingertips, and which finger hides which changes with the grasp. The Multi-fingerocclusion page counts, for each fingertip and each camera, how much of the fingertip&#x27;s contact patch the camera doesnot see, and what is in the way. The model, its rules and its …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample">1. Open the sample</a>
+    <a href="#2-run-the-posture-sweep">2. Run the posture sweep</a>
+    <a href="#3-read-the-matrix">3. Read the matrix</a>
+    <a href="#4-compare-the-candidate-mounts">4. Compare the candidate mounts</a>
+    <a href="#5-look-at-one-case">5. Look at one case</a>
+    <a href="#6-what-to-move">6. What to move</a>
+    <a href="#7-over-a-grasp-set">7. Over a grasp set</a>
+    <a href="#batch">Batch</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/dexhand.md"><code>docs/guide/dexhand.md</code></a></p>
+<h1 id="multi-finger-occlusion-a-worked-example-on-the-dexhand-sample">Multi-finger occlusion: a worked example on the dexhand sample</h1>
+<p>A dexterous hand hides its own fingertips, and which finger hides which changes with the grasp. The Multi-finger
+occlusion page counts, for each fingertip and each camera, how much of the fingertip's contact patch the camera does
+not see, and what is in the way. The model, its rules and its validation are in
+<a href="../models/dexhand.html">Multi-finger occlusion</a>.</p>
+<h2 id="1-open-the-sample">1. Open the sample</h2>
+<p><strong>File ▸ Open sample ▸ UR5e and Shadow Hand with a palm, a dorsal wrist and a head camera</strong> (or
+<code>dexvantage --sample dexhand</code>). The UR5e carries the right Shadow Hand on its flange, pointing down, palm towards
++x. Three cameras sit at sample placements (not published figures), each with a library device:</p>
+<ul>
+<li><strong>Palm micro camera</strong>: an OmniVision OVM6948 (0.65 mm module, 120° diagonal view) set into the palm, tilted 25°
+towards the fingers;</li>
+<li><strong>Dorsal wrist camera</strong>: an e-con Systems See3CAM_24CUG on the back of the hand's forearm, 65 mm off its axis,
+angled to look past the knuckles;</li>
+<li><strong>Head camera</strong>: an Intel RealSense D435 (its RGB imager) 0.55 m in front of the palm and 0.4 m above it.</li>
+</ul>
+<p>The fingertips (the five distal links) and their contact pads (the palmar side of each distal link's mesh) are
+already tagged; the Robot page shows them. The sample's grasp postures are sweeps between the hand file's own
+keyframes: power (open hand to &quot;grasp sphere&quot;), precision (to &quot;two finger pinch&quot;) and tripod (to &quot;three finger
+pinch&quot;). They are sample sweeps, not measured synergies, and the page says so.</p>
+<h2 id="2-run-the-posture-sweep">2. Run the posture sweep</h2>
+<ol>
+<li><strong>Analysis ▸ Multi-finger occlusion.</strong> Cases: <strong>Grasp postures</strong>, <strong>Arm as on screen</strong>.</li>
+<li>Press <strong>Run</strong> (about 5 s: 13 cases, 3 cameras, 640 patch points, exact ray casting).</li>
+</ol>
+<p>The headline reads <strong>93.8 % · fingertips seen</strong>: in 93.8 % of the fingertip-cases at least half of the fingertip's
+patch (a default) is seen by some camera. Every fingertip is seen in 69.2 % of the cases. Hover the figure for the
+thresholds (90, 60 and 30 %, defaults).</p>
+<h2 id="3-read-the-matrix">3. Read the matrix</h2>
+<p>The heatmap has a row per finger and a column per camera; the colour runs away from the background as more is hidden (darker in the light theme, lighter in the dark one). Each cell gives the share of the
+patch the camera does not see over the 13 cases, and what hides most:</p>
+<ul>
+<li>the <strong>Dorsal wrist camera</strong> column is almost black (97–100 %), &quot;by palm&quot; or &quot;by itself&quot;: it looks at the back of
+the hand, the pads face away from it and the palm is in the way;</li>
+<li>the <strong>Palm micro camera</strong> misses 43–80 % &quot;outside the image&quot;: its 120° view cannot hold the spread fingers of an
+open hand;</li>
+<li>the <strong>Head camera</strong> sees the four fingers well (14–37 % not seen) but the thumb hardly at all (84 % not seen, by
+itself: the thumb's pad faces the fingers, away from the camera).</li>
+</ul>
+<p>Click the Head camera column. <strong>Who hides whom</strong> splits its losses by owner: the first finger loses 37 %, 24 points of it
+to the thumb and 12 to its own back. Hover a cell for the exact split.</p>
+<h2 id="4-compare-the-candidate-mounts">4. Compare the candidate mounts</h2>
+<p>The table ranks the cameras by the share of fingertip-cases each sees alone: Head camera first (75.4 %), Palm micro
+camera (49.2 %), Dorsal wrist camera last (0 %). No single camera sees every fingertip often, which is why the rig's
+figure is higher than any one of them.</p>
+<h2 id="5-look-at-one-case">5. Look at one case</h2>
+<p>In <strong>Sweep</strong>, the rows are the cases and the cells the not-seen share for the chosen camera. Choose
+&quot;Power grasp (sphere) · 100 % closed&quot; and press <strong>Show this case</strong>: the 3D view takes the posture and draws each patch
+point, seen by the chosen camera in its colour and not seen in grey. Open the Camera view of the Palm micro camera:
+the patch points are drawn there too, each finger in its colour, with &quot;First finger · 84 % seen&quot; in the legend. In
+this posture the fingers curl in front of the palm camera, and it sees 76–88 % of each patch.</p>
+<h2 id="6-what-to-move">6. What to move</h2>
+<p>The headline's line suggests turning the Palm micro camera 10° left about its optical centre: the share of patch
+points seen by any camera rises from 81.0 % to 81.8 % (the fingertip-cases stay at 93.8 %). <strong>Preview</strong> draws the
+suggested optical axis dashed beside the current one; <strong>Apply</strong> turns the camera (one undo step) and runs again.</p>
+<h2 id="7-over-a-grasp-set">7. Over a grasp set</h2>
+<p>Make a grasp set on the Tasks page (for example top-down, side and angled, 30 grasps, seed 1), then choose Cases:
+<strong>Grasp set</strong> and the set, and Run. Each grasp is solved by IK with the hand closed in the power posture (self-
+collision not checked by default: the closed fingers touch in their convex hulls). On that set all 30 grasps are
+reached (12 s); the Palm micro camera sees every fingertip in 100 % of them, the Head camera in 40.7 %.</p>
+<h2 id="batch">Batch</h2>
+<pre><code>dexvantage --sample dexhand --dex-occlusion out/dexhand.json
+</code></pre>
+<p>writes the result with provenance. The settings live in <code>project.analysis.studies['dex_occlusion']</code> (cases' source,
+postures, steps, grasp set, thresholds, backend; see the module docstring).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

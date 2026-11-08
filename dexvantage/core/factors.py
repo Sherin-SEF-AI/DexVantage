@@ -29,11 +29,15 @@ from __future__ import annotations
 
 import copy
 import math
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .frames import Pose, quat_from_rpy, quat_multiply, rpy_from_quat
 from .jobs import StudyError
+
+if TYPE_CHECKING:                                    # names for the type hints only
+    from .project import Project, Sensor, Variant
 
 POSITION = ('x', 'y', 'z')
 ANGLES = ('roll', 'pitch', 'yaw')
@@ -67,7 +71,7 @@ def _parse(path: str):
     raise FactorError(f'"{path}" is not a factor path (it starts with sensor:, setting: or json:).')
 
 
-def _variant(project, variant):
+def _variant(project: Project, variant: Variant | str | None):
     if variant is None:
         return project.variant
     v = project.variant_by_uid(variant)
@@ -76,7 +80,7 @@ def _variant(project, variant):
     return v
 
 
-def find_sensor(project, ident: str, variant=None):
+def find_sensor(project: Project, ident: str, variant: Variant | str | None = None) -> Sensor:
     sensors = _variant(project, variant).sensors
     hit = [s for s in sensors if s.uid == ident]
     if not hit:
@@ -88,7 +92,7 @@ def find_sensor(project, ident: str, variant=None):
     return hit[0]
 
 
-def _pointer(doc, ptr: str, value=None, set_=False):
+def _pointer(doc: object, ptr: str, value: object = None, set_: bool = False):
     parts = [p.replace('~1', '/').replace('~0', '~') for p in ptr.lstrip('/').split('/')]
     cur = doc
     for i, p in enumerate(parts):
@@ -113,7 +117,7 @@ def _pointer(doc, ptr: str, value=None, set_=False):
         cur = cur[k]
 
 
-def get(project, path: str, variant=None):
+def get(project: Project, path: str, variant: Variant | str | None = None) -> object:
     kind, a, b = _parse(path)
     if kind == 'sensor':
         s = find_sensor(project, a, variant)
@@ -132,7 +136,7 @@ def get(project, path: str, variant=None):
     return copy.deepcopy(_pointer(project.to_dict(), a))
 
 
-def _number(path: str, value) -> float:
+def _number(path: str, value: object) -> float:
     """value as a finite float, else FactorError in a sentence (a typo such as 'high', NaN or infinity)."""
     try:
         x = float(value)
@@ -143,7 +147,7 @@ def _number(path: str, value) -> float:
     return x
 
 
-def apply(project, values: dict, variant=None, allow_locked: bool = False):
+def apply(project: Project, values: dict, variant: Variant | str | None = None, allow_locked: bool = False) -> Project:
     """A new project with every factor set (applied in the order given)."""
     from .project import Project
     if not isinstance(values, dict):
@@ -206,7 +210,7 @@ def apply(project, values: dict, variant=None, allow_locked: bool = False):
     return out
 
 
-def locked_target(project, path: str, variant=None):
+def locked_target(project: Project, path: str, variant: Variant | str | None = None) -> Sensor | None:
     """The locked sensor a factor path would change (a sensor: path of a locked sensor, or a json: pointer into one,
     /variants/i/sensors/j/...), else None. The searches use it to leave such a factor out up front."""
     try:
@@ -239,7 +243,7 @@ def locked_target(project, path: str, variant=None):
     return s if s.locked else None
 
 
-def _refuse_locked_json(before, after):
+def _refuse_locked_json(before: object, after: object):
     """FactorError when a json: pointer moved, re-modelled, removed or unlocked a locked sensor (of any variant):
     a pointer reaches the same fields as a sensor: path, so it obeys the same lock."""
     for v in before.variants:
@@ -252,7 +256,7 @@ def _refuse_locked_json(before, after):
                 raise FactorError(f'{s.name} is locked: unlock it to let this change it.')
 
 
-def describe(path: str, project=None, variant=None) -> dict:
+def describe(path: str, project: Project | None = None, variant: Variant | str | None = None) -> dict:
     kind, a, b = _parse(path)
     d = {'path': path}
     if kind == 'sensor':

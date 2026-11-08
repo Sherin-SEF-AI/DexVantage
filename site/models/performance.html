@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Performance: the UI-thread budget · DexVantage</title>
+<meta name="description" content="Spec §16: no UI-thread work over 100 ms. Measured with scripts/measure_ui.py (QT_QPA_PLATFORM=offscreen python scripts/measure_ui.py --json out/ui-timings.json) on 2026-11-06: Linux x86_64, AMD Ryzen 9 9900X, Python 3.14.4,PyQt6 6.12.0, NumPy 2.5.4, MuJoCo 3.17.0. The SO-100 sample has 60 682 …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#result">Result</a>
+    <a href="#what-was-changed-to-meet-it-phase-2-integration">What was changed to meet it (Phase 2 integration)</a>
+    <a href="#phases-3-6-and-7-pages">Phases 3, 6 and 7 pages</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/performance.md"><code>docs/models/performance.md</code></a></p>
+<h1 id="performance">Performance: the UI-thread budget</h1>
+<p>Spec §16: no UI-thread work over 100 ms. Measured with <code>scripts/measure_ui.py</code> (<code>QT_QPA_PLATFORM=offscreen python scripts/measure_ui.py --json out/ui-timings.json</code>) on 2026-11-06: Linux x86_64, AMD Ryzen 9 9900X, Python 3.14.4,
+PyQt6 6.12.0, NumPy 2.5.4, MuJoCo 3.17.0. The SO-100 sample has 60 682 visual triangles, the UR5e + 2F-85 sample
+193 113. Figures are the median of five runs with the largest in brackets; a single figure is one run.</p>
+<p><strong>How it is measured.</strong> Each handler a user triggers is timed on the UI thread directly. An event-loop watchdog (a
+5 ms timer) also records the longest stall while the events that follow each step are processed, so a slow handler
+the list does not name still shows. Studies and Camera view images run on worker threads and are listed as
+&quot;worker&quot;. Offscreen, the 3D view falls back to the QPainter renderer; its frame is excluded from the UI handlers'
+figures and listed on its own. The shader renderer's frame (what a desktop pays) is measured headless through EGL on
+the integrated AMD GPU (radeonsi), the same context the self-test makes.</p>
+<h2 id="result">Result</h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Thread</th>
+<th>SO-100</th>
+<th>UR5e</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>build and show the main window (startup, once)</td>
+<td>start</td>
+<td>252 ms</td>
+<td>306 ms</td>
+</tr>
+<tr>
+<td>show the Sensors and mounts page</td>
+<td>UI</td>
+<td>0.8 ms [4.6]</td>
+<td>1.5 ms [6.2]</td>
+</tr>
+<tr>
+<td>show the Coverage page</td>
+<td>UI</td>
+<td>0.6 ms [2.6]</td>
+<td>0.6 ms [3.7]</td>
+</tr>
+<tr>
+<td>show the Depth validity page</td>
+<td>UI</td>
+<td>0.5 ms [2.6]</td>
+<td>0.8 ms [3.2]</td>
+</tr>
+<tr>
+<td>coverage study, whole run</td>
+<td>worker</td>
+<td>252 ms</td>
+<td>599 ms</td>
+</tr>
+<tr>
+<td>Coverage page: the result arrives (<code>show_result</code>)</td>
+<td>UI</td>
+<td>3.8 ms [4.4]</td>
+<td>26.7 ms [27.2]</td>
+</tr>
+<tr>
+<td>Coverage page: 3D slice overlay for one frame</td>
+<td>UI</td>
+<td>&lt; 0.1 ms</td>
+<td>&lt; 0.1 ms</td>
+</tr>
+<tr>
+<td>depth-validity study, whole run</td>
+<td>worker</td>
+<td>4.8 ms (no depth sensor)</td>
+<td>339 ms</td>
+</tr>
+<tr>
+<td>Depth page: the result arrives</td>
+<td>UI</td>
+<td>&lt; 0.1 ms</td>
+<td>0.3 ms [0.6]</td>
+</tr>
+<tr>
+<td>Depth page: 3D overlays (min-Z zones, failing voxels) for one frame</td>
+<td>UI</td>
+<td>&lt; 0.1 ms</td>
+<td>&lt; 0.1 ms [1.1]</td>
+</tr>
+<tr>
+<td>a joint change: posed meshes, frusta, volumes, page overlays</td>
+<td>UI</td>
+<td>5.0 ms [6.9]</td>
+<td>16.4 ms [19.9]</td>
+</tr>
+<tr>
+<td>select each of the two sensors (Inspector, Camera view header, frusta)</td>
+<td>UI</td>
+<td>26.1 ms [27.6]</td>
+<td>38.9 ms [44.7]</td>
+</tr>
+<tr>
+<td>Camera view: snapshot of the project for a render</td>
+<td>UI</td>
+<td>0.1 ms [0.4]</td>
+<td>0.2 ms [0.6]</td>
+</tr>
+<tr>
+<td>Camera view: render one full-size image</td>
+<td>worker</td>
+<td>27 ms</td>
+<td>78 ms</td>
+</tr>
+<tr>
+<td>Camera view: take the image and paint it with the page's overlays</td>
+<td>UI</td>
+<td>0.6 ms [3.7]</td>
+<td>0.7 ms [5.4]</td>
+</tr>
+<tr>
+<td>Library panel: refill (40 entries)</td>
+<td>UI</td>
+<td>0.8 ms [1.2]</td>
+<td>0.8 ms [1.1]</td>
+</tr>
+<tr>
+<td>New custom device dialog, started from a library device</td>
+<td>UI</td>
+<td>16.8 ms [18.5]</td>
+<td>16.4 ms [16.8]</td>
+</tr>
+<tr>
+<td>largest watchdog stall after any step</td>
+<td>UI</td>
+<td>8.6 ms</td>
+<td>9.9 ms</td>
+</tr>
+<tr>
+<td>3D view, shader renderer: first frame (mesh upload)</td>
+<td>UI</td>
+<td>28 ms</td>
+<td>57 ms</td>
+</tr>
+<tr>
+<td>3D view, shader renderer: steady frame</td>
+<td>UI</td>
+<td>7.8 ms [8.6]</td>
+<td>11.9 ms [13.0]</td>
+</tr>
+<tr>
+<td>3D view, shader renderer: frame after a joint change (pose, upload, draw)</td>
+<td>UI</td>
+<td>26.5 ms [28.1]</td>
+<td>67.6 ms [95.5]</td>
+</tr>
+<tr>
+<td>3D view, QPainter fallback: one frame (no OpenGL)</td>
+<td>UI</td>
+<td>160 ms [184]</td>
+<td>586 ms [744]</td>
+</tr>
+</tbody>
+</table>
+<p>No UI-thread step is over 100 ms on the samples with the shader renderer. Window start-up (0.25–0.31 s) happens once.</p>
+<h2 id="what-was-changed-to-meet-it-phase-2-integration">What was changed to meet it (Phase 2 integration)</h2>
+<p>Before these changes the shader renderer's frame after a joint change took 108 ms (SO-100) and 385 ms (UR5e):</p>
+<ul>
+<li><strong>Smooth normals once per model.</strong> The renderer merged every corner by position (<code>np.unique</code> over 580 000
+corners of the UR5e, 256 ms) at every pose. The scene now computes them once per robot model in each link's own
+frame (<code>render_gl.vertex_normals(..., group=link)</code>) and rotates them with the links at each q
+(<code>RobotModel.pose_vectors</code>), handing them to the renderer as <code>MeshDraw.vnormals</code>. Merging in link frames is also
+steadier: coinciding vertices of two links are no longer smoothed together, and the shading no longer changes as the
+arm moves.</li>
+<li><strong>Posing by link.</strong> <code>RobotModel.posed_triangles</code> used a 3 × 3 product per triangle (einsum, 33 ms on the UR5e); it
+now does one matrix product per run of a link's triangles (12 ms, the same numbers to the last bit).</li>
+<li><strong>Upload.</strong> The mesh bounds were an axis-0 reduction of an (N, 3) array (20 ms); per column they take 1 ms. An
+all-opaque mesh is no longer copied to reorder it.</li>
+</ul>
+<h2 id="phases-3-6-and-7-pages">Phases 3, 6 and 7 pages</h2>
+<p>Measured with <code>scripts/measure_ui_phase3.py</code> (<code>QT_QPA_PLATFORM=offscreen python scripts/measure_ui_phase3.py --json out/ui-timings-phase3.json</code>) on 2026-11-07, on an idle machine (the hardware and versions above; studies on the RTX
+5080 through EGL). Milliseconds on the UI thread, the median of 3 with the largest in brackets (Preview and Apply: one
+run); Apply is undone after it is timed. The hand-eye solve page is measured after importing 12 board images rendered
+at the plan's poses; the import itself took 230 ms when called directly (the Import button now runs it as a window
+job, so the UI thread does not wait for it).</p>
+<table>
+<thead>
+<tr>
+<th>Page (sample)</th>
+<th>Show</th>
+<th>Result arrives</th>
+<th>3D overlays</th>
+<th>Camera view overlays</th>
+<th>Preview</th>
+<th>Apply</th>
+<th>Largest stall after a step</th>
+<th>Study (worker)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tasks (UR5e)</td>
+<td>1.3 [4.7]</td>
+<td>—</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>8.2</td>
+<td>20.2</td>
+<td>46.4</td>
+<td>—</td>
+</tr>
+<tr>
+<td>policies (UR5e)</td>
+<td>1.6 [4.5]</td>
+<td>—</td>
+<td>0.0</td>
+<td>0.0 [0.2]</td>
+<td>—</td>
+<td>—</td>
+<td>5.3</td>
+<td>—</td>
+</tr>
+<tr>
+<td>grasp (UR5e)</td>
+<td>1.5 [4.1]</td>
+<td>18.0 [18.1]</td>
+<td>0.0</td>
+<td>0.4 [0.7]</td>
+<td>5.4</td>
+<td>30.7</td>
+<td>12.3</td>
+<td>24.29 s</td>
+</tr>
+<tr>
+<td>vla (UR5e)</td>
+<td>1.5 [6.7]</td>
+<td>0.2 [0.3]</td>
+<td>0.0 [0.2]</td>
+<td>0.1 [0.2]</td>
+<td>—</td>
+<td>—</td>
+<td>11.9</td>
+<td>0.08 s</td>
+</tr>
+<tr>
+<td>bandwidth (UR5e)</td>
+<td>2.1 [6.8]</td>
+<td>1.7 [1.8]</td>
+<td>0.3 [0.6]</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>13.7</td>
+<td>13.4</td>
+<td>0.02 s</td>
+</tr>
+<tr>
+<td>cables (UR5e)</td>
+<td>5.5 [10.3]</td>
+<td>0.4 [0.5]</td>
+<td>0.0 [0.1]</td>
+<td>1.2 [1.5]</td>
+<td>0.1</td>
+<td>26.7</td>
+<td>12.4</td>
+<td>0.38 s</td>
+</tr>
+<tr>
+<td>brackets (UR5e)</td>
+<td>1.8 [5.9]</td>
+<td>0.0 [0.1]</td>
+<td>0.0 [0.1]</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>38.9</td>
+<td>15.7</td>
+<td>0.02 s</td>
+</tr>
+<tr>
+<td>handeye plan (UR5e)</td>
+<td>12.9 [21.0]</td>
+<td>3.1 [5.5]</td>
+<td>0.0</td>
+<td>0.2 [0.5]</td>
+<td>1.9</td>
+<td>32.9</td>
+<td>26.0</td>
+<td>5.80 s</td>
+</tr>
+<tr>
+<td>handeye solve (UR5e)</td>
+<td>3.1 [7.6]</td>
+<td>1.6</td>
+<td>0.0</td>
+<td>0.2 [0.6]</td>
+<td>0.9</td>
+<td>46.6</td>
+<td>29.7</td>
+<td>1.41 s</td>
+</tr>
+<tr>
+<td>dexhand (dexhand)</td>
+<td>1.3 [3.6]</td>
+<td>0.4 [0.7]</td>
+<td>0.1 [34.2]</td>
+<td>36.9 [53.2]</td>
+<td>0.4</td>
+<td>60.7</td>
+<td>67.3</td>
+<td>4.94 s</td>
+</tr>
+</tbody>
+</table>
+<p>No UI-thread step is over 100 ms. The largest are on the dexhand sample (30 joints, about 4 900 pad triangles): its
+Apply 60.7 ms and the events after it 67.3 ms, and its Camera view overlay 53.2 ms worst. Building and showing the main
+window (once) takes 0.82 s on the UR5e sample and 0.41 s on the dexhand sample, with fourteen pages built at start
+(0.31 s in Phase 2). With the full test suite running on the same machine one run measured the brackets page's Apply
+at 146 ms (39 ms idle; profiled alone 46–64 ms, most of it the Sensors and Policies pages rebuilding their editors on
+the edit), so a loaded machine can push the heavier Apply steps past the budget.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The QPainter fallback, used only where OpenGL is missing, draws every triangle from Python: 0.16 s per frame for the
+SO-100 and 0.59 s for the UR5e. A decimated mesh for that path (<code>core/scenegeom.decimate</code>) is the fix; not done.</li>
+<li>The shader renderer still poses and uploads the whole mesh at each joint change (68 ms median on the UR5e on an
+integrated GPU, 96 ms at worst). Uploading each link's mesh once and passing the link transforms as uniforms would
+remove both; that is also what Phase 3's batched occlusion wants (see <a href="occlusion.html#timings">Occlusion: articulated cube maps and exact ray casting</a>).</li>
+<li>Measured on one machine; the GL figures are an integrated GPU's. The on-screen <code>QOpenGLWidget</code> path has not been
+timed on a desktop session.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

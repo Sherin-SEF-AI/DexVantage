@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MuJoCo ground truth: rendered against predicted · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/sim/scene.py (the scene), dexvantage/core/sim/render.py (renders through each lens),dexvantage/core/studies/groundtruth.py (study groundtruth, batch flag --groundtruth OUT.json).Page: dexvantage/ui/pages/groundtruth.py (Simulate ▸ Rendered against predicted visibility… …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-scene">The scene</a>
+    <a href="#renders-through-the-lens-model">Renders through the lens model</a>
+    <a href="#the-study">The study</a>
+    <a href="#measured-2026-11-07-rtx-5080-through-egl-mujoco-3170">Measured (2026-11-07, RTX 5080 through EGL, MuJoCo 3.17.0)</a>
+    <a href="#throughput">Throughput</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/groundtruth.md"><code>docs/models/groundtruth.md</code></a></p>
+<h1 id="groundtruth">MuJoCo ground truth: rendered against predicted</h1>
+<p>Modules: <code>dexvantage/core/sim/scene.py</code> (the scene), <code>dexvantage/core/sim/render.py</code> (renders through each lens),
+<code>dexvantage/core/studies/groundtruth.py</code> (study <code>groundtruth</code>, batch flag <code>--groundtruth OUT.json</code>).
+Page: <code>dexvantage/ui/pages/groundtruth.py</code> (Simulate ▸ Rendered against predicted visibility…; Simulate ▸ Build the
+MuJoCo scene… writes the scene folder). Checks: <code>dexvantage/validation/checks_groundtruth.py</code> (model <code>groundtruth</code>).
+Tests: <code>tests/test_groundtruth.py</code>. Self-test line <code>groundtruth</code>. Throughput: <code>scripts/measure_groundtruth.py</code>.
+Spec §9.1 (&quot;this is DexVantage's CARLA&quot;).</p>
+<p>The renders reuse <code>dexvantage/validation/mjrender.py</code> (the EGL worker process the Phase 2 checks use), extended with a
+worker that stays up (<code>mjrender.Session</code>), a per-job camera pose and intrinsics, and the EGL device choice.</p>
+<h2 id="the-scene">The scene</h2>
+<p><code>build_scene(project, variant=None, objects=True, lights=True)</code> returns a <code>SceneBuild</code>: the <code>mujoco.MjSpec</code>, the
+compiled model, <code>camera_names</code> and <code>imagers</code> (each sensor's primary imager: the RGB imager of a depth sensor, the one
+the grasp study uses), <code>cameras</code> (every imager of every sensor in use), <code>body_map</code> (body id or name → owner) and the
+geom → owner table the segmentation is read through.</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>How it is built</th>
+<th>How it matches the predictions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Robots</td>
+<td>the stored MJCF/URDF read as <code>core/robot/model.py</code> reads it (fusestatic off), attached with <code>MjSpec.attach</code> under a frame at the robot's base, names prefixed <code>robot&lt;k&gt;_</code>; keyframes and the file's world-body geoms dropped</td>
+<td>only the geoms RobotModel draws are drawn (visual-only geoms when the file has them, alpha &gt; 0, a type it tessellates); the others, and every site and tendon, are moved to geom group 5, which MuJoCo's default visual options do not draw. Body poses equal <code>RobotModel.fk</code> (test: 0 m)</td>
+</tr>
+<tr>
+<td>Task objects</td>
+<td>a static body per object with its exact primitive (box, cylinder, sphere) or a mesh of the project's triangles</td>
+<td>the predictions tessellate cylinders and spheres (24 segments, ≤ 1.1 % of the radius inside)</td>
+</tr>
+<tr>
+<td>Surfaces</td>
+<td>a box whose top is at the surface's z (its thickness, else 1 mm: a labelled default)</td>
+<td>the predictions use a zero-thickness rectangle</td>
+</tr>
+<tr>
+<td>Materials</td>
+<td>tags → MuJoCo materials (<code>scene.MATERIALS</code>, DexVantage defaults: glossy specular 0.8, metallic grey, black, IR-absorbing dark matte, transparent alpha 0.3)</td>
+<td>RGB only; segmentation and depth do not depend on them</td>
+</tr>
+<tr>
+<td>Lights</td>
+<td>the project's lights as the lighting study defines them (<code>core/lights.py</code>: the face looks along the light's local +z; a light that is off is left out; point → point light, spot → spot of half its stated beam angle, panel, ring and window → spot of cutoff 90° and exponent 1, Lambert's cos θ; MuJoCo's default colour 0.7 times the dim; MuJoCo's classic renderer has no photometric units), else an overhead and a front directional light (labelled defaults), and MuJoCo's head light</td>
+<td>RGB only</td>
+</tr>
+<tr>
+<td>Cameras</td>
+<td>one per imager, in the mount link's body (or the world), at mount · imager · diag(1, −1, −1)</td>
+<td>the imager's <code>CameraModel</code> at its stream size (below)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Camera intrinsics, verified in the installed MuJoCo's reference.</strong> Read in <code>doc/XMLreference.rst</code> of
+github.com/google-deepmind/mujoco at tag <strong>3.17.0</strong> (the installed version), section body/camera, on 2026-11-07:
+<code>fovy</code> is the vertical field of view in degrees and &quot;the horizontal field of view is computed automatically given the
+window size&quot;; <code>sensorsize</code> is the &quot;Size of the camera sensor in length units. When specified, all intrinsic attributes
+become active and fovy is ignored&quot;; <code>focal</code> / <code>focalpixel</code> are the focal length &quot;in physical length units or in
+pixels, respectively. If both are specified, the pixel value is used&quot;; <code>principal</code> / <code>principalpixel</code> are the &quot;Offset
+of the principal point (optical axis intersection with the image plane) from the image center&quot; (the direction is not
+stated); <code>resolution</code> &quot;is not used for rendering since those dimensions are determined by the size of the rendering
+context&quot;. <code>visual/map/znear</code> is the near plane as a fraction of the model extent. The scene therefore sets, per
+camera at its W × H stream:</p>
+<pre><code>resolution = (W, H)
+sensorsize = (W, H) · 3 µm            (a nominal pixel pitch: MuJoCo needs a length, only ratios matter)
+focalpixel = (fx, fy)
+principalpixel = ((W − 1)/2 − cx, (H − 1)/2 − cy)
+statistic/extent and visual/map/znear so that the near plane is 5 mm (as core/occlusion.py and camrender)
+</code></pre>
+<p>MuJoCo 3.17.0 compiles this to <code>cam_intrinsic = focalpixel · sensorsize / resolution</code> (measured in
+<code>tests/test_groundtruth.py</code>; setting <code>intrinsic</code> directly compiles to zero, so the scene does not). The principal
+offset's sign, (W − 1)/2 − px, is the one <code>mjrender.camera_model</code> measured on renders in Phase 2; the checks below
+confirm it again through fiducials and per-pixel agreement. MuJoCo cameras are pinhole: a lens with distortion has its
+pinhole part (fx, fy, cx, cy) in the scene and the note says so.</p>
+<p><code>save_scene(project, folder)</code> writes <code>scene.xml</code>, <code>assets/</code> (the robots' mesh and texture files) and
+<code>scene_notes.txt</code> (the cameras with their lens models, the defaults, the notes); the result loads with
+<code>mujoco.MjModel.from_xml_path</code> and holds no path of this machine.</p>
+<h2 id="renders-through-the-lens-model">Renders through the lens model</h2>
+<p><code>Renderer(project, variant=None, device='auto')</code> is a context manager around one <code>mjrender.Session</code>; <code>.render(views)</code>
+takes <code>[{'sensor_uid', 'q', 'outputs', 'scale', 'extrinsic_delta', 'imager', 'camera_model'}]</code> and returns per view
+<code>rgb</code> (H × W × 3 uint8), <code>depth</code> (metres along the optical z, 0 = no hit), <code>range</code> (metres along the pixel's ray),
+<code>seg</code> (owner index, −1 = nothing), <code>seg_owner</code> and the <code>CameraModel</code> the image follows. <code>extrinsic_delta</code> perturbs the
+mount (T_body_sensor · Δ) for a synthetic mount slip. <code>.info</code> names the renderer, GL, MuJoCo and device.</p>
+<p>The lens decides the path (<code>render.lens_plan</code>):</p>
+<ul>
+<li><strong>pinhole</strong>: the scene camera at the asked size, no resampling.</li>
+<li><strong>wide</strong> (every pixel ray within 60° of the axis: Brown-Conrady, a mild fisheye): one pinhole base image in the same
+optical frame that covers every pixel's ray. For each lens pixel (u, v), r = <code>CameraModel.unproject(u, v)</code> and the
+base pixel is (fx_b r_x / r_z + cx_b, fy_b r_y / r_z + cy_b); <code>cv2.remap</code> samples it (nearest for segmentation and
+depth, bilinear for RGB). The lens's distortion is applied exactly at each pixel centre; nothing is fitted.</li>
+<li><strong>cube</strong> (beyond 60°, including fisheyes past 180°): the 90° cube faces around the optical frame that the rays need;
+each pixel takes the face its ray leaves through.</li>
+</ul>
+<p>The base images are at least <code>OVERSAMPLE</code> = 2 (a default) times as dense, in pixels per radian, as the lens image at
+its densest, up to 4096 px a side (2048 for a cube face); a cap that bites is noted. The base's intrinsics are set per
+render through <code>mjrender</code>'s <code>camera_intrinsic</code> (cam_sensorsize and cam_intrinsic in pixel units, which MuJoCo reads at
+every render: measured in the tests). Depth along a base camera's axis a becomes the lens's optical z and range with the
+pixel's own ray: range = d / (r · a), z = range · r_z.</p>
+<h2 id="the-study">The study</h2>
+<p><strong>(a) Contact visibility.</strong> A seeded sample of the grasp set (50 grasps, a default), the home pose, and
+<code>trajectory_frames</code> (8, a default) evenly spaced frames, both ends included, of every joint trajectory of the same robot
+(<code>trajectory.on_model</code>: joints a trajectory does not name stay at the grasp study's joint state). A project with
+trajectories and no grasp set compares home and the trajectory frames. Each grasp is
+solved and evaluated by the grasp study itself (<code>grasp_visibility.solve_grasps</code>, <code>snapped_pads</code>, <code>pad_world</code>,
+<code>Evaluator.states</code> at the grasp's own q, no q-bucket cache), with the grasp study's settings. A contact point is
+<strong>predicted visible</strong> when it projects into the image and the contact location (the point lifted 2 mm along the pad's
+normal) is not hidden in the camera's cube map. It is <strong>rendered visible</strong> when it projects into the image, the
+segmentation at its nearest pixel is its own finger, and the rendered depth there is within <code>depth_tol_mm</code> (5 mm, a
+default) of the point's depth. &quot;Its own finger&quot; is the pad link and every link welded to it (<code>groundtruth.finger_links</code>):
+the Robotiq 2F-85's pad link is a collision box with no visual geometry; its silicone pad and follower are welded to
+it. Over the (camera, point) pairs in view:</p>
+<pre><code>confusion: TP both visible, FP predicted visible only, FN rendered visible only, TN both hidden
+agreement = (TP + TN) / n,   IoU of the visible sets = TP / (TP + FP + FN)
+</code></pre>
+<p>per pose, per kind of pose (<code>by_kind</code>: home, grasp, trajectory), per camera and in total, and, over the grasps only, the
+grasp study's requirement (its own <code>grasp_score</code>) on the predicted and on
+the rendered fractions. Each disagreeing point gets a reason: <strong>edge</strong> (its pixel's 3 × 3 neighbourhood holds two
+owners), <strong>rule</strong> (the render's own occlusion test at the lifted point, rendered range ≥ its distance − eps, agrees with
+the prediction: the two definitions differ, typically a pad seen edge-on) or <strong>occlusion</strong> (the cube map and the
+render disagree about what is in front).</p>
+<p><strong>(b) Depth validity.</strong> For every depth sensor the depth study can analyse, at home, every imager the depth needs is
+rendered and the reference depth gets the sensor's noise model, z̃ = z + σ_z(z) n with σ_z = z² σ_d / (f B) (the
+study's own <code>sigma_z</code>, σ_d and baseline; seeded). On the study's own voxels (the headline): field of view, min-Z, range,
+projector and materials are the same functions on both sides; occlusion is the study's cube maps against the renders
+(a voxel is hidden from the reference imager when the noisy depth at its pixel is nearer than it by more than 1 mm, the
+study's eps, and from another imager when the rendered range is). On the rendered surfaces (reported beside it): the
+study's evaluate at each rendered surface point against the noisy point, with a left-right consistency check (the other
+imager's rendered range within 5 mm + 3 σ_z, a default).</p>
+<p>Status: agrees from 90 %, mostly agrees from 75 %, else disagrees (defaults, not standards).</p>
+<h2 id="measured-2026-11-07-rtx-5080-through-egl-mujoco-3170">Measured (2026-11-07, RTX 5080 through EGL, MuJoCo 3.17.0)</h2>
+<p><code>dexvantage --sample &lt;s&gt; --groundtruth gt.json</code>, default settings (50 grasps, seed 0):</p>
+<table>
+<thead>
+<tr>
+<th>Sample</th>
+<th>Contact agreement</th>
+<th>IoU</th>
+<th>Points in view (poses)</th>
+<th>FP / FN</th>
+<th>Why (edge / rule / occlusion)</th>
+<th>Requirement same verdict</th>
+<th>Run</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UR5e + 2F-85</td>
+<td><strong>91.3 %</strong></td>
+<td>86.3 %</td>
+<td>16 896 (33)</td>
+<td>1 423 / 51</td>
+<td>1 061 / 324 / 89</td>
+<td>32 of 32</td>
+<td>7.3 s</td>
+</tr>
+<tr>
+<td>SO-100</td>
+<td><strong>84.2 %</strong></td>
+<td>78.1 %</td>
+<td>22 905 (45)</td>
+<td>3 461 / 155</td>
+<td>1 440 / 2 081 / 95</td>
+<td>44 of 44</td>
+<td>3.9 s</td>
+</tr>
+<tr>
+<td>dexhand</td>
+<td>— (no grasp set)</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1.4 s</td>
+</tr>
+</tbody>
+</table>
+<p>With the trajectory frames (added 2026-11-07; the UR5e sample's scripted pick, 8 frames): the UR5e's total over 41
+poses is <strong>92.8 %</strong> (IoU 88.0 %, 20 992 points in view; occlusion away from an edge 89 points, 0.4 %), of which the
+grasps 91.1 %, home 98.0 % and the trajectory frames 98.9 % (4 096 points: along the scripted pick the pads face the
+cameras). This is the figure the check <code>groundtruth.ur5e_contacts</code> now measures. The SO-100 and dexhand samples have no
+trajectory, so their rows above are unchanged.</p>
+<p>Per camera on the UR5e (grasps and home): Wrist D405 96.1 % (its pads are seen face on), Overhead D435 86.5 % (from above the pads are
+nearly edge-on, so most of its 1 093 false positives are edge and rule cases). Where the render shows the finger and the
+prediction says visible, the rendered depth minus the point's depth has median −0.04 mm (5–95 %: −10.2 to 0.6 mm; the
+tail is the finger's own edge in front of a grazing point). Occlusion disagreements away from an edge are 0.5 % (UR5e)
+and 0.4 % (SO-100) of the points: the cube maps and the renders agree about what is in front.</p>
+<p>The disagreement is mostly <strong>definitional</strong>, and it is reported, not tuned away: the grasp study asks whether the place
+where the object meets the pad (2 mm in front of it) is in view, the render whether the pad face itself shows. On the
+SO-100 the jaws' contact patches come from collision geometry that does not lie on the visual mesh everywhere (the grasp
+study moves 2 and 11 % of the points onto it), and its rule disagreements are the larger share.</p>
+<table>
+<thead>
+<tr>
+<th>Sample · sensor</th>
+<th>Voxels agree</th>
+<th>Voxel IoU</th>
+<th>Disagreements (predicted → rendered)</th>
+<th>Surfaces agree (inside the task volume)</th>
+<th>median σ_z</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UR5e · Wrist D405</td>
+<td>99.89 %</td>
+<td>99.77 %</td>
+<td>occluded → valid 266, valid → occluded 244 (of 480 000)</td>
+<td>99.72 % (99.94 %)</td>
+<td>1.1 mm</td>
+</tr>
+<tr>
+<td>UR5e · Overhead D435</td>
+<td>99.66 %</td>
+<td>99.45 %</td>
+<td>valid → occluded 848, occluded → valid 780</td>
+<td>91.61 % (99.61 %)</td>
+<td>2.4 mm</td>
+</tr>
+<tr>
+<td>dexhand · Head camera</td>
+<td>99.58 %</td>
+<td>99.51 %</td>
+<td>valid → occluded 206, occluded → valid 161</td>
+<td>91.44 % (97.67 %)</td>
+<td>0.9 mm</td>
+</tr>
+</tbody>
+</table>
+<p>The voxel disagreements sit within a texel or a σ_z of a surface. On the rendered surfaces the overhead D435 reads
+91.6 %: points exactly on the table, 0.9 m away, where a cube-map texel (3.9 mrad, about 3.5 mm there) spans more depth
+than the study's 1 mm tolerance, so the study calls part of the table hidden from itself (a speckle over the table in
+the page's masks). Inside the task volume, where the study is used, 99.6 %.
+The dexhand head camera reads 91.4 % on its rendered surfaces (re-measured 2026-11-07, RTX 5080) with the same pattern:
+8 499 of its 8 595 disagreements are pixels the study calls occluded (hidden from the other imager) where the render
+sees valid depth, on surfaces outside the task volume; the other way, 96. Inside the task volume 97.7 % (5 240
+pixels; 106 of its 122 disagreements are predicted invalid where the render sees valid depth). This is consistent
+with the texel-depth explanation above but has not been traced pixel by pixel for this camera; it is a known
+limit, not tuned away.</p>
+<p><strong>Validation checks</strong> (<code>--validate out --models groundtruth</code>, full run 13 s):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Measured</th>
+<th>Tolerance</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>groundtruth.lens_remap_fiducials</code></td>
+<td>0.20 px (quick 0.19)</td>
+<td>0.4 px</td>
+<td>six lens models, 35 spheres each, rendered mask centroid against the mask CameraModel predicts; MuJoCo's sphere tessellation 0.10 px plus nearest sampling of a base twice as dense (≤ ¼ px at a boundary). Measured 0.33 px with OVERSAMPLE = 1.</td>
+</tr>
+<tr>
+<td><code>groundtruth.scene_intrinsics</code></td>
+<td>8.8 × 10⁻⁵ px</td>
+<td>10⁻³ px</td>
+<td>MuJoCo's float32 camera fields (6 × 10⁻⁸ relative); a principal offset with the wrong sign is off by twice the offset</td>
+</tr>
+<tr>
+<td><code>groundtruth.scene_vs_camrender</code></td>
+<td>2.2 × 10⁻⁵ of 2.3 M pixels</td>
+<td>10⁻³</td>
+<td>per-pixel owner, MuJoCo against core/camrender, every camera of the three samples; only edge-rule pixels differ</td>
+</tr>
+<tr>
+<td><code>groundtruth.ur5e_contacts</code></td>
+<td>1 − 0.928 = 0.072 (0.087 before the trajectory frames)</td>
+<td>0.15 (floor 85 %)</td>
+<td>the grasps, home and the 8 trajectory frames; plus occlusion disagreements ≤ 2 % (measured 0.4 %), on the UR5e and on the SO-100 (0.4 %); the SO-100's own agreement, 84.2 %, is under the floor and is reported in the detail, not held to it (the floor was set on the UR5e)</td>
+</tr>
+<tr>
+<td><code>groundtruth.ur5e_depth</code></td>
+<td>1 − 0.998 = 0.0022</td>
+<td>0.01 (floor 99 %)</td>
+<td>the study's voxels against the noisy renders</td>
+</tr>
+</tbody>
+</table>
+<h2 id="throughput">Throughput</h2>
+<p><code>python scripts/measure_groundtruth.py --device N</code>: the UR5e sample, 120 views (the 1280 × 720 D405 and the
+1920 × 1080 D435, alternately) at random joint states, segmentation + depth + RGB, 8 views per call, after a warm-up.</p>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>GPU (OpenGL renderer)</th>
+<th>Renderer frames/s</th>
+<th>Views/s end to end</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EGL device 0</td>
+<td>NVIDIA GeForce RTX 5080</td>
+<td>76–99</td>
+<td>14.7–17.5</td>
+</tr>
+<tr>
+<td>EGL device 2</td>
+<td>AMD Radeon (Ryzen 9 9900X integrated, radeonsi)</td>
+<td>68</td>
+<td>14.2</td>
+</tr>
+<tr>
+<td>EGL device 1</td>
+<td>— (MuJoCo cannot open a PLATFORM_DEVICE display on it: the Renderer says so in words)</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>RTX 5080, lens swapped for Brown-Conrady (wide path, base capped at 4096 px)</td>
+<td></td>
+<td>12</td>
+<td>2.4</td>
+</tr>
+<tr>
+<td>RTX 5080, lens swapped for an equidistant fisheye (5 cube faces of 2048 px)</td>
+<td></td>
+<td>19</td>
+<td>0.7 (16 views)</td>
+</tr>
+</tbody>
+</table>
+<p><code>device='auto'</code> lets MuJoCo take the first EGL device that initialises (device 0 here), or the one <code>DEXVANTAGE_EGL</code>
+names. End to end is bounded by moving full-size images between the processes (about 23 MB per 1920 × 1080 view), not by
+the GPU. The renders were measured while other work shared the machine; the spread is the range of two runs.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The prediction leaves out the camera's seat on its mount link (the 25 mm rule of <code>scenegeom</code>) and the render does not;
+MuJoCo draws cylinders and spheres as smooth primitives, the predictions as 24-gons; one pixel decides each contact
+point, so a point within a pixel of a silhouette can go either way (counted as &quot;edge&quot;); the noise model is first order
+and Gaussian (no matcher bias, no holes from missing texture, no multipath); the projector pattern and IR materials are
+not rendered (the study's own rules on both sides); depth is compared at the home pose; renders are geometric (MuJoCo's
+shading: no exposure, noise, blur or rolling shutter); a lens rendered through cube faces moves a lot of data between
+processes and is slow; equality constraints (a gripper's linkage) are not solved, as in RobotModel; the scene file
+written by Build the MuJoCo scene… carries MuJoCo's XML writer's 6 significant digits (camera poses within 6 × 10⁻⁷ m
+and 1.2 × 10⁻⁶ rad, intrinsics within 2 × 10⁻³ px of the project's, measured by <code>formats.mjcf_scene</code> when the file is
+loaded back from disk); the renders use the scene in memory, which is not rounded.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

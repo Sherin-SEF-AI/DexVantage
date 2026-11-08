@@ -36,6 +36,8 @@ class PublicationPage(StudyPage):
     folder with provenance.json listing where each number came from."""
     STUDY = None
     TITLE = 'Publication'
+    MODEL = ('Model: the paper kit (core/publication.py): every number in its text and tables traced to the '
+             'result it came from.')
     HEADLINE = 'Methods numbers traced to a source'
     MENU_TITLE = 'Paper kit…'
 

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude over MCP: a worked example on the SO-100 sample · DexVantage</title>
+<meta name="description" content="DexVantage serves its studies to Claude (Claude Code, Claude Desktop or any MCP client) through an MCP server. Claudereads the project, runs the studies, tries changes and makes them as undo steps you can take back. Every figure itquotes comes from a study or a cited datasheet.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#set-it-up">Set it up</a>
+    <a href="#a-session">A session</a>
+    <a href="#what-claude-cannot-do">What Claude cannot do</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/mcp.md"><code>docs/guide/mcp.md</code></a></p>
+<h1 id="claude-over-mcp-a-worked-example-on-the-so-100-sample">Claude over MCP: a worked example on the SO-100 sample</h1>
+<p>DexVantage serves its studies to Claude (Claude Code, Claude Desktop or any MCP client) through an MCP server. Claude
+reads the project, runs the studies, tries changes and makes them as undo steps you can take back. Every figure it
+quotes comes from a study or a cited datasheet.</p>
+<h2 id="set-it-up">Set it up</h2>
+<p>Save the sample under a name of your own first (File ▸ Open sample ▸ SO-100, then File ▸ Save as… <code>so100.dexv</code>).
+Register the server with Claude Code once:</p>
+<pre><code>claude mcp add dexvantage -- python -m dexvantage.mcp --project /path/to/so100.dexv
+</code></pre>
+<p>With the DexVantage window open (the setting <code>mcp/bridge</code>, on by default, lets Claude in), Claude works on the project
+in the window: each change appears at once as an undo step &quot;Claude · …&quot; in Edit ▸ Undo. With no window, it works on
+the file: each change is saved, and the file as it was first opened is kept as <code>so100.dexv.bak</code>.</p>
+<h2 id="a-session">A session</h2>
+<p>Ask Claude &quot;how well do the cameras see the task volume?&quot;. It calls <code>get_overview</code>, then <code>get_coverage</code>, which
+answers (figures measured on the sample on 2026-11-07):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>status</td>
+<td>serious, &quot;gaps&quot;</td>
+</tr>
+<tr>
+<td>seen by two or more cameras</td>
+<td>47.302 %</td>
+</tr>
+<tr>
+<td>seen by at least one</td>
+<td>94.521 %</td>
+</tr>
+<tr>
+<td>blind</td>
+<td>5.479 %</td>
+</tr>
+<tr>
+<td>best resolution, median / 5th percentile</td>
+<td>3.6055 / 1.0441 px/mm</td>
+</tr>
+</tbody>
+</table>
+<p>and per camera: the wrist camera sees 53.7 % of the volume, with 35.4 % outside its image; the third-person camera
+88.1 %, 40.8 % of the volume by it alone. The study's advice: aim the wrist camera at the volume, move it back or
+choose a wider lens.</p>
+<p>Ask &quot;would tilting the wrist camera 10° up help?&quot;. Claude tries it with <code>simulate_changes</code>
+(<code>{&quot;sensor:Wrist camera (sample placement).dpitch&quot;: -10}</code> with the coverage metrics) and nothing changes:</p>
+<table>
+<thead>
+<tr>
+<th>metric</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>coverage.covered</code> (task volume seen)</td>
+<td>94.5208 %</td>
+<td>92.3715 %</td>
+</tr>
+<tr>
+<td><code>coverage.blind</code></td>
+<td>5.4792 %</td>
+<td>7.6285 %</td>
+</tr>
+<tr>
+<td><code>coverage.ppmm_p5</code></td>
+<td>1.0441 px/mm</td>
+<td>1.0185 px/mm</td>
+</tr>
+</tbody>
+</table>
+<p>It is worse, so Claude says so instead of making it. Had it called <code>edit_project</code> with the same change, the reply
+would carry the same before and after, the undo step &quot;Claude · Wrist camera (sample placement) turn about its y: by
+-10 °&quot;, and <code>undo_last_change</code> would take it back (only Claude's own last step: a step you made after it is never
+undone from here).</p>
+<p>Ask &quot;is the teleop leader good enough?&quot;: <code>get_teleop_overlap</code> answers 96.67 % of the task volume teleoperable without
+a dead zone (&quot;clear&quot;). This is long work (about 7 s on the sample); in the app's own assistant it runs from a plan you
+approve (<code>propose_plan</code>).</p>
+<p>Ask about the policy's loop: <code>get_action_chunk</code> answers with the study's own sentence, because SmolVLA's inference
+time is not stated by its source: enter a measured figure on the Policies page. Claude cannot fill it in.</p>
+<h2 id="what-claude-cannot-do">What Claude cannot do</h2>
+<ul>
+<li>Change a locked sensor or robot (the lock on the Sensors page). Any change to one is refused, whatever route it takes.</li>
+<li>Invent a figure: a figure no study or datasheet states is <code>None</code> (&quot;not stated&quot;).</li>
+<li>Run the long studies inside the app's assistant without a plan you approve.</li>
+</ul>
+<p>The tools and their inputs are listed by <code>tools/list</code>; <code>dexvantage_status</code> says where Claude is working.
+<code>docs/models/mcp.md</code> has the protocol, the sessions, the edits and the checks.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

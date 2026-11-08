@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The visual-to-tactile handoff: a worked example · DexVantage</title>
+<meta name="description" content="The Multi-finger occlusion page (Analysis ▸ Multi-finger occlusion) shows, under its sweep, the handoff chart:for each approach, how much of each fingertip&#x27;s contact patch the rig sees against the distance to contact, andwhether a tactile pad takes over at contact. The model is in …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-the-dexhand-sample-as-it-is">1. The dexhand sample as it is</a>
+    <a href="#2-a-blind-gap-and-the-pads-that-close-it">2. A blind gap and the pads that close it</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/handoff.md"><code>docs/guide/handoff.md</code></a></p>
+<h1 id="the-visual-to-tactile-handoff-a-worked-example">The visual-to-tactile handoff: a worked example</h1>
+<p>The Multi-finger occlusion page (<strong>Analysis ▸ Multi-finger occlusion</strong>) shows, under its sweep, the handoff chart:
+for each approach, how much of each fingertip's contact patch the rig sees against the distance to contact, and
+whether a tactile pad takes over at contact. The model is in <code>docs/models/handoff.md</code>.</p>
+<h2 id="1-the-dexhand-sample-as-it-is">1. The dexhand sample as it is</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ dexhand</strong> (the UR5e with the Shadow Hand and three candidate cameras).</li>
+<li>Open <strong>Analysis ▸ Multi-finger occlusion</strong> and press <strong>Run</strong>. The handoff runs with the occlusion matrix (about 6 s
+more; settings <code>handoff</code>, default on).</li>
+<li>Under &quot;Visual-to-tactile handoff&quot;, choose an approach (each grasp posture fully closed). The chart has the distance
+to contact on its x axis, contact at the right; one line per fingertip (% of its patch seen by any camera); the
+dashed line at 50 % is the &quot;seen&quot; threshold (a default). The head camera sees every fingertip up to contact: &quot;no
+blind gap&quot;. The note says no tactile sensor is on the fingers, so nothing would be touched at contact.</li>
+</ol>
+<h2 id="2-a-blind-gap-and-the-pads-that-close-it">2. A blind gap and the pads that close it</h2>
+<ol>
+<li>Add a task object between the head camera and the hand (a thin plate whose top edge is a little above the
+fingertips' line of sight). Along the approach the objects occlude (a default), so fingertips disappear behind it.</li>
+<li>Run again. The chart shades each flagged fingertip's blind gap; the headline line reads <strong>&quot;contact unsensed&quot;</strong>
+(critical): those fingertips are hidden for the last part of the approach and nothing touches them at contact.</li>
+<li>Add a <strong>DIGIT</strong> from <strong>Library ▸ Tactile sensors</strong> for each fingertip (each goes on a fingertip link; leave its
+mount pose as added and the study assumes it sits centred on the patch, which the result labels). Run again: the
+points at contact show each fingertip's pad coverage. The first three fingers are touched (72–78 %); the little
+finger (48 %) and the thumb (11 %) are not: the pad is smaller than their curved patches. Those two remain
+unsensed at contact and are flagged; move or add pads there, or a camera that sees them.</li>
+</ol>
+<p>The blind gap and its flags are in the exported JSON under <code>handoff</code> (<code>approach_visibility</code>, <code>tactile_coverage</code>,
+<code>blind_gap_m</code>, <code>flags</code>, <code>status</code>), and in batch:</p>
+<pre><code>dexvantage --sample dexhand --dex-occlusion dex.json
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -1,8 +1,120 @@
 # Changelog
 
-All notable changes to DexVantage. The format follows Keep a Changelog; versions follow semantic versioning.
+All notable changes to DexVantage. The format follows Keep a Changelog; version numbers follow PEP 440 (`0.1.0rc1` is
+the first release candidate of 0.1.0).
 
 ## [Unreleased]
+
+Nothing yet.
+
+## 0.1.0rc1 — unreleased
+
+The first release candidate: everything built in Phases 0 to 11. Not tagged, released or uploaded; the release is
+the maintainer's decision (`packaging/release.py --publish`).
+
+### Phase 11: samples, documentation, website, packaging and CI
+- The user guide as one book (`docs/user-guide.md`, 15 chapters: the ten-minute tour, every page and study,
+  calibration, data, optimisation and requirements, export, the assistant and MCP, research workflows, batch mode,
+  the Python API, troubleshooting) with 28 worked examples and a tour of each of the six samples
+  (`docs/guide/samples.md`). Every figure in them comes from `scripts/guide_examples.py` run on the bundled samples;
+  `--check` (and `tests/test_guide_examples.py`) fails when a figure no longer matches the code. It caught a wrong
+  figure in the old guide: a 1.5 m cube needs 3.4 × 10⁹ voxels at 1 mm, not 2.7 × 10⁹.
+- Generated references: `docs/reference/cli.md` from the real parser (`scripts/gen_cli_reference.py`),
+  `docs/reference/api.md` from the API docstrings (`scripts/gen_api_reference.py`) and the overview's model and
+  check tables (`scripts/gen_overview_refs.py`); each has a `--check` run by `tests/test_docs_reference.py`.
+- The website (`site/`, in Vantage's site style: `index.html`, `docs.html`, `guide.html`, `methods.html`,
+  `validation.html`, a page per model, guide example and reference), built from the docs and a `--validate` report
+  by `scripts/build_site.py` and deployed by `.github/workflows/pages.yml` once GitHub Pages is turned on.
+- PyInstaller bundles (`packaging/`, ported from Vantage `packaging/`): Linux x86_64 and arm64 tarballs with a
+  per-user `install.sh`, a per-user Windows installer (Inno Setup, no administrator rights) and zip, a macOS Apple
+  silicon app (unsigned; `sign_and_notarise.sh` for the maintainer), MuJoCo's libraries inside;
+  `packaging/build.py --smoke` checks a bundle from the outside (`--version`, start-up, a batch run, `--self-test`,
+  `--validate --quick`, the cluster and experiment pools). `packaging/release.py` writes the checksums and notes and
+  publishes only with `--publish`. `docs/packaging.md` has the measured sizes and times.
+- CI (`.github/workflows/ci.yml`): ruff and actionlint, the tests in six shards on Linux (Python 3.12 and 3.14),
+  Windows and macOS (3.12), `--self-test` and `--validate --quick`, the Python 3.10 floor; `bundles.yml` builds and
+  smoke-tests the four bundles on a version tag and makes a draft release (never published). Tests that need a
+  renderer skip with the reason on a machine without one. `CONTRIBUTING.md` and issue and pull-request templates
+  (one for a wrong figure).
+- Measured performance budgets (spec §16, `docs/performance.md`, `scripts/benchmarks.py`): no UI-thread step over
+  100 ms on any of the six samples; the 2,000-grasp study within its 180 s default on five samples (ALOHA 2 182.1 s).
+  The measured agreement with MuJoCo renders published per check (`docs/validation.md`,
+  `scripts/gen_validation_doc.py`; 232 of 232 checks).
+- The Linux x86_64 bundle of this version: 849.0 MB, a 315.0 MB download, 1.66 s to the main window, `--self-test`
+  46 of 46.
+- Polish: differences of two percentages in percentage points (`core/metrics.delta_unit`) in the statistics, the
+  tracker, requirement margins, project diffs, cells and experiments; an unknown study setting name is refused in one
+  sentence for the 11 studies whose settings are listed (`core/study_settings.py`); the MCP tool `get_project_diff`
+  (40 tools); type hints on the public API; every optional-extra skip names its reason.
+- Grasp self-occlusion: a two-level cone cull (runs of 256 triangles tested by a bounding sphere first) that keeps
+  exactly the triangles of the per-triangle test, a camera with no point in its image builds no cube map, and the
+  "what to move" seat cache (same figures, less time; `tests/test_grasp_cull.py`).
+
+### Fixed (Phase 11 integration)
+- The cable polylines (100–150 ms on the bimanual and hand samples) were laid on the UI thread the first time a view
+  drew them after a result arrived; they are now laid on a worker thread, the views drawing the last ones until the
+  new ones arrive.
+- SVT-AV1 (PyAV 19.0.2's libsvtav1) now and then wrote a LeRobot video that does not decode (measured: 2 of 32 and
+  1 of 40 small datasets written four at a time, with "live_count should not be EB_ObjectWrapperReleasedValue" on
+  stderr; it failed one test of the Phase 11 gate). The writer now decodes every AV1 file it writes and encodes a
+  bad one again with one encoder thread (none of 40 failed that way; one thread is about 11 × slower, so it is the
+  fallback only). Synthetic episodes count their frames once when encoded twice.
+- The publication kit's number check raised ValueError on a version-like token such as `3.17.0` that was not in the
+  word set (it read the token as a number before testing for a second dot).
+- A headline of one counted thing said "1 tokens"; it says "1 token".
+- The website printed the user guide's source-only `<!-- example: id -->` markers as text, and the sample tours'
+  screenshots pointed at GitHub blob pages (web pages, not images, and loaded from another site): the images a
+  document shows are now copied into `site/docs-media/`.
+- The Linux bundles build on Ubuntu 22.04 (glibc 2.35) instead of 24.04, so they run on Ubuntu 22.04 and on Jetson
+  with JetPack 6; built on 24.04 they needed glibc 2.39.
+- `release.py --publish` refused a release candidate as if it were a development version; a release candidate is
+  now published as a GitHub pre-release (a `.dev` version is still refused).
+- Wheels lacked the hardware library and the validation data files (`resources/library/**`, `validation/*.json` in
+  the package data).
+
+### Definition-of-done review (Phase 11)
+- `scripts/demo-phase11.sh`: walks the definition of done (spec §18) in batch mode and through the Python API:
+  - the self-test;
+  - the ALOHA 2 tour: grasps and why they lose visibility, a camera moved and the score again, depth validity, VLA
+    tokens, bandwidth, the MuJoCo and LeRobot exports, and bracket STLs;
+  - a dataset audit with per-episode verdicts;
+  - the validation suite, failing below 40 passing checks;
+  - the reference generators and the site check.
+- Type hints on the rest of the public Python API: `dv.diff`, `dv.merge`, `dv.bibtex`, `dv.figure`, `dv.figures`,
+  `dv.export_runs`, `dv.Diff`, `dv.Merge`, every `dv.cluster` method and the plugin SDK. ruff's annotation rules now
+  check `api_research.py`, `api_cluster.py` and `plugin_sdk.py`, and the API reference shows the types.
+- `docs/performance.md` quotes the grasp budget as the specification gives it ("on a mid-range GPU"), and says that
+  only the one GPU listed has been measured.
+
+### Fixed (Phase 11 packaging and CI review)
+- Windows: the cluster's spawned workers (`--jobs N`, the window's local pool) imported the POSIX-only `resource`
+  module and stopped; the peak memory figure now uses the peak working set there.
+- `--self-test` after a plain `pip install` failed four lines for want of optional extras (pyarrow, jsonschema); each
+  is now a warning naming the extra to install, and a failure where the package is installed.
+- The bundle's start-up measurement uses throw-away settings (it used the real ones on Windows and macOS) and also
+  writes its result to a file for the console-less Windows launcher; the smoke test sets `TMP` and `TEMP` too, and its
+  home-folder scan matches Windows' other spellings.
+- CI: runners named by version (`windows-2025`, `ubuntu-24.04` for the website), no process-wide `MUJOCO_GL=egl`,
+  Python's UTF-8 mode, ruff over `examples` and `packaging`; the bundle workflow finds the console executable with
+  forward slashes and marks a release candidate's draft as a pre-release. Tests that cannot run on Windows (the mock
+  sbatch, the Linux installer's escaping) skip there with the reason. `tests/test_packaging_ci_review.py`.
+
+### Fixed (Phase 11 fresh-install and truthfulness reviews, final gate)
+- A plain `pip install` (no extras): `--validate` failed 14 checks and exited 1, all for want of pyarrow and av (the
+  `lerobot` extra) or jsonschema (the `test` extra). The run now leaves out a check whose optional package is missing
+  and says so in one sentence naming the extra, and the report's JSON and HTML list what was left out
+  (`tests/test_fresh_install.py`).
+- The window says when it falls back to the QPainter 3D view for want of OpenGL (0.16 s a frame on SO-100 to
+  about 1.4 s on ALOHA 2); Ctrl+C in the terminal closes the window; the batch export says on a terminal what it is running
+  (the report format ran 89 s with nothing printed).
+- README: the MCP quick-start command `python -m dexvantage.mcp cell.dexv` stopped with "unrecognized arguments"; it
+  is `--project cell.dexv`. The install table's Windows, macOS, arm64 and glibc 2.35 rows are marked as built by CI
+  only. MuJoCo 4.0.0 is stated as measured: 232 of 232 validation checks at the final gate, the tests not run with it.
+- `docs/models/tracking.md` said the run store round trip compares 434 fields; the report says 443.
+- `tests/test_assistant_loop.py`: the chats-per-project test failed in the final gate's full run when the dock
+  test's SO-100 sample was made in the same second as its own (an unsaved project's folder is named by its name and
+  creation second), so it found the dock's chat; the test's project now has a name of its own.
+- `tests/test_packaging.py` used a user folder named after a person in its installer-path example; renamed.
 
 ### Research tools part 2 and fixes
 - The experiment tracker (`core/tracking/`, Analysis ▸ Runs, `--track DIR`, `--runs`, `--runs-export`, `dv.runs`,

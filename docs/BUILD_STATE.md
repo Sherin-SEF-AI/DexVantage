@@ -3,6 +3,297 @@
 The resume point for the next session: what is done, what is next, open issues, and the decisions taken. Updated at
 the end of every phase.
 
+## Next
+
+The user decides on the **0.1.0 release**: `packaging/release.py --publish` (after tagging and pushing `v0.1.0rc1`
+or `v0.1.0`; run only when the user asks; it publishes a release candidate as a GitHub pre-release), turning on
+GitHub Pages for `site/`, and whether to run the CI and bundle workflows first (none has run on GitHub yet). Then,
+optionally, **Phase 12**: robot-aligned 3D Gaussian Splatting view augmentation (spec §9.3), a CUDA-only extra with
+measured reconstruction quality. Carried over: the occlusion throughput (`core/occlusion.py`, the ALOHA 2 grasp
+budget), ground truth with distorted lenses, and the open issues below.
+
+## Phase 11: samples, documentation, website, packaging and CI; release candidate 0.1.0rc1 (done, 2026-11-08)
+
+Built in parallel by separate agents (the user guide and generated references; the README and the website; the
+PyInstaller bundles and the release script; CI and the bundle workflow; the performance budgets and the validation
+page; nine polish items), then integrated. Version **0.1.0rc1** in `dexvantage/__init__.py` (pyproject reads it),
+`CITATION.cff`, the CHANGELOG (`## 0.1.0rc1 — unreleased`, gathering everything that was under Unreleased), the
+README and the site. Nothing was committed, tagged, pushed, released or uploaded.
+
+**Final gate (2026-11-08, after the four reviews: truthfulness, a fresh install, packaging and CI, the definition
+of done)** — run alone on this machine, each memory-capped, `TMPDIR`, `--basetemp` and the XDG folders under `out/`
+(all deleted afterwards). These figures replace the gate's below.
+- Tests: **3 991 passed**, 0 failed, 2 skipped (the paper kit's LaTeX compile: no LaTeX engine on PATH; the reason
+  is printed) (`python -m pytest tests`, offscreen, 7 GB cap, 2 350 s). Peak memory: the largest process 5.17 GB
+  (`/usr/bin/time -v` maximum resident set, 5 047 580 KiB), the scope's cgroup `memory.peak` 6.40 GB with page
+  cache. The first full run had 1 failure (3 990 passed): `test_assistant_loop`'s chats-per-project test found a chat
+  that `test_assistant_dock` had saved one second earlier. An unsaved project's chat folder is named by its name and
+  its creation second, and both tests' SO-100 samples were made in the same second (reproduced: two
+  `sample_project('so100')` made in one second share the folder). Fixed in the test (its project has a name of its
+  own); the second full run is the figure here.
+- Validation: **232 of 232** (`--validate out/validation`, 388 s, peak 5.42 GB). Every check's error equals the one
+  `docs/validation.md` publishes (regenerated to a scratch file and compared: only the run time differs, 387 s
+  against 383 s, so the page was left as it is). `tracking.store_round_trip` compares 443 fields;
+  `docs/models/tracking.md` said 434 (fixed, site page rebuilt).
+- **MuJoCo 4.0.0** (what a fresh `pip install` now gets): `--validate` in a throw-away environment that differs
+  from `.venv` in MuJoCo only (4.0.0 with `mujoco-core` and `mujoco-studio`, the rest from `.venv`): **232 of 232**
+  (388 s, peak 5.47 GB). 24 errors differ from the 3.17.0 run, all at round-off (the largest change
+  `blur.image_velocity_fd` 2.8 × 10⁻⁹ to 6.2 × 10⁻⁹ against 10⁻⁵); the rendered checks are identical. The tests were
+  not run with 4.0.0. README says so now (it said 4.0.0 had not been run).
+- `dexvantage --self-test`: **46 of 46 ok** (45 s, peak 3.76 GB).
+- `ruff check dexvantage tests scripts examples packaging` (0.17.4): clean. `actionlint` 1.7.12 on the three
+  workflows: clean.
+- Generated docs: `gen_cli_reference.py`, `gen_api_reference.py` and `gen_overview_refs.py --check`: up to date.
+  `scripts/build_site.py`, then `--check`: 120 pages, no problems.
+- MCP over stdio (`python -m dexvantage.mcp --sample so100`): `initialize` answered (protocol 2025-06-18 as asked,
+  server `dexvantage` 0.1.0rc1, capability `tools`), `tools/list` 40 tools, each with an input schema.
+- Linux x86_64 bundle rebuilt from the final source (`packaging/build.py --smoke`, 2 min 30 s, peak 3.59 GB; the
+  one in `out/dist` predated the reviews' changes to `selftest.py`, `shards.py` and `run_dexvantage.py`): folder
+  849.0 MB, download 315.0 MB (315 010 387 bytes, SHA-256 d14b8ba3…4e4f35db953), start-up 1.6 s median of 3,
+  `--version` 0.27 s, cluster pool 14.3 s, experiments pool 4.0 s, the bundle's `--self-test` **46 of 46 ok** in
+  46.3 s (`docs/packaging.md`, "The final gate's build").
+- `packaging/release.py --dry-run` (never `--publish`): 1 release file, `SHA256SUMS.txt` and `RELEASE_NOTES.md`
+  written to `out/dist`; it prints `gh release create v0.1.0rc1 … --verify-tag --notes-file … --prerelease`.
+- Hygiene, over the 1 351 files git would commit: no personal paths, no e-mail addresses at all (pyproject and
+  CITATION carry none), no keys (`sk-ant-`, `sk-`, `gsk_`, `hf_`, AWS, GitHub, Slack, Google, private-key blocks),
+  no AI attribution lines (the hits are the rules and the tests that look for them), and none in the commit
+  messages. One user name: `tests/test_packaging.py` used a Windows user folder named with this machine's login as an
+  installer path; renamed to a made-up name. No file over 5 MB (the largest is `site/validation/validation.json`,
+  1.0 MB). Media: `docs/media` 3.18 MB (17 files), `site/media` 3.52 MB (21), `site/docs-media` 2.11 MB (11); the
+  whole of `site/` 11.3 MB (220 files).
+- Recorded here from the two reviews that had no entry: the fresh-install review (a plain `pip install`:
+  `--validate` failed 14 checks for want of optional extras and now leaves them out, naming the extra; the
+  QPainter-fallback notice; Ctrl+C; the export's progress on a terminal; `tests/test_fresh_install.py`) and the
+  truthfulness review (the README's MCP command, the CI-only bundle rows). Both are in the CHANGELOG.
+
+**Phase 11 gate (2026-11-08)**
+- Tests: **3 965 passed**, 0 failed, 2 skipped (the paper kit's LaTeX compile at both unit settings: no LaTeX
+  engine on PATH) (`python -m pytest tests`, offscreen, memory-capped at 7 GB, run alone, 2 313 s; `TMPDIR`,
+  `--basetemp` and the XDG folders under `out/`). Peak: the largest process 5.22 GB (`time -v` maximum resident
+  set), the cgroup's `memory.peak` 6.32 GB with page cache. Three full runs: the first had 2 failures
+  (3 962 passed) and the second 2 others (3 963 passed), all fixed below; the third is the figure here. New test files this phase: test_guide_examples (34 examples,
+  about 6 min, one process each), test_ten_minute_tour (about 2.5 min), test_docs_reference, test_site 25,
+  test_packaging, test_ci_workflows 20, test_benchmarks_doc, test_validation_doc, test_grasp_cull,
+  test_phase11_polish 14, test_phase11_integration 4.
+- Validation: **232 of 232 checks pass** (`--validate out/validation` through `scripts/benchmarks.py --only
+  validate`, 384 s, peak 5.58 GB, 37 models); `docs/validation.md` is made from that report
+  (`scripts/gen_validation_doc.py`) and publishes the measured agreement with MuJoCo renders per check (spec §18).
+  Every figure the README and the home page quote equals the report's (unchanged from the research tools part 2
+  gate).
+- `dexvantage --self-test`: **46 of 46 ok** (45 s, peak 3.82 GB; "DexVantage 0.1.0rc1 self-test").
+- `ruff check dexvantage tests scripts examples packaging`: clean. `actionlint` 1.7.12 on the three workflows: clean.
+- Linux x86_64 bundle (`packaging/build.py --smoke`, the gate's source, Python 3.14.4, PyInstaller 6.22.3):
+  folder **849.0 MB**, download `DexVantage-0.1.0rc1-linux-x86_64.tar.gz` **315.0 MB** (314 987 717 bytes, sha256
+  8451f978…ef43d9); start-up to the main window **1.66 s** median of 3 (first 1.72 s); `--version` 0.20 s and
+  0.25 s by hand (`dexvantage 0.1.0rc1`); batch run of three studies on SO-100 0.8 s; `--sample aloha --coverage
+  --bandwidth` 2.15 s, peak 763 MB; cluster pool `--jobs 2` 14.1 s; experiments pool of 2 4.0 s; `--self-test` 46 of
+  46 ok in 45.7 s. The packaging agent's run of `--validate --quick` from the bundle: 228 of 228 (the four other
+  checks register only with gmsh, rerun-sdk or usd-core, which the bundle leaves out). In `docs/packaging.md`.
+- Performance (spec §16, `docs/performance.md`, `out/bench/`; RTX 5080 through EGL device 0, load 5–9): the UI-thread
+  budget now **passes on all six samples** (0 steps over 100 ms; slowest so100 79.6 ms, a motion-blur stall outside
+  DexVantage's Python; dexhand 71.6 ms, aloha 33.5 ms, panda-bimanual 55.9 ms, g1 61.9 ms, ur5e 37.1 ms; re-measured
+  after the cables fix below). The 2,000-grasp study (180 s per sample, a project default derived from §18's ten
+  minutes, not a spec figure): so100 55.1 s, ur5e 114.2 s, dexhand 68.8 s, **aloha 182.1 s (misses by 2.1 s)**,
+  panda-bimanual 79.9 s, g1 45.4 s. Start-up to first paint from source 1.50 s (blank) to 2.37 s (ALOHA 2), medians of 3; `import dexvantage`
+  0.06 ms, first API name 72 ms.
+- Screenshots: all groups refreshed (`scripts/screens.py`, then `--only samples`, `phase910`, `research2`: 142
+  images, 225 + 206 + 246 + 42 s, none failed); `scripts/tour_media.py` (11 tour images in `docs/media`) and
+  `scripts/build_site.py --validation --media` (27 media files, `validation.html` 232 of 232) re-run; `--check`: 120
+  pages, no problems. Looked at the cables page and its Camera view overlay (the polylines arrive from the worker),
+  grasp self-occlusion, statistics (pp), requirements scorecard, and the ALOHA 2 and G1 main windows: nothing to fix.
+- Regenerated: `docs/reference/cli.md`, `docs/reference/api.md`, the overview's references, `docs/validation.md`,
+  `docs/performance.md`, the site; the guide's figures checked by `guide_examples.py --check` (34 examples).
+
+**Integration fixes**
+- Two failures of the first full run: (1) the paper kit example printed 48 traced numbers where the guide said 49:
+  the methods paragraph's version `0.1.0.dev0` counted as a number (`0.1.0`) and `0.1.0rc1` does not; the guide
+  now says 48. (2) `test_review_phase458_product::test_recording_of_another_robot_is_compared_not_crashed`: a
+  synthetic SO-100 video did not decode. Reproduced outside the suite: SVT-AV1 (PyAV 19.0.2's libsvtav1) prints
+  "live_count should not be EB_ObjectWrapperReleasedValue" and now and then writes an undecodable stream (2 of 32
+  and 1 of 40 datasets written four at a time; 0 of 40 with `svtav1-params lp=1`, which is about 11 × slower:
+  11.1 s against 1.0 s for 300 frames at 640 × 480; `lp=4` still failed 2 of 40). The LeRobot writer now decodes
+  every AV1 file it writes and encodes a bad one again with one thread (0 of 40 failed afterwards; a second failure
+  is refused in one sentence naming H.264); synthetic episodes count their frames once.
+- The cables page laid its polylines on the UI thread (106–149 ms on dexhand and panda-bimanual): now on a worker
+  thread, the views drawing the last polylines until the new ones arrive (`polylines(wait=True)` computes in place).
+- `validation/checks_publication.found()` ran `float()` before its multi-dot test, so a version-like token not in
+  the word set raised ValueError (reported by the packaging agent).
+- `api._fmt`: "1 tokens" is "1 token" (a counted word, unit alphabetic, longer than three letters, ending in s).
+- `scripts/build_site.py` drops lines that are a single HTML comment (the guide's `<!-- example: id -->` markers,
+  which markdown-it with html off printed as text), and copies the images a document shows into `site/docs-media/`
+  (the sample tours' screenshots were GitHub blob URLs, which `test_site` refuses: the second full run's two
+  failures were this and a fake key in this file's own text).
+- `.github/workflows/bundles.yml` builds the Linux bundles on `ubuntu-22.04` and `ubuntu-22.04-arm` (glibc 2.35)
+  instead of 24.04 (2.39), so they run on Ubuntu 22.04 and on Jetson with JetPack 6; `.github/scripts/apt-gl-qt.sh`
+  takes GLib's package name of either release.
+- `packaging/release.py --publish` refused a release candidate as a development version; `is_dev` (a `.devN`
+  version) is now the refusal and an rc is published as a GitHub pre-release. Its tests no longer assume the
+  repository's version is a development one.
+- `tests/test_benchmarks_doc.py` held a fake Anthropic-style key that the hygiene test refuses (renamed).
+
+**Decisions (Phase 11)**
+1. The version is PEP 440 `0.1.0rc1` (the spec's "release candidate 0.1.0"); the CHANGELOG says so and keeps an
+   empty `[Unreleased]` above it.
+2. A release candidate may be published (as a pre-release) by `packaging/release.py --publish`, run only when the
+   user asks; a `.dev` version never.
+3. Linux bundles are built on the oldest glibc that the targets need (Ubuntu 22.04, JetPack 6), not the newest
+   runner; the tests run on 24.04.
+4. Overlays that take more than the UI budget are computed on a worker thread and drawn from the last result until
+   the new one arrives (the cables page first).
+5. AV1 files are verified by decoding after writing rather than always encoded with one thread (11 × slower).
+6. The 2,000-grasp budget of 180 s stays a labelled project default; ALOHA 2 misses it by 2.1 s and the page says
+   so (no re-run to get under it).
+
+**Spec corrections (Phase 11)**
+- GitHub retired the `macos-14` runner on 2026-11-02 (runner-images issue 15226): CI uses `macos-15` (also Apple
+  silicon).
+- "Linux arm64 for Jetson": PyQt6 6.8 and later have aarch64 wheels for glibc 2.39 only, and JetPack 6.2 is Ubuntu
+  22.04 (glibc 2.35), so the arm64 bundle pins PyQt6 6.7.1 / Qt 6.7.3 (`packaging/requirements-bundle.txt`) and
+  builds on `ubuntu-22.04-arm`. DexVantage has been tested on PyQt6 6.12 only; the arm64 CI self-test is the first
+  check of 6.7.
+- §16's 2,000-grasp budget gives no time; this project's default is 180 s on a mid-range GPU (derivation in
+  `docs/performance.md`).
+- §17 "release candidate 0.1.0" is written `0.1.0rc1` (PEP 440).
+
+**Open issues (Phase 11)**
+- **Not built or run here:** the Windows installer, the macOS app (signing and notarisation untried), the Linux
+  arm64 bundle; no workflow has run on GitHub; the suite has run on Linux only (the Windows and macOS test jobs are
+  required, so platform failures will show). Under llvmpipe the rendered tests are 2–3 × slower than on the GPU, so
+  the 75-minute job limit and the shard weights may need tuning after the first run.
+- **Runners:** GitHub retires its oldest label once a newer image is out (Ubuntu 26.04 is out): when `ubuntu-22.04`
+  goes, the Linux bundles need another glibc-2.35 build machine (an `ubuntu:22.04` container) to keep JetPack 6.
+- **Grasp budget:** ALOHA 2 182.1 s against 180 s; profiled: `core/occlusion.py` `CubeMap.build` 54 % (per-map
+  Python work in the GL backend, `glReadPixels`, the far-plane distance over every vertex) and `Evaluator.occluders`'
+  posing 29 %. The fix `docs/models/occlusion.md` proposes (upload each link mesh once and draw it from the link
+  transforms on the GPU) would remove most of it.
+- **UI timings:** the ALOHA 2 motion-blur stall (72–369 ms in the benchmark agent's runs, little of it the UI
+  thread's own processor time, cause not found) did not show in the gate's run (slowest 33.5 ms on ALOHA 2); so100's
+  79.6 ms motion-blur stall is also outside DexVantage's Python. Building the window (1.4–2.1 s) and show to first
+  paint are reported as start-up, not counted against the 100 ms budget.
+- **MuJoCo 4.0.0** (2026-11-06): the final gate ran `--validate` with it (232 of 232; 24 errors differ from 3.17.0's,
+  all at round-off), but not the tests; `pyproject` says `mujoco>=3.1` (CI pins 3.17.0): an upper bound is the lead's
+  call. The bundle pins were measured with Python 3.14 here; CI builds with 3.12 (every cp312 wheel not
+  confirmed).
+- **Bundle size:** the bundle built here carries opencv-python (with its own Qt 5 libraries); CI uses
+  opencv-python-headless, estimated 36 MB smaller from the wheels (not measured on a bundle).
+- **Docs:** the guide's `{#id}` heading anchors are the site builder's syntax: on GitHub they show as text and
+  `user-guide.md#batch`-style links land at the top of the page (the site resolves them). 56 public API members have
+  no docstring ("No docstring." in `docs/reference/api.md`). The site is a snapshot: rerun `scripts/build_site.py
+  --validation --media` after docs change (no test fails when it falls behind). `docs/performance.md --doc-only`
+  needs `out/bench/` (ignored by git); `grasp_ab.json` (the grasp change's before and after) cannot be re-measured.
+- **Tests that fail on purpose until regenerated:** `test_docs_reference` (after a parser, API docstring or check
+  change: `gen_cli_reference.py`, `gen_api_reference.py`, `gen_overview_refs.py`), `test_validation_doc` (after a
+  check is added or re-described: a full validation run, then `gen_validation_doc.py`), `test_guide_examples` (a
+  changed sample figure: `guide_examples.py --check`, then the guide text). The two new example tests add about 8.5
+  minutes to the full suite.
+- **Polish leftovers:** setting names are checked for 11 studies only (the others' settings come from specs or pass
+  through); the paper kit's statistics and requirements tables have one Unit column, so a difference of percentages
+  shows "%" there where it is pp; ruff's annotation rules flag 9 298 missing hints outside the nine API modules it
+  checks (1 067 public functions without a return type; see the definition-of-done review below);
+  `mlruns` run `meta.yaml` still writes `deleted_time: null` and absolute artifact URIs.
+- **SVT-AV1:** its "live_count …" errors still print on stderr while it encodes; the writer catches the bad files by
+  decoding them (more time per dataset).
+- **Not yet live:** <https://sherin-sef-ai.github.io/DexVantage/> needs GitHub Pages turned on; the release page
+  needs a release.
+
+**Definition-of-done review (spec §14–§18, 2026-11-08)**
+
+Every item of §14–§18 was checked by running it or reading the artefact.
+- **§14 samples:** all five are present, and the extra Shadow Hand sample too. ALOHA 2 has the four D405s of the paper,
+  named as ALOHA's recordings name them. SO-100 has a wrist and a third-person camera. UR5e + 2F-85 has a wrist D405
+  and an overhead D435. The Panda pair says there is no official bimanual model. The G1 has the head D435 where
+  Unitree's URDF puts it; the hand is not called Dex3, because Menagerie does not name it. Each sample has a tour in
+  `docs/guide/samples.md`.
+- **§15:** the README sections, the install table (with Linux arm64 for Jetson), overview.md (every model with its
+  equations, references and limits; all 58 `docs/models/*.md` linked), user-guide.md (every registered study and
+  exporter named, with worked examples), project-format.md, `project.schema.json` (docs and resources copies
+  identical), CHANGELOG, CITATION.cff, `packaging/release.py` and the site (`build_site.py --check`: 120 pages, no
+  problems) are all there. One bundle is built (Linux x86_64; `--version` from the bundle prints 0.1.0rc1), and
+  MuJoCo's libraries are in it. The other three are CI-defined only. `--self-test` runs in CI on every bundle and on
+  the source install on Linux, Windows and macOS.
+- **§16:** ruff config: yes. Validation in CI: a quick run of every check (fewer trials, same tolerances), on Linux
+  only. Skips: each states its reason (`test_phase11_polish`). Budgets are measured and published in
+  `docs/performance.md`.
+- **§18, by running it:** `scripts/demo-phase11.sh` (new) was run here with QUICK=1 and NO_WINDOW=1 and exited 0
+  (622 s). Results:
+  - self-test 46 of 46 ok;
+  - ALOHA 2: grasp score 100.0 % (Wilson 95.7–100), and 4.7 % "blind at contact" with `cam_left_wrist` pitched from
+    −65° to −75°. For `cam_high` the contact points are 16 % seen, 39 % behind their own finger and 46 % hidden by the
+    scene;
+  - depth validity, VLA tokens and bandwidth ran; MJCF and LeRobot exports: 27 + 11 files with the manifest;
+  - 2 bracket STLs (the brackets study's suggested types applied);
+  - tour compute 137 s;
+  - 3 synthetic SO-100 episodes audited, each with a verdict and the requirements it failed;
+  - the quick validation run: 232 of 232; the reference generators and the site check are current.
+
+  All of these equal the user guide's figures. Published agreement with MuJoCo renders: `docs/validation.md`
+  ("Agreement with MuJoCo renders"). Headline tooltips name their model and inputs on every page
+  (`test_phase11_polish`).
+
+Fixed in this review:
+1. **§16 type hints on the rest of the public Python API.** `dv.diff`, `dv.merge`, `dv.bibtex`, `dv.figure(s)`,
+   `dv.export_runs`, `dv.Diff`, `dv.Merge`, every `dv.cluster.*` method and the plugin SDK (`PluginAPI.*`,
+   `plugin_sdk.load`/`discover`/`unload`) had unannotated parameters or returns (89 findings). They are now
+   annotated, with the names imported only under `TYPE_CHECKING`. ruff's ANN rules now cover `api_research.py`,
+   `api_cluster.py` and `plugin_sdk.py` too (the pyproject per-file-ignores line), and `docs/reference/api.md` was
+   regenerated. Test: `tests/test_dod_review.py`, which uses an AST walk independent of ruff and also checks that
+   every name a hint uses can be resolved.
+2. **§17 "a short demo script" at the gate.** Phases 3–11 had none. `scripts/demo-phase11.sh` walks §18 in batch mode
+   and through the Python API, prints the figures, and exits non-zero if fewer than 40 checks pass. Its text, Python
+   and flags are tested in `tests/test_dod_review.py`. Phases 3–10 still have no demo script of their own; this one
+   covers their product-level outcome.
+3. **§16 wording on `docs/performance.md`:** it quoted the budget as "on a GPU". It now says "a mid-range GPU", and
+   that only the one GPU listed was measured and is not classed here (`scripts/benchmarks.py`, page regenerated with
+   `--doc-only`).
+
+What remains (not feasible in this review):
+- **"Mid-range GPU" (§16):** the 2,000-grasp times exist for one card only (an RTX 5080). Run `scripts/benchmarks.py
+  --only grasp` on a card the lead considers mid-range and publish it. ALOHA 2 is already 2.1 s over the project's
+  180 s default on the RTX 5080.
+- **Type hints across the codebase:** 1 067 public functions outside the nine checked modules have no return type
+  (mostly UI widgets, studies and core helpers). Extending the ANN check module by module is the route; doing it in
+  one pass would touch about 300 files that other work edits.
+- **Bundles for Windows, macOS and Linux arm64, and the CI runs:** defined, not run (as above).
+- **Batch bracket export of a sample:** `--export … --formats brackets` refuses until the project has bracket types.
+  The window's Apply, a saved project or the Python API (as the demo does) sets them. There is no batch flag that
+  applies the brackets study's suggestion.
+- **"Every figure on screen has a tooltip with its model and inputs" (§18):** tested for every page's headline figure.
+  Table cells and chart points are not covered by a test that sweeps them all.
+
+**Packaging and CI review (2026-11-08)** — every workflow and packaging file read line by line; details and how each
+figure was taken in `docs/packaging.md` ("Packaging and CI review"), regression tests in
+`tests/test_packaging_ci_review.py`.
+- Checked: the seven action SHAs are their tags' commits and the newest releases (`git ls-remote`); the actionlint
+  checksums match its release; every runner label is listed in the runner-images README; all 24 bundle pins have
+  CPython 3.12 wheels on the four bundle platforms (Linux at glibc 2.35 or older) and the arm64 wheels pip picks on
+  macOS 15 need macOS 14.0, as the plist says; every source file compiles under CPython 3.10 and 3.12; the shards
+  cover every test file once. The shard weights lacked 34 files (counted as the median, about 5 s, though
+  `test_guide_examples.py` takes 374 s): `scripts/ci_test_durations.json` is now from the review's full run.
+- Run: the rebuilt Linux bundle (`build.py --smoke`, passed) through all 35 pages on all six samples with each page's
+  study on the UR5e sample (no missing module, resource or traceback; 5 studies refused for want of input), and 82
+  batch commands covering every flag (none failed but as documented); the rendered tests and `--validate --quick` on
+  Mesa llvmpipe alone with `MUJOCO_GL` unset, as on a GPU-less runner (212 of 213 passed, the other on another
+  agent's half-written file and alone it passed; 232 of 232); 52 render-related test files with no EGL at all, as on
+  Windows and macOS (1 019 passed, 82 skipped with the right reason, none failed).
+- Full suite at the end (7 GB cap, 2 612 s): 3 990 passed, 2 skipped (no LaTeX engine), 1 failed: the hygiene test
+  on a comment of this review that spelled a Windows user folder; fixed, and that file and the review's own test
+  files passed again.
+- Fixed: on Windows every spawned pool worker died (`import resource` at the top of `core/cluster/shards.py`); the
+  self-test failed four lines on a plain `pip install` (pyarrow, jsonschema missing: now warnings naming the extra,
+  failures where the package is installed); the start-up probe used the real settings on Windows and macOS and needed
+  a stdout the console-less Windows launcher may lack; `build.py` set no `TMP`/`TEMP` and its home-folder scan missed
+  Windows' other spellings; bundles.yml built the executable's path with backslashes for Git Bash, used Git Bash's
+  `/tmp` for a native program, and drafted the release candidate as a full release; ci.yml set `MUJOCO_GL=egl` for
+  the whole process (never measured that way), lacked UTF-8 mode for 77 encoding-less opens in the tests, and
+  linted less than the gate; `windows-latest`/`ubuntu-latest` pinned to `windows-2025`/`ubuntu-24.04`; two mock-sbatch
+  tests and the installer-escaping test skip on Windows with the reason; wrong comments (a `build.yml`, "MuJoCo renders
+  through GLFW on Windows and macOS": DexVantage renders only through EGL, so on Windows and macOS the rendered
+  features stop with "MuJoCo cannot render offscreen through EGL on this machine").
+- Decision: CI's test and validation processes run with `MUJOCO_GL` unset, as users run them; only the render worker
+  sets EGL (it always did).
+- Still open: nothing has run on a GitHub runner, a Windows or a macOS machine; the Windows smoke test and installer,
+  the macOS app and the arm64 bundle are untested; the shard weights were measured on this machine only.
+
 ## Research tools part 2 and the open-issue fixes (done, 2026-11-08)
 
 Built in parallel by separate agents (the experiment tracker; statistics and power analysis; the campaign planner;
@@ -1357,13 +1648,6 @@ Final gate, after the three reviews (truthfulness and licences, kinematics corre
   `ui/dialogs/misc.py` (shortcuts, coordinate frames, about), `app.py`, `batch.py`, `selftest.py`.
 
 
-## Next: Phase 11
-
-The docs site (the overview, the models and the guides as a website), packaging (PyInstaller bundles for Linux,
-macOS and Windows, multiprocessing freeze support for the experiments' and cluster sweeps' spawn pools, the optional
-extras' dependency trees) and a release candidate. Carried over: throughput (grasp study, planner, lighting) in
-`core/occlusion.py`; ground truth with distorted lenses.
-
 ## Spec additions (2026-11-06)
 
 The user added advanced capabilities and ecosystem bridges during Phase 0. They are now in the specification
@@ -1702,8 +1986,9 @@ Earlier phases:
 - The GL viewport is only exercised headless (EGL) and through the QPainter fallback in tests; the on-screen
   QOpenGLWidget path needs a desktop check at each review gate (Phase 1: robots in the main view and in the wizard's
   embedded preview have only been drawn headless).
-- `site/` (website) and `packaging/` are Phase 11.
-- `kinematics.fk_pinocchio` has never run: pinocchio is not installed in `.venv` (optional extra).
+- `kinematics.fk_pinocchio` is not run in `.venv` (pinocchio, the optional `pin` extra, is not installed there); the
+  Phase 11 fresh-install review ran it once with pin 4.1.0 (9.57 × 10⁻¹⁶ m), so a run with every extra has 233
+  checks.
 - The 2F-85's eight linkage hinges and URDF mimic joints are independent entries of q; MuJoCo's equality constraints
   are not applied by kinematics. At the UR5e sample's home pose two non-adjacent linkage links are 3.6 mm apart, so a
   self-collision margin above that reports them as touching.

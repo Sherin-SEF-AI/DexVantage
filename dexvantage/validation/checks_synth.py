@@ -26,7 +26,7 @@ import math
 
 import numpy as np
 
-from .suite import Outcome, check
+from .suite import LEROBOT, Outcome, check
 
 PSNR_MIN_DB = 30.0
 DUP_PSNR_MIN_DB = 30.0
@@ -139,7 +139,7 @@ def roundtrip(summary: dict) -> tuple[list, dict]:
        'the generator\'s own arrays (joint states, actions, stamps, the frames before encoding) and the ground truth '
        'it returned, against the dataset read back through core/datasets (the LeRobot reader, checked independently '
        'by formats.lerobot_roundtrip)', 0, 'mismatches', refs=('lerobot_dataset_format', 'mujoco_renderer'),
-       cost='study')
+       cost='study', needs=LEROBOT)
 def _synthetic_roundtrip(ctx):
     import os
 

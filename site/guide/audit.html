@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditing a dataset and comparing it with the plan · DexVantage</title>
+<meta name="description" content="The dataset audit checks every episode of a recording from its own data: the camera timestamps, the pixels and thejoint states. Then it checks the whole campaign for mount slip. Plan against recording compares the same recording withthe project, camera by camera. The models, the defaults and the …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#in-the-app">In the app</a>
+    <a href="#worked-example-a-synthetic-so-100-campaign">Worked example: a synthetic SO-100 campaign</a>
+    <a href="#fiftyone">FiftyOne</a>
+    <a href="#what-the-figures-mean-and-their-limits">What the figures mean, and their limits</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/audit.md"><code>docs/guide/audit.md</code></a></p>
+<h1 id="auditing-a-dataset-and-comparing-it-with-the-plan">Auditing a dataset and comparing it with the plan</h1>
+<p>The dataset audit checks every episode of a recording from its own data: the camera timestamps, the pixels and the
+joint states. Then it checks the whole campaign for mount slip. Plan against recording compares the same recording with
+the project, camera by camera. The models, the defaults and the measured validation are in <code>docs/models/audit.md</code>.</p>
+<h2 id="in-the-app">In the app</h2>
+<ol>
+<li>Open the project the data was recorded with, or a sample. The plan tells the audit how the robot should move in
+each image and where the gripper should be. Without a robot, those checks fall back to the joint speed or are
+skipped.</li>
+<li>Choose Data ▸ Audit a dataset…, then Add folder… for a LeRobot, RLDS or bag folder, or Add file… for a single
+<code>.mcap</code> or <code>.db3</code> bag. The dataset is kept in the project (the <code>data</code> section), with its path as you chose it.</li>
+<li>Press Run. The audit runs in the background. The headline shows how many episodes meet every requirement:
+<ul>
+<li>The requirement table shows each limit, marked as a default or yours, and the episodes that fail it.</li>
+<li>The episode table gives each episode a verdict: pass; fix (re-stamp the camera); recalibrate (the mount moved);
+or drop (drop it or re-record it).</li>
+<li>Click an episode to see its cameras.</li>
+<li>An episode whose files are damaged is listed with the verdict drop and the flag unreadable; the reason is in
+its notes. The audit goes on with the other episodes.</li>
+<li>A worst figure marked &quot;(not resolved)&quot; is past its limit but within 3 σ of zero (a drift estimate on a short
+episode, for example), so it is not counted as a failure.</li>
+<li>The chart shows each camera's mount over the campaign, with the steps the classifier found.</li>
+</ul>
+</li>
+<li>Change a requirement in the settings below the chart. Each change is one undo step; run the audit again to apply it.</li>
+<li>Apply records the episodes to drop or re-record in the dataset's entry (<code>exclude</code>). Export report… writes
+<code>audit.json</code> and <code>audit.html</code>. Export to FiftyOne… writes a FiftyOne dataset folder.</li>
+<li>Data ▸ Plan against recording… compares the same dataset with the plan. For each camera it checks that the camera is
+present and compares its resolution, frame rate, mount, sync and gripper visibility with the plan. If a camera was
+recorded at another size with the same aspect ratio, Apply sets its stream to the recorded size, so the studies
+model what was recorded.</li>
+</ol>
+<h2 id="worked-example-a-synthetic-so-100-campaign">Worked example: a synthetic SO-100 campaign</h2>
+<p>Make a campaign of six episodes with every fault on, and a mount slip from episode 3:</p>
+<pre><code>dexvantage --sample so100 --synth-episodes so100-synth \
+    --synth-settings '{&quot;episodes&quot;: 6, &quot;frames&quot;: 240, &quot;max_width&quot;: 320, &quot;seed&quot;: 7,
+                       &quot;faults&quot;: {&quot;mount_slip&quot;: {&quot;from_episode&quot;: 3}}}'
+</code></pre>
+<p>This took 12.8 s on the RTX 5080 (2 820 camera frames). Then audit the campaign:</p>
+<pre><code>dexvantage --sample so100 --audit audit.json --dataset so100-synth
+</code></pre>
+<p>This took 32 s on the CPU. Add <code>--audit-html audit.html</code> for the standalone report page and <code>--fiftyone fiftyone/</code>
+for the FiftyOne folder (a new or empty one), the same files the page's exports write. The summary reads &quot;not usable,
+0 of 6 episodes&quot;. Its advice:</p>
+<pre><code>Drop or re-record episodes 0, 1, 2, 3, 4 and 5; observation.images.third_person_camera moved at episode 3
+(rotation y +1.41°): calibrate it again from there.
+</code></pre>
+<p>With every fault in every episode, every episode fails. The requirement table shows which requirement each one fails:</p>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Passed</th>
+<th>Worst</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dropped frames</td>
+<td>6 of 12</td>
+<td>2</td>
+</tr>
+<tr>
+<td>USB resets and gaps</td>
+<td>6 of 12</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Timestamp jitter</td>
+<td>6 of 12</td>
+<td>3.0 ms</td>
+</tr>
+<tr>
+<td>Exposure and gain steps</td>
+<td>6 of 12</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Gripper hidden</td>
+<td>0 of 6</td>
+<td>3 frames</td>
+</tr>
+<tr>
+<td>Mount slip (rotation)</td>
+<td>9 of 12</td>
+<td>1.41° (episodes 3, 4, 5)</td>
+</tr>
+<tr>
+<td>Frame rate</td>
+<td>12 of 12</td>
+<td>0.012 %</td>
+</tr>
+<tr>
+<td>Action-observation alignment</td>
+<td>6 of 6</td>
+<td>1.0 row (the generator's action lead)</td>
+</tr>
+</tbody>
+</table>
+<p>The generator places each fault on one camera per episode, so for most faults half of the 12 camera checks fail. The
+mount-slip step is found on the third-person camera at episode 3: a 1.41° pitch against the injected 1.5°. The wrist
+camera stays steady.</p>
+<p>Compare the campaign with the plan:</p>
+<pre><code>dexvantage --sample so100 --plan-vs-recording pvr.json --dataset so100-synth
+</code></pre>
+<p>This took 33 s. The headline reads &quot;70 %, differs&quot;: 7 of the 10 comparisons match.</p>
+<ul>
+<li>Both cameras are found and matched to their sensors by name.</li>
+<li>Their resolution is &quot;scaled&quot;: 320 × 180 against the plan's 1280 × 720 stream, the same aspect ratio.</li>
+<li>The frame rate is &quot;not stated by the plan&quot;: the sample's cameras have no library device.</li>
+<li>The third-person mount is &quot;moved&quot; (1.41° over the campaign).</li>
+<li>The third-person sync is out (offsets 24 to 89 ms).</li>
+<li>The third-person gripper visibility agrees with the grasp study on 75 % of the 32 frames tested, and the wrist
+camera's on 100 %.</li>
+</ul>
+<p>The ground truth is in <code>so100-synth/dexvantage_truth.json</code>. The audit never reads it; compare it with <code>audit.json</code>
+yourself, or with <code>dexvantage.validation.checks_audit.score(result, truth)</code>.</p>
+<h2 id="fiftyone">FiftyOne</h2>
+<p>Export to FiftyOne… (or <code>dexvantage.core.audit.report.export_fiftyone(result, dataset, folder)</code>) writes one video sample
+per camera per episode:</p>
+<ul>
+<li>Sample tags: <code>audit:&lt;verdict&gt;</code> and each fault kind found.</li>
+<li>Sample fields: the offset, drift, jitter and frame counts.</li>
+<li>Frame fields: sharpness ratio, gain step, gripper correlation, duplicate and blur flags, and so on.</li>
+</ul>
+<p>FiftyOne is not needed to write the folder. To load it:</p>
+<pre><code>import fiftyone as fo
+ds = fo.Dataset.from_dir('so100-fo', dataset_type=fo.types.FiftyOneDataset)
+ds.match_tags('gripper_hidden')
+</code></pre>
+<h2 id="what-the-figures-mean-and-their-limits">What the figures mean, and their limits</h2>
+<ul>
+<li>A LeRobot recording stores its camera times on the nominal grid. A frame dropped before writing therefore shows as a
+duplicate, not a gap.</li>
+<li>The camera offset is resolved to about ±17 ms on static cameras, and poorly on wrist cameras over plain scenes. A
+wrist offset only fails when it is beyond 3 σ.</li>
+<li>Clock drift within one episode is reported but not resolved below several thousand ppm.</li>
+<li>Mount slip by registration is rotation only, relative to the first episode. It needs at least five episodes to tell
+a step from a drift.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

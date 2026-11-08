@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bandwidth, hosts and power: a worked example · DexVantage</title>
+<meta name="description" content="Can the host carry every stream, does each USB camera get the current it needs, and how much does a campaignrecord? This walk-through uses the UR5e + Robotiq 2F-85 sample (&quot;Wrist D405&quot; on the flange, &quot;Overhead D435&quot; on thecage). The model, its sources and its checks are in docs/models/bandwidth.md. …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample-and-run-the-study">1. Open the sample and run the study</a>
+    <a href="#2-give-the-rig-a-host">2. Give the rig a host</a>
+    <a href="#3-a-bus-powered-hub">3. A bus-powered hub</a>
+    <a href="#4-a-usb-2-port">4. A USB 2 port</a>
+    <a href="#5-the-recording-budget">5. The recording budget</a>
+    <a href="#6-what-the-study-cannot-tell-you">6. What the study cannot tell you</a>
+    <a href="#export">Export</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/bandwidth.md"><code>docs/guide/bandwidth.md</code></a></p>
+<h1 id="bandwidth-hosts-and-power-a-worked-example">Bandwidth, hosts and power: a worked example</h1>
+<p>Can the host carry every stream, does each USB camera get the current it needs, and how much does a campaign
+record? This walk-through uses the UR5e + Robotiq 2F-85 sample (&quot;Wrist D405&quot; on the flange, &quot;Overhead D435&quot; on the
+cage). The model, its sources and its checks are in <code>docs/models/bandwidth.md</code>. The figures below are what this build
+computes on the sample.</p>
+<h2 id="1-open-the-sample-and-run-the-study">1. Open the sample and run the study</h2>
+<pre><code>dexvantage --sample ur5e
+</code></pre>
+<p>Analysis ▸ Bandwidth, hosts and power opens the page; the study runs live after every edit. In batch mode:</p>
+<pre><code>dexvantage --sample ur5e --bandwidth bandwidth.json
+</code></pre>
+<p>The sample has no host yet, so the headline reads <strong>—, no hosts</strong>. The data rates are already there. Neither sensor's
+link names streams, so each sends its default streams: the depth stream and the RGB stream at their largest size and
+the listed rate nearest 30 fps (a default):</p>
+<table>
+<thead>
+<tr>
+<th>Sensor</th>
+<th>Streams</th>
+<th>Payload</th>
+<th>On the wire (+ 5 %, a default)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wrist D405</td>
+<td>depth 1280 × 720 @ 30 Z16, RGB 1280 × 720 @ 30 YUY2</td>
+<td>884.7 Mbit/s</td>
+<td>929.0 Mbit/s</td>
+</tr>
+<tr>
+<td>Overhead D435</td>
+<td>depth 1280 × 720 @ 30 Z16, RGB 1920 × 1080 @ 30 YUY2</td>
+<td>1437.7 Mbit/s</td>
+<td>1509.6 Mbit/s</td>
+</tr>
+</tbody>
+</table>
+<p>For example 1920 × 1080 × 30 fps × 16 bits per pixel = 995.3 Mbit/s for the D435's colour stream: every figure is a
+stream mode of the Intel datasheet the library entry cites.</p>
+<h2 id="2-give-the-rig-a-host">2. Give the rig a host</h2>
+<p><strong>Apply</strong> makes the page's suggestion, one undo step: it adds &quot;Host (assumed)&quot; with one &quot;USB 3 controller (assumed)&quot;
+and plugs both cameras into it. The headline now reads <strong>68 %, within budget</strong>:</p>
+<ul>
+<li>the controller carries 2439 Mbit/s of 3600 Mbit/s, 1161 Mbit/s of margin. 3600 Mbit/s is the USB 3.2
+specification's effective bandwidth for Gen 1 (&quot;450 MB/sec or less&quot;, §4.4.11), an upper bound: the controller has
+no library entry, so Gen 1, the lowest generation, is assumed and the topology tree says so;</li>
+<li>each camera's own link: the D405 at 26 %, the D435 at 42 % of the same Gen 1 figure (both are &quot;USB 3.1 Gen 1&quot;
+devices);</li>
+<li>bus power: the D435 states 3.40 W, 681 mA at 5 V, of the 900 mA a USB 3 port gives; the D405 296 mA.</li>
+</ul>
+<p>To use your machine instead, pick its entry in the host list (for example &quot;USB 3.2 Gen 2 host port&quot;) and <strong>Add host</strong>:
+a Gen 2 controller is compared with 8800 Mbit/s, and each camera's link stays at Gen 1, the camera's own generation.
+If you have measured a controller (a bulk-transfer test, <code>usbtop</code> while streaming), select it in the tree, enter the
+figure and its source under <strong>Practical bandwidth</strong> and <strong>Set</strong>: that figure then replaces the specification's bound.</p>
+<h2 id="3-a-bus-powered-hub">3. A bus-powered hub</h2>
+<p>Select the controller, untick <strong>Powered</strong> and <strong>Add hub</strong>; then plug both cameras into &quot;Hub 1&quot; in the <em>Plugged into</em>
+column (each change is one undo step). The page now reads <strong>over budget</strong>:</p>
+<blockquote>
+<p>Bus-powered Hub 1: the devices on it state 977 mA, more than the 900 mA its upstream port gives (its own
+electronics not counted). Use a powered hub or move a device to another port.</p>
+</blockquote>
+<p>A bus-powered USB 3 hub shares its own port's 900 mA among its ports (USB 3.2 §10.14). Tick <strong>Powered</strong> on a new hub
+(or remove this one): a powered hub gives every port the full 900 mA and the finding goes. A hub that shares its
+controller with other devices is flagged too (&quot;on a shared controller&quot;), because everything on it shares that
+controller's bandwidth.</p>
+<h2 id="4-a-usb-2-port">4. A USB 2 port</h2>
+<p>Plugged into a USB 2.0 controller instead, the same two cameras need 2439 Mbit/s of 426 Mbit/s (USB 2.0's bulk limit,
+53 248 000 bytes/s, Table 5-10): 572 %, <strong>over budget</strong>, with each camera's link over its limit too (&quot;depth + RGB send
+1510 Mbit/s over 426 Mbit/s&quot;). Choosing 640 × 480 for both on the Sensors page brings each to 310 Mbit/s on the wire,
+73 % of its own link, but the two together still need 145 % of the one controller: move one camera to another
+controller, or record fewer streams (the link's stream list).</p>
+<h2 id="5-the-recording-budget">5. The recording budget</h2>
+<p>At the default 60 s episodes and 100 episodes per campaign, the two cameras record 299.0 MB/s (raw as streamed, plus
+3 % container overhead, both defaults): <strong>17.94 GB per episode, 1.79 TB per campaign</strong>. The recorder's sustained
+write speed is &quot;not stated&quot; until you enter it: type your disk's sustained figure (after its write cache fills) and
+its source under <strong>Recording</strong> and <strong>Set</strong>. With 640 × 480 streams, 200 episodes and a 500 MB/s, 2000 GB disk, the
+study reads 75.9 MB/s recorded, 98.7 MB/s sustained write needed (× 1.3 headroom, a default), 4.56 GB per episode
+and 438 episodes per disk.</p>
+<h2 id="6-what-the-study-cannot-tell-you">6. What the study cannot tell you</h2>
+<p>Sensors whose maker states no bits per pixel (MJPEG streams, the Luxonis cameras, the DIGIT and GelSight Mini tactile
+sensors) have no data rate until you enter a measured one; the page marks them and the controller's load is then a
+lower bound. GMSL deserialisers have no stated link rate in the library, so a GMSL camera's link is not checked until
+you enter the deserialiser's practical figure. The full list is in the model's &quot;Known limits&quot;.</p>
+<h2 id="export">Export</h2>
+<p><strong>Export…</strong> writes the result as JSON with its provenance block: every sensor's streams and rates, every controller's
+load, capacity, source and margin, the hubs, the disk budget, the bus power and the findings.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

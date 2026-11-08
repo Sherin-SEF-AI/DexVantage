@@ -21,7 +21,7 @@ PKG = 'dexvantage_plugin_template'
 # ====================================================================== helpers
 def _template_entry_points() -> dict:
     """The template's declared entry points ({name: value}), read from its pyproject.toml."""
-    tomllib = pytest.importorskip('tomllib')
+    tomllib = pytest.importorskip('tomllib', reason='tomllib needs Python 3.11 or newer')
     with open(os.path.join(TEMPLATE, 'pyproject.toml'), 'rb') as fh:
         doc = tomllib.load(fh)
     return doc['project']['entry-points']['dexvantage.plugins'], doc['project']['name'], doc['project']['version']
@@ -339,7 +339,7 @@ def test_the_template_own_tests_pass(tmp_path):
 
 def test_pip_install_of_the_template(tmp_path, registries):
     """A real pip install --target (no network, no build isolation): runs only where setuptools is installed."""
-    pytest.importorskip('setuptools')
+    pytest.importorskip('setuptools', reason='setuptools (the dev extra) is not installed')
     src = tmp_path / 'src'
     shutil.copytree(TEMPLATE, src, ignore=shutil.ignore_patterns('__pycache__'))
     target = tmp_path / 'site'

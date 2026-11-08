@@ -150,6 +150,7 @@ class Spec:
     fn: object
     cost: str = 'cheap'       # 'cheap' (< 1 s) | 'study' (seconds)
     tolerance_quick: float | None = None   # the quick run's tolerance when it differs (a band set by the sample size)
+    needs: tuple = ()         # ((module, extra), ...): optional packages the check cannot run without
 
 
 @dataclass
@@ -192,6 +193,7 @@ class ValidationResult:
     seconds: float
     environment: dict
     cancelled: bool = False
+    not_run: list = field(default_factory=list)   # checks left out: an optional package is missing (not_run_specs)
 
     @property
     def passed(self) -> int:
@@ -219,19 +221,63 @@ class ValidationResult:
 
 
 CHECKS: list = []
+# what the LeRobot dataset checks need (the lerobot extra: Parquet and video)
+LEROBOT = (('pyarrow', 'lerobot'), ('av', 'lerobot'))
 
 
-def check(cid, model, title, quantity, reference, tolerance, unit, refs=(), cost='cheap', tolerance_quick=None):
+def check(cid, model, title, quantity, reference, tolerance, unit, refs=(), cost='cheap', tolerance_quick=None,
+          needs=()):
     """Register a check function fn(ctx) -> Outcome. tolerance_quick: the tolerance of a quick run, when the check's
-    band depends on its sample size (declared here, so the tolerance listed is the one applied)."""
+    band depends on its sample size (declared here, so the tolerance listed is the one applied). needs: ((module,
+    extra), ...) the optional packages the check cannot run without; a run leaves the check out when one is missing
+    and lists it as not run with the extra that installs it (a plain pip install has no extras)."""
     assert model in model_ids(), model
 
     def deco(fn):
         assert not any(s.id == cid for s in CHECKS), cid
         CHECKS.append(Spec(cid, model, title, quantity, reference, float(tolerance), unit, tuple(refs), fn, cost,
-                           None if tolerance_quick is None else float(tolerance_quick)))
+                           None if tolerance_quick is None else float(tolerance_quick), tuple(needs)))
         return fn
     return deco
+
+
+def missing_need(spec: Spec) -> tuple | None:
+    """(module, extra) of the first optional package the check needs that is not installed here, or None."""
+    import importlib.util
+    for mod, extra in spec.needs:
+        try:
+            if importlib.util.find_spec(mod) is None:
+                return mod, extra
+        except (ImportError, ValueError):
+            return mod, extra
+    return None
+
+
+def not_run_specs(settings: ValidationSettings | None = None) -> list:
+    """The checks the settings select that a run leaves out because an optional package they need is missing:
+    [{'id', 'model', 'title', 'module', 'extra'}] in MODELS order."""
+    out = []
+    for s in _selected(settings):
+        m = missing_need(s)
+        if m is not None:
+            out.append({'id': s.id, 'model': s.model, 'title': s.title, 'module': m[0], 'extra': m[1]})
+    return out
+
+
+def not_run_sentence(items: list) -> str:
+    """One plain sentence for checks left out because an optional package is missing ('' when none is)."""
+    if not items:
+        return ''
+    by = {}
+    for d in items:
+        by.setdefault((d['module'], d['extra']), []).append(d['id'])
+    parts = [f'{len(ids)} need{"s" if len(ids) == 1 else ""} {mod} (the {extra} extra)'
+             for (mod, extra), ids in by.items()]
+    extras = ','.join(dict.fromkeys(extra for _, extra in by))
+    n = len(items)
+    return (f'{n} check{"s" if n != 1 else ""} not run because an optional package is not installed: '
+            f'{"; ".join(parts)}. Install {"them" if len(by) > 1 else "it"} with pip install "dexvantage[{extras}]" '
+            f'to run {"them" if n != 1 else "it"}.')
 
 
 def declared_tolerance(spec: Spec, quick: bool = False) -> float:
@@ -322,7 +368,12 @@ def load_checks():
 
 
 def specs(settings: ValidationSettings | None = None) -> list:
-    """The registered checks the settings select, in MODELS order (models whose module is not installed left out)."""
+    """The registered checks the settings select that can run here, in MODELS order (models whose module is not
+    installed left out, and checks whose optional package is missing: not_run_specs lists those)."""
+    return [s for s in _selected(settings) if missing_need(s) is None]
+
+
+def _selected(settings: ValidationSettings | None = None) -> list:
     load_checks()
     st = settings or ValidationSettings()
     use = (set(st.models) if st.models else set(model_ids())) & set(available_models())
@@ -409,7 +460,7 @@ def run(project=None, engine=None, settings=None, variant=None, progress=None, c
     p = ctx.project
     return ValidationResult(out, st, getattr(p, 'name', '') if ctx.given else 'sample (built in)',
                             getattr(p.variant, 'name', '') if p is not None else '', started,
-                            time.perf_counter() - t0, environment(), cancelled)
+                            time.perf_counter() - t0, environment(), cancelled, not_run_specs(st))
 
 
 # ----------------------------------------------------------------------------- shared helpers for the checks

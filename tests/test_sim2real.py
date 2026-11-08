@@ -14,8 +14,8 @@ import pytest
 
 from conftest import pump
 
-pytest.importorskip('pyarrow')
-pytest.importorskip('av')
+pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
+pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
 
 from dexvantage.core import jobs  # noqa: E402
 from dexvantage.core.robot.samples import sample_project  # noqa: E402
@@ -37,6 +37,8 @@ def ur5e():
 @pytest.fixture(scope='module')
 def made(ur5e, tmp_path_factory):
     """Datasets by case name, made on first use."""
+    from render_support import require
+    require()                               # renders MuJoCo scenes
     base = tmp_path_factory.mktemp('s2r')
     out = {}
 

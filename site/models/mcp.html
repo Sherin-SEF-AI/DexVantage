@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The assistant&#x27;s tools and the MCP server · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/assistant/tools.py (the tool registry), assistant/figures.py (the figures each study yields,as the tools return them), assistant/session.py (where the tools work: a project file or the window),assistant/page_guide.py (the page on screen), dexvantage/mcp/ (server.py the stdio …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-is-computed-here-nothing">What is computed here: nothing</a>
+    <a href="#sessions">Sessions</a>
+    <a href="#edits-as-data-mcpeditspy">Edits as data (mcp/edits.py)</a>
+    <a href="#plans-propose_plan">Plans (propose_plan)</a>
+    <a href="#the-mcp-server">The MCP server</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/mcp.md"><code>docs/models/mcp.md</code></a></p>
+<h1 id="assistant">The assistant's tools and the MCP server</h1>
+<p>Modules: <code>dexvantage/assistant/tools.py</code> (the tool registry), <code>assistant/figures.py</code> (the figures each study yields,
+as the tools return them), <code>assistant/session.py</code> (where the tools work: a project file or the window),
+<code>assistant/page_guide.py</code> (the page on screen), <code>dexvantage/mcp/</code> (<code>server.py</code> the stdio server, <code>service.py</code> the
+tools as MCP lists them, <code>edits.py</code> changes as data, <code>session.py</code> finding an open window, <code>batchrun.py</code> batch jobs),
+<code>dexvantage/ui/mcp_bridge.py</code> (the window's side). Checks: <code>dexvantage/validation/checks_assistant.py</code> (model
+<code>assistant</code>). Tests: <code>tests/test_assistant_tools.py</code>, <code>tests/test_mcp.py</code>. Spec §12 (part 1: the tool layer and the
+MCP server; the Assistant dock, providers and the Copilot's approval are part 2).</p>
+<p>Ported from Vantage <code>assistant/tools.py</code> (the registry, the schema check, errors as plain sentences, read tools over
+a snapshot, simulate and propose), <code>assistant/copilot_tools.py</code> (a plan the user approves), <code>assistant/page_guide.py</code>
+(the page's purpose, needs and state) and <code>mcp/</code> (<code>server.py</code>, <code>service.py</code>, <code>session.py</code>, <code>edits.py</code>,
+<code>batchrun.py</code>) with <code>ui/mcp_bridge.py</code>. The vehicle tools (cameras on a car body, seams, CARLA runs) were stripped;
+the tools are DexVantage's studies, and changes are DexVantage's factor paths (<code>core/factors.py</code>).</p>
+<h2 id="what-is-computed-here-nothing">What is computed here: nothing</h2>
+<p>The tool layer is plumbing. Every figure a tool returns is one of:</p>
+<ul>
+<li>a figure of a study's result document (<code>core/jobs.run_study</code>, through the session's result cache, or the result the
+window already holds for the design as it is now: <code>AnalysisController.results</code> with the store's revision), read off
+by <code>figures.brief(study, doc)</code> and rounded for reading (4 decimals at 1 and above, 4 significant digits below 1);</li>
+<li>a figure of the project (mount poses, joint limits as the model file states them);</li>
+<li>a figure of a library entry, with the entry's cited sources (URL, title, date read);</li>
+<li>a metric (<code>core/metrics.py</code>), which is itself a figure of a study's result.</li>
+</ul>
+<p>A figure a study does not state stays <code>None</code>. A study that refuses (<code>StudyError</code>) gives its own sentence as the tool's
+<code>error</code>. <code>assistant.figures_from_studies</code> checks the first point.</p>
+<h2 id="sessions">Sessions</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>FileSession</code> (headless)</th>
+<th><code>StoreSession</code> (the window)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>project</td>
+<td>a <code>.dexv</code> file (or a sample, unsaved)</td>
+<td>the window's <code>ProjectStore</code></td>
+</tr>
+<tr>
+<td>an edit</td>
+<td>an undo step held by the session; the file saved after each one; the file as first opened copied to <code>&lt;name&gt;.dexv.bak</code> once</td>
+<td>one <code>QUndoCommand</code> &quot;Claude · …&quot; in Edit ▸ Undo, like the user's own</td>
+</tr>
+<tr>
+<td>undo</td>
+<td>the session's own steps</td>
+<td>only the top step, and only when it is the assistant's (&quot;Claude ·&quot;); a user's step is left alone</td>
+</tr>
+<tr>
+<td>a change on disk</td>
+<td>refused (open it again)</td>
+<td>—</td>
+</tr>
+<tr>
+<td>studies</td>
+<td>run in the session (its own cache)</td>
+<td>the window's cache; the window's result when it is current</td>
+</tr>
+<tr>
+<td>long studies</td>
+<td>allowed (<code>allow_long=True</code>)</td>
+<td>per session: the MCP bridge allows them (the MCP client asks the user before each call); the in-app assistant (part 2) sets <code>allow_long=False</code> and proposes a plan</td>
+</tr>
+<tr>
+<td><code>show_in_app</code>, <code>get_page_context</code></td>
+<td>refused, plainly</td>
+<td>on the UI thread</td>
+</tr>
+</tbody>
+</table>
+<p>A <code>StoreSession</code> is safe to call from a worker thread: whatever touches the store or the window runs on the UI thread
+through a queued signal, and the worker waits (at most 120 s).</p>
+<p>Long studies (<code>tools.LONG</code>): <code>grasp_visibility</code> (11.5 s on the SO-100 sample, 42.4 s on the UR5e, measured
+2026-11-07), <code>groundtruth</code>, <code>audit</code>, <code>plan_vs_recording</code>, <code>silhouette_calib</code>, <code>teleop</code>, <code>handeye_plan</code>,
+<code>handeye_solve</code>, <code>dex_occlusion</code>, and the studies that run other studies many times: <code>tolerance</code> (64 draws, 81 s on
+the UR5e), <code>experiments</code> (one run per row), <code>optimise</code> (105 s on the UR5e at its default budget) and <code>design_agent</code>
+(237 s) (added by the Phase 9/10 product review), and from research tools part 2 <code>cells</code> (figures on every cell) and
+<code>sim2real</code> (renders and a silhouette calibration).</p>
+<p>Research tools part 2 added nine reading tools (33 in the registry, 39 in the MCP server's <code>tools/list</code> with its own
+<code>dexvantage_status</code>, <code>open_project</code>, <code>save_project</code>, <code>run_batch</code>, <code>get_history</code> and <code>redo_change</code>; the counts are
+asserted in <code>tests/test_integration_rt2.py</code>): <code>get_runs</code> (the experiment tracker's runs), <code>get_statistics</code> (success
+counts and the power calculator computed on the spot, else the page's result), <code>get_campaign</code>, <code>get_sim2real</code>,
+<code>get_methods_paragraph</code> (the paper kit's paragraph), <code>get_cells</code>, <code>get_cluster_job</code> (a Slurm job folder's shards and
+gathered headline), <code>get_rig_cost</code> (the cited prices) and <code>check_robot_file</code> (what a URDF, MJCF or USD file references
+and whether each file is found, before an import). Each reads; none changes the project.</p>
+<p>Phase 11 added <code>get_project_diff</code> (34 in the registry, 40 in <code>tools/list</code>): what changed, item by item
+(<code>core/projdiff.py</code>, as File ▸ Compare with…), from another project file (<code>path</code>, read beside this project when
+relative) to this project, or from the active variant to another variant (<code>variant</code>, its name or uid; both sides are
+diffed as one-variant projects under the active variant's uid, so sensors pair up); with <code>metrics</code>, each figure on
+both sides and its delta, with <code>delta_unit</code> (a change of a percentage is in percentage points). The metrics' studies
+follow the long-study rule above. It reads only.</p>
+<h2 id="edits-as-data-mcpeditspy">Edits as data (<code>mcp/edits.py</code>)</h2>
+<p><code>edit_project</code> and <code>simulate_changes</code> take</p>
+<ul>
+<li><code>changes</code>: <code>{factor path: value}</code>, any settable quantity of <code>core/factors.py</code>: <code>sensor:&lt;uid or name&gt;.x|y|z</code> (m, in
+the parent frame), <code>.roll|.pitch|.yaw</code> (degrees, URDF rpy), <code>.dx|.dy|.dz</code> (a shift along the parent's axes),
+<code>.droll|.dpitch|.dyaw</code> (a turn about the sensor's own axes), <code>.model</code> (a library id; the sensor's kind follows the
+entry's), <code>.parent</code> (<code>world</code>, <code>cage</code>, <code>tripod</code>, <code>table</code> or a link of a robot of the project), <code>.enabled</code>,
+<code>.stream</code> (<code>[width, height]</code>), <code>setting:&lt;study&gt;.&lt;key&gt;</code>, <code>json:/pointer</code> (not into the log, the format or the
+stored files);</li>
+<li><code>ops</code>: <code>add_sensor</code>, <code>remove_sensor</code>, <code>add_variant</code> (a copy of the active rig by default, keeping its sensors' uids so
+cables, policies and calibration follow), <code>activate_variant</code>, <code>rename_variant</code>, applied first.</li>
+</ul>
+<p>Each value is checked before anything changes; the whole change is made on a copy; the sections it touches are found
+by comparing the copy with the project (<code>changed_keys</code>), and the undo step restores exactly those. Locked items:
+every locked sensor and robot of the project before is compared with the copy after, field for field, and any
+difference (moved, re-modelled, removed, unlocked) refuses the whole change, whichever path made it (a factor, an
+op or a JSON pointer). Locking is allowed.</p>
+<p><code>edit_project</code> returns the lines changed, the undo step's label, and the metrics of the project's requirements (plus
+any <code>metrics</code> named) before and after, with each requirement's pass before and after (<code>default_threshold</code> says when
+the threshold is DexVantage's labelled default).</p>
+<h2 id="plans-propose_plan">Plans (<code>propose_plan</code>)</h2>
+<p>A plan is <code>{'schema': 'dexvantage.plan/1', 'plan': id, 'version': 1, 'title', 'rationale', 'project', 'steps', 'status': 'proposed', 'created_utc'}</code>; <code>core/provenance.plan_field</code> reads its id. A step is a <code>study</code> (with settings;
+<code>long</code> says whether it is long work), an <code>export</code> (formats, folder) or an <code>edit</code> (changes and ops, with the lines it
+would change). Each step is checked when proposed; nothing runs. In the window the plan goes to
+<code>ctx.on_copilot_plan(plan)</code> when the Assistant dock sets that hook (part 2), else the status bar says a plan waits; a
+file session keeps it.</p>
+<h2 id="the-mcp-server">The MCP server</h2>
+<p><code>python -m dexvantage.mcp [--project FILE.dexv | --sample so100] [--mode auto|live|file]</code></p>
+<p>The Model Context Protocol, version <strong>2025-11-25</strong> (https://modelcontextprotocol.io/specification/2025-11-25: the
+pages basic/lifecycle, basic/transports and server/tools, read 2026-11-07), implemented with the standard library:</p>
+<ul>
+<li>stdio: JSON-RPC 2.0, one UTF-8 message per line with no embedded newline; nothing but protocol messages on stdout
+(the server points <code>sys.stdout</code> at stderr before it starts, so a stray print cannot corrupt the stream);</li>
+<li><code>initialize</code>: the client's version when it is 2025-11-25, 2025-06-18, 2025-03-26 or 2024-11-05 (the messages used
+are the same in each), else 2025-11-25; capabilities <code>{&quot;tools&quot;: {&quot;listChanged&quot;: false}}</code>; <code>serverInfo</code>; the
+<code>instructions</code> text (<code>mcp/service.py</code> <code>INSTRUCTIONS</code>: what DexVantage is, units and frames, read before you change,
+quote figures and never estimate, locked items are the user's, long studies take time);</li>
+<li>notifications get no reply; <code>ping</code>; <code>tools/list</code> (name, title, description, <code>inputSchema</code>, annotations:
+<code>readOnlyHint</code>, <code>destructiveHint</code>, <code>idempotentHint</code>, <code>openWorldHint: false</code>); <code>tools/call</code> answers <code>content</code> (the
+whole JSON as text), <code>structuredContent</code> (the same object) and <code>isError</code>;</li>
+<li>an unknown tool is the protocol error −32602, as the 2025-11-25 tools page says; a tool that cannot do what was
+asked (bad input, a study that refuses, a locked sensor) is a tool execution error: <code>isError: true</code> and a plain
+sentence; −32700 for a line that is not JSON, −32601 for an unknown method, −32600 for a message that is not
+JSON-RPC 2.0.</li>
+</ul>
+<p>Every input schema is a closed JSON Schema object (<code>additionalProperties: false</code>), checked against the 2020-12
+meta-schema by <code>jsonschema</code> in the tests and the validation check. The server checks each call's input against the
+schema itself (<code>tools._check</code>, ported from Vantage: type, enum, properties, required, additionalProperties, items,
+minItems, maxItems) before the tool runs; <code>tests/test_mcp.py</code> shows the two agree on good and bad inputs.</p>
+<p>MCP-only tools besides the assistant's: <code>dexvantage_status</code>, <code>redo_change</code>, <code>save_project</code>, <code>get_history</code>,
+<code>run_batch</code> (a batch job on a copy of the project in a run folder of its own: exit code and meaning, output end, the
+files and the small JSON ones) and <code>open_project</code> (a file or a sample, or back to the window).</p>
+<h3 id="attaching-to-the-window">Attaching to the window</h3>
+<p>A window started from <code>dexvantage</code> (app.py) starts its bridge unless the setting <code>mcp/bridge</code> is off: it listens on
+127.0.0.1 only, on a free port, and writes <code>&lt;config&gt;/DexVantage/mcp/&lt;pid&gt;.json</code> (mode 0600) with the port, a random
+48-hex-digit token, the project's name and file. The server finds open windows there (dead processes' files are
+removed): with <code>--project</code>, only a window that has that file open (else it works on the file); without, the newest.
+It sends each call as one JSON line with the
+token (compared in constant time). The bridge runs the tool on a worker thread through a <code>StoreSession</code>, so the
+change is an undo step in the window and shows at once. <code>--mode file</code> never attaches; <code>--mode live</code> only attaches.</p>
+<h2 id="validation">Validation</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Quantity</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured (2026-11-07)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>assistant.figures_from_studies</code></td>
+<td>largest relative difference between a tool's figure and the same figure read off the study result here (14 figures of coverage, time sync, bandwidth and cables on the sample)</td>
+<td>the result documents, read by an extraction written out again</td>
+<td>5 × 10⁻⁴ (the briefs' rounding: 4 significant digits)</td>
+<td>3.65 × 10⁻⁵</td>
+</tr>
+<tr>
+<td><code>assistant.mcp_conformance</code></td>
+<td>nonconformities of the server's replies to the specification's own example requests, and of the 30 tool definitions (names, schemas against the 2020-12 meta-schema by <code>jsonschema</code>)</td>
+<td>MCP 2025-11-25; JSON-RPC 2.0; jsonschema</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>assistant.edit_undo_identity</code></td>
+<td>content-hash mismatches after edit then undo (two sensors moved and turned) and after a refused change to a locked sensor</td>
+<td><code>core/provenance.py</code> content hash</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Self-test line <code>mcp server</code>: initialize, tools/list and tools/call <code>get_overview</code> on a blank project in process
+(about 70 ms).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The briefs pick the figures a reader needs first; <code>full: true</code> (and <code>run_study</code>'s) returns the whole result,
+compacted (lists cut with their count, encoded arrays, paths, URLs and secrets left out).</li>
+<li>Studies run on the project as stored. The window's joint sliders and the pose a page runs at are view state, so a
+page run at another pose shows other figures than a tool run at home; <code>get_page_context</code> reads what the page shows.</li>
+<li>One request at a time per server; a long study blocks the next call. No progress or list-changed notifications, no
+task-augmented calls, no resources or prompts (their lists are empty). JSON-RPC batches (removed from MCP in
+2025-06-18) are still answered.</li>
+<li>A file session's undo history lasts as long as the session; the <code>.bak</code> keeps the file as first opened.</li>
+<li><code>add_variant</code> copies keep the sensors' uids across variants; <code>json:/</code> pointers go through <code>Project.from_dict</code>, which
+normalises what it does not know.</li>
+<li><code>run_batch</code> waits for the job (600 s by default, 3600 s at most); outputs given as absolute paths land where they
+say.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

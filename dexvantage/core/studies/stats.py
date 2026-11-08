@@ -307,13 +307,14 @@ def headline(doc: dict) -> dict:
         if best.get('kind') == 'rates' and best.get('difference'):
             val, unit = 100 * best['difference']['value'], 'pp'
         else:
-            val, unit = (best.get('difference') or {}).get('value'), best.get('unit', '')
+            val, unit = (best.get('difference') or {}).get('value'), S.delta_unit(best.get('unit', ''))
         corr = doc.get('correction') or {}
         test = best.get('test_label') or best.get('test', '')
         extra = (f' Test: {test}' + (f' ({best["method"]})' if best.get('method') else '') +
                  f'; p corrected with {corr.get("label", "")} over {corr.get("m", 0)} '
                  f'comparison{"" if corr.get("m") == 1 else "s"}.') if not best.get('error') else ''
-        return {'value': val, 'unit': unit, 'status': v['status'], 'word': v['word'], 'comparison': best.get('id'),
+        return {'value': val, 'unit': unit, 'kind': best.get('kind'), 'status': v['status'], 'word': v['word'],
+                'comparison': best.get('id'),
                 'p_adjusted': best.get('p_adjusted'), 'text': v['text'] + extra}
     pw = doc.get('power')
     if pw:

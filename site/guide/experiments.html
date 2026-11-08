@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Designed experiments: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="Which of your placement choices moves a figure, and by how much? The Designed experiments page varies a fewquantities of the rig together. It evaluates the studies at every run and reports the main effects and the Sobolindices, with their intervals. It also gives the best run it found, against the …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample-and-the-page">1. Open the sample and the page</a>
+    <a href="#2-pick-the-factors">2. Pick the factors</a>
+    <a href="#3-pick-the-responses-and-the-design">3. Pick the responses and the design</a>
+    <a href="#4-read-the-result">4. Read the result</a>
+    <a href="#5-what-drives-the-variance-sobol-indices">5. What drives the variance: Sobol indices</a>
+    <a href="#6-apply-preview-export">6. Apply, preview, export</a>
+    <a href="#7-the-same-in-batch-mode">7. The same in batch mode</a>
+    <a href="#other-designs">Other designs</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/experiments.md"><code>docs/guide/experiments.md</code></a></p>
+<h1 id="designed-experiments-a-worked-example-on-the-ur5e-sample">Designed experiments: a worked example on the UR5e sample</h1>
+<p>Which of your placement choices moves a figure, and by how much? The Designed experiments page varies a few
+quantities of the rig together. It evaluates the studies at every run and reports the main effects and the Sobol
+indices, with their intervals. It also gives the best run it found, against the rig as it is. The model, the
+estimators and their validation are in <a href="../models/experiments.html">Designed experiments</a>.</p>
+<p>The figures below were measured on the development machine on 2026-11-07. Your figures depend on the seed and on the
+studies' versions.</p>
+<h2 id="1-open-the-sample-and-the-page">1. Open the sample and the page</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ UR5e</strong>. The rig has a wrist D405 on the flange and an overhead D435 on the cage. The D435
+looks straight down (pitch 90°).</li>
+<li>Open <strong>Analysis ▸ Designed experiments</strong>.</li>
+</ol>
+<h2 id="2-pick-the-factors">2. Pick the factors</h2>
+<p>Pick each quantity from the factor list, then press <strong>Add factor</strong>. The list offers every quantity of the rig
+(<code>core/factors.py</code>):</p>
+<ul>
+<li>each sensor's x, y, z, roll, pitch and yaw;</li>
+<li>the shifts dx, dy, dz and the small turns droll, dpitch, dyaw about the sensor's own axes;</li>
+<li>its model, and whether it is enabled;</li>
+<li>the numeric and on/off settings of the studies.</li>
+</ul>
+<p>A new factor starts at ±20 mm or ±5° around the current value. That is a DexVantage default; edit <strong>Low</strong> and
+<strong>High</strong> in the row below the table. A locked sensor is listed as &quot;(locked)&quot; and is refused: unlock it to vary it.</p>
+<p>For this example:</p>
+<table>
+<thead>
+<tr>
+<th>Factor</th>
+<th>Path</th>
+<th>Range</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overhead D435, turn about its y</td>
+<td><code>sensor:Overhead D435.dpitch</code></td>
+<td>−5° to +5°</td>
+</tr>
+<tr>
+<td>Overhead D435, shift z</td>
+<td><code>sensor:Overhead D435.dz</code></td>
+<td>−0.05 to +0.05 m</td>
+</tr>
+<tr>
+<td>Wrist D405, turn about its y</td>
+<td><code>sensor:Wrist D405.dpitch</code></td>
+<td>−5° to +5°</td>
+</tr>
+</tbody>
+</table>
+<p>Use the turns (<code>dpitch</code>) here, not the absolute <code>pitch</code>. An absolute pitch range of −5° to +5° would turn the
+overhead camera from looking down to looking at the horizon: a first try at this example did just that. It gave
+40.9–52.2 % of the task volume seen, against 91.9 % now.</p>
+<h2 id="3-pick-the-responses-and-the-design">3. Pick the responses and the design</h2>
+<ol>
+<li>Tick <strong>Task volume seen</strong> (<code>coverage.covered</code>), <strong>Depth-valid task volume</strong> (<code>depth.valid</code>) and <strong>Task volume seen
+by two or more cameras</strong> (<code>coverage.seen_twice</code>).</li>
+<li>Leave <strong>Best run by</strong> at the first response.</li>
+<li>Under <strong>Design</strong>, choose <strong>Latin hypercube</strong> (the default), n = 16 and seed 1. The count reads <strong>16 runs</strong>.</li>
+<li>Press <strong>Run</strong>. Each run evaluates the coverage and depth-validity studies, about 1 s on the UR5e sample, so this
+takes about 16 s. The progress shows in the page's note; <strong>Cancel run</strong> stops it and keeps the runs done.</li>
+</ol>
+<h2 id="4-read-the-result">4. Read the result</h2>
+<p>The headline reads <strong>92.8 % · better than now</strong>: <em>Best of 16 runs: task volume seen 92.8 % at run 15, against 91.9 %
+for the rig as it is.</em> Run 15 sets:</p>
+<ul>
+<li>the overhead D435's dpitch to −2.51°;</li>
+<li>its dz to +0.042 m;</li>
+<li>the wrist D405's dpitch to −4.01°.</li>
+</ul>
+<p>The runs table lists the best run first, in green. The <strong>Main effects</strong> chart (binned: last quantile bin minus first,
+with Welch intervals) gives, for task volume seen:</p>
+<table>
+<thead>
+<tr>
+<th>Factor</th>
+<th>Effect (low to high)</th>
+<th>95 % interval</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overhead D435 dpitch</td>
+<td>−1.10 pp</td>
+<td>−5.23 to 3.03</td>
+</tr>
+<tr>
+<td>Overhead D435 dz</td>
+<td>+3.59 pp</td>
+<td>0.02 to 7.15</td>
+</tr>
+<tr>
+<td>Wrist D405 dpitch</td>
+<td>−2.50 pp</td>
+<td>−3.13 to −1.87</td>
+</tr>
+</tbody>
+</table>
+<p>With 16 runs only the wrist tilt's effect is clearly away from zero. The overhead camera's height comes close; its
+tilt's interval spans zero. The 3D view draws each run's position of the overhead D435 as a small cross, darker where
+more of the task volume was seen. The best run is ringed in green and joined to where the camera is now; a turn moves
+the orientation, so the crosses show the dz shifts.</p>
+<h2 id="5-what-drives-the-variance-sobol-indices">5. What drives the variance: Sobol indices</h2>
+<p>Choose <strong>Sobol indices (Saltelli sampling)</strong>, n = 64 and <strong>Processes</strong> 3, then press <strong>Run</strong>. That is
+64 × (3 + 2) = 320 runs. In a pool of three processes they took 194.9 s, about 1.6 times quicker than serial (each
+process loads DexVantage and the robot once). The <strong>Sobol indices</strong> chart gives, for task volume seen:</p>
+<table>
+<thead>
+<tr>
+<th>Factor</th>
+<th>First order S1 [95 %]</th>
+<th>Total ST [95 %]</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Overhead D435 dpitch</td>
+<td>0.22 [−0.01–0.44]</td>
+<td>0.31 [0.21–0.45]</td>
+</tr>
+<tr>
+<td>Overhead D435 dz</td>
+<td>0.19 [−0.11–0.43]</td>
+<td>0.14 [0.08–0.21]</td>
+</tr>
+<tr>
+<td>Wrist D405 dpitch</td>
+<td>0.58 [0.43–0.70]</td>
+<td>0.61 [0.41–0.82]</td>
+</tr>
+</tbody>
+</table>
+<p>The wrist camera's tilt drives about 60 % of the variance in what the rig sees over these ranges. The overhead
+camera's tilt drives a third, part of it through interactions (ST above S1). Its height drives the least. The dz
+estimate's S1 is above its ST: that is the estimators' spread at N = 64, and their intervals overlap. Read the
+intervals before small differences. With few base samples the notes say so: when an estimate falls outside 0 to 1, or
+an interval is more than 0.5 wide, a note gives the range of the estimates and the widest interval (on ALOHA 2 with
+N = 8, the overhead camera's tilt read S1 = 0.84 and ST = 1.52); raise n until the intervals are narrow enough to
+rank the factors.</p>
+<p>The depth-valid task volume tells a different story:</p>
+<ul>
+<li>Overhead D435 dpitch: ST = 0.000 [0.000–0.000]. A ±5° tilt of the overhead D435 does not change its depth-valid
+share at all (61.28 % at −5°, 0° and +5°, checked directly). The task volume stays inside its depth field of view
+and range; it only changes at a 20° tilt (45.34 %).</li>
+<li>Overhead D435 dz: ST = 0.34 [0.26–0.45].</li>
+<li>Wrist D405 dpitch: ST = 0.65 [0.46–0.88].</li>
+</ul>
+<p>The best of the 320 runs sees 93.11 % (run 319: the overhead D435's dpitch +0.86°, dz −0.018 m; the wrist D405's
+dpitch −4.95°).</p>
+<h2 id="6-apply-preview-export">6. Apply, preview, export</h2>
+<ul>
+<li><strong>Preview</strong> names the best run's values in the status bar and rings that run in the 3D view. It changes nothing.</li>
+<li><strong>Apply</strong> sets the best run's factors on the rig as one undo step (Edit ▸ Undo restores it).</li>
+<li><strong>Export…</strong> writes the result as JSON with provenance, and the runs as CSV beside it. The JSON records the CSV's
+SHA-256.</li>
+<li><strong>Explain</strong> gives the designs, the estimators and the defaults.</li>
+</ul>
+<p>The best run is the best point the design sampled, not an optimum. The optimiser searches; the experiment tells you
+which quantities are worth searching over.</p>
+<h2 id="7-the-same-in-batch-mode">7. The same in batch mode</h2>
+<p>Save the design as <code>design.json</code>:</p>
+<pre><code class="language-json">{
+  &quot;schema&quot;: &quot;dexvantage.experiment/1&quot;,
+  &quot;name&quot;: &quot;Overhead and wrist camera tilt&quot;,
+  &quot;factors&quot;: [
+    {&quot;path&quot;: &quot;sensor:Overhead D435.dpitch&quot;, &quot;lo&quot;: -5, &quot;hi&quot;: 5},
+    {&quot;path&quot;: &quot;sensor:Overhead D435.dz&quot;, &quot;lo&quot;: -0.05, &quot;hi&quot;: 0.05},
+    {&quot;path&quot;: &quot;sensor:Wrist D405.dpitch&quot;, &quot;lo&quot;: -5, &quot;hi&quot;: 5}
+  ],
+  &quot;responses&quot;: [&quot;coverage.covered&quot;, &quot;depth.valid&quot;, &quot;coverage.seen_twice&quot;],
+  &quot;objective&quot;: &quot;coverage.covered&quot;,
+  &quot;design&quot;: {&quot;method&quot;: &quot;lhs&quot;, &quot;n&quot;: 16, &quot;seed&quot;: 1}
+}
+</code></pre>
+<p>Then run it:</p>
+<pre><code>dexvantage --sample ur5e --experiment design.json
+Designed experiment (Latin hypercube, 16 runs): better than now → design.results.json, design.results.csv
+</code></pre>
+<p><code>--experiment-out OUT.json</code> chooses the result's name; the CSV goes beside it. <code>--experiment-saved OUT.json</code> runs the
+experiment saved in a project instead (the page saves it there). A design that cannot run exits with code 2 and a
+sentence. For example, <em>There is no metric called no.such.metric.</em>, or <em>Wrist D405 z: the sensor is locked; unlock it
+to vary it.</em></p>
+<h2 id="other-designs">Other designs</h2>
+<ul>
+<li><strong>Full factorial</strong>: every combination of the levels. A continuous factor takes 2 levels by default, or its own
+&quot;factorial levels&quot;.</li>
+<li><strong>Fractional factorial</strong>: two levels per factor, at resolution IV by default (main effects free of two-factor
+interactions) or III (fewer runs; main effects aliased with two-factor interactions). The notes give the
+generators and the resolution reached. Seven factors take 16 runs at IV and 8 at III.</li>
+<li><strong>Sobol sequence</strong>: a space-filling set of n points. Choose n as a power of two.</li>
+</ul>
+<p>Categorical factors (a sensor's model, with levels such as <code>intel-realsense-d405, intel-realsense-d435</code>) and on/off
+factors (<code>enabled</code>) go in every design. A fraction needs them at two levels.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

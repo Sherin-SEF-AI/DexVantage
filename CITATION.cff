@@ -9,7 +9,7 @@ abstract: >-
 authors:
   - name: "Sherin Joseph Roy"
     website: "https://github.com/Sherin-SEF-AI"
-version: "0.1.0.dev0"
+version: "0.1.0rc1"
 license: GPL-3.0-or-later
 repository-code: "https://github.com/Sherin-SEF-AI/DexVantage"
 keywords:

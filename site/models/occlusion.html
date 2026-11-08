@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Occlusion: articulated cube maps and exact ray casting · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/scenegeom.py (the scene&#x27;s triangles), dexvantage/core/occlusion.py (the cube map, itsnumpy and GPU backends), dexvantage/core/raycast.py (exact ray casting, the independent reference). Checks:dexvantage/validation/checks_occlusion.py (model occlusion). Tests …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-occludes-the-scene-at-q">What occludes: the scene at q</a>
+    <a href="#the-cube-map">The cube map</a>
+    <a href="#exact-ray-casting-the-reference">Exact ray casting (the reference)</a>
+    <a href="#decimation-occlusion-only">Decimation (occlusion only)</a>
+    <a href="#validation">Validation</a>
+    <a href="#timings">Timings</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#occlusion-mujoco">Against MuJoCo renders and on both samples</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/occlusion.md"><code>docs/models/occlusion.md</code></a></p>
+<h1 id="occlusion">Occlusion: articulated cube maps and exact ray casting</h1>
+<p>Modules: <code>dexvantage/core/scenegeom.py</code> (the scene's triangles), <code>dexvantage/core/occlusion.py</code> (the cube map, its
+numpy and GPU backends), <code>dexvantage/core/raycast.py</code> (exact ray casting, the independent reference). Checks:
+<code>dexvantage/validation/checks_occlusion.py</code> (model <code>occlusion</code>). Tests: <code>tests/test_occlusion.py</code>. Measurements:
+<code>scripts/measure_occlusion.py</code> (writes <code>out/occlusion-measure.json</code>).</p>
+<h2 id="what-occludes-the-scene-at-q">What occludes: the scene at q</h2>
+<p><code>scenegeom.scene_occluders(project, q, *, robots=True, objects=True, surfaces=True, exclude_links=(), decimate=None)</code>
+returns <code>Occluders(tris (M,3,3) float32 world, owner (M,) int32, owners)</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Owner</th>
+<th>Geometry</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>robot:&lt;uid&gt;:&lt;link&gt;</code></td>
+<td>the robot's visual meshes posed at <code>q[uid]</code> (<code>RobotModel.posed_triangles</code>); a robot missing from <code>q</code> is at its home pose</td>
+</tr>
+<tr>
+<td><code>object:&lt;uid&gt;</code></td>
+<td>a task object: <code>box</code> (size = its edges), <code>cylinder</code> (size = radius, full height along its z axis, centred on its pose), <code>sphere</code> (radius), <code>mesh</code> (<code>project.meshes[mesh_key]</code>: an (M,3,3) array, (V,3) vertices with <code>&lt;key&gt;/faces</code>, or a (3K,3) triangle soup, in the object frame)</td>
+</tr>
+<tr>
+<td><code>surface:&lt;uid&gt;</code></td>
+<td>a table: a rectangle at its <code>z</code> of <code>size</code> [x, y] around <code>center</code> [x, y] (default the world origin); a slab down to <code>z − thickness</code> when a <code>thickness</code> is given</td>
+</tr>
+</tbody>
+</table>
+<p>Cylinders and spheres are tessellated as <code>core/robot/model.py</code> tessellates MuJoCo primitives (24 segments, 12 rings).
+<code>exclude_links</code> takes owner strings, <code>(uid, link)</code> pairs or bare link names (that link on every robot).</p>
+<p><strong>A sensor's own surroundings</strong> (<code>scenegeom.sensor_occluders(project, sensor, q, own_radius=0.025, exclude_mount_link=False, origins=None)</code>): no sensor housing is an occluder in Phase 2. The link a sensor is mounted
+on stays an occluder, so a wrist camera sees its own gripper and flange, except its triangles with every corner within
+<code>own_radius</code> (25 mm, a default) of the sensor's origin (or of each of <code>origins</code>, the imagers' centres): the bracket
+face or link surface the sensor sits on. <code>exclude_mount_link=True</code> drops the whole mount link. On the UR5e sample's
+wrist camera the rule drops nothing (the flange is farther than 25 mm), so the gripper, its pads and the flange all
+occlude. The cube map's near clip (below) also ignores anything closer than 5 mm to an imager along a face axis.</p>
+<p><code>scenegeom.sensor_world_pose(project, sensor, q)</code> is the sensor body frame in the world: the mount pose for static
+mounts, <code>link_pose(q) @ mount.pose</code> for link mounts.</p>
+<h2 id="the-cube-map">The cube map</h2>
+<p>Ported from Vantage <code>core/occlusion.py</code>: six 90° faces of n × n texels around the camera centre, aligned with the
+world axes (so the map does not depend on the camera's orientation: every aim change and every imager rotation
+reuses it; only the centre or the scene changes it), the same face basis, <code>texel_index</code> and <code>face_dirs</code>, and the
+<strong>exact plane depth per texel</strong>: each texel stores the distance along the ray through its centre to the plane of the
+nearest triangle there. Vantage painted a static vehicle far to near with QPainter; here the scene is re-posed for
+every joint vector, so the map is built with a z-buffer by one of two backends.</p>
+<p><strong>numpy (the reference rasteriser).</strong> For each face, a triangle's candidate texels are the texel centres inside the
+bounding box of its projection (its corners in front of the near plane, and where its edges cross it). Each candidate
+is tested exactly: with the corners a₀, a₁, a₂ relative to the centre and d the texel-centre ray,</p>
+<pre><code>D  = a₀ · (a₁ × a₂)
+hit ⇔ d · (a₀ × a₁), d · (a₁ × a₂), d · (a₂ × a₀) all have the sign of D      (d is a positive mix of the corners)
+t  = D / (n · d),  n = (a₁ − a₀) × (a₂ − a₀)                                  (the hit's coordinate on the face axis)
+distance = t · |d|,  kept when t ≥ near; the z-buffer keeps the smallest per texel (np.minimum.at)
+</code></pre>
+<p>The products are linear in the texel's (u, v), so each triangle carries twelve coefficients per face and each
+candidate costs a few multiply-adds. Candidates are processed 1.5 million at a time.</p>
+<p><strong>gl (the GPU).</strong> An offscreen EGL OpenGL 3.3 context; the six faces are drawn into one n × 6n <code>GL_R32F</code> framebuffer
+with a 32-bit float depth buffer, one viewport per face, by a depth-only shader that writes <code>length(p − origin)</code> per
+fragment. Perspective-correct interpolation of p − origin at the fragment centre is exactly the point of the
+triangle's plane on the texel-centre ray, so the GPU stores the same plane distance (float32), and the depth test
+keeps the nearest (along one ray the distance is proportional to the face-axis depth). The triangles are uploaded
+once per geometry digest (the last six are kept on the GPU), and the faces are read back with one <code>glReadPixels</code>.</p>
+<p>The context is found in this order: each EGL device (<code>EGL_EXT_device_enumeration</code>, a discrete GPU without a display
+server), the default display, Mesa's surfaceless platform; a software renderer (llvmpipe) is used only when nothing
+else works. <code>DEXVANTAGE_EGL='EGL device 2'</code> (or a renderer name such as <code>radeonsi</code>, <code>llvmpipe</code>) picks one;
+<code>DEXVANTAGE_NO_GL=1</code> switches the GPU off. PyOpenGL chooses its platform once per process: when this process already
+has it loaded for GLX (Qt on an X11 desktop), the GPU backend runs in a worker process (<code>python -m dexvantage.core.occlusion --gl-worker</code>, triangles and maps over a pipe), which costs about 5 ms more per map.</p>
+<p><strong>auto</strong> uses <code>gl</code> when a context can be made in either way, else <code>numpy</code>, with the reason logged once (logger
+<code>dexvantage.core.occlusion</code>) and returned by <code>occlusion.gl_status()</code>. A GPU failure during a build falls back to
+numpy the same way; <code>backend='gl'</code> raises <code>OcclusionError</code> instead.</p>
+<p><strong>Near clip.</strong> The part of a triangle less than <code>near</code> (5 mm, a default) from the centre along a face's axis is
+clipped by both backends, so a camera pressed against the surface it is screwed to is not blinded by it.</p>
+<p><strong>Visibility.</strong> <code>cube.visible(points, eps=1e-3)</code> is true where the point's distance from the centre is at most its
+texel's distance plus <code>eps</code> (1 mm, a default), so a point on a surface is visible when nothing else is in front of it.
+<code>occlusion.visible(points, origin, occluders, n=512)</code> goes through <code>occlusion.CACHE</code>, an LRU of maps (256 MB) keyed
+by (geometry digest, the exact centre, n, near, backend); the centre was rounded to 0.1 mm before research tools
+part 2, which let a nearby origin reuse a map.</p>
+<h2 id="exact-ray-casting-the-reference">Exact ray casting (the reference)</h2>
+<p><code>raycast.first_hit(origins, dirs, tris, tmax=None)</code> returns the distance to the nearest triangle along each ray:
+Möller–Trumbore intersection [Möller 1997] (two-sided; a triangle seen exactly edge-on is not hit) through a uniform
+grid of about two cells per triangle (each triangle listed in every cell its bounding box overlaps), traversed with
+the 3D DDA of Amanatides and Woo [1987] for all rays at once. A ray stops at the first cell whose own interval holds
+the nearest hit found so far, so the answer is exact, not approximate; the grid only skips triangles that cannot be
+hit first. <code>raycast.visible_exact(points, origin, tris, eps)</code> asks whether anything lies on the segment closer than
+the point less eps. <code>raycast.near_silhouette(points, origin, tris, angle)</code> says whether a point's exact visibility
+changes within <code>angle</code> of its line of sight (eight directions around it): used to sort the cube map's disagreements.
+It shares no code with either rasteriser and was itself checked against brute force (every ray against every
+triangle: identical to 10⁻¹² m, <code>tests/test_occlusion.py</code>).</p>
+<h2 id="decimation-occlusion-only">Decimation (occlusion only)</h2>
+<p><code>scenegeom.decimate(occluders, cell_m)</code> (or <code>scene_occluders(..., decimate=cell_m)</code>) clusters vertices [Rossignac and
+Borrel 1993]: each vertex moves to the mean of the vertices in its cubic cell of edge <code>cell_m</code>; collapsed and duplicate
+triangles are dropped; owners are kept. <code>occlusion.decimation_report(occluders, origin, points, cell_m)</code> measures what
+it changes. On the UR5e sample (posed at home, 20 000 points in the task volume, n = 512, GPU):</p>
+<table>
+<thead>
+<tr>
+<th>Cell</th>
+<th>Triangles</th>
+<th>Wrist D405: visibility changed</th>
+<th>Overhead D435: visibility changed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>none</td>
+<td>193 115</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>2 mm</td>
+<td>59 800</td>
+<td>0.08 %</td>
+<td>0.08 %</td>
+</tr>
+<tr>
+<td>5 mm</td>
+<td>22 188</td>
+<td>0.62 %</td>
+<td>0.22 %</td>
+</tr>
+<tr>
+<td>10 mm</td>
+<td>8 375</td>
+<td>1.7 %</td>
+<td>0.36 %</td>
+</tr>
+</tbody>
+</table>
+<p>The visible fraction grows with the cell (clustering shrinks thin parts and opens slits): 85.3 % → 86.5 % for the
+wrist camera at 10 mm. On the GPU, decimation saves 5–11 ms per map, so it is off by default; it matters for the
+numpy backend and for exact ray casting.</p>
+<h2 id="validation">Validation</h2>
+<p>Measured on the UR5e sample with the suite's default seed, the arm's six joints drawn around home (σ = 0.15 rad),
+both cameras, the GPU backend (NVIDIA GeForce RTX 5080, EGL device 0):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>occlusion.texel_depth_exact</code>: texels whose stored distance differs from the exact first hit along the texel-centre ray by more than 1 mm</td>
+<td>4.2 × 10⁻⁶ of 240 000 texels (8 maps, n = 512); median difference 0.25 µm, 99th percentile 5.5 µm</td>
+<td>10⁻³</td>
+</tr>
+<tr>
+<td><code>occlusion.cube_vs_raycast</code>: points whose visibility differs from exact ray casting and that are not within two texels of a silhouette</td>
+<td>2.5 × 10⁻⁵ of 80 000 points (2 points); all disagreements 0.22 %, 170 of them within two texels of a silhouette</td>
+<td>10⁻³, and all disagreements under 2 %</td>
+</tr>
+</tbody>
+</table>
+<p>The texel check differs only where a texel centre lies on an edge shared by triangles at different depths (the
+rasteriser's edge rule against the ray test's) and by float32 rounding. In <code>tests/test_occlusion.py</code>, on a posed
+UR5e (6 000 points per camera, n = 512), every disagreement between the cube map and ray casting lies within two
+texels of a silhouette.</p>
+<p><strong>The two backends</strong> on the UR5e sample at home (<code>scripts/measure_occlusion.py</code>): no texel where one finds a surface
+and the other does not (n = 256 and 512, both cameras); distances differ by a median of 0.15–2.6 µm (99th
+percentile 3–14 µm); at n = 512, 2 × 10⁻⁶ (wrist) and 2 × 10⁻⁵ (overhead) of the texels differ by more than 1 mm,
+texels whose centre lies on a silhouette edge, decided by OpenGL's top-left rule on one side and the inclusive test
+on the other.</p>
+<h2 id="timings">Timings</h2>
+<p>The UR5e + Robotiq 2F-85 sample, 193 115 triangles (arm, gripper and the table), measured 2026-11-06 on Linux x86_64,
+AMD Ryzen 9 9900X, Python 3.14.4, NumPy 2.5.4, PyOpenGL 3.1.10, MuJoCo 3.17.0. <strong>EGL picked EGL device 0, the NVIDIA
+GeForce RTX 5080 (driver 595.99.02), in process.</strong> Medians of repeated builds with the geometry already on the GPU:</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Wrist D405, n = 256</th>
+<th>n = 512</th>
+<th>Overhead D435, n = 256</th>
+<th>n = 512</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gl, NVIDIA RTX 5080 (EGL device 0)</td>
+<td>12.6 ms</td>
+<td>12.5 ms</td>
+<td>13.8 ms</td>
+<td>15.5 ms</td>
+</tr>
+<tr>
+<td>gl, AMD Radeon integrated (radeonsi, EGL device 2)</td>
+<td>58 ms</td>
+<td>18 ms</td>
+<td>12 ms</td>
+<td>16 ms</td>
+</tr>
+<tr>
+<td>gl, llvmpipe (software, EGL device 3)</td>
+<td>39 ms</td>
+<td>43 ms</td>
+<td>32 ms</td>
+<td>35 ms</td>
+</tr>
+<tr>
+<td>numpy</td>
+<td>0.40 s</td>
+<td>0.81 s</td>
+<td>0.23 s</td>
+<td>0.28 s</td>
+</tr>
+</tbody>
+</table>
+<p>(The integrated GPU's 58 ms at n = 256 is the median of ten builds in one quick run and was not investigated.) The
+numpy time grows with how much of the map the scene fills: the wrist camera sees the gripper fill a quarter of its
+sphere.</p>
+<p><strong>Per joint vector, as Phase 3 will run it</strong> (pose the arm, build the occluders and their digest, then one map per
+camera at n = 512, 20 random arm poses, the geometry uploaded anew for each pose): 84 ms for the two cameras on the
+RTX 5080, of which 49 ms is posing the arm's 193 115 triangles (<code>RobotModel.posed_triangles</code>, 35 ms) and the digest;
+1.75 s with numpy. A 2 000-grasp study with three cameras is therefore about 2000 × (49 + 3 × 18) ms ≈ 3.5 min on
+the GPU before any caching. What would cut it further, for Phase 3: upload each link's local mesh once and pass the
+link transforms as uniforms (no posing or upload per q), and decimate for the numpy backend. <em>Since measured: the Phase 2 integration cut <code>posed_triangles</code> on the UR5e from 35 ms to about 12 ms (one matrix product per link instead of one per triangle; identical numbers), see <a href="performance.html">Performance: the UI-thread budget</a>.</em></p>
+<p><strong>Exact ray casting</strong>: the grid over 193 115 triangles takes 57 ms to build; 20 000 visibility rays take 0.45 s
+(wrist) and 0.28 s (overhead).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>One centre per map: a stereo pair needs a map per imager (the depth study builds both).</li>
+<li>Visibility is decided per texel (2/n rad at a face centre, 0.22° at n = 512), so a point within about a texel of a
+silhouette may be judged either way; the checks above measure how often.</li>
+<li>The occluders are the visual meshes as posed, with MuJoCo's equality constraints not applied (the 2F-85 linkage,
+<code>docs/BUILD_STATE.md</code>); no cables, cloth or other sensors' housings; a triangle seen exactly edge-on occludes
+nothing.</li>
+<li>Distances are float32 (about 0.1 µm at 1 m); <code>eps</code> (1 mm) decides points on surfaces.</li>
+<li>The GPU backend needs Linux EGL and OpenGL 3.3; elsewhere <code>auto</code> uses numpy. With PyOpenGL loaded for GLX it runs
+in a worker process. Making the context current is serialised by a lock, so maps are built one at a time.</li>
+<li>Vertex clustering moves vertices by up to half a cell diagonal and can open or close thin gaps (measured above).</li>
+</ul>
+<h2 id="occlusion-mujoco">Against MuJoCo renders and on both samples</h2>
+<p>Three more checks (<code>dexvantage/validation/checks_occlusion_mujoco.py</code>) compare the cube map with references that share
+none of its code. Measured with the default seed (20261027) on MuJoCo 3.17.0, EGL on an NVIDIA RTX 5080, n = 512:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>What is compared</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>occlusion.samples_vs_raycast</code></td>
+<td>cube map (gl and numpy) against exact ray casting, 20 000 random task-volume points per map; SO-100 and UR5e samples, every camera, home and two random poses (24 maps)</td>
+<td>0.19 % of 480 000 answers differ (worst map 0.45 %); none farther than a texel from a silhouette</td>
+<td>the measured share of points within half a texel diagonal (√2/n rad) of a silhouette: 1.44 %</td>
+</tr>
+<tr>
+<td><code>occlusion.mujoco_box_spheres</code></td>
+<td>per-pixel visibility of 20 spheres and a wall behind a tilted box, against MuJoCo segmentation (640 × 480, fovy 60°)</td>
+<td>173 504 target pixels, 84.3 % visible: exact ray casting agrees on 99.9994 %, the cube map (both backends) on 99.82 %; 0 disagreements away from silhouettes</td>
+<td>1e-3 of the pixels away from silhouettes; overall agreement at least 99 %</td>
+</tr>
+<tr>
+<td><code>occlusion.mujoco_ur5e</code></td>
+<td>the UR5e + 2F-85 at a random pose seen from above, occluding the table top and 12 spheres in the task volume, against MuJoCo segmentation of the same MJCF file</td>
+<td>163 262 target pixels, 79.9 % visible: exact 99.993 %, cube map 99.81 % (both backends); 4 pixels (2.5 × 10⁻⁵) away from silhouettes</td>
+<td>as above</td>
+</tr>
+</tbody>
+</table>
+<p>How the MuJoCo comparison works: the scene is rendered twice from one MuJoCo camera, with the targets only and with
+the occluders too (<code>validation/mjrender.py</code>: <code>mujoco.Renderer</code> in a worker process with <code>MUJOCO_GL=egl</code> set before
+mujoco is imported, multi-sampling off so segmentation ids do not blend at edges). The targets-only depth image gives
+the target point behind each pixel centre (back-projected with the camera's <code>CameraModel</code>: P = ray · depth / ray_z in
+the optical frame; MuJoCo's depth is the distance from the camera plane). MuJoCo calls a pixel visible when the full
+render shows the same target there; we call it visible when <code>CubeMap.visible</code> (or <code>raycast.visible_exact</code>) finds
+none of our occluder triangles in front of that point. Frames: MuJoCo's camera looks along its −z axis with +y up, so
+the optical frame is R_cam · diag(1, −1, −1).</p>
+<p>The cube map's agreement (99.8 %) is below exact ray casting's (99.99 %) for the reason given above: it answers per
+texel, 0.22° at a face centre, coarser than the camera's 0.125° pixels, so a band about a texel wide along every
+silhouette may go either way. The four UR5e pixels that disagree away from silhouettes do so for exact ray casting
+and both cube maps alike: three are single pixels inside a robot mesh where MuJoCo's rasteriser leaves a crack
+between two triangles and shows the table through it (our ray hits the mesh there), and one lies on the table's own
+edge, which the two renders (with different depth ranges) round differently. They are properties of the reference.</p>
+<p>If MuJoCo cannot render through EGL on a machine, the two MuJoCo checks fail with the reason
+(<code>mjrender.RenderUnavailable</code>: &quot;MuJoCo cannot render offscreen through EGL on this machine …&quot;); they are not skipped.</p>
+<p><code>occlusion.samples_vs_raycast</code> takes about 20 s (most of it the numpy rasteriser, which runs on every map even when
+the GPU is there); the two MuJoCo checks about 0.5 s and 2–3 s.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

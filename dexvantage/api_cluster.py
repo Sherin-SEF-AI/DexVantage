@@ -20,9 +20,14 @@ Known limits: those of core/cluster (Slurm only; a shared filesystem; like machi
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:                                    # names for the type hints only (nothing imported at run time)
+    from .api import Result, Rig, Table
+    from .core.project import Project
 
 
-def _project(rig):
+def _project(rig: Rig | Project) -> Project:
     from .api import DexVantageError, Rig
     if isinstance(rig, Rig):
         return rig.project
@@ -32,7 +37,7 @@ def _project(rig):
     raise DexVantageError('Pass a dv.Rig (dv.open, dv.sample, dv.new) or a DexVantage Project.')
 
 
-def _jobs(n):
+def _jobs(n: int | None) -> int | None:
     """jobs=None (the default count) or a whole number of processes, at least 1; anything else in a sentence."""
     from .api import DexVantageError
     if n is None:
@@ -44,12 +49,12 @@ def _jobs(n):
     return int(n)
 
 
-def _work_project(folder: str):
+def _work_project(folder: str) -> Project | None:
     from .batch_cluster import _work_project as W
     return W(folder)
 
 
-def _result(doc, sid, project):
+def _result(doc: dict, sid: str, project: Project) -> Result:
     from .api import Result, _autolog
     _autolog(sid, doc, project)                 # the experiment tracker, when the project's tracking is on
     return Result(doc, sid, project=project)
@@ -59,7 +64,8 @@ class _Cluster:
     """dv.cluster: experiment, tolerance, optimise, studies (this machine); slurm, gather, status, run_shard (a
     cluster); partition, settings, DiskResultCache."""
 
-    def experiment(self, rig, design, jobs=None, progress=None, cache_dir=None):
+    def experiment(self, rig: Rig | Project, design: dict | str | os.PathLike, jobs: int | None = None,
+                   progress: Callable | None = None, cache_dir: str | None = None) -> Result:
         from .core import cluster as C
         from .core import jobs as J
         p = _project(rig)
@@ -67,21 +73,26 @@ class _Cluster:
                            J.Ctx(progress=progress), cache_dir=cache_dir)
         return _result(doc, 'experiments', p)
 
-    def tolerance(self, rig, jobs=None, progress=None, cache_dir=None, **settings):
+    def tolerance(self, rig: Rig | Project, jobs: int | None = None, progress: Callable | None = None,
+                  cache_dir: str | None = None, **settings: object) -> Result:
         from .core import cluster as C
         from .core import jobs as J
+        from .core import study_settings as SST
+        SST.check('tolerance', settings)                      # an unknown name is refused, never ignored
         p = _project(rig)
         return _result(C.tolerance(p, settings or None, _jobs(jobs), J.Ctx(progress=progress), cache_dir=cache_dir),
                        'tolerance', p)
 
-    def optimise(self, rig, jobs=None, progress=None, cache_dir=None, **settings):
+    def optimise(self, rig: Rig | Project, jobs: int | None = None, progress: Callable | None = None,
+                 cache_dir: str | None = None, **settings: object) -> Result:
         from .core import cluster as C
         from .core import jobs as J
         p = _project(rig)
         doc = C.optimise(p, settings or None, _jobs(jobs), J.Ctx(progress=progress), cache_dir)
         return _result({'schema': 'dexvantage.optimise/1', 'study': 'optimise', **doc}, 'optimise', p)
 
-    def studies(self, job_list, jobs=None, progress=None, cache_dir=None) -> list:
+    def studies(self, job_list: list | tuple, jobs: int | None = None, progress: Callable | None = None,
+                cache_dir: str | None = None) -> list:
         """[Result, or {'refused': sentence}] per (rig, study, settings) job, in order."""
         from .core import cluster as C
         from .core import jobs as J
@@ -90,8 +101,9 @@ class _Cluster:
         return [(_result(r['doc'], r['study'], rows[k][0]) if 'doc' in r else {'refused': r['refused']})
                 for k, r in enumerate(doc['jobs'])]
 
-    def slurm(self, rig, folder, experiment=None, tolerance=None, optimise=None, shards=None, submit=False,
-              **slurm_settings) -> dict:
+    def slurm(self, rig: Rig | Project, folder: str | os.PathLike, experiment: dict | str | os.PathLike | None = None,
+              tolerance: dict | bool | None = None, optimise: dict | bool | None = None, shards: int | None = None,
+              submit: bool = False, **slurm_settings: object) -> dict:
         """A Slurm job folder for one of: experiment=design (a dict, JSON text or a path), tolerance={settings} (or
         True), optimise={settings} (or True: the optimiser's first round). Settings: core/cluster/slurm.DEFAULTS."""
         from .core import cluster as C
@@ -113,7 +125,8 @@ class _Cluster:
         out = {k: v for k, v in out.items() if k != 'settings'}
         return out
 
-    def gather(self, folder, out=None, write=True, rig=None) -> dict:
+    def gather(self, folder: str | os.PathLike, out: str | None = None, write: bool = True,
+               rig: Rig | Project | None = None) -> dict:
         """The gather report; a complete experiment or Monte Carlo is logged in the experiment tracker as batch
         --gather logs it: in rig's project's store when rig is given, else the job folder's base project's."""
         from .core import cluster as C
@@ -125,15 +138,15 @@ class _Cluster:
                 _autolog('experiments' if rep['kind'] == 'experiment' else 'tolerance', rep['result'], p)
         return rep
 
-    def status(self, folder) -> dict:
+    def status(self, folder: str | os.PathLike) -> dict:
         from .core import cluster as C
         return C.status(os.fspath(folder))
 
-    def run_shard(self, work, shard, of, out=None) -> dict:
+    def run_shard(self, work: str | os.PathLike, shard: int, of: int, out: str | None = None) -> dict:
         from .core import cluster as C
         return C.run_shard(os.fspath(work), shard, of, out)
 
-    def optimise_continue(self, folder, submit=False) -> dict:
+    def optimise_continue(self, folder: str | os.PathLike, submit: bool = False) -> dict:
         from .core import cluster as C
         return C.optimise_slurm(os.fspath(folder), submit=submit)
 
@@ -141,13 +154,13 @@ class _Cluster:
         from .core import cluster as C
         return C.partition(m, n)
 
-    def settings(self):
+    def settings(self) -> Table:
         from .api import Table
         from .core import cluster as C
         return Table(C.slurm_settings())
 
     @property
-    def DiskResultCache(self):
+    def DiskResultCache(self) -> type:
         from .core.cluster import DiskResultCache
         return DiskResultCache
 

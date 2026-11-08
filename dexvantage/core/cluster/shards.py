@@ -24,7 +24,6 @@ import glob
 import json
 import os
 import re
-import resource
 import time
 import uuid
 from collections import Counter
@@ -40,8 +39,12 @@ def peak_rss_mb() -> float:
     """This process's peak resident memory. On Linux the high-water mark of its own address space (VmHWM in
     /proc/self/status): ru_maxrss keeps, across the exec that starts a spawned worker, the peak of the process it was
     forked from, so a worker spawned by a large parent (a test run, the window) reported the parent's size (measured
-    2918 MB for a worker whose own peak is about 500 MB). Elsewhere ru_maxrss (KiB on Linux, bytes on macOS)."""
+    2918 MB for a worker whose own peak is about 500 MB). On Windows, which has no `resource` module, the peak working
+    set (PeakWorkingSetSize from K32GetProcessMemoryInfo); elsewhere ru_maxrss (KiB on Linux, bytes on macOS). NaN
+    when the system does not say."""
     import sys
+    if sys.platform == 'win32':
+        return _peak_working_set_mb()
     if sys.platform.startswith('linux'):
         try:
             with open('/proc/self/status', encoding='ascii') as fh:
@@ -50,8 +53,35 @@ def peak_rss_mb() -> float:
                         return round(int(line.split()[1]) / 1024, 1)
         except (OSError, ValueError, IndexError):
             pass
+    import resource                     # POSIX only
     r = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return round(r / (1024 * 1024) if sys.platform == 'darwin' else r / 1024, 1)
+
+
+def _peak_working_set_mb() -> float:
+    """Windows: this process's peak working set in MB (PROCESS_MEMORY_COUNTERS.PeakWorkingSetSize, psapi.h), NaN when
+    the call fails."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Counters(ctypes.Structure):
+        _fields_ = [('cb', wintypes.DWORD), ('PageFaultCount', wintypes.DWORD),
+                    ('PeakWorkingSetSize', ctypes.c_size_t), ('WorkingSetSize', ctypes.c_size_t),
+                    ('QuotaPeakPagedPoolUsage', ctypes.c_size_t), ('QuotaPagedPoolUsage', ctypes.c_size_t),
+                    ('QuotaPeakNonPagedPoolUsage', ctypes.c_size_t), ('QuotaNonPagedPoolUsage', ctypes.c_size_t),
+                    ('PagefileUsage', ctypes.c_size_t), ('PeakPagefileUsage', ctypes.c_size_t)]
+    try:
+        k32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        k32.GetCurrentProcess.restype = wintypes.HANDLE
+        k32.K32GetProcessMemoryInfo.argtypes = (wintypes.HANDLE, ctypes.POINTER(Counters), wintypes.DWORD)
+        k32.K32GetProcessMemoryInfo.restype = wintypes.BOOL
+        c = Counters()
+        c.cb = ctypes.sizeof(Counters)
+        if not k32.K32GetProcessMemoryInfo(k32.GetCurrentProcess(), ctypes.byref(c), c.cb):
+            return float('nan')
+        return round(c.PeakWorkingSetSize / (1024 * 1024), 1)
+    except (AttributeError, OSError):
+        return float('nan')
 
 
 def append_line(path: str, rec: dict) -> None:

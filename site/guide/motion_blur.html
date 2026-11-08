@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion blur and rolling shutter: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="Will the images be sharp while the arm moves? The Motion blur page follows each camera&#x27;s view along the project&#x27;strajectories. It reports how far the image smears during one exposure and how far a rolling shutter skews it. It alsogives the longest exposure that keeps the smear within your limit. …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample-and-run">1. Open the sample and run</a>
+    <a href="#2-look-at-the-worst-frame">2. Look at the worst frame</a>
+    <a href="#3-apply-the-suggestion">3. Apply the suggestion</a>
+    <a href="#4-your-own-figures">4. Your own figures</a>
+    <a href="#the-so-100-sample-no-trajectory-no-device">The SO-100 sample: no trajectory, no device</a>
+    <a href="#batch">Batch</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/motion_blur.md"><code>docs/guide/motion_blur.md</code></a></p>
+<h1 id="motion-blur-and-rolling-shutter-a-worked-example-on-the-ur5e-sample">Motion blur and rolling shutter: a worked example on the UR5e sample</h1>
+<p>Will the images be sharp while the arm moves? The Motion blur page follows each camera's view along the project's
+trajectories. It reports how far the image smears during one exposure and how far a rolling shutter skews it. It also
+gives the longest exposure that keeps the smear within your limit. The model, its equations and its validation are in
+<a href="../models/motion_blur.html">Motion blur and rolling shutter</a>.</p>
+<h2 id="1-open-the-sample-and-run">1. Open the sample and run</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ UR5e</strong>. The rig has a wrist D405 on the flange and an overhead D435 on the cage. The
+sample also carries a 4.5 s scripted pick (<em>Scripted pick (sample)</em>, a sample motion, not a recording). From home
+the arm lowers over 1 s, holds for 0.5 s, closes the 2F-85 over 0.5 s, lifts for 1 s and carries the part sideways
+for 1.5 s.</li>
+<li><strong>Analysis ▸ Motion blur and rolling shutter</strong> opens the page (Placement workspace). Press <strong>Run</strong> (0.3 s).</li>
+</ol>
+<p>The headline reads <strong>up to 38.04 px · may be blurred</strong>: the wrist D405's IR left imager at t = 3.03 s, seeing the task
+volume. &quot;Up to&quot; is there because no exposure is set, so the study uses the longest exposure the stream allows: the
+frame period at 30 fps, 33.3 ms. That is an upper bound, not an Intel figure. The table:</p>
+<table>
+<thead>
+<tr>
+<th>Camera</th>
+<th>Shutter</th>
+<th>Exposure (ms)</th>
+<th>Image speed (px/s)</th>
+<th>Smear (px)</th>
+<th>Skew (px)</th>
+<th>Longest exposure (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wrist D405 · IR left</td>
+<td>global</td>
+<td>33.3 (at most)</td>
+<td>1 141</td>
+<td>38.04</td>
+<td>0</td>
+<td>0.876</td>
+</tr>
+<tr>
+<td>Wrist D405 · RGB</td>
+<td>global</td>
+<td>33.3 (at most)</td>
+<td>1 051</td>
+<td>35.04</td>
+<td>0</td>
+<td>0.951</td>
+</tr>
+<tr>
+<td>Overhead D435 · IR left</td>
+<td>global</td>
+<td>33.3 (at most)</td>
+<td>146</td>
+<td>4.86</td>
+<td>0</td>
+<td>6.85</td>
+</tr>
+<tr>
+<td>Overhead D435 · RGB</td>
+<td>rolling</td>
+<td>33.3 (at most)</td>
+<td>312</td>
+<td>10.40</td>
+<td>up to 10.40</td>
+<td>3.21</td>
+</tr>
+</tbody>
+</table>
+<p>The wrist camera rides on the flange, so the whole scene streams past it: its twist J(q)·q̇ turns it at the wrist's
+angular velocity. The overhead camera stands still and sees only the gripper move (its worst point is the left pad).
+The D435's RGB camera has a rolling shutter. Intel does not state its readout time, so the skew is bounded by the
+frame period: &quot;up to 10.40 px&quot;.</p>
+<p>The segments table follows the motion:</p>
+<ul>
+<li>lowering (0–1 s): 35.0 px;</li>
+<li>the hold (1.0–1.5 s): 0 px, <strong>sharp</strong>;</li>
+<li>closing (1.5–2.0 s): 16.0 px, the pads moving in the wrist camera's view;</li>
+<li>lifting (2–3 s): 27.0 px;</li>
+<li>carrying (3.0–4.5 s): 38.0 px.</li>
+</ul>
+<p>The 3D view draws the TCP's path in those segments' status colours.</p>
+<h2 id="2-look-at-the-worst-frame">2. Look at the worst frame</h2>
+<p>Choose the Wrist D405 · IR left row, pick its first worst frame and press <strong>Show frame</strong>. The robot is posed at
+t = 3.03 s, and the Camera view switches to that camera and imager. It draws each point's smear vector, lengthened
+when short; the legend says by how much.</p>
+<h2 id="3-apply-the-suggestion">3. Apply the suggestion</h2>
+<p>The suggestion reads: <em>Set Wrist D405: exposure at most 0.87 ms (smear up to 38.04 px → 0.99 px); Overhead D435:
+exposure at most 3.2 ms (smear up to 10.40 px → 1.00 px).</em> It adds that the D435's rolling shutter skews the image
+by up to 10.40 px, and that a global-shutter camera has none; the library's are the D405, D455 and D457.</p>
+<p><strong>Apply</strong> records these exposures as yours in one undo step, and the study runs again. Every camera is now
+<strong>sharp</strong>, within 1 px (the default limit, a DexVantage default, not a standard). The skew is not changed by the
+exposure, so the rolling-shutter advice stays.</p>
+<p>Set the same exposure on the cameras, for example in the RealSense viewer or your driver's parameters. A shorter
+exposure needs more light or gain; the Lighting page treats that. Intel states the D435 depth imagers' manual exposure
+as 1 to 166 ms (datasheet Table 4-23), so 3.2 ms is inside its range. For the D405 the datasheet's exposure table does
+not name the module, so no range is checked.</p>
+<h2 id="4-your-own-figures">4. Your own figures</h2>
+<ul>
+<li><strong>Your exposure:</strong> pick a camera, type the exposure in ms and where it comes from (for example &quot;driver setting,
+2026-11-07&quot;), then press <strong>Set exposure</strong> (one undo step). <strong>Clear</strong> goes back to the bound.</li>
+<li><strong>Smear limit:</strong> your tolerance in pixels (default 1 px).</li>
+<li><strong>Readout:</strong> the study takes a measured rolling-shutter readout from the settings <code>readout_s</code> (<code>{sensor uid: {value, source}}</code>).</li>
+</ul>
+<h2 id="the-so-100-sample-no-trajectory-no-device">The SO-100 sample: no trajectory, no device</h2>
+<p>The SO-100 sample has no trajectory, so the study uses 8 approaches of its grasp set: 0.10 m along the approach at
+0.10 m/s, both defaults, solved by IK. Its cameras have no library device, so there is no frame rate and no exposure.
+The headline says <strong>exposure not set</strong>. The page still gives the image speed (up to 1 559 px/s for the wrist camera)
+and the longest exposure for 1 px (0.64 ms).</p>
+<h2 id="batch">Batch</h2>
+<pre><code>dexvantage --sample ur5e --motion-blur blur.json        # 0.8 s with start-up; CPU only (MuJoCo kinematics)
+</code></pre>
+<p>The result is JSON with a provenance block; <code>--reproduce blur.json</code> runs it again and compares.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

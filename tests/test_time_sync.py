@@ -67,7 +67,7 @@ def test_sync_is_kept_normalised_and_validates(tmp_path):
     p.save(path)
     q = Project.load(path)
     assert q.rig['sync'] == rig['sync']
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     with open(os.path.join(ROOT, 'docs', 'project.schema.json')) as fh:
         jsonschema.validate(json.loads(json.dumps(q.to_dict())), json.load(fh))
     with open(os.path.join(ROOT, 'docs', 'project.schema.json')) as a, \

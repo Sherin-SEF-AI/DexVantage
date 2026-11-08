@@ -385,6 +385,17 @@ def _wait(win, app):
     pump(app, 0.05)
 
 
+def _laid(page, app, timeout=30.0):
+    """Pump until the cable polylines (laid on a worker thread) are in; the page's overlays then draw them."""
+    import time
+    from conftest import pump
+    page.polylines()
+    end = time.monotonic() + timeout
+    while page._overlay_cache is None and time.monotonic() < end:
+        pump(app, 0.02)
+    assert page._overlay_cache is not None, 'the cable polylines did not arrive'
+
+
 def test_page_runs_applies_and_undoes(app, win, tmp_path):
     from dexvantage.core.robot.samples import sample_project
     win.store.set_project(sample_project('ur5e'))
@@ -401,6 +412,8 @@ def test_page_runs_applies_and_undoes(app, win, tmp_path):
     assert page.runs.topLevelItemCount() == 7 and page.b_apply.isEnabled()
     assert 'no cables yet' in page.none_hint.text() and 'suggested route' in page.none_hint.text()
     assert page.ranges_box.currentData() == 'model' and page.ranges_default.text() == 'default'
+    page.overlays(win.viewport)                                     # starts laying the runs off the UI thread
+    _laid(page, app)
     assert page.overlays(win.viewport)                              # the suggested route is drawn
     # Apply adds the suggested cable, one undo step
     n0 = win.store.undo.count()
@@ -428,6 +441,7 @@ def test_page_runs_applies_and_undoes(app, win, tmp_path):
     assert all(v is not None and v > 0 for v in laid)
     # Preview toggles and draws dashed
     page.preview()
+    _laid(page, app)
     assert all(d.dash for d in page.overlays(win.viewport))
     page.preview()
     # exports
@@ -443,8 +457,15 @@ def test_page_runs_applies_and_undoes(app, win, tmp_path):
     cam = CameraModel.from_fov(640, 480, 90.0, 70.0)
     body = look_at([1.2, 1.2, 1.0], [0.0, 0.3, 0.4]).matrix()
     R = body[:3, :3] @ OPTICAL_TO_BODY                              # the optical frame looking along body x
+    _laid(page, app)
     out = page.camview_overlays(cam, Pose(body[:3, 3], quat_from_matrix(R)))
     assert out and all(len(polys) and isinstance(label, str) for polys, _col, label in out)
+    # laying the runs happens off the UI thread: a change shows the last polylines until the new ones arrive
+    last = page.polylines()
+    page._invalidate()
+    assert page._overlay_cache is None and page.polylines() is last
+    _laid(page, app)
+    assert len(page.polylines(wait=True)) == len(last)
     # deleting the cable is one undo step too
     page.delete_cable()
     assert win.store.project.cables == []

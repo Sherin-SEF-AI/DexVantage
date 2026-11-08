@@ -437,7 +437,8 @@ def table(card: dict) -> str:
         if r['bound'] and r['value'] is not None:
             val = ('≥ ' if r['bound'] == 'at_least' else '≤ ') + val
         thr = f'{r["op_text"]} {_fmt(r["threshold"], r["unit"])}' + (' (default)' if r['is_default'] else '')
-        mg = '—' if r['margin'] is None else ('+' if r['margin'] >= 0 else '−') + _fmt(abs(r['margin']), r['unit'])
+        mg = ('—' if r['margin'] is None else       # a margin to a percentage threshold is in percentage points
+              ('+' if r['margin'] >= 0 else '−') + _fmt(abs(r['margin']), M.delta_unit(r['unit'])))
         rows.append((r['name'][:44], r['metric'], val, thr, mg, r['status_text']))
     w = [max(len(x[i]) for x in rows) for i in range(len(rows[0]))]
     lines = ['  '.join(c.ljust(w[i]) for i, c in enumerate(x)).rstrip() for x in rows]

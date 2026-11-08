@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cable flex across joints: a worked example on the SO-100 sample · DexVantage</title>
+<meta name="description" content="Will the wrist camera&#x27;s cable survive the arm&#x27;s joint ranges? The Cable flex page answers this for every cable in theproject. For each run between two attachment points it reports the length the cable needs as the joints move, theslack loop each joint needs, the tightest bend against the cable&#x27;s …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample-and-run">1. Open the sample and run</a>
+    <a href="#2-apply-then-choose-the-cable">2. Apply, then choose the cable</a>
+    <a href="#3-test-a-motion">3. Test a motion</a>
+    <a href="#4-fix-and-export">4. Fix and export</a>
+    <a href="#the-ur5e-sample-what-a-full-turn-joint-means-for-a-cable">The UR5e sample: what a full-turn joint means for a cable</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/cables.md"><code>docs/guide/cables.md</code></a></p>
+<h1 id="cable-flex-across-joints-a-worked-example-on-the-so-100-sample">Cable flex across joints: a worked example on the SO-100 sample</h1>
+<p>Will the wrist camera's cable survive the arm's joint ranges? The Cable flex page answers this for every cable in the
+project. For each run between two attachment points it reports the length the cable needs as the joints move, the
+slack loop each joint needs, the tightest bend against the cable's stated minimum, and whether the loop catches on a
+link. The model, its equations and its validation are in <a href="../models/cables.html">Cable flex across joints</a>.</p>
+<h2 id="1-open-the-sample-and-run">1. Open the sample and run</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ SO-100</strong>. The rig has a wrist camera on the fixed jaw (on a bracket, a sample placement)
+and a third-person camera on a tripod. The project has no cables yet.</li>
+<li><strong>Analysis ▸ Cable flex across joints</strong> opens the page in the Analysis dock (Placement workspace).</li>
+<li>Press <strong>Run</strong> (0.3 s). With no cables in the project, the study suggests a route for each sensor mounted on a
+link. For the wrist camera that is six attachment points: the camera's mount on <code>Fixed_Jaw</code>, then one point each
+on <code>Wrist_Pitch_Roll</code>, <code>Lower_Arm</code>, <code>Upper_Arm</code>, <code>Rotation_Pitch</code> and <code>Base</code>. Each run crosses one joint. The
+page says these are suggestions and are not in the project until you Apply.</li>
+</ol>
+<p>The headline reads <strong>0 of 1 cables clear · at risk</strong>. The flags are:</p>
+<ul>
+<li><strong>check</strong>: the minimum bend radius is not stated, so bends are not checked; and no run has a laid length yet, so the
+suggested ones are used;</li>
+<li><strong>at risk</strong>: run 3's slack loop (<code>Lower_Arm → Upper_Arm</code>, across the elbow) passes through <code>Fixed_Jaw</code> and
+<code>Lower_Arm</code> at home.</li>
+</ul>
+<h2 id="2-apply-then-choose-the-cable">2. Apply, then choose the cable</h2>
+<ol start="4">
+<li>Press <strong>Apply</strong> (one undo step). The suggested cable is added to the project, and every run's laid length is set
+to its suggested length: the largest length over the joint's range plus a 0.05 m service loop (a default),
+rounded up to 5 mm.</li>
+<li>Under <strong>Library cable</strong>, choose <strong>Basler Cable GMSL, FAKRA-Z, 1x F/F</strong>. The diameter (3.45 mm), the connectors
+(FAKRA-Z female at both ends) and the minimum bend radius come with it. The radius is the maker's moving figure,
+34.5 mm, and the source line under it cites Basler's page and the date it was read. Set <strong>Provided length</strong> to
+3 m (Basler sells 3, 5, 10 and 15 m).</li>
+<li>Press <strong>Run</strong> again. The <strong>Runs</strong> table now reads:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Run</th>
+<th>Joint (range from the model file)</th>
+<th>Slack loop per joint</th>
+<th>Length min–max</th>
+<th>Laid</th>
+<th>Smallest bend</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Fixed_Jaw → Wrist_Pitch_Roll</td>
+<td>Wrist_Roll (±2.79 rad)</td>
+<td>140 mm</td>
+<td>0.048–0.138 m</td>
+<td>0.190 m</td>
+<td>24.7 mm</td>
+<td>at risk</td>
+</tr>
+<tr>
+<td>2. Wrist_Pitch_Roll → Lower_Arm</td>
+<td>Wrist_Pitch (±1.66 rad)</td>
+<td>177 mm</td>
+<td>0.065–0.192 m</td>
+<td>0.245 m</td>
+<td>38.1 mm</td>
+<td>at risk</td>
+</tr>
+<tr>
+<td>3. Lower_Arm → Upper_Arm</td>
+<td>Elbow (−0.174 to 3.14 rad)</td>
+<td>283 mm</td>
+<td>0.087–0.319 m</td>
+<td>0.370 m</td>
+<td>70.2 mm</td>
+<td>at risk</td>
+</tr>
+<tr>
+<td>4. Upper_Arm → Rotation_Pitch</td>
+<td>Pitch (−3.32 to 0.174 rad)</td>
+<td>254 mm</td>
+<td>0.078–0.282 m</td>
+<td>0.335 m</td>
+<td>58.3 mm</td>
+<td>clear</td>
+</tr>
+<tr>
+<td>5. Rotation_Pitch → Base</td>
+<td>Rotation (±1.92 rad)</td>
+<td>210 mm</td>
+<td>0.051–0.211 m</td>
+<td>0.265 m</td>
+<td>50.8 mm</td>
+<td>at risk</td>
+</tr>
+</tbody>
+</table>
+<p>The allowed bend radius is 34.5 mm × 1.5 = 51.8 mm. The bend factor of 1.5 is a DexVantage default margin for
+flexing, labelled &quot;default&quot; under <strong>Settings</strong>. The flags say what to do:</p>
+<ul>
+<li>&quot;Run 1 bends to 24.7 mm with Wrist_Roll at 159.9°, below the allowed 51.8 mm (the stated minimum × 1.5). It bends
+round the joint at the wrap radius: move the attachments further from the joint axis (the wrap radius is at most
+the nearer one's distance from it).&quot; The suggested point on <code>Wrist_Pitch_Roll</code> is only 23.5 mm from the roll axis.</li>
+<li>Run 2 bends at 38.1 mm, also at its wrap radius.</li>
+<li>Run 5: &quot;Its slack loop is tight there: lay less slack or move the attachments apart.&quot; It bends to 50.8 mm at
+Rotation −90.5°, just under the allowed radius.</li>
+<li>Run 3 still snags at home.</li>
+</ul>
+<p>The cable needs 1.14 m between its first and last attachment at the runs' longest, and 1.41 m as laid. The 3 m cable
+is long enough, so there is no pull. The run to the host is extra and not modelled.</p>
+<p><strong>With the bend factor at 1.0</strong> (the maker's figure with no margin; set it under Settings, one undo step), only run 1
+is still flagged for its bend. The page shows which setting you used and labels it &quot;yours (default 1.5)&quot;.</p>
+<h2 id="3-test-a-motion">3. Test a motion</h2>
+<ol start="7">
+<li>Import a trajectory for the arm under <strong>Tasks</strong> (a CSV of t and joint values). This example used a &quot;reach and
+roll&quot; over 4 s: Rotation −1 → 0 → 1 rad, Elbow 1.57 → 0.6 → 1.57 rad and Wrist_Roll −1.57 → 0 → 1.57 rad. Press
+<strong>Run</strong>. Snags are now tested at home and at 91 poses along it (2° steps, a default). Run 1 snags at
+t = 1.73 s; run 2 at 20 of the 92 poses, first at t = 1.42 s; run 3 at 81. Runs 4 and 5 stay clear.</li>
+<li>The 3D view draws each run's loop at the pose on screen, in its status colour. Drag the joint sliders or play the
+trajectory to see where it catches. The Camera view draws the cables too, so you can see whether a cable crosses
+the wrist camera's own image. <strong>Preview</strong> draws the loops with the suggested laid lengths, dashed.</li>
+</ol>
+<h2 id="4-fix-and-export">4. Fix and export</h2>
+<ul>
+<li>Edit an attachment point in the <strong>Attachment points</strong> table: its link, its x, y, z in the link frame (mm), and the
+cable laid to the next point. Each edit is one undo step. Moving the <code>Wrist_Pitch_Roll</code> point further from the
+roll axis raises run 1's wrap radius. <strong>Use the sensor's position</strong> puts the selected point at the camera's mount.</li>
+<li>A larger <strong>Wrap radius</strong> (a guide ring or a spiral wrap round the joint) helps only up to the nearer attachment's
+distance from the axis. Set the attachments first.</li>
+<li><strong>Export…</strong> writes the harness sheet. It can be JSON (with provenance), CSV (one row per run: cable type,
+library entry, minimum bend radius with its source, slack loop per joint, laid lengths, connectors, strain relief
+and status) or HTML (the same content as tables) for the people who build the rig. In batch:
+<code>python -m dexvantage project.dexv --cables cables.json</code>.</li>
+</ul>
+<h2 id="the-ur5e-sample-what-a-full-turn-joint-means-for-a-cable">The UR5e sample: what a full-turn joint means for a cable</h2>
+<p>On the UR5e sample, the wrist D405's suggested cable with the VA Imaging active USB 3.0 cable (50 mm moving radius,
+75 mm allowed) needs 4.14 m between flange and base at the runs' longest. That is because the UR5e's model file
+gives five joints a range of ±2π. Run 6 (across the shoulder pan) needs 0.78 m of slack on its own, and run 4 (the
+elbow, ±π) needs 1.28 m. A 3 m cable pulls. The wrist and shoulder-lift runs bend to 37–65 mm, round wrap radii of 36–62 mm, below the
+allowed 75 mm. The study is right:
+a cable fixed on the outside of the arm cannot follow a joint that turns twice round. Limit the joints' ranges in the
+controller (the study reads the model file's limits; import a model with your ranges), or route through the arm.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The ALOHA 2, bimanual Panda and G1 samples · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/robot/bimanual_samples.py (the three builders), dexvantage/core/robot/samples.py(SAMPLES, BUNDLED, sample_project). Bundling: scripts/bundle_samples.py. Validation:dexvantage/validation/checks_samples.py (model samples). Tests: tests/test_samples_bimanual.py. Self-test …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#sources-and-licences">Sources and licences</a>
+    <a href="#aloha-2-aloha">ALOHA 2 (aloha)</a>
+    <a href="#franka-panda-bimanual-panda-bimanual">Franka Panda bimanual (panda-bimanual)</a>
+    <a href="#unitree-g1-upper-body-g1">Unitree G1 upper body (g1)</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/samples.md"><code>docs/models/samples.md</code></a></p>
+<h1 id="samples">The ALOHA 2, bimanual Panda and G1 samples</h1>
+<p>Modules: <code>dexvantage/core/robot/bimanual_samples.py</code> (the three builders), <code>dexvantage/core/robot/samples.py</code>
+(<code>SAMPLES</code>, <code>BUNDLED</code>, <code>sample_project</code>). Bundling: <code>scripts/bundle_samples.py</code>. Validation:
+<code>dexvantage/validation/checks_samples.py</code> (model <code>samples</code>). Tests: <code>tests/test_samples_bimanual.py</code>. Self-test line:
+<code>samples</code>. Batch: <code>dexvantage --sample aloha|panda-bimanual|g1 …</code> with any study flag.</p>
+<p>Spec §11 names five samples (<code>--sample aloha|so100|ur5e|panda-bimanual|g1</code>) and §14 says what each holds. This page
+describes how the three bimanual and humanoid ones are built from their official model files, what was changed in
+those files and why, and how each change was checked.</p>
+<h2 id="sources-and-licences">Sources and licences</h2>
+<p>All three come from MuJoCo Menagerie at commit <code>98a70c569c4c1b6da467a20012f766ee1f8dc521</code> (2026-11-02; the same
+commit as the SO-100, UR5e and Shadow Hand). Each folder's own <code>LICENSE</code> was read on 2026-11-07, is kept beside the
+bundled files and is recorded in <code>THIRD_PARTY.md</code> and <code>samples.BUNDLED</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Folder</th>
+<th>Licence</th>
+<th>Folder commit</th>
+<th>Bundled</th>
+<th>Files changed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>aloha</code></td>
+<td>BSD-3-Clause, © 2023 Trossen Robotics</td>
+<td><code>fb36886b30</code></td>
+<td>8.3 MB</td>
+<td>none (byte for byte); two arm files and <code>scene_parts.xml</code> written beside them</td>
+</tr>
+<tr>
+<td><code>franka_emika_panda</code></td>
+<td>Apache-2.0</td>
+<td><code>fb36886b30</code></td>
+<td>6.9 MB</td>
+<td>the 59 OBJ meshes as binary STL with the same triangles (34.3 MB of text → 6.8 MB)</td>
+</tr>
+<tr>
+<td><code>unitree_g1</code></td>
+<td>BSD-3-Clause, © 2016-2023 Unitree Robotics</td>
+<td><code>98a70c569c</code></td>
+<td>see below</td>
+<td>the 49 STL meshes <strong>simplified</strong> (measured below); an upper-body file written beside it</td>
+</tr>
+</tbody>
+</table>
+<p><code>franka_fr3</code> (Apache-2.0) was not used: its Menagerie model has no hand. Every figure that is not in a model file has
+a cited source (<code>bimanual_samples.SOURCES</code>, URL and date read) or is labelled a sample choice.</p>
+<h2 id="aloha-2-aloha">ALOHA 2 (<code>aloha</code>)</h2>
+<p><strong>Two robots, not one.</strong> <code>aloha.xml</code> holds both ViperX 300 arms in one file. The studies that work per gripper (the
+grasp study, the teleop study's follower, the hand-eye plan, the grasp sampler's handoff partner) take one gripper
+frame per robot, so the sample opens each arm as a robot of its own. <code>scripts/bundle_samples.py</code> writes
+<code>aloha_left.xml</code> and <code>aloha_right.xml</code> with <code>mujoco.MjSpec</code>: the other arm, the actuators, the gripper equality
+constraints, the keyframes and the world cameras deleted, the arm's <code>base_link</code> moved to the file's origin, and a
+keyframe <code>home</code> written with this arm's values of <code>aloha.xml</code>'s <code>neutral_pose</code>. The sample places the arms with the
+base poses of <code>aloha.xml</code> (parsed from the bundled file as the sample is built): the left arm is the primary robot (the
+world is its base frame, REP-103) and the right arm stands at (0.938, 0, 0) m turned half a turn about z.</p>
+<p><strong>One state vector for recordings.</strong> Each arm keeps <code>aloha.xml</code>'s joint names (<code>left/waist</code> … <code>left/right_finger</code>,
+<code>right/waist</code> …), so an ALOHA recording that stores both arms in one vector is read onto each arm by name
+(<code>core/datasets/joints.py</code>: a dataset column a model does not name is ignored).</p>
+<p><strong>Cameras.</strong> The ALOHA 2 paper (arXiv 2405.02292v1, read 2026-11-07): &quot;We upgrade the cameras used in the ALOHA
+system to 4 RealSense D405 cameras&quot; and &quot;All four cameras record 848 x 480 rgb images&quot; (§2.5); of the Menagerie model,
+&quot;We precisely model all cameras and robot positions of the ALOHA 2 specification&quot;. The four sensors are therefore
+library D405s (<code>intel-realsense-d405</code>) with the 848 × 480 stream, posed from Menagerie's own cameras: the wrist
+cameras <code>wrist_cam_left</code> / <code>wrist_cam_right</code> of <code>aloha.xml</code> (riding on <code>*/gripper_base</code>), and <code>overhead_cam</code> and
+<code>worms_eye_cam</code> of <code>scene.xml</code> (static). <code>scene.xml</code> itself is not bundled (its table and frame meshes add 4.9 MB):
+its two frame cameras and the table's collision box are copied with their attributes into <code>aloha/scene_parts.xml</code>.
+A MuJoCo camera looks along its −z with +y up; the sensor body frame is x forward, y left, z up, so
+R_body = R_cam · diag(1, −1, −1) · B, B the body-to-optical rotation of <code>core/frames.py</code>. The sensors carry the names
+of the ALOHA recordings, <code>cam_high</code>, <code>cam_low</code>, <code>cam_left_wrist</code>, <code>cam_right_wrist</code> (tonyzhaozh/aloha
+<code>aloha_scripts/constants.py</code>, read 2026-11-07).</p>
+<p><strong>Table.</strong> <code>scene.xml</code>'s collision box <code>table</code> (1.22 × 0.74 m, its top 0.9 mm below <code>aloha.xml</code>'s origin; the paper's
+&quot;48&quot; x 30&quot; table&quot;), 20.9 mm below the arms' base plane.</p>
+<p><strong>Teleop.</strong> Two leader arms from the library's ALOHA leader entry (<code>aloha-widowx-250-leader</code>, its figures with
+their sources): &quot;two ViperX 6-DoF arms … along with 2 smaller WidowX arms … The WidowX contains the same kinematic
+structure as the ViperX … The follower joints are synchronized with the leader arms&quot; (the paper, §1). Each leads its
+follower joint to joint; the WidowX's own joint ranges are not stated, so the follower's are used (the device record
+says so: an assumption). With two followers the teleop study's bimanual part runs: reach overlap, the
+handover zone's quality and the arm-to-arm margin.</p>
+<p><strong>Sample choices</strong> (labelled &quot;(sample)&quot;): a 0.50 × 0.40 × 0.20 m tabletop volume between the arms and a
+0.20 × 0.20 × 0.15 m handover zone above the table's middle; a handover trajectory per arm (each TCP to 50 mm short
+of the handover zone's centre along the line between the bases, the right gripper closes, both go home; position-only
+IK from the waypoint before); grasp sets: 100 top-down and angled grasps per arm (TCP 60 mm above the table) and 60 bimanual handoffs for the left
+arm (its partner the right arm); the policy ACT (Zhao et al. 2023, trained on ALOHA).</p>
+<h2 id="franka-panda-bimanual-panda-bimanual">Franka Panda bimanual (<code>panda-bimanual</code>)</h2>
+<p>There is no official bimanual Franka model (spec §14.4). The cell is two instances of Menagerie's single-arm
+<code>franka_emika_panda/panda.xml</code> with the Franka Hand: the file is imported once and the second robot is a copy of its
+records and files under a new uid (one compiled model serves both). The left arm is the primary robot; the right arm
+stands 0.8 m along −y, both facing +x (a sample layout). Each hand carries a wrist RealSense D405 0.07 m off the tool
+axis looking at the pinch point, and a RealSense D435 stands 0.85 m in front of the table looking back at the arms
+(sample placements). The teleop devices are the library's GELLO entry (&quot;we build a GELLO controller device that has the
+same kinematic structure as the target arm&quot;, Wu et al. 2023), one per arm. Volumes, the handover trajectories, the grasp sets (100 top-down, side
+and angled grasps per arm, 60 handoffs) and Diffusion Policy are sample choices.</p>
+<p><strong>Mesh conversion.</strong> <code>panda.xml</code> uses 59 OBJ visual meshes (34.3 MB of text). They are rewritten as binary STL with
+the same triangles (float32), named <code>&lt;stem&gt;_obj.stl</code> because the folder already has STL collision meshes of the same
+stem (<code>link1.stl</code> beside <code>link1.obj</code>); a <code>&lt;mesh&gt;</code> that had no name is given its old file stem, the name MuJoCo gave
+it. The script compares every triangle of every geom at the home keyframe with the original: 0 m.</p>
+<h2 id="unitree-g1-upper-body-g1">Unitree G1 upper body (<code>g1</code>)</h2>
+<p><strong>The model.</strong> Menagerie's <code>g1_with_hands.xml</code>: both arms (7 joints each) with a three-finger hand each (7 joints:
+thumb 3, index 2, middle 2). Menagerie does not name the hand, so it is not called Dex3.</p>
+<p><strong>Legs and waist held.</strong> <code>g1_upper_body.xml</code> is <code>g1_with_hands.xml</code> with the free joint <code>floating_base_joint</code>
+deleted and the pelvis placed at the <code>stand</code> keyframe's base pose (0, 0, 0.79 m, upright), and its 12 leg joints and 3
+waist joints deleted. At <code>stand</code> all 15 are 0, so deleting them leaves every body exactly where <code>stand</code> puts it (the
+script refuses if one is not 0). q is the 28 arm and hand joints, in one state vector; no joint is shared by the two
+arms, so IK on one arm leaves the other put (<code>manipulability.chain_mask</code>). <code>stand</code> puts the thumbs' second joint at
+±1.05 rad, 0.0028 rad past its ±1.0472 rad limit; DexVantage's home clips it to the limit.</p>
+<p><strong>Mesh simplification (measured).</strong> The 49 meshes <code>g1_with_hands.xml</code> uses are 31.5 MB of STL (629 338 triangles,
+CAD exports: a 4 cm finger link has 30 434 triangles); the package budget is 12 MB per robot. They are simplified by
+quadric edge collapse (fast-simplification 0.2.0, optional extra <code>bundle</code>; aggressiveness 1 and 3 tried, the fewest
+triangles within tolerance kept) with a bisection on the reduction, each mesh as far as its <strong>two-sided Hausdorff
+distance</strong> from the original stays within <strong>0.5 mm</strong> (a DexVantage choice: under 1.5 px of the head D435's
+1920 × 1080 colour stream at 0.5 m). The distance is measured on each mesh's vertices plus 40 000 area-weighted samples
+of its surface against the other's exact surface (point-to-triangle distance, Ericson 5.1.5, with an exact candidate
+bound), both ways. Result: 629 338 triangles became 216 325 (10.82 MB of STL; the folder with its XML and LICENSE 10.9 MB); the largest distance of any mesh is 0.497 mm (the hand links, which were reduced most: a 9 518-triangle finger base to 2 376), the median 0.45 mm; one mesh (<code>pelvis_contour_link</code>) could not be reduced within the tolerance and is kept as it was. The simplified files are named <code>&lt;stem&gt;.simplified.stl</code>, the comment at the
+top of <code>unitree_g1/g1_with_hands.xml</code> says so, and so do the robot's source note and the project notes. Where the
+geometry matters to a millimetre, import the full model with Robot ▸ Import from MuJoCo Menagerie (<code>unitree_g1</code>).</p>
+<p><strong>Head camera.</strong> Unitree's own URDF <code>g1_29dof_rev_1_0.urdf</code> (unitreerobotics/unitree_ros, commit <code>7c40519</code>, read
+2026-11-07) has <code>d435_joint</code>: torso_link → <code>d435_link</code>, xyz (0.0576235, 0.01753, 0.42987) m, rpy
+(0, 0.8307767239493009, 0) rad (47.6° down). Its <code>torso_link</code> and <code>head_link</code> offsets equal Menagerie's (the head's
+(0.0039635, 0, −0.044) m), so the frame is placed on Menagerie's <code>torso_link</code> as written. Unitree's G1 page states only
+&quot;Depth Camera+3D LiDAR&quot;, so the RealSense D435 is the model the frame's name gives, and the frame is taken as the
+camera's body frame (x along the optical axis); the URDF does not say which point of the camera it marks.</p>
+<p><strong>Palm and thumb contact.</strong> Menagerie's own collision meshes of the palm (on <code>*_wrist_yaw_link</code>) and the thumb's middle
+link (<code>*_hand_thumb_1_link</code>) overlap by 0.27 mm at <code>stand</code> (<code>mj_geomDistance</code> on the original files; the simplified
+meshes give the same). The two are hinged together through the thumb's first link, so <code>g1_upper_body.xml</code> excludes the
+pair from contact (<code>&lt;contact&gt;&lt;exclude&gt;</code>, as MuJoCo excludes a parent and child); without it every arm pose counted as a
+self-collision and the hand-eye planner found no pose.</p>
+<p><strong>Hand frames.</strong> The palm mesh is a geom of <code>right_wrist_yaw_link</code> (there is no palm body), so the gripper frame is
+<code>right_wrist_yaw_link</code> and the fingertips <code>right_hand_thumb_2_link</code>, <code>right_hand_index_1_link</code>,
+<code>right_hand_middle_1_link</code>; one gripper per robot, so the left hand moves with q but is not the grasp study's gripper.</p>
+<p><strong>Sample choices.</strong> A chest-high table 0.40 × 0.90 m, its top 0.08 m above the wrists at <code>stand</code> (0.80 m; at <code>stand</code>
+the arms hang beside the hips), its near edge 0.20 m in front of the pelvis: there the head camera's view (47.6° down)
+and the hands' reach meet (at a 0.62 m table the camera saw the volume but the right hand reached few angled grasps,
+and the hands were out of view). A 0.20 × 0.50 × 0.16 m tabletop volume, a handover zone between the hands and
+&quot;Right hand's reach (sample)&quot;, 0.15 × 0.20 × 0.10 m, where the right hand can hold an angled grasp (over the whole
+tabletop about 80 % of angled grasps are out of its reach); one trajectory moving both arms (each wrist TCP to a point
+over the table, the right hand closing along its sample power posture, <code>core/dexhand.py default_synergies</code>); 100
+angled grasps for the right hand in its reach volume; the multi-finger study's joint state set to the trajectory's
+reach (the hands over the table, open), not <code>stand</code>; GR00T N1.5. The teleop device
+is the library's Apple Vision Pro entry, as Unitree's xr_teleoperate drives the G1 (&quot;Wear your XR headset (e.g. Apple
+Vision Pro, PICO4, etc.)&quot;); no source states its tracking volume, so it is left empty and the teleop study says so.</p>
+<h2 id="validation">Validation</h2>
+<p><code>checks_samples.py</code>, every reference MuJoCo compiling the bundled files directly (not DexVantage's importer, model or
+mounts):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance (why)</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>samples.aloha_arms</code></td>
+<td>every link of both arm robots against <code>aloha.xml</code> (both arms in one file), left base frame, 50 random joint vectors</td>
+<td>10⁻⁶ m (<code>to_xml</code> writes about six significant digits)</td>
+<td>4.6 × 10⁻⁷ m</td>
+</tr>
+<tr>
+<td><code>samples.aloha_cameras</code></td>
+<td>the four sensors' world poses against MuJoCo's camera frames (<code>mj_camlight</code>) of <code>aloha.xml</code> and <code>scene_parts.xml</code></td>
+<td>10⁻⁶ m (same rounding)</td>
+<td>5.1 × 10⁻⁷ m</td>
+</tr>
+<tr>
+<td><code>samples.g1_held_legs</code></td>
+<td>every link of the upper body against <code>g1_with_hands.xml</code> at <code>stand</code>, 51 joint vectors</td>
+<td>10⁻⁶ m</td>
+<td>0 m</td>
+</tr>
+<tr>
+<td><code>samples.g1_head_camera</code></td>
+<td>the head camera against Unitree's <code>d435_joint</code> composed on MuJoCo's <code>torso_link</code> (R = Rz Ry Rx written out)</td>
+<td>10⁻¹² m (rounding only)</td>
+<td>2.2 × 10⁻¹⁶ m</td>
+</tr>
+<tr>
+<td><code>samples.panda_instances</code></td>
+<td>both Pandas against <code>panda.xml</code>'s bodies moved by each base pose</td>
+<td>10⁻⁹ m</td>
+<td>0 m</td>
+</tr>
+</tbody>
+</table>
+<p>The bundling script measures what cannot be checked without the originals: the arm files against <code>aloha.xml</code>
+(4.5 × 10⁻⁷), the frame cameras and table against <code>scene.xml</code> (0), the Panda's triangles against the OBJ files (0 m),
+the G1 meshes' Hausdorff distances (above) and the upper body against the full model (0). The robot catalogue check
+(<code>robots.catalogue_dof</code>) recounts the bundled <code>aloha.xml</code>, <code>panda.xml</code> and <code>g1_with_hands.xml</code> against its records.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>ALOHA 2: the grippers' two fingers are coupled by an equality constraint in <code>aloha.xml</code> that the arm files leave
+out (kinematics treats each finger joint on its own, as for the 2F-85); the WidowX leader arms are modelled with the
+followers' own joints and ranges; the aluminium frame and the camera mounts of <code>scene.xml</code> are not occluders (only
+the table is, as a surface).</li>
+<li>Panda: the cell layout, the camera placements and the GELLO leaders are sample choices; the two arms share one
+compiled model, so a change to one robot's file does not apply to the other.</li>
+<li>G1: the simplified meshes differ from Menagerie's by up to the measured Hausdorff distance; the legs and waist do not
+move and the pelvis is fixed in the world (a humanoid that steps, squats or bends at the waist is not modelled); the
+head camera's model is inferred from its frame's name; the stand keyframe's thumb value is clipped to its limit.</li>
+<li>Every study that works per gripper sees one gripper per robot (the G1's right hand).</li>
+<li>The G1's head camera rides on <code>torso_link</code>, which no joint moves here: the hand-eye planner and solve treat it as a
+static camera (<code>core/calib/records.py camera_mount</code>, a link no joint moves counts as the world), but the silhouette
+calibration still asks for a camera not on a robot link and refuses it.</li>
+<li>The synthetic episodes (<code>--synth-episodes</code>) move one robot, so an ALOHA or Panda campaign records one arm's joints.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -196,6 +196,7 @@ def test_handeye_plan_sigma(lit):
     _ok(lit.ev('handeye.ratio'), d['worst']['ratio'])
 
 
+@pytest.mark.mujoco_render
 def test_groundtruth_agreement(lit):
     s = lit.doc('groundtruth')['summary']
     _ok(lit.ev('groundtruth.agreement'), s['agreement_pct'], '%')
@@ -258,6 +259,7 @@ def test_rig_cost_sums_stated_prices_and_refuses_mixed_currencies(lit):
             e.data = saved[k]
 
 
+@pytest.mark.mujoco_render
 def test_data_studies_on_a_small_synthetic_campaign(tmp_path):
     from dexvantage.core.sim import episodes as SE
     from dexvantage.core.studies.audit import use_dataset

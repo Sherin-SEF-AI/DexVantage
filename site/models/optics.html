@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Optics: lens models, pixel density and defocus · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/optics/lens.py (exported by dexvantage/core/optics/__init__.py). Checks:dexvantage/validation/checks_optics.py (model optics). Tests: tests/test_optics.py.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#conventions">Conventions</a>
+    <a href="#the-models">The models</a>
+    <a href="#pixel-density-and-viewing-angle-71">Pixel density and viewing angle (§7.1)</a>
+    <a href="#defocus-71-thin-lens">Defocus (§7.1): thin lens</a>
+    <a href="#optics-validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="#optics-mujoco">Against MuJoCo-rendered fiducials</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/optics.md"><code>docs/models/optics.md</code></a></p>
+<h1 id="optics">Optics: lens models, pixel density and defocus</h1>
+<p>Module: <code>dexvantage/core/optics/lens.py</code> (exported by <code>dexvantage/core/optics/__init__.py</code>). Checks:
+<code>dexvantage/validation/checks_optics.py</code> (model <code>optics</code>). Tests: <code>tests/test_optics.py</code>.</p>
+<p>The projection mathematics is ported from Vantage <code>core/lens.py</code> (the radial functions r(θ), the Kannala-Brandt
+polynomial, fitting Kannala-Brandt terms to a stated field of view, and Intrinsics' projection and unprojection).
+DexVantage works in pixels throughout, uses OpenCV's parameterisation and pixel convention, adds the Brown-Conrady
+model, an exact constrained fit through the stated angles, and thin-lens defocus.</p>
+<h2 id="conventions">Conventions</h2>
+<ul>
+<li><strong>Points</strong> are in the camera's optical frame (REP-103 <code>_optical_frame</code>): z forward along the optical axis, x right,
+y down, metres. θ = atan2(√(X² + Y²), Z) is the angle off the axis.</li>
+<li><strong>Pixels</strong> follow OpenCV: the centre of pixel (i, j) is the point (u, v) = (i, j). The image spans
+u ∈ [−0.5, W − 0.5], v ∈ [−0.5, H − 0.5]; a centred principal point is cx = (W − 1)/2, cy = (H − 1)/2.
+<em>Vantage put pixel centres at i + ½ (image [0, W], centre W/2); DexVantage does not.</em> Resampling the image by s maps
+u to s (u + ½) − ½ (<code>CameraModel.scaled</code>).</li>
+<li>u = fx · xd + cx, v = fy · yd + cy, with (xd, yd) the model's normalised image coordinates. No skew.</li>
+</ul>
+<h2 id="the-models">The models</h2>
+<p><code>CameraModel(width, height, fx, fy, cx, cy, model, dist, max_theta)</code> is a frozen (hashable) dataclass.</p>
+<table>
+<thead>
+<tr>
+<th><code>model</code></th>
+<th>normalised image point (xd, yd)</th>
+<th><code>dist</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pinhole</code></td>
+<td>(X/Z, Y/Z)</td>
+<td>empty</td>
+</tr>
+<tr>
+<td><code>brown</code></td>
+<td>x = X/Z, y = Y/Z, r² = x² + y², c = (1 + k1 r² + k2 r⁴ + k3 r⁶)/(1 + k4 r² + k5 r⁴ + k6 r⁶); xd = x c + 2 p1 x y + p2 (r² + 2x²), yd = y c + p1 (r² + 2y²) + 2 p2 x y [Brown 1966; OpenCV calib3d]</td>
+<td>(k1, k2, p1, p2, k3) or (k1, k2, p1, p2, k3, k4, k5, k6)</td>
+</tr>
+<tr>
+<td><code>kb</code></td>
+<td>θd = θ (1 + k1 θ² + k2 θ⁴ + k3 θ⁶ + k4 θ⁸); (xd, yd) = θd (X, Y)/√(X² + Y²) [Kannala and Brandt 2006; OpenCV fisheye]</td>
+<td>(k1, k2, k3, k4)</td>
+</tr>
+<tr>
+<td><code>equidistant</code></td>
+<td>g(θ) = θ</td>
+<td>empty</td>
+</tr>
+<tr>
+<td><code>equisolid</code></td>
+<td>g(θ) = 2 sin(θ/2)</td>
+<td>empty</td>
+</tr>
+<tr>
+<td><code>stereographic</code></td>
+<td>g(θ) = 2 tan(θ/2) [Miyamoto 1964]</td>
+<td>empty</td>
+</tr>
+</tbody>
+</table>
+<p>For the radial models (xd, yd) = g(θ) (X, Y)/√(X² + Y²) with g = r/f. <code>equidistant</code> is <code>kb</code> with k = 0 exactly.
+OpenCV's fisheye computes θ as atan(r) of (X/Z, Y/Z), which equals atan2 in front of the camera; DexVantage's θ may
+pass 90° (a fisheye sees behind its own plane).</p>
+<p><strong>The valid angle <code>max_theta</code></strong> (rad) is the largest angle off the axis the model maps. A point beyond it, or behind
+a <code>pinhole</code> or <code>brown</code> camera, is never projected: its uv is NaN and ok is False; it is never wrapped onto the image.
+A pixel beyond it has no ray (NaN). Left out, it is the angle where the model stops being one-to-one:</p>
+<ul>
+<li><code>pinhole</code>: 90°.</li>
+<li><code>brown</code>: the first angle where, in one of 72 directions around the axis, the image radius stops rising, the
+Jacobian determinant of the distortion map reaches zero, or c's denominator does (4000 angles, refined by
+bisection). Tangential terms grow as r² against the radial r·c, so a model with p1 or p2 always folds somewhere.</li>
+<li><code>kb</code>: the first angle where θd(θ) stops rising, at most 180°.</li>
+<li><code>equidistant</code>, <code>equisolid</code>, <code>stereographic</code>: 180°.</li>
+</ul>
+<p>A <code>max_theta</code> beyond that angle is refused with the reason (two rays would share a pixel). A smaller one models a
+circular fisheye image: the corners then have no rays and <code>fov_deg</code> counts them at the valid angle.</p>
+<h3 id="projection-and-unprojection">Projection and unprojection</h3>
+<p><code>project(P)</code> returns <code>(uv (N, 2), ok (N,))</code>; ok means in front within the valid angle and inside the image (each edge
+widened by <code>EDGE_TOL_PX</code> = 10⁻⁹ px so a ray unprojected from the edge itself counts as inside). uv is finite but ok
+False when the point is valid but off the image. <code>unproject(uv)</code> returns unit rays (N, 3); <code>with_ok=True</code> also
+returns the validity. <code>pixel_rays(stride)</code> gives the rays of the pixel centres u = 0, stride, … as (H′, W′, 3).
+Any leading shape is accepted.</p>
+<ul>
+<li><strong>Brown-Conrady inverse</strong>: Newton's method on (x, y) with the analytic 2 × 2 Jacobian (OpenCV's <code>undistortPoints</code>
+iterates the fixed point instead), started at the distorted point, kept inside the one-to-one disc (an iterate
+outside is pulled back to its edge; twice outside means no root inside), converged when the re-distorted point is
+within 10⁻¹² (normalised units, about 10⁻⁹ px at f = 1000 px). A pixel that does not converge has no ray.</li>
+<li><strong>Kannala-Brandt inverse</strong>: Newton's method on θ, safeguarded by bisection inside a bracket on
+[0, min(max_theta, fold angle)], where θd(θ) rises, so the root is unique. Radii beyond θd(max_theta) have no ray.</li>
+<li><strong>Classical projections</strong>: closed forms (atan, θ = r, 2 asin(r/2), 2 atan(r/2)).</li>
+</ul>
+<h3 id="fields-of-view">Fields of view</h3>
+<p><code>fov_deg()</code> returns <code>{'h', 'v', 'd'}</code> from the model itself: the angle off the axis of the left edge (u = −0.5) plus
+that of the right edge (u = W − 0.5) along the principal point's row; likewise top and bottom; and corner to corner,
+the mean of the two diagonals. An edge beyond the valid angle counts at the valid angle.</p>
+<p><code>CameraModel.from_fov(width, height, hfov_deg, vfov_deg=None, model='pinhole', *, dfov_deg=None, max_theta=None)</code>
+centres the principal point and reproduces the stated angles; <code>fit_fov(...)</code> returns the model with a report
+(<code>base</code>, <code>f_px</code>, <code>fit</code>, <code>stated</code>, <code>model_fov</code>, <code>max_error_deg</code>, <code>note</code>).</p>
+<ul>
+<li><code>pinhole</code>, <code>brown</code> (zero distortion: none is stated), <code>equidistant</code>, <code>equisolid</code>, <code>stereographic</code>:
+W/2 = fx · g(h/2) in closed form; fy from the vertical angle when one is given (non-square pixels), else fy = fx.
+A diagonal angle cannot be matched as well and is refused.</li>
+<li><code>kb</code>: square pixels. With the horizontal angle only, the equidistant curve. With a vertical and/or diagonal angle,
+ported from Vantage: the base projection and focal length that alone fit the stated points best
+(<code>best_base</code>, least squares of r = f g(θ) relative to each half size; pinhole a candidate only below 160°), then
+Kannala-Brandt terms. New in DexVantage, <code>fit_kb_exact</code> passes the curve <strong>through</strong> the stated points (up to three
+equality constraints on four terms, the remaining freedom kept closest to the base curve sampled out to the image
+corner: a KKT system). If that curve folds back before the image corner plus 2°, Vantage's weighted fit
+(<code>fit_kb_to_fov</code>, weights 50, 20, 8) is used at the strongest weight whose curve still rises. The valid angle
+reaches <code>FIT_MARGIN_DEG</code> = 2° past the image corner. The stated angles are reproduced; <strong>the curve between them is
+a model, not a measurement</strong>, and the report's note says so.</li>
+<li><code>from_fov</code> refuses (ValueError, saying why and what to check) a fit that misses a stated angle by more than
+<code>FOV_FIT_TOL_DEG</code> = 0.5°, a default of DexVantage: such figures fit no one-to-one lens with square pixels on that
+image, typically because they were stated for another crop or resolution. <code>fit_fov</code> returns the best effort.</li>
+</ul>
+<h3 id="conversions">Conversions</h3>
+<p><code>from_opencv(K, D, width, height, model)</code> takes OpenCV's K and D (aliases: <code>fisheye</code> → <code>kb</code>; <code>plumb_bob</code>,
+<code>rational_polynomial</code> → <code>brown</code>; <code>pinhole</code> with non-zero D is read as <code>brown</code>, as <code>cv2.projectPoints</code> reads it). Skew,
+thin-prism and tilt terms are refused. <code>to_opencv()</code> returns <code>(K, D, model_str)</code>: <code>pinhole</code> (D five zeros) and <code>brown</code>
+for <code>cv2.projectPoints</code>, <code>kb</code> for <code>cv2.fisheye</code>; <code>equidistant</code> is exactly <code>kb</code> with zero terms; <code>equisolid</code> and
+<code>stereographic</code> have no OpenCV form and are returned as the least-squares Kannala-Brandt curve over the image's angles
+(<code>kb_approximation()</code> gives the terms and the largest error in pixels: 6 × 10⁻⁸ px for a 180° equisolid lens on
+1920 × 1080, 0.016 px for a 180° stereographic one). <code>to_dict</code> / <code>from_dict</code> store the figures with
+<code>&quot;pixel_centres&quot;: &quot;opencv&quot;</code>; <code>scaled(w, h)</code> resamples.</p>
+<h2 id="pixel-density-and-viewing-angle-71">Pixel density and viewing angle (§7.1)</h2>
+<p><code>pixels_per_metre(P, normals=None)</code> is the <strong>local linear pixel density</strong> at P: √|det J|, with J the 2 × 2 Jacobian
+of (u, v) with respect to the two lateral coordinates (metres) of a small flat patch at P facing the camera (normal
+along the line of sight). It is the square root of the pixels per square metre: the geometric mean of the densities
+along the patch's two principal directions (the densities along single directions lie between J's singular values).
+Pixels per millimetre are <code>pixels_per_metre / 1000</code> (<code>pixels_per_mm</code>). With R = |P| and g = r/f:</p>
+<pre><code>pinhole:         det J = fx fy / (R² cos³θ)
+brown:           det J = fx fy |det D(x, y)| / (R² cos³θ)          D = ∂(xd, yd)/∂(x, y) at x = X/Z, y = Y/Z
+radial models:   det J = fx fy g′(θ) g(θ) / (R² sin θ)            → fx fy g′(0)² / R² on the axis
+</code></pre>
+<p>(the image area per solid angle times the solid angle per area at range R, 1/R²). On the axis a pinhole gives f/Z.
+For a surface with normal n, α the angle between n and the line of sight: the line of sight is in the null space of
+the projection's 3-D Jacobian, so the tilted patch's area scales by |cos α| and the density by √|cos α|
+(<code>normals=</code>). <code>angle_to_axis(P)</code> is θ; <code>incidence_angle(P, normals)</code> is α (0 = facing the camera).</p>
+<h2 id="defocus-71-thin-lens">Defocus (§7.1): thin lens</h2>
+<p>For focal length f, f-number N (aperture diameter A = f/N), focus distance s and an object at z (distances from the
+lens's principal plane), the Gaussian lens equation 1/f = 1/s + 1/v gives the image distances v_s = f s/(s − f) and
+v_z = f z/(z − f); by similar triangles the blur disc on the sensor at v_s has diameter
+b = A |v_z − v_s| / v_z, which simplifies to</p>
+<pre><code>b(z) = A f |s − z| / (z (s − f))            (s = ∞:  b = A f / z)   [Ray 2002; Hecht 2017]
+</code></pre>
+<p><code>blur_circle_px(f_mm, f_number, focus_m, z_m, pixel_um)</code> returns b / pixel pitch (z may be an array; z ≤ f gives
+inf). <code>depth_of_field(f_mm, f_number, focus_m, coc_mm)</code> solves b(z) = c:</p>
+<pre><code>near = s A f / (A f + c (s − f)),    far = s A f / (A f − c (s − f))   (∞ when A f ≤ c (s − f))
+</code></pre>
+<p>which equals the photographic hyperfocal form (H = f²/(N c) + f; near = s (H − f)/(H + s − 2f), far = s (H − f)/(H − s))
+that the check writes out separately. Any figure <code>None</code> (not stated by the maker) gives <code>None</code>; an f-number is often
+not stated, so the coverage study then reports defocus as not given. <code>DEFAULT_COC_PX</code> = 2 px is a <strong>default</strong> of
+DexVantage (a blur spot up to two pixels across counts as sharp), a user setting, not a standard.</p>
+<h2 id="optics-validation">Validation</h2>
+<p>Measured with the default seed (20261027), full run, 0.6 s:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Measured</th>
+<th>Tolerance and why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>optics.opencv_pinhole_brown</code></td>
+<td><code>cv2.projectPoints</code> (16 cameras, none / 5-term / 8-term rational, 32 000 points)</td>
+<td>1.8 × 10⁻¹² px</td>
+<td>10⁻⁶ px: the same polynomial in double precision, differing only in operation order; a half-pixel shift or swapped p1/p2 shows as ≥ 10⁻³ px</td>
+</tr>
+<tr>
+<td><code>optics.opencv_fisheye</code></td>
+<td><code>cv2.fisheye.projectPoints</code> (16 cameras, up to 85°, points on the axis)</td>
+<td>5.7 × 10⁻¹³ px</td>
+<td>10⁻⁶ px: as above</td>
+</tr>
+<tr>
+<td><code>optics.round_trip</code></td>
+<td>the pixels and rays themselves, every model</td>
+<td>4.7 × 10⁻¹³ px; ray angle 1.1 × 10⁻¹⁴ rad (bound 10⁻⁹)</td>
+<td>10⁻⁶ px: the iterative inverses converge to 10⁻¹² normalised</td>
+</tr>
+<tr>
+<td><code>optics.from_fov</code></td>
+<td>the stated angles, read back through <code>fov_deg</code> and, for the undistorted pinhole fits, also through the pinhole closed form from the fitted fx, fy, cx, cy (independent of <code>fov_deg</code>; worst 1.4 × 10⁻¹⁴ °); for <code>kb</code>, consistent H/V/D generated from pinhole and fisheye lenses written out in the check (210 fits)</td>
+<td>2.3 × 10⁻¹² °</td>
+<td>10⁻⁶ °: closed forms and an exact constrained fit; half a pixel at the edge is about 0.05°</td>
+</tr>
+<tr>
+<td><code>optics.pixel_density</code></td>
+<td>central finite differences of <code>project</code> on a patch (facing and tilted), every model</td>
+<td>8.2 × 10⁻⁹ relative</td>
+<td>10⁻⁶: truncation ~10⁻¹⁰, rounding ~10⁻⁸; a missing cos θ factor is ≥ 10⁻² off axis</td>
+</tr>
+<tr>
+<td><code>optics.depth_of_field</code></td>
+<td>the hyperfocal-distance formulae, both sides of H, and focus at infinity</td>
+<td>2.9 × 10⁻¹³ relative</td>
+<td>10⁻¹⁰: two algebraic forms of one result</td>
+</tr>
+<tr>
+<td><code>optics.blur_circle</code></td>
+<td>the thin-lens equation and similar triangles in exact rational arithmetic; blur at the DOF limits = c</td>
+<td>1.1 × 10⁻¹³ relative</td>
+<td>10⁻¹¹: DexVantage's own rounding, amplified by s/</td>
+</tr>
+</tbody>
+</table>
+<p>The round-trip check counts the pixels that have no ray (1025 of 120 000 with the default seed: random Brown-Conrady
+models whose curve folds back before the image corner); they are refused, not compared.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>Thin lens only: no pupil magnification, diffraction, aberrations or focus breathing; defocus distances are from
+the principal plane, not the camera's front face.</li>
+<li>No skew, no thin-prism or tilt terms, no rolling shutter (§7.9 adds time).</li>
+<li>A model fitted from a stated FOV reproduces the stated angles; its distortion between and beyond them is a model.
+A calibration (<code>Sensor.calibration</code>, OpenCV K and D) replaces it when the unit has one.</li>
+<li>The Brown-Conrady valid angle is found on 72 directions and 4000 angles: a fold narrower than that could slip
+through, and a positive Jacobian on a disc makes the map locally, not provably globally, one-to-one. A strongly
+distorted calibration can fold back inside its own image; those pixels get no ray rather than a wrong one.</li>
+<li><code>pixels_per_metre</code> is the geometric mean density; a study that needs the worst direction should use J's smaller
+singular value (not provided yet).</li>
+<li>MuJoCo's fiducial check (below) covers MuJoCo's pinhole cameras only; MuJoCo renders no distortion, so the
+distorted models are checked against OpenCV alone.</li>
+</ul>
+<h2 id="references">References</h2>
+<p>Brown 1966 (<code>brown1966</code>); Kannala and Brandt 2006 (<code>kannala_brandt2006</code>); Miyamoto 1964 (<code>miyamoto1964</code>); OpenCV calib3d
+and fisheye (<code>opencv_calib3d</code>, <code>opencv_fisheye</code>); Ray 2002 (<code>ray2002</code>); Hecht 2017 (<code>hecht2017</code>); Hartley and Zisserman
+2004 (<code>hartley2004</code>). Full entries in <code>dexvantage/validation/references.py</code>.</p>
+<h2 id="optics-mujoco">Against MuJoCo-rendered fiducials</h2>
+<p>Spec §10 asks for MuJoCo's camera projection of rendered fiducials within a stated, measured pixel tolerance. Two
+checks (<code>dexvantage/validation/checks_optics_mujoco.py</code>) do it. A scripted MJCF scene holds a 9 × 7 grid of spheres
+spread over the image, at 0.4 to 1.5 m, each about 14 px across (150–220 px masks), drawn with 128 slices so their
+outline is round; MuJoCo renders a segmentation image through EGL with multi-sampling off (<code>validation/mjrender.py</code>).
+Three cameras: <code>fovy=&quot;60&quot;</code> at 640 × 480 (our <code>CameraModel.from_fov</code>); <code>focal</code> in metres with a <code>sensorsize</code> and
+fx ≠ fy at 640 × 480; <code>focalpixel</code> with a <code>principalpixel</code> offset at 800 × 600.</p>
+<p>Frames, written out: MuJoCo's camera looks along its −z axis, +x right, +y up (XML reference, body/camera). Our optical
+frame looks along +z, +x right, +y down. A world point X is P = R_optᵀ (X − p) in the optical frame, with
+R_opt = R_cam · diag(1, −1, −1), R_cam = <code>data.cam_xmat</code> and p = <code>data.cam_xpos</code>. Row 0 of a <code>mujoco.Renderer</code> image is
+the top, and pixel centres are at integer (column, row), as OpenCV counts them. A fovy camera has square pixels with
+fy = (H/2) / tan(fovy/2) and the principal point at ((W − 1)/2, (H − 1)/2); with a sensor size, fx = focal_x · W /
+sensor width (MuJoCo stores focal and principal in length units in <code>cam_intrinsic</code>).</p>
+<p><strong>The principal offset's direction is not stated in MuJoCo's reference.</strong> Rendered on MuJoCo 3.17.0, <code>principalpixel</code>
+(px, py) moves the image of the optical axis to ((W − 1)/2 − px, (H − 1)/2 − py), row 0 at the top: an x offset to the
+left, a y offset upwards. <code>mjrender.camera_model</code> uses that; the third camera then checks that the offset is a pure
+shift and combines correctly with the focal lengths, not the sign itself (which was read off a render). An MJCF
+exporter (§9.2) must write the principal point with these signs.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Compared</th>
+<th>Measured (default seed)</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>optics.mujoco_fiducial_masks</code></td>
+<td>centroid of each sphere's MuJoCo mask against the centroid of the mask CameraModel predicts (pixel centres whose ray falls within the sphere's angular radius asin(r/d))</td>
+<td>worst 0.075 px over 189 fiducials (fovy 0.046, focal 0.075, principal 0.045); median 0 (identical masks); smallest mask overlap 98.9 %</td>
+<td>0.1 px: one boundary pixel decided the other way moves a 180 px centroid by about 0.04 px</td>
+</tr>
+<tr>
+<td><code>optics.mujoco_fiducial_centres</code></td>
+<td>the MuJoCo centroid against the image centre CameraModel.project predicts: midway between the projections of the two tangent rays at θ ± α in the plane of the axis and the sphere centre (a sphere's image is an ellipse whose centre is not the projected sphere centre)</td>
+<td>worst 0.167 px, median 0.068 px; without the ellipse correction the offset is up to 0.254 px (the perspective bias)</td>
+<td>0.3 px: the centroid sampling error of these masks alone, measured on CameraModel's own predicted masks against the predicted centres, is 0.167 px</td>
+</tr>
+</tbody>
+</table>
+<p>So the sub-pixel bias of a fiducial centroid has two parts, both measured here: the perspective bias of a sphere's
+image (0.25 px at 14 px across, growing with the angle from the axis and the size) and pixel sampling (0.17 px).
+Neither is an error of the projection model; with both removed, MuJoCo and CameraModel agree to 0.075 px. The render
+takes about 0.4 s. Without EGL the checks fail with the reason, they are not skipped.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

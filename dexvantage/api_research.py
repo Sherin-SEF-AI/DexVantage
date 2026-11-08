@@ -27,16 +27,25 @@ from __future__ import annotations
 import builtins
 import json
 import os
+from typing import TYPE_CHECKING, Sequence
 
 from .core import jobs
 from .core.projdiff import MergeConflict
+
+if TYPE_CHECKING:                                    # names for the type hints only (nothing imported at run time)
+    import pandas as pd
+
+    from .api import Records, Result, Rig
+    from .core.project import Project
+    from .core.projdiff import MergeResult
+    from .core.tracking.store import RunStore
 
 DexVantageError = jobs.StudyError
 
 __all__ = ['Diff', 'Merge', 'MergeConflict', 'diff', 'merge', 'bibtex', 'figures', 'figure', 'export_runs']
 
 
-def _project(x, what: str = 'project'):
+def _project(x: Rig | Project | str | os.PathLike, what: str = 'project') -> Project:
     """A core Project from a Rig, a Project or a path (DexVantageError in one sentence otherwise)."""
     from .core.project import Project, ProjectFormatError
     p = getattr(x, 'project', None)
@@ -58,7 +67,7 @@ class Diff(dict):
     """What changed from project a to project b (core/projdiff.diff's document): 'a', 'b', 'identical', 'counts',
     'changes' (section, op, kind, item, field, path, before, after, text) and 'metrics' (the deltas asked for)."""
 
-    def __init__(self, doc: dict, project=None):
+    def __init__(self, doc: dict, project: Project | None = None):
         super().__init__(doc)
         self._project = project
 
@@ -77,7 +86,7 @@ class Diff(dict):
         from .core import projdiff as D
         return D.to_html(dict(self))
 
-    def to_frame(self, key: str = 'changes'):
+    def to_frame(self, key: str = 'changes') -> Records | pd.DataFrame:
         """One row per change (key='metrics': one row per metric delta): a pandas DataFrame, or Records."""
         from .api import _frame
         if key not in ('changes', 'metrics'):
@@ -113,7 +122,8 @@ class Diff(dict):
         return f'<div>{body}</div>'
 
 
-def diff(a, b, metrics=None) -> Diff:
+def diff(a: Rig | Project | str | os.PathLike, b: Rig | Project | str | os.PathLike,
+         metrics: str | Sequence[str] | None = None) -> Diff:
     """What changed from a to b (each a Rig, a Project or a path). metrics: metric ids (dv.metrics()) to run on both
     projects and compare; their studies run in this thread."""
     from .core import projdiff as D
@@ -137,7 +147,7 @@ class Merge:
     """A three-way merge: .rig (the merged Rig, not yet saved), .from_ours and .from_theirs (the places only one side
     changed), .notes (what the merge noticed, such as two sensors that now share a name)."""
 
-    def __init__(self, res):
+    def __init__(self, res: MergeResult):
         from .api import Rig
         self.rig = Rig(res.project)
         self.from_ours = list(res.from_ours)
@@ -149,7 +159,8 @@ class Merge:
                 f'{len(self.from_theirs)} of theirs{", " + str(len(self.notes)) + " notes" if self.notes else ""}>')
 
 
-def merge(base, ours, theirs) -> Merge:
+def merge(base: Rig | Project | str | os.PathLike, ours: Rig | Project | str | os.PathLike,
+          theirs: Rig | Project | str | os.PathLike) -> Merge:
     """Merge two edits (ours, theirs) of one project (base); each a Rig, a Project or a path. Places changed
     differently on both sides raise dv.MergeConflict (a DexVantageError) whose .conflicts lists them in words."""
     from .core import projdiff as D
@@ -160,7 +171,8 @@ def merge(base, ours, theirs) -> Merge:
 
 
 # ====================================================================== citations
-def bibtex(rig, path: str | None = None, references: str = 'checks') -> str:
+def bibtex(rig: Rig | Project | str | os.PathLike | None, path: str | os.PathLike | None = None,
+           references: str = 'checks') -> str:
     """BibTeX of every source the rig depends on: DexVantage, its library entries' datasheets, its robots' model
     files, its datasets and the validation references (references: 'checks' those the checks cite, 'all', 'none').
     path: also write it there. Returns the text."""
@@ -180,7 +192,7 @@ def bibtex(rig, path: str | None = None, references: str = 'checks') -> str:
 
 
 # ====================================================================== figures
-def figures(result) -> list:
+def figures(result: Result | dict) -> list:
     """The publication figure specs of a study result (a dv Result or its dict), as the paper kit draws them: a list
     of {'id', 'study', 'spec'}; empty when the result has no per-item list of numbers to chart."""
     from .core import publication as PB
@@ -193,7 +205,8 @@ def figures(result) -> list:
     return [{'id': fid, 'study': s, 'spec': spec} for fid, spec, s in PB.figure_specs({sid: dict(result)})]
 
 
-def figure(source, path: str, width='single', palette: str = 'tol', index: int = 0, **options) -> dict:
+def figure(source: Result | dict | str | os.PathLike, path: str | os.PathLike, width: str | float = 'single',
+           palette: str = 'tol', index: int = 0, **options: object) -> dict:
     """Write a vector figure: source is a figure spec (dexvantage.figure/1, a dict, JSON text or a .json file), a
     {'spec': ...} item of dv.figures(), or a study result (its figure number index). width: 'single' (88.9 mm),
     'double' (182 mm) or millimetres; palette 'tol' (colour-blind safe, the default) or 'chart'. The format follows
@@ -233,7 +246,8 @@ def figure(source, path: str, width='single', palette: str = 'tol', index: int =
 
 
 # ====================================================================== tracked runs
-def export_runs(where, out_dir: str, formats=('csv', 'parquet', 'mlflow', 'wandb'), **filters) -> dict:
+def export_runs(where: Rig | str | os.PathLike | RunStore | None, out_dir: str | os.PathLike,
+                formats: str | Sequence[str] = ('csv', 'parquet', 'mlflow', 'wandb'), **filters: object) -> dict:
     """Write the runs of a run store (dv.run_store(where): a Rig, a .dexv file or a store folder) into out_dir as
     runs.csv / runs_long.csv, runs.parquet, mlruns/ (MLflow's file store layout) and wandb/ (a W&B offline replay),
     with a manifest (SHA-256 and provenance). filters as dv.runs (study, tag, kind, status, project, since, until).

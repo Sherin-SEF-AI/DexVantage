@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tolerances: a worked example on the SO-100 sample · DexVantage</title>
+<meta name="description" content="This carries the SO-100 sample&#x27;s two mount tolerances (the wrist camera on the fixed jaw, the third-person camera onits tripod, both at the labelled defaults ± 1 mm, ± 0.5°) through a coverage requirement, tightens the mount thatmatters, and exports perturbed extrinsics for training. The model is …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-a-requirement-to-judge-by">1. A requirement to judge by</a>
+    <a href="#2-run">2. Run</a>
+    <a href="#3-tighten-and-run-again">3. Tighten and run again</a>
+    <a href="#4-export-perturbed-extrinsics">4. Export perturbed extrinsics</a>
+    <a href="#batch">Batch</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/tolerance.md"><code>docs/guide/tolerance.md</code></a></p>
+<h1 id="tolerances-a-worked-example-on-the-so-100-sample">Tolerances: a worked example on the SO-100 sample</h1>
+<p>This carries the SO-100 sample's two mount tolerances (the wrist camera on the fixed jaw, the third-person camera on
+its tripod, both at the labelled defaults ± 1 mm, ± 0.5°) through a coverage requirement, tightens the mount that
+matters, and exports perturbed extrinsics for training. The model is in <code>docs/models/tolerance.md</code>. Figures below are
+from a run on 2026-11-07 at the default settings (64 draws, seed 0, uniform within the bounds).</p>
+<h2 id="1-a-requirement-to-judge-by">1. A requirement to judge by</h2>
+<pre><code>dexvantage --sample so100
+</code></pre>
+<p>The study carries the figures your requirements name. Add one for the share of the task volume seen,
+<code>coverage.covered &gt;= 94 %</code> (the sample's nominal is 94.52 %). Without requirements the study carries the headline
+figures of coverage, depth validity, motion blur and VLA tokens (a default) and has no threshold to judge them by.</p>
+<h2 id="2-run">2. Run</h2>
+<p>Open Analysis ▸ Tolerances and press <strong>Run</strong> (about 9 s: each of the 64 draws re-runs the coverage study on the moved
+rig). The headline reads <strong>94.34 %</strong>, status <strong>P5 · holds</strong>:</p>
+<blockquote>
+<p>Task volume seen (&gt;= 94.00 %, a default): 100 % of 64 draws meet it [94–100 %, Wilson 95 %]; P5 94.34 %, nominal
+94.52 %.</p>
+</blockquote>
+<p>The table shows the figure ± spread: mean 94.54 % ± 0.103 % (σ), [P5–P95 94.34–94.70 %]. Quick-study headlines on
+the other pages still show the design as it is (94.52 %); this page is where the spread shows.</p>
+<p>The contribution chart says the wrist camera carries 77 % of the spread (largest |ρ| 0.49, against a noise level of
+2 / √63 = 0.25) and the third-person camera 23 % (|ρ| 0.31). For the wrist camera, the rotation part is the larger
+(Σρ² 0.44 against 0.33 for position).</p>
+<h2 id="3-tighten-and-run-again">3. Tighten and run again</h2>
+<p><strong>Preview</strong> draws the wrist camera's 64 perturbed frusta (to scale, out to the task volume) in its colour and, in
+green, the same draws at the tightened tolerance. <strong>Apply</strong> sets its rotation tolerance to ± 0.25° (one undo step).
+Run again: P5 94.39 %, mean 94.53 % ± 0.077 %, and now the wrist camera's position part dominates; the next
+suggestion is ± 0.5 mm. The per-sensor editor below the chart sets any mount's ± mm and ± ° directly, one undo step
+each.</p>
+<p>A calibrated sensor (Calibrate ▸ Solve hand-eye, then Apply) draws from its calibration covariance instead of its
+mount tolerance; the editor's &quot;Drawn from&quot; column says which, and a sensor moved after its calibration goes back to
+its mount tolerance.</p>
+<h2 id="4-export-perturbed-extrinsics">4. Export perturbed extrinsics</h2>
+<p><strong>Export perturbations…</strong> writes 100 draws (seed 0; the <code>n_export</code> setting changes the count) to
+<code>perturbations/perturbations.json</code> (287 kB) and <code>perturbations/perturbations.npz</code> (85 kB), with an
+<code>export_manifest.json</code> holding their SHA-256 and provenance. In a script:</p>
+<pre><code>from dexvantage.core import exporters as X
+X.export(project, 'out', ['perturbations'], options={'perturbations': {'n': 500, 'seed': 1}})
+</code></pre>
+<p>For Isaac Lab, each draw's <code>isaac_lab</code> entry is a <code>CameraCfg.OffsetCfg</code> in the camera's mount frame (the wrist
+camera's link <code>Fixed_Jaw</code>, the world for the tripod): <code>pos</code>, <code>rot_xyzw</code> (Isaac Lab v3.0 and later) or <code>rot_wxyz</code>
+(v2.x), <code>convention=&quot;ros&quot;</code>. Pick a draw per environment at reset to randomise the mounts. For the 3DGS renderer, the
+<code>gs</code> entry is the camera centre and camera-to-world rotation at the robot's home pose (OpenCV axes). For DexVantage's
+own MuJoCo renders, pass <code>delta_body</code> as the view's <code>extrinsic_delta</code>.</p>
+<p>The same seed gives the same draws, in the export and in the study.</p>
+<h2 id="batch">Batch</h2>
+<pre><code>dexvantage project.dexv --tolerance-mc tolerance.json
+</code></pre>
+<p>writes the study's result (every draw's figures and mount changes) as JSON with provenance.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

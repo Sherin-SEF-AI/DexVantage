@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product review of research tools part 2: a research team on ALOHA 2 · DexVantage</title>
+<meta name="description" content="This review used the research tools the way a lab would, on the ALOHA 2 sample (two arms, four D405 cameras), oncefrom a notebook (import dexvantage as dv) and once in the window (offscreen). It covered these steps:">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-was-broken-and-what-changed">What was broken, and what changed</a>
+    <a href="#measured-notebook-aloha-2">Measured (notebook, ALOHA 2)</a>
+    <a href="#measured-window-offscreen-aloha-2-tracking-on">Measured (window, offscreen, ALOHA 2, tracking on)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/product-review.md"><code>docs/models/product-review.md</code></a></p>
+<h1 id="product-review-of-research-tools-part-2-a-research-team-on-aloha-2">Product review of research tools part 2: a research team on ALOHA 2</h1>
+<p>This review used the research tools the way a lab would, on the ALOHA 2 sample (two arms, four D405 cameras), once
+from a notebook (<code>import dexvantage as dv</code>) and once in the window (offscreen). It covered these steps:</p>
+<ul>
+<li>a two-variant comparison;</li>
+<li>a Sobol experiment on the local pool and through a Slurm array (mocked: the shards run by hand) with gather;</li>
+<li>tracking every run, and comparing runs with statistics;</li>
+<li>a data-collection campaign sized by a power analysis;</li>
+<li>the sim-to-real gap on a synthetic recording with injected gaps;</li>
+<li>three cells and their pooling mapping;</li>
+<li>the paper kit, written and opened;</li>
+<li>a robot imported from USD.</li>
+</ul>
+<p>Each step was also given bad inputs. The review measured UI-thread time and looked at screenshots. Measured on
+2026-11-07 (RTX 5080 through EGL, 24 CPUs, each run under a 4–5 GB memory cap). The fixes are tested in
+<code>tests/test_product_review.py</code> (24 tests).</p>
+<h2 id="what-was-broken-and-what-changed">What was broken, and what changed</h2>
+<table>
+<thead>
+<tr>
+<th>Found</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A notebook could not make a second variant: there was no API for it. A two-variant comparison needed <code>core.project.Variant</code> and <code>core.factors</code> by hand.</td>
+<td><code>rig.add_variant(name, {sensor factors}, from_variant=None)</code> adds a copy of the active variant to the rig (the window's &quot;New variant from this one&quot;). The sensors keep their uids, the factors are set on the copy only, and the active variant does not change. A duplicate or empty name, a setting path, an unknown variant and an unknown sensor are each refused in one sentence.</td>
+</tr>
+<tr>
+<td>The API logged <code>rig.run</code>, <code>rig.check</code> and <code>dv.cluster.*</code> runs only. The <code>dv.stats.*</code> comparisons on a rig, <code>dv.campaign.plan</code>, <code>dv.cells.compare</code> and <code>dv.cluster.gather</code> were not logged, while their batch forms were.</td>
+<td>Each is logged when the project's tracking is on. Success counts with no rig have no project to log into, so they stay unlogged. <code>dv.cluster.gather(folder, rig=rig)</code> logs into the rig's store; without <code>rig</code> it logs into the job folder's base project, as <code>--gather</code> does.</td>
+</tr>
+<tr>
+<td>The sim-to-real result on ALOHA 2 held NaN: the mount σ of <code>cam_low</code> on axes the frames do not constrain. The tracker refused the run (&quot;Out of range float values are not JSON compliant: nan&quot;), and the result was not valid JSON.</td>
+<td>That σ is <code>None</code> (not stated); <code>core/sim2real/gap.py</code> <code>_mount</code>.</td>
+</tr>
+<tr>
+<td>A +20 DN brightness gap on every camera was read as gain 0.99 and offset +20 DN. The lighting cause said &quot;Every camera sees the scene 0.99× as bright as the render&quot; about a recording 20 DN brighter. With lights in the project, Apply would scale them by 0.99, which cannot close an offset.</td>
+<td>The cause names the offset (&quot;gain 0.99, offset +20 DN&quot;). The lights are scaled only when the cameras share no offset of <code>min_reduction_dn</code> (1 DN, the existing default) or more. Otherwise Apply sets each camera's render response, and the text says why: a scale of the lights gives a gain, not an offset.</td>
+</tr>
+<tr>
+<td><code>rig.gap_dataset(folder, {'brightness_dn': 'lots'})</code> raised a raw <code>ValueError</code>. A folder that was not empty was refused only after every frame was rendered (28 s on ALOHA 2).</td>
+<td>The gaps are checked first: each is a finite number in its range (gain &gt; 0; blur and noise ≥ 0), and mount is three positions and three angles. A folder that is not empty is refused before any render.</td>
+</tr>
+<tr>
+<td>A campaign spec with an unknown key was silently ignored. <code>{&quot;power&quot;: {&quot;p1&quot;: 0.6, &quot;p2&quot;: 0.8}}</code> gave 50 demonstrations per condition, the entered default, instead of a power analysis.</td>
+<td><code>core.campaign.read_spec</code> refuses an unknown setting. The refusal lists the settings, and for power-like keys it shows the <code>demos</code> form. <code>dv.campaign.plan(rig, **settings)</code> checks its settings the same way.</td>
+</tr>
+<tr>
+<td><code>dv.cluster.*(jobs=0)</code> (and −2, 1.5, &quot;4&quot;, True) ran serially without a word, while <code>--jobs 0</code> is refused.</td>
+<td>Refused in one sentence; <code>jobs=None</code> is the default count.</td>
+</tr>
+<tr>
+<td><code>dv.stats.compare_runs(rig, id, id)</code> compared a run with itself and reported a result.</td>
+<td>Refused: &quot;Run … is on both sides&quot;.</td>
+</tr>
+<tr>
+<td>Opening a broken USD file showed pxr's C++ names, its source path and a cut-off temporary path: &quot;(Error in 'pxrInternal_v0_26_8__pxrReserved__::Sdf_TextFileFormatParser::_RaiseErrorPEGTL' at line 48 in file /opt/USD/… : '/tmp/tm)&quot;.</td>
+<td>The reader's own words are shown: &quot;bad.usda could not be opened as a USD file (line 3, column 1: Expected ) at '' in &lt;/&gt;)&quot;. A file that is not a USD layer reads &quot;it is not a USD layer DexVantage can read&quot;. No full path is shown.</td>
+</tr>
+<tr>
+<td>Statistics page, Variants: the controls were spread over the panel's height, and the figures field had no label.</td>
+<td>The spare height goes below the controls on the Variants, Experiment runs and Tracker runs panels, as on Success counts. The figures field is labelled and takes the row's width.</td>
+</tr>
+<tr>
+<td>Statistics: a zero difference read &quot;+0 % [+0, +0]&quot; (headline, table and verdict text).</td>
+<td>Written as 0, as elsewhere (&quot;a value that rounds to zero is written 0&quot;): <code>core/stats</code> verdicts, the study's headline, the page.</td>
+</tr>
+<tr>
+<td>The Runs table and the paper kit's runs read a p-value as &quot;1 p&quot;.</td>
+<td>&quot;p = 1&quot;, as <code>dv.Result.headline</code> does.</td>
+</tr>
+<tr>
+<td>Campaign summary: &quot;1 operator, 1 sessions&quot;. The HTML schedule had the same plural fault.</td>
+<td>Plurals agree with their counts.</td>
+</tr>
+<tr>
+<td>Cells page: a file that is not there was added as a cell, and then the whole comparison refused to run.</td>
+<td>It is refused when added (&quot;There is no file at missing.dexv: it was not added as a cell&quot;). The other cells stay.</td>
+</tr>
+<tr>
+<td>A logged designed experiment had no duration: <code>seconds</code> was empty, and its start equalled its end.</td>
+<td>The tracker reads an experiment's <code>execution.seconds</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="measured-notebook-aloha-2">Measured (notebook, ALOHA 2)</h2>
+<ul>
+<li><code>rig.add_variant('Raised high cam', {'sensor:cam_high (overhead).dz': 0.05})</code>, then
+<code>dv.stats.compare_variants(rig, b='Raised high cam', metrics=['coverage.covered'], n=8)</code>: 21.0 s. Result: &quot;no clear
+difference&quot;, p = 1. Task volume seen is 100 % in both variants at every draw, so the difference is exactly 0. It is
+logged.</li>
+<li>Saltelli design, N = 4 with two factors: 16 runs plus the rig as it is. <code>dv.cluster.experiment(rig, design, jobs=2)</code> took 11.2 s. Through <code>dv.cluster.slurm(..., shards=3)</code>, <code>run_shard</code> × 3 took 5.1–6.4 s each, and
+<code>gather</code> 0.1 s. The gathered runs equal the pool's. Both runs are logged, with their duration.</li>
+<li><code>dv.campaign.plan(rig, {'demos': {'mode': 'power', 'p_base': 0.6, 'p_target': 0.8}})</code>: 91 episodes per condition
+(Fleiss, Tytun and Ury's continuity correction through <code>core/stats</code>), 73.3 GB, 1 day, 1 session.</li>
+<li><code>rig.gap_dataset(folder, {'brightness_dn': 20, 'blur_px': 1.0}, episodes=1, frames=20)</code> took 2.5 s, and
+<code>rig.sim2real(folder)</code> 15.5 s: 20.4 DN, &quot;very large gap&quot;. The lighting cause reads gain 0.99 and offset +20 DN in
+four cameras, and leaves 1.0 DN after the corrections.</li>
+<li><code>dv.cells.compare(rig, 'sample:so100', 'sample:ur5e')</code>: 4.9 s, largest gap 0.373 (&quot;large gap&quot;), with the pooling
+mapping.</li>
+<li>Paper kit from the window (methods, tables, figures): 90 of 90 methods numbers and 81 table numbers traced,
+&quot;ready&quot;.</li>
+<li>The bundled UR5e USD: imported headless and through the wizard (6 revolute joints and the fixed base joint, one robot added).</li>
+</ul>
+<h2 id="measured-window-offscreen-aloha-2-tracking-on">Measured (window, offscreen, ALOHA 2, tracking on)</h2>
+<p>No step went over 100 ms on the UI thread. Every page action was timed directly, and the event loop was watched with
+a 5 ms timer while each study ran and after each action. The software 3D view's paint was left out, as in
+<code>scripts/measure_ui.py</code>. Offscreen, that paint takes 0.9–1.1 s per frame on ALOHA 2: the stall the first pass of
+this review measured was that paint (sampled stacks: <code>viewport3d._paint_scene</code>), not the pages. With the GL view it
+does not run. Pages checked:</p>
+<ul>
+<li>Requirements, &quot;New variant from this one&quot;;</li>
+<li>Statistics: Variants, and bad success counts (refused, row by row);</li>
+<li>Designed experiments (Saltelli), Preview and Apply (one undo step);</li>
+<li>Runs, with a comparison;</li>
+<li>Campaign: power mode, and five bad field values (each refused);</li>
+<li>Sim-to-real: a missing dataset (a plain sentence), then the gap recording, and Apply;</li>
+<li>Cells: two samples and a missing file;</li>
+<li>Paper kit: preview and export;</li>
+<li>the USD import wizard: the bundled UR5e imported, a broken file and a missing file refused.</li>
+</ul>
+<p>The visible labels were scanned for tracebacks, raw exceptions, &quot;nan&quot;/&quot;None&quot; and full paths after each step; none
+remained after the fixes.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The offscreen measurements leave out the software 3D view's paint (about 1 s per frame on ALOHA 2 with soft
+rendering). A machine without GL that falls back to it will feel that. The &quot;mocked&quot; Slurm array runs the shards by
+hand with <code>run_shard</code>; <code>sbatch</code> itself was not run (no Slurm here). The campaign spec check refuses keys that a
+newer DexVantage might add: a newer spec read by this version names the key it does not know. The sim-to-real
+offset rule reuses <code>min_reduction_dn</code> (1 DN) as the smallest offset a light scale cannot absorb. That is a
+labelled default, not a calibrated figure.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

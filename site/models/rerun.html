@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rerun bridge · DexVantage</title>
+<meta name="description" content="dexvantage/core/bridges/rerun.py, the window command Export ▸ Stream to Rerun… (dexvantage/ui/rerun_stream.py),the batch flags --rerun OUT.rrd [--rerun-audit AUDIT.json], the check formats.rerun_rrd_readback(dexvantage/validation/checks_rerun.py). Spec §9.4.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-is-logged">What is logged</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/rerun.md"><code>docs/models/rerun.md</code></a></p>
+<h1 id="rerun-bridge">Rerun bridge</h1>
+<p><code>dexvantage/core/bridges/rerun.py</code>, the window command Export ▸ Stream to Rerun… (<code>dexvantage/ui/rerun_stream.py</code>),
+the batch flags <code>--rerun OUT.rrd [--rerun-audit AUDIT.json]</code>, the check <code>formats.rerun_rrd_readback</code>
+(<code>dexvantage/validation/checks_rerun.py</code>). Spec §9.4.</p>
+<p>The bridge sends the project's scene to <a href="https://rerun.io">Rerun</a>, either saved as an <code>.rrd</code> file or streamed to a
+live viewer. A viewer is started only when the user chooses &quot;Open the Rerun viewer&quot;. It needs the optional extra
+<code>rerun</code>, which pins <code>rerun-sdk==0.42.0</code>:</p>
+<pre><code>pip install &quot;dexvantage[rerun]&quot;
+</code></pre>
+<p>The package is imported lazily. Without it the command and the batch flag say how to install it, in one sentence.
+rerun-sdk is not bundled; its licence (MIT or Apache-2.0, per its package metadata) applies to the user's own
+install.</p>
+<h2 id="what-is-logged">What is logged</h2>
+<p>Everything is in the world frame: the primary robot's base, REP-103, metres. The entity <code>world</code> carries
+<code>ViewCoordinates.RIGHT_HAND_Z_UP</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Archetype</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>world/robots/&lt;robot&gt;/&lt;link&gt;</code></td>
+<td>Transform3D</td>
+<td>the link frame in the world: at every trajectory sample on the timeline <code>time</code>, else once (static) at q</td>
+</tr>
+<tr>
+<td><code>…/&lt;link&gt;/mesh</code></td>
+<td>Mesh3D</td>
+<td>the link's visual meshes in the link frame, with the model's colours per vertex</td>
+</tr>
+<tr>
+<td><code>world/robots/&lt;robot&gt;/&lt;link&gt;/sensors/&lt;sensor&gt;</code> or <code>world/sensors/&lt;sensor&gt;</code></td>
+<td>Transform3D</td>
+<td>the sensor body's mount pose (under its link, so it rides with the arm)</td>
+</tr>
+<tr>
+<td><code>…/&lt;sensor&gt;/&lt;imager&gt;</code></td>
+<td>Transform3D</td>
+<td>the imager's pose in the body</td>
+</tr>
+<tr>
+<td><code>…/&lt;imager&gt;/image</code></td>
+<td>Pinhole</td>
+<td>image_from_camera = K, resolution, camera_xyz = RDF (OpenCV optical axes), image_plane_distance 0.15 m (a default)</td>
+</tr>
+<tr>
+<td><code>…/&lt;imager&gt;/lens</code></td>
+<td>TextDocument</td>
+<td>the lens model, K and the distortion terms</td>
+</tr>
+<tr>
+<td><code>…/&lt;imager&gt;/field</code></td>
+<td>LineStrips3D</td>
+<td>for a lens that is not a pinhole: the true image border unprojected through the lens to 0.15 m (Rerun's Pinhole has no distortion)</td>
+</tr>
+<tr>
+<td><code>…/&lt;sensor&gt;/min_z</code> and <code>…/min_z/edges</code></td>
+<td>Mesh3D, LineStrips3D</td>
+<td>the part of the depth imager's field closer than its stated min-Z (<code>depth_validity.blind_zone_local</code>); only when the maker states a min-Z</td>
+</tr>
+<tr>
+<td><code>world/task_volumes/&lt;volume&gt;</code></td>
+<td>Boxes3D</td>
+<td>each task volume</td>
+</tr>
+<tr>
+<td><code>audit/verdict</code></td>
+<td>TextLog on the timeline <code>episode</code></td>
+<td>&quot;episode &lt;id&gt;: &lt;verdict&gt; (&lt;failed flags&gt;)&quot;, at level INFO for pass, WARN for fix or recalibrate, ERROR for drop</td>
+</tr>
+<tr>
+<td><code>audit/pass</code>, <code>audit/flags/&lt;flag&gt;</code></td>
+<td>Scalars on <code>episode</code></td>
+<td>1 or 0; for each flag, the number of cameras failing that requirement in the episode</td>
+</tr>
+</tbody>
+</table>
+<p>Notes on the table:</p>
+<ul>
+<li><strong>Trajectories.</strong> A robot's trajectory is its first one in <code>project.tasks.trajectories</code>, or the one named. It is
+sampled at 30 Hz (a default), at most 2 000 samples, and is linear in the joints between its own samples, as
+<code>core/robot/trajectory.py</code>.</li>
+<li><strong>Which links.</strong> The links logged are those with meshes, those carrying a sensor, the gripper frame and the
+fingertip frames.</li>
+<li><strong>Pixel convention.</strong> K is written in OpenCV's convention, with pixel centres at integers. Rerun's documentation
+read on 2026-11-07 does not state its pixel-centre convention, so the frustum may sit half a pixel from Rerun's
+own.</li>
+<li><strong>Audit flags.</strong> These come from the audit result of the session (Export ▸ Stream to Rerun…), of the same batch run
+(<code>--audit OUT.json --rerun OUT.rrd</code>), or of a saved file (<code>--rerun-audit AUDIT.json</code>). The flag names are
+<code>core/audit/episode.py FLAG</code>, the same as the FiftyOne tags: drop, duplicate, fps, jitter, usb_reset, desync,
+drift, exposure_change, blur, gripper_hidden, action_lag, mount_slip, unreadable.</li>
+</ul>
+<p><strong>API, rerun-sdk 0.42.0.</strong> These calls were read from the installed wheel's source and
+https://rerun.io/docs/reference/types/archetypes/pinhole (version 0.42.0) on 2026-11-07:</p>
+<ul>
+<li><code>RecordingStream('dexvantage')</code> with <code>.save(path)</code>, <code>.spawn()</code> and <code>.connect_grpc(url)</code>;</li>
+<li><code>.log(path, archetype, static=…)</code>, <code>.set_time('time', duration=s)</code>, <code>.set_time('episode', sequence=i)</code> and
+<code>.reset_time()</code>.</li>
+</ul>
+<p>The bridge uses a recording stream of its own rather than Rerun's global one, so several exports can run in one
+process. Files are read back with <code>rerun.chunk.RrdReader</code> (<code>read_back</code>).</p>
+<p>Ported from Vantage <code>core/viz_bridge.py</code>, the Rerun part: the frames, the Pinhole with RDF axes, the lens as text,
+the true field outline beside the pinhole frustum, and the three modes save, spawn and connect. The articulated robot
+over a trajectory, the link-relative sensors, the min-Z zones and the audit flags are new.</p>
+<h2 id="validation">Validation</h2>
+<p><code>formats.rerun_rrd_readback</code> (cost &quot;study&quot;, registered only when rerun-sdk is installed) writes the UR5e sample, its
+scripted pick and a two-episode audit result to an <code>.rrd</code> file, then reads it back with rerun's own reader. It
+requires:</p>
+<ul>
+<li>every entity path the bridge logged is in the file;</li>
+<li>every camera's Pinhole holds the imager's K and resolution (Rerun stores a 3 × 3 column-major), and every imager
+transform holds the pose in the body;</li>
+<li>the gripper link's transform at the sample nearest 1.5 s equals MuJoCo forward kinematics at the trajectory's
+joint values for that time;</li>
+<li>the audit flags are on the <code>episode</code> timeline with the values logged.</li>
+</ul>
+<p>The tolerance is 1e-4 px or m, because Rerun stores these components as float32: 2⁻²⁴ relative rounding at
+intrinsics up to about 1 400 px is up to 8.3 × 10⁻⁵ px. Measured 2026-11-07, rerun-sdk 0.42.0: 83 entities, none
+missing; 6 cameras; intrinsics 4.8 × 10⁻⁵ px; imager poses 7.7 × 10⁻¹⁰ m; link pose 1.3 × 10⁻⁸ m; audit flags on the
+timeline. Run time 0.6 s.</p>
+<p>Measured sizes and times (<code>--rerun</code>, start-up excluded):</p>
+<table>
+<thead>
+<tr>
+<th>Sample</th>
+<th>Time</th>
+<th>File</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UR5e</td>
+<td>0.3 s</td>
+<td>2.8 MB</td>
+<td>21 links over 136 poses, 6 frusta, 2 min-Z zones</td>
+</tr>
+<tr>
+<td>SO-100</td>
+<td>0.01 s</td>
+<td>0.76 MB</td>
+<td>static, 7 links, 2 frusta, no min-Z: its cameras have no device</td>
+</tr>
+<tr>
+<td>dexhand</td>
+<td>0.09 s</td>
+<td>2.6 MB</td>
+<td>30 links, 5 frusta, 1 min-Z zone</td>
+</tr>
+</tbody>
+</table>
+<p><code>tests/test_rerun_bridge.py</code> also logs through a fake rerun module, so the entity layout is tested without the
+package and without any viewer or network.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>Rerun's Pinhole is a pinhole: a fisheye's frustum there is approximate. The true field is the <code>field</code> lines, and
+the distortion terms are in the <code>lens</code> text.</li>
+<li>Meshes are logged once per link, with no level of detail, so a large robot makes a large file.</li>
+<li>Contact pads, task objects, lights, grasp sets and study results such as coverage are not logged.</li>
+<li>Only one trajectory per robot is logged. Robots without a trajectory are static at q (home by default).</li>
+<li>The audit's per-frame scores are not logged, only per-episode flags.</li>
+<li>Streaming to a live viewer was exercised only through the fake module, because the tests start no viewer.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

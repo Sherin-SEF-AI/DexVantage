@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Optimise: improve a rig, or design new ones · DexVantage</title>
+<meta name="description" content="Analysis ▸ Optimise. The model, its equations, references and validation are in docs/models/optimise.md.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#worked-example-the-ur5e-sample">Worked example: the UR5e sample</a>
+    <a href="#batch">Batch</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/optimise.md"><code>docs/guide/optimise.md</code></a></p>
+<h1 id="optimise-improve-a-rig-or-design-new-ones">Optimise: improve a rig, or design new ones</h1>
+<p>Analysis ▸ Optimise. The model, its equations, references and validation are in <code>docs/models/optimise.md</code>.</p>
+<p>The page has two modes:</p>
+<ul>
+<li><strong>Improve this rig</strong> (the optimiser): moves, tilts and pans the rig's unlocked cameras a little, switches cameras off
+and, if you allow it, swaps their devices, looking for designs that do better on the objectives within your
+requirements.</li>
+<li><strong>Design new rigs</strong> (the design agent): builds complete rigs from the library (up to three new cameras by default) on
+the cage around the task volume and on the robot's gripper, for your requirements.</li>
+</ul>
+<p>Both run NSGA-II, an evolutionary multi-objective search, in the background (Run; Stop keeps what has been scored).
+Locked sensors are never changed. Nothing changes until you press <strong>Accept</strong> on a design, which is one undo step.</p>
+<h2 id="worked-example-the-ur5e-sample">Worked example: the UR5e sample</h2>
+<p>Open File ▸ Open sample ▸ UR5e and Robotiq 2F-85 (or <code>dexvantage --sample ur5e</code>). Add one requirement, the
+specification's default contact visibility of at least 95 % (<code>grasp.contact_visibility &gt;= 95</code>, labelled a default).
+The figures below were measured on 2026-11-07 with the default settings (seed 0).</p>
+<h3 id="improve-this-rig">Improve this rig</h3>
+<p>Run with the defaults (96 evaluations, population 12, shifts up to 5 cm, turns up to 15°, cameras may be removed). It
+took 105 s. The headline reads <strong>2 designs, better rig found</strong>.</p>
+<p>Left out, each with its reason under the table: the cost (no price is stated for the D405 or the D435: the built-in
+library entries carry no prices, and none is guessed), the bandwidth margin (the sample has no host controller) and
+the VLA object tokens (no task object is marked critical). The search therefore ranks four objectives: contact
+visibility, depth-valid task volume, cameras and sensors without a ready bracket.</p>
+<table>
+<thead>
+<tr>
+<th>Design</th>
+<th>Contact visibility</th>
+<th>Depth-valid</th>
+<th>Cameras</th>
+<th>Not ready</th>
+<th>What it changes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>current</td>
+<td>100.0 %</td>
+<td>84.6 %</td>
+<td>2</td>
+<td>2</td>
+<td>—</td>
+</tr>
+<tr>
+<td>A</td>
+<td>100.0 %</td>
+<td>96.4 %</td>
+<td>2</td>
+<td>2</td>
+<td>Wrist D405 up 4.8 cm, tilted −4.3°, panned −7.9°; Overhead D435 3.7 cm along −x, up 2.4 cm</td>
+</tr>
+<tr>
+<td>B</td>
+<td>100.0 %</td>
+<td>77.5 %</td>
+<td>1</td>
+<td>1</td>
+<td>Wrist D405 moved and turned; Overhead D435 removed</td>
+</tr>
+</tbody>
+</table>
+<p>Design A's explanation: &quot;Against the current rig it has 11.8 points more depth-valid task volume (96.4 %), and is no
+worse on the other objectives. ... Against design B it trades one more camera and one more sensor without a ready
+bracket for 18.9 points more depth-valid task volume. It meets every requirement (1).&quot;</p>
+<p>Select A, press <strong>Preview</strong>: its cameras are drawn dashed in the 3D view (and marked in the Camera view). Press
+<strong>Accept</strong>: the rig moves to design A in one undo step. The Depth validity study then reads the same 96.4 % at the robot's home
+pose (the validation check optimise.figures_reproduce re-runs the studies on each option and finds no difference). The
+search scores the grasp study at screening settings (40 grasps); turn on Confirm to re-score the designs shown at the
+project's own settings.</p>
+<h3 id="design-new-rigs">Design new rigs</h3>
+<p>Switch to Design new rigs and Run with the defaults (120 evaluations, population 16, up to 3 cameras, every camera and
+depth device of the library, the cage and the gripper as mount sites). It took 237 s and offers <strong>5 designs, better
+rig found</strong>. The current rig's two sensors are not in the designs (each design is a complete rig; lock a sensor to keep
+it, or set keep_unlocked).</p>
+<table>
+<thead>
+<tr>
+<th>Design</th>
+<th>Contact visibility</th>
+<th>Depth-valid</th>
+<th>Cameras</th>
+<th>Not ready</th>
+<th>The rig</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>current</td>
+<td>100.0 %</td>
+<td>84.6 %</td>
+<td>2</td>
+<td>2</td>
+<td>Wrist D405 + overhead D435</td>
+</tr>
+<tr>
+<td>A</td>
+<td>100.0 %</td>
+<td>99.1 %</td>
+<td>3</td>
+<td>3</td>
+<td>D457 on the cage (1.15 m, 28° up); OV2312 and D415 on the gripper</td>
+</tr>
+<tr>
+<td>B</td>
+<td>100.0 %</td>
+<td>98.9 %</td>
+<td>2</td>
+<td>2</td>
+<td>D457 on the cage (1.15 m, 30° up); OAK-D Pro on the gripper, 7 cm off its axis</td>
+</tr>
+<tr>
+<td>C</td>
+<td>100.0 %</td>
+<td>9.9 %</td>
+<td>2</td>
+<td>1</td>
+<td>ZED 2i and OVM6948 on the gripper</td>
+</tr>
+<tr>
+<td>D</td>
+<td>100.0 %</td>
+<td>6.3 %</td>
+<td>1</td>
+<td>1</td>
+<td>D415 on the gripper</td>
+</tr>
+<tr>
+<td>E</td>
+<td>100.0 %</td>
+<td>not stated</td>
+<td>1</td>
+<td>0</td>
+<td>OVM6948 on the gripper</td>
+</tr>
+</tbody>
+</table>
+<p>B is the design that beats the current rig outright: as many cameras, 14.2 points more depth-valid task volume. A adds
+a third camera for 0.2 points more. E has no depth sensor, so its depth-valid figure is &quot;not stated&quot; (it ranks last on
+that objective), and the explanation says so. Accept adds the design as a new variant (&quot;Design B (design agent)&quot;) and
+makes it active; the variant menu or Undo returns to the sample rig.</p>
+<p>With the default budgets the front is coarse: a larger budget (Evaluations) or another seed finds more designs. The
+same seed and settings give the same designs.</p>
+<h2 id="batch">Batch</h2>
+<pre><code>dexvantage --sample ur5e --optimise opt.json
+dexvantage project.dexv --design-agent rigs.json --optimise-settings '{&quot;budget&quot;: 300, &quot;seed&quot;: 4}'
+</code></pre>
+<p><code>--optimise-settings</code> takes JSON text or a .json file and is merged over the project's settings
+(<code>project.analysis.studies['optimise']</code> or <code>['design_agent']</code>) for that run. The result is the page's (objectives,
+what was left out and why, constraints, every design scored, the options with their explanations) with its provenance
+block. Settings: <code>objectives</code> (metric ids), <code>budget</code>, <code>population</code>, <code>seed</code>, <code>options</code>, <code>confirm</code>, <code>constraints</code>,
+<code>screen</code>; the optimiser's <code>move_m</code>, <code>turn_deg</code>, <code>allow_remove</code>, <code>swap_models</code>, <code>factors</code> (your own list of
+<code>{&quot;path&quot;: &quot;sensor:&lt;id&gt;.x&quot;, &quot;lo&quot;: .., &quot;hi&quot;: ..}</code> or <code>{&quot;path&quot;: .., &quot;choices&quot;: [..]}</code>); the design agent's
+<code>max_cameras</code>, <code>models</code>, <code>static_frames</code>, <code>links</code>, <code>distance_m</code>, <code>elevation_deg</code>, <code>wrist_back_m</code>, <code>wrist_radial_m</code>,
+<code>keep_unlocked</code>. Every number not set is a labelled default.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

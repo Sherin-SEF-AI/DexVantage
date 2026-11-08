@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robots in and out: URDF for MuJoCo, USD robots, OpenVLA and Isaac exports · DexVantage</title>
+<meta name="description" content="The model, the equations and the validation are in Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#export-a-urdf-that-mujoco-loads">Export a URDF that MuJoCo loads</a>
+    <a href="#import-a-usd-robot">Import a USD robot</a>
+    <a href="#openvla-encodings">OpenVLA encodings</a>
+    <a href="#isaac-an-off-centre-principal-point">Isaac: an off-centre principal point</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/robot_io.md"><code>docs/guide/robot_io.md</code></a></p>
+<h1 id="robots-in-and-out-urdf-for-mujoco-usd-robots-openvla-and-isaac-exports">Robots in and out: URDF for MuJoCo, USD robots, OpenVLA and Isaac exports</h1>
+<p>The model, the equations and the validation are in <a href="../models/robot_io.html">Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point</a>.</p>
+<h2 id="export-a-urdf-that-mujoco-loads">Export a URDF that MuJoCo loads</h2>
+<ol>
+<li>Open the SO-100 sample (File ▸ Open sample ▸ SO-100).</li>
+<li>File ▸ Export…, tick <strong>ROS 2: URDF, static transforms and tf2 tree</strong>, choose a folder, Export.</li>
+<li><code>ros2/rig.urdf</code> now has an <code>&lt;inertial&gt;</code> in every link. A comment in each says where its figures come from: the
+robot's file, MuJoCo's computation from the file's geoms (the SO-100's <code>Base</code> has no inertial in its file), or a
+minimal placeholder (10⁻⁶ kg) for the sensor and optical frames, labelled as such.</li>
+<li>Load it in MuJoCo as written:</li>
+</ol>
+<pre><code class="language-python">import mujoco
+m = mujoco.MjModel.from_xml_path('out/ros2/rig.urdf')    # 12 bodies, 1.1714 kg in all on the SO-100 sample
+m.body('wrist_camera_sample_placement_rgb_optical_frame')   # every sensor frame is a body
+</code></pre>
+<p>The file's <code>&lt;mujoco&gt;&lt;compiler …/&gt;&lt;/mujoco&gt;</code> element tells MuJoCo where the meshes are and to keep the sensor frames;
+ROS tools ignore it.</p>
+<h2 id="import-a-usd-robot">Import a USD robot</h2>
+<p>Needs the optional usd-core package (<code>pip install &quot;dexvantage[usd]&quot;</code>); without it the wizard says so.</p>
+<ol>
+<li>Robot ▸ Import robot…, drop or browse to a <code>.usd</code>, <code>.usda</code>, <code>.usdc</code> or <code>.usdz</code> file with a UsdPhysics
+articulation (rigid bodies and revolute, prismatic or fixed joints, as Isaac Sim or the mujoco-usd-converter write
+them).</li>
+<li>The File step reads it and shows &quot;USD, converted to MJCF&quot;; the status line lists what the conversion left out.</li>
+<li>Meshes: the layers the stage uses, and any it names that are missing (not required: what they hold is left out).</li>
+<li>Continue as for a URDF: units, joints (tick the gripper joints), gripper frame and pads, Import (one undo step).</li>
+</ol>
+<p>What to expect, on the bundled third-party UR5e (<code>dexvantage/resources/usd_robots/newton_ur5e/usd_structured/ ur5e.usda</code>, BSD-3-Clause): 6 hinges and a fixed joint to the world, 9 collision primitives (8 capsules, 1 cylinder),
+the stated masses, and two notes: its mesh library <code>GeometryLibrary.usdc</code> is not bundled (so the 20 visual meshes are
+left out), and drives and joint friction are not imported. Its arm poses like DexVantage's UR5e sample within
+2.6 × 10⁻⁸ m (check <code>robot_io.usd_third_party</code>).</p>
+<p>From Python, headless:</p>
+<pre><code class="language-python">import dexvantage as dv
+rig = dv.sample('so100')
+dv.robot_io.write_usd(rig, 'so100.usda')            # 7 bodies, 6 joints, 31 geoms as a UsdPhysics articulation
+cell = dv.new('USD import')
+arm = dv.robot_io.add_robot(cell, 'so100.usda', 'SO-100 from USD')
+arm.source.note                                      # 'Converted from the USD file so100.usda (SHA-256 …) …'
+dv.robot_io.convert_usd('so100.usda')['notes']       # what the conversion left out, in sentences
+</code></pre>
+<h2 id="openvla-encodings">OpenVLA encodings</h2>
+<p>The LeRobot export's <code>openvla/oxe_dataset_config.py</code> now picks the state and action encodings from the rig:</p>
+<pre><code class="language-python">dv.robot_io.openvla_encoding(dv.sample('aloha'))
+# {'target': 'openvla', 'state_encoding': 'JOINT_BIMANUAL', 'action_encoding': 'JOINT_POS_BIMANUAL', 'fits': False, …}
+dv.robot_io.openvla_encoding(dv.sample('so100'), 'eef')
+# {'state_encoding': 'POS_EULER', 'action_encoding': 'EEF_POS', 'fits': True, …}
+</code></pre>
+<p>ALOHA 2 has two arms of 6 joints and a gripper, OpenVLA's bimanual layout, but OpenVLA's own loader takes only
+end-effector actions (<code>materialize.py</code> L32-33), so <code>fits</code> is False and the notes say to use OpenVLA-OFT, whose
+loader reads <code>JOINT_POS_BIMANUAL</code> as absolute joint positions: add an OpenVLA-OFT policy (Policies ▸ Add) and the
+export targets OpenVLA-OFT, with its <code>left_wrist</code> and <code>right_wrist</code> image keys. To record end-effector deltas, export
+with the LeRobot option <code>{&quot;action_space&quot;: &quot;eef&quot;}</code> (the Export dialog's Options field). When no encoding fits, the
+file says &quot;NO ENCODING FITS&quot; and why.</p>
+<h2 id="isaac-an-off-centre-principal-point">Isaac: an off-centre principal point</h2>
+<p>A calibrated camera's principal point is rarely at the image centre. A unit calibration comes from the Hand-eye
+calibration page (Apply stores the solved intrinsics on the sensor) or from Python:</p>
+<pre><code class="language-python">rig = dv.sample('ur5e')
+wrist = rig.sensors[0]                               # Wrist D405: a flat calibration applies to its first imager
+wrist.calibration = {'K': [[610.0, 0, 331.75], [0, 610.0, 228.25], [0, 0, 1]], 'D': [0.0] * 5,
+                     'width': 640, 'height': 480, 'model': 'brown'}
+rig.export('out', ['isaac'])['formats']['isaac']['notes']
+</code></pre>
+<p>With such a project open in the window, File ▸ Export… says under <strong>Isaac Lab and Isaac Sim cameras</strong>, per camera and
+before anything is exported,</p>
+<blockquote>
+<p>Wrist D405 · IR left: principal point +12.2, -11.2 px from the centre. Isaac Lab v3.0.0 gets it through the OpenCV
+lens attributes …; Isaac Lab v2.3.2 … its render is centred: 16.6 px off this camera's principal point.</p>
+</blockquote>
+<p>The v3.0.0 config and <code>cameras.usda</code> carry it as <code>omni:lensdistortion:opencvPinhole:cx, cy</code>, which Isaac Lab's
+renderer projects through; Omniverse ignores the USD aperture offsets. For v2.3.2 there is no way to show it: use
+v3.0.0, or crop and re-centre the rendered images.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

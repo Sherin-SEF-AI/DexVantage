@@ -35,6 +35,7 @@ def test_audit_exports_need_the_audit(tmp_path):
     assert r.returncode == 2 and 'go with --audit' in r.stderr and 'Traceback' not in r.stderr
 
 
+@pytest.mark.mujoco_render
 def test_audit_html_and_fiftyone_from_batch(tmp_path):
     from dexvantage.core.sim import episodes as SE
     root = str(tmp_path / 'small')
@@ -180,6 +181,8 @@ class _FakeHub:
 
 @pytest.fixture(scope='module')
 def synth_v30(tmp_path_factory):
+    from render_support import require
+    require()                               # renders MuJoCo scenes
     from dexvantage.core.sim import episodes as SE
     root = str(tmp_path_factory.mktemp('hub') / 'src')
     SE.generate(sample_project('so100'), root, {'episodes': 3, 'frames': 30, 'size': [96, 72], 'seed': 4,

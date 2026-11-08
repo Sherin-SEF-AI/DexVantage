@@ -27,9 +27,12 @@ import json
 import os
 import pkgutil
 from dataclasses import dataclass
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from ..jobs import Ctx, StudyError
+
+if TYPE_CHECKING:                                    # names for the type hints only
+    from ..project import Project
 
 
 @dataclass
@@ -47,7 +50,7 @@ _LOADED = False
 ALIASES = {'usd': 'isaac'}
 
 
-def resolve(formats) -> list:
+def resolve(formats: str | list | tuple) -> list:
     """Format ids with the aliases (ALIASES) replaced by the registered id, in order, without repeats."""
     out = []
     for f in formats:
@@ -57,14 +60,14 @@ def resolve(formats) -> list:
     return out
 
 
-def exporter(fid: str, title: str, needs_robot: bool = False, description: str = ''):
-    def deco(fn):
+def exporter(fid: str, title: str, needs_robot: bool = False, description: str = '') -> Callable[[Callable], Callable]:
+    def deco(fn: Callable) -> Callable:
         EXPORTERS[fid] = ExporterInfo(fid, title, fn, needs_robot, description)
         return fn
     return deco
 
 
-def load_exporters():
+def load_exporters() -> None:
     global _LOADED
     if _LOADED:
         return
@@ -83,7 +86,8 @@ def _sha256(path: str) -> str:
     return h.hexdigest()
 
 
-def export(project, out_dir: str, formats, options: dict | None = None, ctx: Ctx | None = None) -> dict:
+def export(project: Project, out_dir: str, formats: str | list | tuple, options: dict | None = None,
+           ctx: Ctx | None = None) -> dict:
     from .. import provenance as PV
     load_exporters()
     ctx = ctx or Ctx()

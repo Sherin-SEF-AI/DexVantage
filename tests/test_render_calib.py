@@ -31,6 +31,8 @@ def ur5e():
 
 @pytest.fixture(scope='module')
 def renderer(ur5e):
+    from render_support import require
+    require()                               # renders MuJoCo scenes
     from dexvantage.core.sim.render import Renderer
     with Renderer(ur5e) as R:
         yield R
@@ -195,8 +197,10 @@ def test_refusals(ur5e, renderer):
 # ---------------------------------------------------------------------- a synthetic LeRobot dataset, the study
 @pytest.fixture(scope='module')
 def dataset(ur5e, tmp_path_factory):
-    pytest.importorskip('pyarrow')
-    pytest.importorskip('av')
+    from render_support import require
+    require()                               # renders MuJoCo scenes
+    pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
+    pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
     from dexvantage.core.sim import episodes as SE
     faults = {k: False for k in SE.FAULT_KINDS}
     faults['mount_slip'] = {'from_episode': 1, 'position_m': SLIP_P, 'rotation_deg': SLIP_R}

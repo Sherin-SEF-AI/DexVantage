@@ -32,6 +32,20 @@ def pytest_collection_modifyitems(session, config, items):
         items[:] = first + [it for it in items if it.nodeid not in RUN_FIRST]
 
 
+def pytest_configure(config):
+    config.addinivalue_line('markers', 'mujoco_render: needs MuJoCo\'s offscreen renderer (EGL); skipped with the '
+                                       'reason where there is none (tests/render_support.py)')
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    """A test marked mujoco_render is skipped (or, with DEXVANTAGE_TEST_RENDER=require, failed) with the reason when
+    MuJoCo cannot render offscreen here, before its fixtures render anything."""
+    if item.get_closest_marker('mujoco_render') is not None:
+        from render_support import require
+        require()
+
+
 @pytest.fixture(scope='session', autouse=True)
 def app():
     from dexvantage.app import make_app

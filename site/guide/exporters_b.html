@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isaac Lab, LeRobot and reports: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="Export the UR5e sample&#x27;s cameras to Isaac Lab, write the LeRobot dataset template and a train config that carriesthe action-chunk study&#x27;s recommendation, and write a report. The model, the sources and the checks are inExporters, part B: Isaac Lab and Isaac Sim, LeRobot and the policy codes, reports.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-isaac-lab-and-isaac-sim">1. Isaac Lab and Isaac Sim</a>
+    <a href="#2-lerobot-act-diffusion-policy-openvla">2. LeRobot, ACT, Diffusion Policy, OpenVLA</a>
+    <a href="#3-the-report">3. The report</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/exporters_b.md"><code>docs/guide/exporters_b.md</code></a></p>
+<h1 id="isaac-lab-lerobot-and-reports-a-worked-example-on-the-ur5e-sample">Isaac Lab, LeRobot and reports: a worked example on the UR5e sample</h1>
+<p>Export the UR5e sample's cameras to Isaac Lab, write the LeRobot dataset template and a train config that carries
+the action-chunk study's recommendation, and write a report. The model, the sources and the checks are in
+<a href="../models/exporters_b.html">Exporters, part B: Isaac Lab and Isaac Sim, LeRobot and the policy codes, reports</a>.</p>
+<p>In the app: <strong>File ▸ Export…</strong> (or Export ▸ Export to MuJoCo, Isaac, ROS 2, LeRobot…), tick <em>Isaac Lab and Isaac Sim
+cameras</em>, <em>LeRobot, ACT, Diffusion Policy and OpenVLA configs</em> and <em>Report (HTML and PDF)</em>, choose a folder. The
+dialog lists each format's files and notes. From Python:</p>
+<pre><code class="language-python">from dexvantage.core import exporters as X, jobs
+from dexvantage.core.robot.samples import sample_project
+from dexvantage.core.studies import action_chunk_sync as AC
+
+p = sample_project('ur5e')
+AC.apply_recommendations(p, jobs.run_study('action_chunk_sync', p.snapshot()))   # the page's Apply
+man = X.export(p, 'out/ur5e', ['isaac', 'lerobot', 'report'],
+               {'report': {'studies': ['bandwidth', 'motion_blur', 'time_sync', 'action_chunk_sync']}})
+</code></pre>
+<h2 id="1-isaac-lab-and-isaac-sim">1. Isaac Lab and Isaac Sim</h2>
+<p><code>out/ur5e/isaac/</code> holds <code>cameras.usda</code> (written by pxr when usd-core is installed: <code>pip install &quot;dexvantage[usd]&quot;</code>),
+<code>isaaclab_cameras.py</code> (Isaac Lab v3.0.0), <code>isaaclab_v2_cameras.py</code> (v2.3.2) and <code>isaac_cameras.json</code>. The sample has
+six imagers (the D405 on <code>wrist_3_link</code> and the D435 on the cage, each with IR left, IR right and RGB):</p>
+<table>
+<thead>
+<tr>
+<th>Camera</th>
+<th>Parent</th>
+<th>Size</th>
+<th>fx, fy (px)</th>
+<th>Lens in Isaac Lab</th>
+<th>Outputs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>wrist_d405_ir_left</td>
+<td>wrist_3_link</td>
+<td>1280 × 720</td>
+<td>710.79, 649.46</td>
+<td>OpenCV pinhole, zero terms (non-square)</td>
+<td>rgb, distance_to_image_plane</td>
+</tr>
+<tr>
+<td>wrist_d405_rgb</td>
+<td>wrist_3_link</td>
+<td>1280 × 720</td>
+<td>710.79, 721.62</td>
+<td>OpenCV pinhole, zero terms</td>
+<td>rgb</td>
+</tr>
+<tr>
+<td>overhead_d435_rgb</td>
+<td>environment</td>
+<td>1920 × 1080</td>
+<td>1396.81, 1406.75</td>
+<td>OpenCV pinhole, zero terms</td>
+<td>rgb</td>
+</tr>
+</tbody>
+</table>
+<p>(The focal lengths come from the D405 and D435 entries' stated fields of view, so fx ≠ fy: Isaac Lab's plain pinhole
+would use fx for both, so each camera carries an OpenCV model with zero distortion that holds fx, fy, cx, cy.)</p>
+<p>A camera config, v3.0.0:</p>
+<pre><code class="language-python">WRIST_D405_RGB = CameraCfg(
+    prim_path=ENV_NS + '/Robot/wrist_3_link/wrist_d405_rgb',
+    update_period=0.03333333333333333,          # the D405's 30 fps stream
+    width=1280, height=720, data_types=['rgb'],
+    offset=CameraCfg.OffsetCfg(pos=(-0.0, 0.1308, 0.07), rot=(-0.8627, -0.0, 0.0, 0.5057), convention=&quot;ros&quot;),
+    spawn=sim_utils.PinholeCameraCfg(focal_length=0.5553..., horizontal_aperture=1.0, ..., distortion=...),
+)
+</code></pre>
+<p>Add it to your scene config (<code>scene.wrist = CAMERAS[&quot;wrist_d405_rgb&quot;]</code>, the robot's prim named <code>Robot</code>, or pass
+<code>{'isaac': {'robot_prim': 'MyArm'}}</code>). The IR imagers are written as RGB prims with the IR imager's geometry (the
+notes say so: Isaac renders visible light).</p>
+<p><strong>Domain randomisation.</strong> The sample's mounts carry DexVantage's labelled default tolerance, ± 1 mm and ± 0.5° per
+axis (the notes say so); set your bracket's own on the Sensors page or the Tolerance page. Then, per training run:</p>
+<pre><code class="language-python">from isaaclab_cameras import randomized_cameras, sample_offset, DR
+cams = randomized_cameras(seed=3)               # every CameraCfg with one draw of its mount
+pos, rot, d = sample_offset('wrist_d405_rgb')   # one draw: d = (dx, dy, dz) m, (droll, dpitch, dyaw) degrees
+</code></pre>
+<p>The draw moves the sensor body exactly as DexVantage's tolerance study does (<code>formats.isaac_config</code> compares it).</p>
+<h2 id="2-lerobot-act-diffusion-policy-openvla">2. LeRobot, ACT, Diffusion Policy, OpenVLA</h2>
+<p>The action-chunk study recommends a delay offset of 0.1 s for the sample's π0 (5 frames at its 50 Hz control rate)
+and, for π0 (which executes chunks open loop), no ensemble weight. The export writes:</p>
+<ul>
+<li><code>lerobot/v2.1/meta/info.json</code> and <code>lerobot/v3.0/meta/info.json</code>: 14 state and action names (the UR5e's six joints
+and the Robotiq's eight linkage joints), <code>observation.images.overhead_d435</code> (1080 × 1920 × 3) and
+<code>observation.images.wrist_d405</code> (720 × 1280 × 3), fps 50. The notes say the 30 fps cameras repeat frames at 50 fps:
+record at 30 fps or pass <code>{'lerobot': {'fps': 30}}</code>.</li>
+<li><code>lerobot/pi0_sample/train_config.json</code>: policy type <code>pi0</code>, the two cameras as VISUAL [3, H, W] inputs,
+<code>push_to_hub: false</code>; <code>train.sh</code> runs <code>lerobot-train --config_path=train_config.json</code> (flags after it override,
+e.g. <code>--steps=20000</code>, or <code>--policy.path=&lt;a pretrained π0 checkpoint&gt;</code> to fine-tune).
+Set <code>{'lerobot': {'repo_id': '&lt;you&gt;/&lt;dataset&gt;'}}</code> for your dataset's name (default <code>local/&lt;project&gt;</code>).</li>
+<li><code>lerobot/pi0_sample/delta_timestamps.json</code>: <code>{&quot;action&quot;: [0.1, 0.12, …]}</code>, the 50-step window starting 0.1 s
+after each observation, and <code>make_dataset.py</code>, which builds the LeRobotDataset with it (LeRobot's train config has
+no field for the offset).</li>
+<li><code>act/task_config.yaml</code>, <code>diffusion_policy/task.yaml</code> and <code>openvla/oxe_dataset_config.py</code>: the same cameras for the
+original codes (OpenVLA: primary <code>overhead_d435</code>, wrist <code>wrist_d405</code>).</li>
+</ul>
+<p>With an ACT policy (Policies page, <em>ACT</em>), the train config gets <code>temporal_ensemble_coeff</code> = the study's m with
+<code>n_action_steps: 1</code>, and the notes say that ACT needs one image size for every camera (here 1280 × 720 and
+1920 × 1080 differ).</p>
+<h2 id="3-the-report">3. The report</h2>
+<p><code>report/report.html</code> opens in any browser (it follows the light or dark setting); <code>report/report.pdf</code> is the same on
+A4 pages. When the project has requirements (for example DexVantage's defaults,
+<code>core/requirements.default_requirements()</code>), the report starts with the scorecard; each study then has its STATUS word (for example <em>on contact</em> for the action-chunk study, <em>no hosts</em> for
+bandwidth, <em>may be blurred</em> for motion blur), its figures, a chart (payload per sensor, peak speed per camera) and its
+notes; studies that cannot run on the project are listed under <em>Not run</em> with their reason. The provenance block at
+the end gives the DexVantage version and code hash, the project's content hash and the time.</p>
+<p>In batch, run the studies first and point the report at their files:</p>
+<pre><code>dexvantage ur5e.dexv --motion-blur res/blur.json --time-sync res/sync.json
+python -c &quot;from dexvantage.core import exporters as X; from dexvantage.core.project import Project; \
+  X.export(Project.load('ur5e.dexv'), 'out', ['report'], {'report': {'results_dir': 'res'}})&quot;
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

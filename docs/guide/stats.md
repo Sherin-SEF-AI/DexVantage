@@ -59,8 +59,8 @@ within their tolerances with the same seed, so the draws are paired by seed:
 
 | Figure | A | B | B − A [95 % BCa] | p (permutation, 9 999 sign flips) | Holm |
 |---|---|---|---|---|---|
-| Task volume seen | 94.56 % | 94.38 % | −0.179 [−0.187, −0.172] | 0.0002 | 0.0004 |
-| Seen by two or more cameras | 47.21 % | 46.32 % | −0.890 [−0.896, −0.883] | 0.0002 | 0.0004 |
+| Task volume seen | 94.56 % | 94.38 % | −0.179 pp [−0.187, −0.172] | 0.0002 | 0.0004 |
+| Seen by two or more cameras | 47.21 % | 46.32 % | −0.890 pp [−0.896, −0.883] | 0.0002 | 0.0004 |
 
 Both differences are **clear** (A is better), because the paired draws cancel the mount noise: the raised camera
 loses 0.18 points of the task volume and 0.89 points of the two-camera share. Whether a 0.2-point loss matters is the

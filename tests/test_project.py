@@ -70,7 +70,7 @@ def test_published_schema_is_the_packaged_one():
 
 
 def test_blank_project_validates_against_schema():
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     with open(os.path.join(ROOT, 'docs', 'project.schema.json')) as fh:
         schema = json.load(fh)
     jsonschema.validate(json.loads(json.dumps(P.blank_project().to_dict())), schema)

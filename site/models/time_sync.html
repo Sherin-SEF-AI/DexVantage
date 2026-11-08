@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time sync · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/studies/time_sync.py (study id time_sync, batch flag --time-sync OUT.json, or --sync OUT.json, the specification&#x27;s name). Settings inproject.rig[&#x27;sync&#x27;] (core/project.py sync_from_dict, both copies of the project schema) andproject.analysis.studies[&#x27;time_sync&#x27;]. Page …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#clocks-and-streams-projectrigsync">Clocks and streams (project.rig[&#x27;sync&#x27;])</a>
+    <a href="#stamp-error-of-a-camera-frame">Stamp error of a camera frame</a>
+    <a href="#joint_states">joint_states</a>
+    <a href="#skew-pairs-and-the-action-label-error">Skew, pairs and the action-label error</a>
+    <a href="#status-and-recommendation">Status and recommendation</a>
+    <a href="#validation-model-timing-measured-2026-11-07-full-run">Validation (model timing, measured 2026-11-07, full run)</a>
+    <a href="#worked-example">Worked example</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/time_sync.md"><code>docs/models/time_sync.md</code></a></p>
+<h1 id="time_sync">Time sync</h1>
+<p>Module: <code>dexvantage/core/studies/time_sync.py</code> (study id <code>time_sync</code>, batch flag <code>--time-sync OUT.json</code>, or <code>--sync OUT.json</code>, the specification's name). Settings in
+<code>project.rig['sync']</code> (<code>core/project.py</code> <code>sync_from_dict</code>, both copies of the project schema) and
+<code>project.analysis.studies['time_sync']</code>. Page: <code>dexvantage/ui/pages/time_sync.py</code> (Analysis ▸ Time sync, Placement
+workspace). Checks: <code>dexvantage/validation/checks_sync.py</code> (model <code>timing</code>). Tests: <code>tests/test_time_sync.py</code>. Spec
+§7.10. Written for DexVantage. Vantage's <code>core/clock_tree.py</code> simulates an automotive GNSS/PTP clock tree; nothing of
+it is used here.</p>
+<h2 id="clocks-and-streams-projectrigsync">Clocks and streams (<code>project.rig['sync']</code>)</h2>
+<pre><code>{'clocks':  [{'uid', 'name', 'kind': camera_hw | host | ptp | ntp | robot,
+              'offset_s', 'jitter_s', 'drift_ppm'}],        each {'value', 'source'} or null (not stated)
+ 'streams': {sensor uid | 'joint_states': {'clock': clock uid ('' = host arrival), 'trigger': free | hardware | sync_cable}}}
+</code></pre>
+<p>The section is only written when it holds something, so an untouched rig keeps its old form. A stream with no entry
+is stamped by the host when its frame arrives and runs free; this is the default, and the result says so. Times are
+on the host's time base. A clock's offset is its reading minus the host's.</p>
+<h2 id="stamp-error-of-a-camera-frame">Stamp error of a camera frame</h2>
+<p><code>e = stamp − the instant the frame was exposed</code>, taken as the middle of the middle row's exposure (Liang et al. 2008).
+Each term is an interval <code>[low, high]</code>, and the budget is their sum:</p>
+<table>
+<thead>
+<tr>
+<th>Stamping</th>
+<th>Terms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Host arrival (no clock or a <code>host</code> clock), free or on a sync cable</td>
+<td><code>E/2</code> (exposure centre to its end) + <code>T_r/2</code> (rolling shutter: the middle row to the last) or <code>T_r</code> (global shutter: rows read after the exposure) + USB transfer <code>[bits/C_link, (bits + one frame of every other stream on the controller)/C_controller]</code> + bus interval <code>[0, 125 µs]</code></td>
+</tr>
+<tr>
+<td>Device clock (<code>camera_hw</code>, <code>ptp</code>, <code>ntp</code>)</td>
+<td><code>±E/2</code>: which instant of the exposure the stamp marks is not stated</td>
+</tr>
+<tr>
+<td>Hardware trigger (only where the maker states one)</td>
+<td><code>−E/2</code>, and <code>−T_r/2</code> for a rolling shutter: the stamp is the trigger edge. Transfer and processing no longer count</td>
+</tr>
+<tr>
+<td>Measured latency (settings <code>latency_s</code>)</td>
+<td>the measured figure replaces exposure, readout, transfer and processing</td>
+</tr>
+<tr>
+<td>Any clock but the host's</td>
+<td>its offset (a constant), <code>±jitter</code>, and drift <code>× 10⁻⁶ × episode_s</code> (60 s by default)</td>
+</tr>
+</tbody>
+</table>
+<p>Each input has a stated source:</p>
+<ul>
+<li><strong>Exposure E and readout T_r:</strong> from the motion blur study's <code>imaging</code>. That is your figure, else the library
+entry's, else the frame period as an upper bound. An exposure that is not fixed (auto-exposure) spans from the
+shortest the maker states (0 when none is stated) to that bound.</li>
+<li><strong>USB transfer:</strong> from the bandwidth study's topology. Bits are <code>width × height × bits per pixel × (1 + overhead)</code>,
+with the 5 % overhead default. <code>C_link</code> is the lower of the device's and the controller's USB generation, at the
+USB 3.2 §4.4.11 effective rate or the controller's stated practical figure. When a sensor is not assigned to a
+controller, only the lower end is known, and the budget is flagged incomplete.</li>
+<li><strong>Bus interval:</strong> &quot;For high speed and SuperSpeed, the bus interval is a microframe. The length of a microframe is
+125 microseconds&quot; (Microsoft, <em>How to transfer data to USB isochronous endpoints</em>, 2024-01-17, read 2026-11-07;
+USB 2.0 §5.8.4).</li>
+<li><strong>Processing inside the device:</strong> not stated by any maker in the library (a depth camera computes depth before it
+sends). A host-stamped budget is therefore a <strong>lower bound</strong>, said &quot;at least&quot; or &quot;incomplete&quot;, until you enter a
+measured latency.</li>
+<li><strong>PTP and NTP figures:</strong> never assumed. Enter what your servo reports (for example ptp4l's offset or <code>chronyc tracking</code>) with its source. A figure not entered is &quot;not stated&quot;.</li>
+<li><strong>Hardware trigger support:</strong> from the library entry's <code>sync</code> block (<code>hardware_trigger</code>, <code>sync_cable</code>, the imagers
+it reaches, the maker's words). For the D435, only the depth sensor takes the external trigger (D400 datasheet
+§3.7.4); for the D405, &quot;D405 does not support the hardware sync signal&quot; (§7.13). Setting a trigger on an imager the
+maker says takes none counts that imager as free-running, and says so. The page refuses the setting.</li>
+</ul>
+<h2 id="joint_states">joint_states</h2>
+<p>joint_states has its own budget:</p>
+<ul>
+<li><strong>Stamped by the host on arrival</strong> (the default): the latency from the robot controller to the host is not stated.</li>
+<li><strong>Stamped by a <code>robot</code>, <code>ptp</code> or <code>ntp</code> clock:</strong> that clock's figures.</li>
+<li><strong>Measured:</strong> a figure in <code>latency_s['joint_states']</code>.</li>
+</ul>
+<p>A frame's label is joint_states at the frame's stamp. With <code>pairing</code> <code>interpolate</code> (the default) the label is
+interpolated. With <code>nearest</code> it is the nearest sample, which adds <code>±1/(2r)</code>; <code>r</code> is <code>joint_rate_hz</code>, with its source.</p>
+<h2 id="skew-pairs-and-the-action-label-error">Skew, pairs and the action-label error</h2>
+<pre><code>skew = e_camera − e_joint = [e_c,low − e_j,high,  e_c,high − e_j,low]
+</code></pre>
+<ul>
+<li><strong>Worst skew:</strong> the interval's largest magnitude.</li>
+<li><strong>Spread:</strong> the interval's width. That is what remains after a constant latency is subtracted.</li>
+<li><strong>Camera pairs:</strong> two free-running cameras matched by timestamp are also up to half the longer frame period apart.
+A shared sync cable, or a hardware trigger on the same clock, removes that.</li>
+</ul>
+<p>The <strong>action-label error</strong> is the end effector's largest displacement during the skew:</p>
+<pre><code>max over t of |p(t + δ) − p(t)|,  δ at both ends of the skew interval
+</code></pre>
+<p><code>p</code> is the TCP (<code>grasps.gripper_geometry</code>). It comes from forward kinematics (<code>RobotModel.fk_array</code>) of <code>q(t)</code> on a
+1 ms grid, linear between grid points. The motions are the motion blur study's.</p>
+<h2 id="status-and-recommendation">Status and recommendation</h2>
+<p>The status compares the worst skew with <code>skew_limit_s</code> (2 ms by default; the spec's figure, a DexVantage default, not
+a standard):</p>
+<ul>
+<li>within the limit: &quot;in sync&quot;;</li>
+<li>up to twice the limit: &quot;tight&quot;;</li>
+<li>beyond that: &quot;out of sync&quot;;</li>
+<li>when a term is not stated: &quot;out of sync&quot; with the figure shown as a lower bound (≥), or &quot;incomplete&quot;.</li>
+</ul>
+<p>The recommendation takes the first of these that applies:</p>
+<ol>
+<li>A hardware trigger for the stream with the worst skew whose maker supports one. The predicted skew and
+action-label error come from running the study again with the trigger set. Apply sets it in <code>project.rig['sync']</code>
+(one undo step).</li>
+<li>A sync cable between two free-running cameras that both support one.</li>
+<li>Advice: measure the arrival latency, or stamp the frames on a PTP-disciplined clock.</li>
+</ol>
+<h2 id="validation-model-timing-measured-2026-11-07-full-run">Validation (model <code>timing</code>, measured 2026-11-07, full run)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sync.stamp_interval_sim</code></td>
+<td>the transfer times against the frame size and the USB 3.2 Gen 1 capacity typed in again; the stamp interval against a row-by-row simulation of 2 000 frames per case (free-running, fixed exposure, hardware trigger, device clock with offset, jitter and drift, measured latency): frames queued behind a random set of other frames on the bus and seen at the next 125 µs boundary from a random phase</td>
+<td>3.5 × 10⁻¹⁸ s outside the interval; every simulated span at least 99.97 % of the interval</td>
+<td>10⁻⁹ s; span ≥ 90 %</td>
+</tr>
+<tr>
+<td><code>sync.action_label_sim</code></td>
+<td>30 fps frames at 40 random phases along the UR5e sample's scripted pick, stamped with skews of −20, −2, 3, 15 and 40 ms; label and truth by forward kinematics at those instants</td>
+<td>2.2 × 10⁻⁴ (relative)</td>
+<td>2 %</td>
+</tr>
+</tbody>
+</table>
+<h2 id="worked-example">Worked example</h2>
+<p>The UR5e sample is in <a href="../guide/time_sync.html">Time sync: a worked example on the UR5e sample</a>.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li><strong>Device processing:</strong> the makers do not state the processing time inside a device. A host-stamped budget is a
+lower bound until you enter a measured latency.</li>
+<li><strong>USB model:</strong> a USB transfer is modelled as the stream's frame at the link's capacity, queued behind at most one
+frame of every other device on its controller. Isochronous reservations, driver buffering and the host's interrupt
+moderation are not modelled.</li>
+<li><strong>Clocks:</strong> clock figures are what you enter; no servo is simulated.</li>
+<li><strong>Trigger delay:</strong> the delay from a hardware trigger to the exposure is not stated and not counted.</li>
+<li><strong>End effector:</strong> the TCP stands for the end effector, so an object held off-centre moves differently when the
+gripper turns.</li>
+<li><strong>Other joints:</strong> the robot's other joints stay at home.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Systems from the library: hosts, policies, lights, cables and teleop devices · DexVantage</title>
+<meta name="description" content="A worked example on the SO-100 sample. The entries, their sources and their checks are indocs/models/library.md; the teleop devices indocs/models/teleop.md.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-a-teleop-device-from-the-library">1. A teleop device from the library</a>
+    <a href="#2-a-policy-variant">2. A policy variant</a>
+    <a href="#3-a-host-and-a-cable">3. A host and a cable</a>
+    <a href="#4-check-the-entries">4. Check the entries</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/library_systems.md"><code>docs/guide/library_systems.md</code></a></p>
+<h1 id="systems-from-the-library-hosts-policies-lights-cables-and-teleop-devices">Systems from the library: hosts, policies, lights, cables and teleop devices</h1>
+<p>A worked example on the SO-100 sample. The entries, their sources and their checks are in
+<a href="../models/library.html#library-systems"><code>docs/models/library.md</code></a>; the teleop devices in
+<a href="../models/teleop.html#library"><code>docs/models/teleop.md</code></a>.</p>
+<h2 id="1-a-teleop-device-from-the-library">1. A teleop device from the library</h2>
+<pre><code>dexvantage --sample so100
+</code></pre>
+<p>Open Analysis ▸ Teleop overlap. Under <strong>Teleop devices</strong> a second row holds the library picker: choose
+<strong>SO-100 leader arm · Leader arm</strong> and press <strong>Add from library</strong> (one undo step). The new device reads:</p>
+<ul>
+<li><em>Leader</em>: the follower's own model, joint to joint. The entry is stated to lead an SO-100 (its <code>leads</code> words match
+the sample robot's name SO-ARM100 and its model file <code>so_arm100.xml</code>), and LeRobot's SO-100 guide states the
+leader is built from the follower's parts through the wrist, so <code>same_joints</code> is true.</li>
+<li><em>Source</em>: <code>dof: 6</code> with LeRobot's docs at commit d490e47, read 2026-11-07, and the quote (&quot;Remove the gears of the
+6 leader motors&quot;); <code>leader:</code> why the follower's model is used.</li>
+<li>Below the source: <em>From the library: TheRobotStudio and Hugging Face (LeRobot), SO-100 leader arm. Not stated by
+the maker: tracking or sample rate, latency, workspace, ...</em></li>
+</ul>
+<p>Add two more from the picker: <strong>Quantum Metagloves · Data glove</strong> and <strong>Koch v1.1 leader arm · Leader arm</strong>, then
+<strong>Run</strong>. Measured on 2026-11-07 (study defaults, CPU, 10.4 s):</p>
+<table>
+<thead>
+<tr>
+<th>Device</th>
+<th>Comfortable</th>
+<th>Teleoperable</th>
+<th>What the study says</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SO-100 leader arm (library)</td>
+<td>96.7 %</td>
+<td>96.7 %</td>
+<td>the same as the sample's own leader device: the same joints, joint to joint</td>
+</tr>
+<tr>
+<td>Quantum Metagloves</td>
+<td>—</td>
+<td>—</td>
+<td>&quot;its tracking volume is not stated, so its comfortable workspace is not known. Enter a measured or published figure with its source; DexVantage does not guess one.&quot;</td>
+</tr>
+<tr>
+<td>Koch v1.1 leader arm</td>
+<td>—</td>
+<td>—</td>
+<td>&quot;the library entry &quot;Koch v1.1 leader arm&quot; states the leader's figures but no kinematics, and it is not stated to lead this follower; add the leader arm as a robot (Robot ▸ Import) and choose it as the leader.&quot;</td>
+</tr>
+</tbody>
+</table>
+<p>The glove's figures (120 Hz sample rate, ≤ 7.5 ms signal latency, 138 g) are in its source with MANUS's page and the
+date read; the reach model does not use them. To give the glove a region, measure the volume its wrist tracker covers
+and enter it under <em>Volume</em> with its source.</p>
+<h2 id="2-a-policy-variant">2. A policy variant</h2>
+<p>Tasks ▸ Policies: the list now includes π0.5, GR00T N1.5 3B, RDT-1B, OpenVLA-OFT (LIBERO) and OpenVLA-OFT+
+(ALOHA), the SmolVLA LIBERO and Meta-World fine-tunes, Diffusion Policy (CNN, Push-T), ACT (LeRobot defaults),
+HPT-Base and Octo-Small. Each figure shows its source; a figure no source states shows &quot;—&quot;. For example
+<strong>OpenVLA-OFT+ (ALOHA)</strong>: three 224 × 224 images, the centre 90 % crop of the area (0.9487 of each side), chunk 25
+executed open-loop, 321 ms per chunk on an NVIDIA A100, a 25 Hz controller — all from Kim, Finn and Liang (2025)
+and the official code. <strong>π0.5</strong> states no inference time: the action-chunk study says so rather than assuming one.</p>
+<h2 id="3-a-host-and-a-cable">3. A host and a cable</h2>
+<p>Analysis ▸ Bandwidth, hosts and power: <strong>Basler USB 3.0 Card PCIe, Fresco FL1100, 4 HC, x4, 4 Ports (5 Gbit/s)</strong> is a USB 3.2 Gen 1
+controller card; its entry carries Basler's &quot;Up to 380 MBps per port reliably supported&quot; (3 040 Mbit/s) and &quot;Up to
+1.52 GBps total&quot; (12 160 Mbit/s). Enter the per-port figure as the controller's practical rate (its source is in the
+entry's note) to budget against it. The <strong>Jetson AGX Thor Developer Kit</strong> lists two USB 3.2 Gen 2 Type-A ports (10
+Gbit/s each), two USB-C ports whose generation NVIDIA does not state, and a QSFP28 (4 × 25 GbE) for Holoscan Sensor
+Bridge cameras.</p>
+<p>Analysis ▸ Cable flex across joints: <strong>Basler Cable USB 3.0, Micro B sl/A, P</strong> states &quot;Minimum Bending Radius 62 mm, fixed
+installation&quot; and &quot;Suitable for Robotics Applications No&quot;; across a moving joint the study uses the fixed radius and
+says the maker states no moving figure. <strong>Stereolabs GMSL2 Fakra Cable F-F</strong> states 33 mm static and 66 mm &quot;loaded&quot;
+(taken as the moving radius) and 10 000 flex cycles.</p>
+<h2 id="4-check-the-entries">4. Check the entries</h2>
+<pre><code>dexvantage --validate out/validation
+</code></pre>
+<p>The <code>library</code> model's systems checks (<code>library.teleop_figures</code>, <code>library.policy_token_grid</code>, <code>library.stated_totals</code>)
+pass with 0 problems, 0 tokens and 9.0 × 10⁻⁴ (the HaptX glove's &quot;~ 1 lb&quot; entered as 454 g). <code>dexvantage --self-test</code> has the line &quot;library teleop&quot;.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

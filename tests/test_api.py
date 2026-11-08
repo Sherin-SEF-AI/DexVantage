@@ -150,7 +150,7 @@ def test_headline_metrics_and_tables(monkeypatch):
     assert ev['bandwidth.margin']['value'] is None and ev['bandwidth.margin']['status'] == 'not stated'
     assert ev.figures()['coverage.covered'] == pytest.approx(h['value'])
     assert 'cameras' in res.tables()
-    pd = pytest.importorskip('pandas')
+    pd = pytest.importorskip('pandas', reason='pandas (the research extra) is not installed')
     f = res.to_frame('cameras', columns=['name', 'seen', 'fov_deg.h'])
     assert isinstance(f, pd.DataFrame) and list(f.columns) == ['name', 'seen', 'fov_deg.h']
     assert list(f['name']) == [c['name'] for c in res['cameras']]
@@ -221,7 +221,7 @@ def test_result_save_has_provenance(tmp_path):
 
 def test_datasets_open(tmp_path):
     import dexvantage as dv
-    pytest.importorskip('pyarrow')
+    pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
     from dexvantage.core.datasets import episode as E
     from dexvantage.core.datasets import lerobot as L
     t = np.arange(6) / 10.0

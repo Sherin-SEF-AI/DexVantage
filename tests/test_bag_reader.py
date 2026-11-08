@@ -295,7 +295,7 @@ def test_images_round_trip():
 
 
 def test_compressed_images():
-    cv2 = pytest.importorskip('cv2')
+    cv2 = pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     rng = np.random.default_rng(6)
     rgb = rng.integers(0, 256, (24, 32, 3), dtype=np.uint8)
     ok, png = cv2.imencode('.png', cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
@@ -373,7 +373,7 @@ def _check_with_mcap(path, sent_counts, sent_data):
 
 @pytest.mark.parametrize('comp', _compressions())
 def test_bag_three_topics_chunked(tmp_bags, comp):
-    pytest.importorskip('mcap')
+    pytest.importorskip('mcap', reason='mcap (the test extra, an independent MCAP reader) is not installed')
     rng = np.random.default_rng(11)
     big = rng.integers(0, 256, (512, 683, 3), dtype=np.uint8)            # ~1 MB rgb8
     small = rng.integers(0, 256, (16, 16, 3), dtype=np.uint8)
@@ -452,12 +452,12 @@ def test_out_of_order_writes_come_back_in_time_order(tmp_bags):
 @pytest.mark.parametrize('variant', ['zstd', 'lz4', 'none', 'unchunked', 'no_stats', 'no_index', 'chunk_index_only'])
 def test_files_written_by_mcap_package(tmp_bags, variant):
     """Files from mcap.writer.Writer (schemas and channels inside chunks, other index layouts) read by BagReader."""
-    pytest.importorskip('mcap')
+    pytest.importorskip('mcap', reason='mcap (the test extra, an independent MCAP reader) is not installed')
     from mcap.writer import CompressionType, IndexType, Writer
     if variant == 'zstd':
-        pytest.importorskip('zstandard')
+        pytest.importorskip('zstandard', reason='zstandard (the bags extra) is not installed')
     if variant == 'lz4':
-        pytest.importorskip('lz4')
+        pytest.importorskip('lz4', reason='lz4 (the bags extra) is not installed')
     kw = {'compression': {'zstd': CompressionType.ZSTD, 'lz4': CompressionType.LZ4}.get(variant, CompressionType.NONE),
           'chunk_size': 2048}
     if variant == 'unchunked':
@@ -501,7 +501,7 @@ def test_files_written_by_mcap_package(tmp_bags, variant):
 def test_bag_own_definitions_and_undecodable(tmp_bags):
     """A type MSG_DEFS does not know is decoded from the bag's schema; a bag's own definition of a known name wins;
     a non-CDR channel and a corrupt message come back as bytes without stopping the iteration."""
-    pytest.importorskip('mcap')
+    pytest.importorskip('mcap', reason='mcap (the test extra, an independent MCAP reader) is not installed')
     from mcap.writer import CompressionType, Writer
     path = str(tmp_bags / 'vendor.mcap')
     vendor = ('std_msgs/Header header\nuint8 MODE_A=1\nuint8 mode\nfloat64[] ranges\nstring[] names\n'
@@ -760,7 +760,7 @@ def test_skip_corrupt_chunk_and_fuzz(tmp_bags):
 
 
 def test_rosbag2_message_compression_and_file_compression(tmp_bags):
-    zstd = pytest.importorskip('zstandard')
+    zstd = pytest.importorskip('zstandard', reason='zstandard (the bags extra) is not installed')
     import yaml
     d = tmp_bags / 'msgz'
     d.mkdir()
@@ -936,7 +936,7 @@ def _check_episode(ep, sent):
 
 @pytest.mark.parametrize('comp', _compressions())
 def test_mcap_bag_as_episode(tmp_bags, comp):
-    pytest.importorskip('cv2')
+    pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     msgs, sent = _robot_messages(np.random.default_rng(7))
     path = str(tmp_bags / 'ep_001')
     _write_mcap_bag(path, msgs, comp)
@@ -953,7 +953,7 @@ def test_mcap_bag_as_episode(tmp_bags, comp):
 
 
 def test_sqlite_bag_as_episode(tmp_bags):
-    pytest.importorskip('cv2')
+    pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     msgs, sent = _robot_messages(np.random.default_rng(8))
     folder = str(tmp_bags / 'ep_db3')
     _write_db3_bag(folder, msgs)
@@ -964,8 +964,8 @@ def test_sqlite_bag_as_episode(tmp_bags):
 
 def test_bag_written_by_the_mcap_package(tmp_bags):
     """An MCAP file from mcap.writer (schemas from rosbag's schema text, messages encoded by hand-checked CDR)."""
-    pytest.importorskip('mcap')
-    pytest.importorskip('cv2')
+    pytest.importorskip('mcap', reason='mcap (the test extra, an independent MCAP reader) is not installed')
+    pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     from mcap.writer import CompressionType, Writer
     msgs, sent = _robot_messages(np.random.default_rng(9))
     path = str(tmp_bags / 'theirs.mcap')
@@ -1030,7 +1030,7 @@ def test_joint_subsets_unstamped_and_depth(tmp_bags):
 
 
 def test_pixel_encodings_to_rgb():
-    cv2 = pytest.importorskip('cv2')
+    cv2 = pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     rng = np.random.default_rng(4)
     rgb = rng.integers(0, 256, (6, 8, 3), dtype=np.uint8)
     assert np.array_equal(BD.to_rgb8(rgb[:, :, ::-1], 'bgr8'), rgb)

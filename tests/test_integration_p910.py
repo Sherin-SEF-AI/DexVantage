@@ -79,8 +79,8 @@ def test_a_packet_the_threaded_video_decoder_refuses_is_decoded_again_single_thr
     # on files that decode cleanly: the reader tries once more without threads, from the frame it reached
     import numpy as np
     import pytest
-    av = pytest.importorskip('av')
-    pytest.importorskip('pyarrow')
+    av = pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
+    pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
     from dexvantage.core import datasets as DS
     from dexvantage.core.datasets import lerobot as L
     from dexvantage.validation import checks_formats as CF

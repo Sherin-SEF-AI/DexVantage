@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Policies: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="Name the policy your data is for, choose the cameras it takes, see what part of each image it uses, and replace afigure the source does not state with one you measured. The model, the library&#x27;s sources and the validation are inPolicies: what a robot-learning policy takes from each camera.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-add-a-policy">1. Add a policy</a>
+    <a href="#2-see-what-the-policy-sees">2. See what the policy sees</a>
+    <a href="#3-enter-your-own-figure">3. Enter your own figure</a>
+    <a href="#4-choose-the-cameras">4. Choose the cameras</a>
+    <a href="#5-export">5. Export</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/policies.md"><code>docs/guide/policies.md</code></a></p>
+<h1 id="policies-a-worked-example-on-the-ur5e-sample">Policies: a worked example on the UR5e sample</h1>
+<p>Name the policy your data is for, choose the cameras it takes, see what part of each image it uses, and replace a
+figure the source does not state with one you measured. The model, the library's sources and the validation are in
+<a href="../models/policies.html">Policies: what a robot-learning policy takes from each camera</a>.</p>
+<h2 id="1-add-a-policy">1. Add a policy</h2>
+<ol>
+<li><strong>File ▸ Open sample ▸ UR5e and Robotiq 2F-85 with a wrist D405 and an overhead D435</strong>.</li>
+<li>Open the <strong>Policies</strong> page (Tasks ▸ Policies, or Ctrl+K: &quot;Policies&quot;). The sample comes with one policy,
+&quot;π0 (sample)&quot;; to follow these steps from the start select it and press <strong>Remove</strong>. The headline then reads
+<strong>— · no policy</strong>.</li>
+<li>Pick <strong>π0 (pi0) · Physical Intelligence</strong> in the combo and press <strong>Add policy</strong> (one undo step). The table shows
+<code>π0 (pi0) · all (2) · 224 × 224 px · 0</code>: it takes every camera and depth sensor of the rig, its input is
+224 × 224, and no figure the studies need is missing.</li>
+<li>Select it. The fields list each figure and its source: action chunk H <code>50 steps</code>, &quot;cited: K. Black et al., π0 …,
+arXiv:2410.24164, read 2026-11-06: &quot;we use H=50 for our tasks&quot;&quot;. Hover over a value for the full quote.</li>
+</ol>
+<p>The headline now reads <strong>0 not stated · camera count</strong>: π0 takes 3 images (a base camera and two wrist cameras)
+and the rig has 2. That is information, not an error: π0 masks a missing slot. Tell DexVantage so (step 3).</p>
+<h2 id="2-see-what-the-policy-sees">2. See what the policy sees</h2>
+<p>Select <strong>Overhead D435</strong> and look at the <strong>Camera view</strong> while the Policies page is shown: the policy's input
+region is drawn on the image, labelled <code>π0 (pi0) input 224 × 224 · resized with padding · 44 % padding</code>. For π0 the
+whole 1920 × 1080 colour image is used and shrunk to 224 × 126 (0.117 input pixels per camera pixel), with black
+bars above and below. Add <strong>GR00T N1 2B</strong> instead and the rectangle shrinks to the centred 95 % crop
+(48, 27)–(1872, 1053), stretched to 224 × 224; <strong>Diffusion Policy</strong> draws its centred 81 % crop.</p>
+<h2 id="3-enter-your-own-figure">3. Enter your own figure</h2>
+<ol>
+<li>Select the <strong>π0</strong> row. In <strong>Override</strong> pick <em>Cameras</em>, enter <code>2</code> and the source <code>this rig has two cameras; the third slot is masked</code>. Press <strong>Set</strong> (one undo step). The field now reads <code>2</code> with &quot;yours: measured by the user:
+this rig has two cameras; the third slot is masked&quot;, and its tooltip keeps the library's figure. The headline turns
+<strong>0 not stated · all cited</strong>.</li>
+<li>Add <strong>π0-FAST</strong>: the headline reads <strong>1 not stated · measure them</strong>, &quot;control rate is not stated by its source&quot;
+(the paper lists 5–50 Hz across its robots). Measure your controller's rate, enter it as an override with how you
+measured it, and the headline turns good again.</li>
+<li>A value that cannot be a figure (<code>fast</code>, <code>224</code>) or a figure with no source is refused with the reason under the
+buttons; nothing changes. <strong>Clear</strong> brings back the library's figure. Ctrl+Z undoes each step.</li>
+</ol>
+<h2 id="4-choose-the-cameras">4. Choose the cameras</h2>
+<p>Untick <strong>Every camera and depth sensor of the rig</strong> and tick the cameras the policy takes. The token and latency
+studies use these cameras; the Camera view draws the input region only on them.</p>
+<h2 id="5-export">5. Export</h2>
+<p><strong>Export…</strong> writes every policy, its cameras and each resolved field with its source and origin (library, yours or
+not stated), with the project's provenance block, as JSON.</p>
+<p>From code, the same figures:</p>
+<pre><code class="language-python">from dexvantage.core import policies
+policies.resolve(project, uid)['inference_ms']      # (73, 'K. Black et al., … read 2026-11-06: 73 ms on-board …')
+policies.input_geometry(project, uid, (1920, 1080)).dst_rect   # (0.0, 49.0, 224.0, 175.0)
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

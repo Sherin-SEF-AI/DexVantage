@@ -99,8 +99,10 @@ def have_pxr() -> bool:
 
 
 def missing_pxr_message(base: str) -> str:
-    return (f'{base} is a USD file, which needs the optional usd-core package (optional: install usd-core, for '
-            'example pip install "dexvantage[usd]" or pip install usd-core==26.8), then import it again.')
+    from ...extras import missing
+    return missing('usd', f'{base} is a USD file, which needs the optional usd-core package (install the usd extra: '
+                          'pip install "dexvantage[usd]", or pip install usd-core==26.8), then import it again.',
+                   ', or export the robot as URDF or MJCF and import that')
 
 
 @dataclass

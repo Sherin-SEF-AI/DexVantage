@@ -9,11 +9,16 @@ mlflow/utils/validation.py and the YAML writer of mlflow/utils/yaml_utils.py at 
     mlruns/
       .trash/                                  FileStore.TRASH_FOLDER_NAME (created by FileStore when missing)
       0/meta.yaml                              the "Default" experiment (FileStore.DEFAULT_EXPERIMENT_ID)
-      <experiment_id>/meta.yaml                artifact_location, creation_time, experiment_id, last_update_time,
-                                               lifecycle_stage, name (dict(Experiment) without its tags, less
-                                               the three keys 3.17.2 adds, effective_trace_archival_retention,
-                                               trace_location and workspace, which its reader fills in when
-                                               missing: checked by tracking.mlflow_reader)
+      <experiment_id>/meta.yaml                artifact_location, creation_time, effective_trace_archival_retention
+                                               (null), experiment_id, last_update_time, lifecycle_stage, name,
+                                               trace_location (null), workspace ('default',
+                                               utils/workspace_utils.DEFAULT_WORKSPACE_NAME): dict(Experiment)
+                                               without its tags, as FileStore._create_experiment_with_id writes it
+                                               (the same keys a file store made by mlflow-skinny 3.17.2 holds,
+                                               compared by tests/test_tracking_mlruns_meta.py). Older readers
+                                               keep only the keys their Experiment knows
+                                               (_MlflowObject.from_dictionary filters them, read at v1.30.0, v2.0.1
+                                               and v3.17.2), so the three newer keys do not upset them.
       <experiment_id>/<run_id>/meta.yaml       _make_persisted_run_info_dict(): artifact_uri, end_time,
                                                entry_point_name '', experiment_id, lifecycle_stage, run_id,
                                                run_name, source_name '', source_type 4 (LOCAL), source_version '',
@@ -57,6 +62,7 @@ import shutil
 from .store import epoch_ms, write_atomic
 
 MLFLOW_VERSION_READ = '3.17.2'
+DEFAULT_WORKSPACE = 'default'                   # mlflow/utils/workspace_utils.py DEFAULT_WORKSPACE_NAME at v3.17.2
 DEFAULT_EXPERIMENT_ID = '0'
 STATUS = {'running': 1, 'scheduled': 2, 'finished': 3, 'failed': 4, 'cancelled': 5}   # RunStatus (service.proto)
 SOURCE_TYPE_LOCAL = 4                    # SourceType: NOTEBOOK, JOB, PROJECT, LOCAL, UNKNOWN = range(1, 6)
@@ -124,8 +130,10 @@ def _experiment(root: str, eid: str, name: str, when_ms: int):
     meta = os.path.join(d, 'meta.yaml')
     if os.path.isfile(meta):
         return
-    _yaml(meta, {'artifact_location': _file_uri(d), 'creation_time': when_ms, 'experiment_id': eid,
-                 'last_update_time': when_ms, 'lifecycle_stage': 'active', 'name': name})
+    _yaml(meta, {'artifact_location': _file_uri(d), 'creation_time': when_ms,
+                 'effective_trace_archival_retention': None, 'experiment_id': eid, 'last_update_time': when_ms,
+                 'lifecycle_stage': 'active', 'name': name, 'trace_location': None,
+                 'workspace': DEFAULT_WORKSPACE})
 
 
 def experiment_name(r: dict) -> str:

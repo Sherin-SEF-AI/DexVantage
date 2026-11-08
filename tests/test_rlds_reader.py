@@ -88,7 +88,8 @@ def test_tfrecord_framing_and_damage(tmp):
 def _pb_classes():
     """tf.train.Example / SequenceExample classes built at run time from feature.proto and example.proto's
     definitions (tensorflow/core/example), with Google's protobuf runtime: no TensorFlow."""
-    pytest.importorskip('google.protobuf')
+    pytest.importorskip('google.protobuf',
+                        reason='protobuf (the test extra, an independent RLDS reference) is not installed')
     from google.protobuf import descriptor_pb2, descriptor_pool, message_factory
     F = descriptor_pb2.FieldDescriptorProto
     fd = descriptor_pb2.FileDescriptorProto(name='dv_example_test.proto', package='dvtest', syntax='proto3')
@@ -182,7 +183,7 @@ def test_parser_rejects_garbage():
 # datasets
 
 def test_oxe_dataset_round_trip(tmp):
-    cv2 = pytest.importorskip('cv2')
+    cv2 = pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     folder, sent = TW.write_oxe(str(tmp), 'toy_oxe', {'train': [[5, 3], [4]], 'test': [[6]]}, zlib_extra=True)
     assert cv2 is not None
     for target in (folder, str(tmp / 'toy_oxe')):                     # the version folder or its parent
@@ -232,7 +233,7 @@ def test_oxe_dataset_round_trip(tmp):
 
 
 def test_example_without_features_json_and_timestamps(tmp):
-    cv2 = pytest.importorskip('cv2')
+    cv2 = pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     n = 6
     rng = np.random.default_rng(1)
     imgs = rng.integers(0, 256, (n, 10, 12, 3), dtype=np.uint8)
@@ -259,7 +260,7 @@ def test_example_without_features_json_and_timestamps(tmp):
 
 
 def test_sequence_example_records(tmp):
-    cv2 = pytest.importorskip('cv2')
+    cv2 = pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     n = 4
     img = np.full((8, 8, 3), 77, np.uint8)
     png = cv2.imencode('.png', img)[1].tobytes()

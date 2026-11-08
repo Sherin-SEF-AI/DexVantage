@@ -1,0 +1,1410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Models and methods · DexVantage</title>
+<meta name="description" content="Every model DexVantage uses, written out with its equations, references, validation and known limits: kinematics, lens models, occlusion, coverage, depth validity, grasp self-occlusion, VLA tokens, timing, bandwidth, calibration, ground truth, datasets and the research tools.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#samples">Samples</a>
+      <a href="guide.html">Guide</a>
+      <a href="docs.html" aria-current="page">Docs</a>
+      <a href="methods.html">Methods</a>
+      <a href="validation.html">Validation</a>
+      <a href="index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#frames">Frames and units</a>
+    <a href="#summary">The project summary and the dense-voxel limit</a>
+    <a href="#robots">Robots</a>
+    <a href="#kinematics">Robot kinematics</a>
+    <a href="#ik">Inverse kinematics, manipulability and collision distances</a>
+    <a href="#library">The hardware library</a>
+    <a href="#optics">Lens models, pixel density and defocus</a>
+    <a href="#occlusion">Occlusion by the posed robot</a>
+    <a href="#voxels">Sparse voxels</a>
+    <a href="#coverage">Coverage and resolution</a>
+    <a href="#depth">Depth validity</a>
+    <a href="#camview">The Camera view</a>
+    <a href="#grasps">Grasp sets</a>
+    <a href="#grasp">Grasp self-occlusion</a>
+    <a href="#policies">Policies</a>
+    <a href="#vla">VLA token resolution and Plücker ray maps</a>
+    <a href="#dexhand">Multi-finger occlusion</a>
+    <a href="#bandwidth">Bandwidth, hosts and power</a>
+    <a href="#cables">Cable flex across joints</a>
+    <a href="#brackets">Brackets and mounts</a>
+    <a href="#handeye">Hand-eye calibration</a>
+    <a href="#groundtruth">MuJoCo ground truth: rendered against predicted</a>
+    <a href="#synth_episodes">Synthetic LeRobot episodes</a>
+    <a href="#teleop">Teleop overlap and dead zones</a>
+    <a href="#lighting">Lighting, glare and IR wash-out</a>
+    <a href="#timing">Motion blur, time sync and action-chunk latency</a>
+    <a href="#data">Dataset readers, the auditor and plan against recording</a>
+    <a href="#render_calib">Targetless link-silhouette calibration</a>
+    <a href="#datalinks">Data links: grasps and hand-eye captures from datasets</a>
+    <a href="#requirements">Metrics, requirements and the readiness scorecard</a>
+    <a href="#tolerance">Monte Carlo tolerances and the perturbation export</a>
+    <a href="#experiments">Designed experiments</a>
+    <a href="#optimise">Optimiser and design agent (NSGA-II)</a>
+    <a href="#exporters">Exporters</a>
+    <a href="#canonical_warp">Cross-embodiment canonical view warp</a>
+    <a href="#rerun">Rerun bridge</a>
+    <a href="#assistant">The assistant&#x27;s tools and the MCP server</a>
+    <a href="#copilot">The Assistant dock and the Copilot</a>
+    <a href="#samples">The ALOHA 2, bimanual Panda and G1 samples</a>
+    <a href="#catalogue">The robot catalogue</a>
+    <a href="#versioning">Project diff, merge, the Git folder form, citations and figures</a>
+    <a href="#api">Python API and plugins</a>
+    <a href="#workspace">The workspace check</a>
+    <a href="#tracking">Experiment tracker</a>
+    <a href="#stats">Statistics and power analysis</a>
+    <a href="#campaign">Data-collection campaign planner</a>
+    <a href="#sim2real">Sim-to-real gap</a>
+    <a href="#paper_kit">Publication kit</a>
+    <a href="#cluster">Cluster sweeps</a>
+    <a href="#cells">Multi-cell comparison</a>
+    <a href="#robot_io">Robot import and export: USD, URDF inertials, OpenVLA, Isaac</a>
+    <a href="#prices">Prices and the rig cost</a>
+    <a href="#ui_fixes">UI responsiveness and the review round&#x27;s fixes</a>
+    <a href="#performance">Performance</a>
+    <a href="#provenance">Provenance</a>
+    <a href="#formats">Project and export formats</a>
+    <a href="#validation">The validation suite</a>
+    <a href="#model-documents">Model documents</a>
+    <a href="#references">References</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Documentation</div>
+<h1 id="dexvantage-models-and-methods">DexVantage: models and methods</h1>
+<p>Every model DexVantage uses, written out with its equations, references and limits. Each phase adds its models here.</p>
+<h2 id="frames">Frames and units</h2>
+<p>Units are SI. The world frame is the primary robot's base frame (REP-103: x forward, y left, z up). A camera's
+optical frame is REP-103's <code>_optical_frame</code>: z along the optical axis, x right, y down. For a camera link whose x axis
+is the optical axis, a point's optical coordinates are</p>
+<pre><code>p_opt = B · p_body,   B = [[0, −1, 0], [0, 0, −1], [1, 0, 0]].
+</code></pre>
+<p>Rotations are unit quaternions q = (x, y, z, w) with w ≥ 0 (one of the two signs, so equal rotations compare equal).
+The matrix is the standard one [Shoemake 1985]; the inverse uses Shepperd's method [Shepperd 1978], taking the
+largest of the four diagonal combinations so half turns stay accurate. URDF's rpy is R = R_z(yaw) · R_y(pitch) ·
+R_x(roll) (fixed axes x, y, z). MuJoCo writes (w, x, y, z); the conversion happens at the boundary. The angle between
+two rotations is 2·atan2(|v|, |w|) of q₁⁻¹ q₂, which keeps full precision for small angles.</p>
+<p><strong>Validation:</strong> six checks against scipy's Rotation and MuJoCo's <code>mju_quat2Mat</code> (worst error 3 × 10⁻¹⁴).
+<strong>Known limits:</strong> rpy is singular at pitch ±90° (the yaw takes the whole turn there).</p>
+<p><strong>References (checks):</strong> <code>mujoco_xml</code>, <code>rep103</code>, <code>scipy_rotation</code>, <code>shepperd1978</code>, <code>shoemake1985</code>, <code>urdf</code> (<a href="#references">full entries</a>).</p>
+<h2 id="summary">The project summary and the dense-voxel limit</h2>
+<p>A dense axis-aligned grid over a box of edges (a, b, c) at voxel size s has N = ⌈a/s⌉·⌈b/s⌉·⌈c/s⌉ voxels. At 1 mm,
+1.5 × 1.5 × 1.2 m needs 2.7 × 10⁹ voxels, so the coverage studies (Phase 2) use 5 mm by default and refine to 1–2 mm
+only inside refinement regions. The summary reports N at the chosen size and at 1 mm, and marks a dense grid above
+5 × 10⁷ voxels as not feasible (the limit is a documented default of this build, not a standard).</p>
+<h2 id="robots">Robots</h2>
+<p>A URDF or MJCF robot is read with every file it names into the project and compiled by MuJoCo from memory; joint
+limits and the home pose are the file's own. The UR5e + Robotiq 2F-85, SO-100, UR5e + Shadow Hand, ALOHA 2, bimanual
+Panda and G1 samples are bundled MuJoCo Menagerie models, after their licences were read (<a href="#samples">the new samples</a>).
+See <a href="models/robots.html">Robots: import, the MuJoCo model and the samples</a> (worked example: <a href="guide/robots.html">Robots: the robot catalogue</a>).</p>
+<h2 id="kinematics">Robot kinematics</h2>
+<p>MuJoCo poses the links: T_link(q) from its tree of body transforms and joint motions, and the world Jacobian of a
+point from <code>mj_jac</code>. An independent product-of-exponentials chain checks it,</p>
+<pre><code>T(q) = e^[S₁]θ₁ · e^[S₂]θ₂ ⋯ e^[Sₙ]θₙ · M        [Lynch and Park 2017]
+</code></pre>
+<p>with its own XML reader and twist exponentials (<code>core/robot/kinematics.py</code>), and both engines are checked against
+the closed-form DH tables of the UR5e and the Panda: see <a href="models/kinematics.html">Robot kinematics: forward kinematics and Jacobians</a>.</p>
+<p><strong>Validation:</strong> 11 checks (<code>checks_kinematics.py</code>, <code>checks_ik.py</code>, <code>checks_obstacles.py</code>). Measured in the validation
+run of 2026-11-08 (232 of 232 checks pass): MuJoCo's forward kinematics against the product-of-exponentials chain 8.7 ×
+10⁻¹⁵ m (10⁻⁹ m); the UR5e and Panda DH tables 5.6 × 10⁻¹⁶ and 6.3 × 10⁻¹⁶ m (10⁻⁹ m); the analytic Jacobian against
+finite differences 4.4 × 10⁻¹⁰ m/rad (10⁻⁷) and against MuJoCo's <code>mj_jac</code> 8.8 × 10⁻¹⁵ m/rad (10⁻⁹); IK round trips 99.7
+µm and, position only, 93.0 µm (100 µm); the 2R manipulability closed form 1.1 × 10⁻¹⁶ m² (10⁻¹²); sphere and capsule
+distances 1.1 × 10⁻¹⁶ m (10⁻⁹ m); a moved and rotated obstacle 2.6 × 10⁻⁷ m (10⁻⁶ m). <strong>Known limits:</strong> free and ball
+joints are held at home and are not part of q; URDF mimic joints move independently; URDF planar joints and MJCF
+<code>&lt;replicate&gt;</code>, <code>&lt;attach&gt;</code>, <code>&lt;composite&gt;</code> and <code>&lt;flexcomp&gt;</code> are refused in a plain sentence; the DH checks validate the
+engines' conventions, not a vendor file's geometry (the bundled Menagerie UR5e's flange is up to 1.3 mm from the DH
+flange).</p>
+<p><strong>References (checks):</strong> <code>craig2005</code>, <code>dh1955</code>, <code>ericson2005</code>, <code>franka_dh</code>, <code>liegeois1977</code>, <code>lynch_park2017</code>, <code>mujoco_geomdistance</code>, <code>mujoco_todorov2012</code>, <code>mujoco_xml</code>, <code>nakamura1986</code>, <code>spong2006</code>, <code>sugihara2011</code>, <code>ur_dh</code>, <code>urdf</code>, <code>wampler1986</code>, <code>yoshikawa1985</code> (<a href="#references">full entries</a>).</p>
+<h2 id="ik">Inverse kinematics, manipulability and collision distances</h2>
+<p>Damped least squares with error-dependent damping [Wampler 1986; Sugihara 2011], joint-limit avoidance in the null
+space [Liégeois 1977], several seeds and a choice of solution; Yoshikawa's manipulability w = √det(J Jᵀ) and the
+condition number σ_max/σ_min; signed distances between collision geoms from MuJoCo with a bounding-sphere prefilter.
+See <a href="models/ik.html">Inverse kinematics, manipulability and collision distances</a>.</p>
+<h2 id="library">The hardware library</h2>
+<p>One JSON file per device (<code>dexvantage/resources/library/&lt;kind&gt;/&lt;id&gt;.json</code>, schema <code>library.schema.json</code>): depth
+cameras, cameras, tactile sensors and hosts, every figure copied from a cited source (URL or document, title, the
+date read, what it covers) and <code>null</code> where the source is silent, shown as &quot;—&quot; with the tooltip &quot;not stated by the
+maker&quot;. An offset the maker does not give (an RGB imager's position in a D435, a projector's) is placed as a
+labelled assumption (<code>pose_stated: false</code>). <code>library.sensor_imagers(sensor)</code> turns a sensor's device into imagers:
+each a pose in the device body frame and a lens model fitted to the stated FOV at the chosen stream (a centred crop
+for other aspect ratios, a square-pixel pinhole from a diagonal-only FOV; both assumptions the imager's label says),
+or the unit's own calibration. A sensor with no device gets a labelled default camera (pinhole 1280 × 720 px,
+90° × 60°). 40 entries in Phase 2; 138 hardware entries since Phases 9 and 10 (33
+cameras, 33 depth cameras, 10 tactile sensors, 18 hosts and capture cards, 19 policies, 6 lights, 6 cables, 13
+teleop devices in the new <code>teleop</code> kind) and 53 robots in the <code>robot</code> kind (<a href="#catalogue">the robot catalogue</a>).
+<strong>Equations:</strong> the sensor geometry check uses w = p·W, h = p·H, d = p·√(W² + H²) (pixel pitch p, native resolution W ×
+H) and the pinhole FOV 2·atan(p·N / 2f) of a stated focal length f; a ViT policy input of w × h px with patch p and
+token merge s gives (w/p)(h/p)/s² tokens. <strong>Validation:</strong> 8 checks (<code>checks_library.py</code>, <code>checks_library_systems.py</code>,
+<code>checks_policies.py</code>, <code>checks_prices.py</code>). Measured in the validation run of 2026-11-08 (232 of 232 checks pass): pixel
+pitch × resolution against the stated active area 1.2 % (2 %: sizes are rounded to 0.1 mm); stated FOVs within the
+bounds of a radially symmetric lens, 2.92° at most (3°), and against the pinhole FOV of the stated focal length 0.48°
+(3°); stated totals against count × the per-port figure 0.09 % (0.5 %); token grids exact; teleop blocks, prices and the
+rig cost 0 problems. <strong>Known limits:</strong> figures are as stated on the date read (a maker can revise them); a gap stays
+null, so a study cannot use that figure until the user measures it; an FOV for a stream the maker does not state is a
+centred crop, an assumption the imager says. See
+<a href="models/library.html">The hardware library: devices from datasheets</a> (worked examples: <a href="guide/library.html">The hardware library: a worked example</a>,
+<a href="guide/library_systems.html">Systems from the library: hosts, policies, lights, cables and teleop devices</a>).</p>
+<p><strong>References (checks):</strong> <code>dosovitskiy2021</code>, <code>hartley2004</code>, <code>intel_d400</code>, <code>iso4217</code>, <code>kannala_brandt2006</code>, <code>library_host_sources</code>, <code>library_policy_sources</code>, <code>library_teleop_sources</code>, <code>nist_sp811</code> (<a href="#references">full entries</a>).</p>
+<h2 id="optics">Lens models, pixel density and defocus</h2>
+<p><code>CameraModel</code> (pixels, OpenCV conventions: pixel centres at integers): pinhole; Brown-Conrady with 5 or 8 terms
+[Brown 1966]; Kannala-Brandt, OpenCV's fisheye θd = θ(1 + k₁θ² + k₂θ⁴ + k₃θ⁶ + k₄θ⁸) [Kannala and Brandt 2006];
+equidistant, equisolid and stereographic. Every model has a valid angle beyond which it is not one-to-one, and
+points past it are never projected. Pixel density at a point is √|det J| of the image Jacobian over a patch facing the
+camera (f/Z on a pinhole's axis; × √cos α for a tilted surface), and defocus is the thin-lens blur disc
+b = A f |s − z| / (z (s − f)) [Ray 2002]. Ported from Vantage <code>core/lens.py</code>. See
+<a href="models/optics.html">Optics: lens models, pixel density and defocus</a>.</p>
+<p><strong>Validation:</strong> 10 checks (<code>checks_optics.py</code>, <code>checks_optics_mujoco.py</code>). Measured in the validation run of 2026-11-08
+(232 of 232 checks pass): against OpenCV's <code>projectPoints</code> 1.8 × 10⁻¹² px and <code>fisheye.projectPoints</code> 5.7 × 10⁻¹³ px
+(10⁻⁶ px); project(unproject(pixel)) 4.7 × 10⁻¹³ px; FOV fits 2.3 × 10⁻¹² °; pixel density against √|det J| 8.2 × 10⁻⁹
+relative (10⁻⁶) and the coverage study's figure against <code>cv2.projectPoints</code> differences 0.0065 (0.01); depth of field
+and the blur disc 2.9 × 10⁻¹³ and 1.1 × 10⁻¹³ relative; MuJoCo-rendered fiducials 0.075 px for mask centroids (0.1 px)
+and 0.17 px for centres (0.3 px). <strong>Known limits:</strong> thin lens only (no pupil magnification, diffraction, aberrations or
+focus breathing); no skew, thin-prism or tilt terms; a model fitted from a stated FOV reproduces the stated angles, and
+its distortion between them is a model until a calibration replaces it; the MuJoCo check covers pinhole cameras only
+(MuJoCo renders no distortion).</p>
+<p><strong>References (checks):</strong> <code>brown1966</code>, <code>hartley2004</code>, <code>hecht2017</code>, <code>kannala_brandt2006</code>, <code>miyamoto1964</code>, <code>mujoco_camera</code>, <code>mujoco_renderer</code>, <code>opencv_calib3d</code>, <code>opencv_fisheye</code>, <code>ray2002</code> (<a href="#references">full entries</a>).</p>
+<h2 id="occlusion">Occlusion by the posed robot</h2>
+<p>Around each imager's optical centre, a cube map of distances to the nearest occluder (the robots' visual meshes
+posed at q, the task objects, the tables): six 90° faces of n × n texels (default 512), built by a z-buffer on the GPU
+(EGL) or by an exact numpy rasteriser (the ray through each texel centre against each triangle; the depth is the
+exact plane distance along that ray). A point is visible when its distance is at most its texel's depth plus 1 mm (a
+default); near-plane clipping at 5 mm keeps a sensor from being blinded by its own seat. Exact ray casting
+(Möller-Trumbore over a uniform grid) is the independent reference. Ported from Vantage <code>core/occlusion.py</code> (the
+cube-map idea and face basis). See <a href="models/occlusion.html">Occlusion: articulated cube maps and exact ray casting</a>.</p>
+<p><strong>Equations:</strong> with the cube map centred at the optical centre c, a point p is visible when |p − c| ≤ D(texel(p)) + ε (ε
+= 1 mm, a default), D the texel's stored distance; a texel ray d meets the triangle (a₀, a₁, a₂) (c at the origin) at t
+= (a₀ · n) / (n · d), n = (a₁ − a₀) × (a₂ − a₀), kept when t ≥ the 5 mm near plane [Möller and Trumbore 1997].
+<strong>Validation:</strong> 7 checks (<code>checks_occlusion.py</code>, <code>checks_occlusion_mujoco.py</code>, <code>checks_camview.py</code>,
+<code>checks_coverage.py</code>). Measured in the validation run of 2026-11-08 (232 of 232 checks pass): texels whose distance
+differs from the exact first hit by more than 1 mm 4.2 × 10⁻⁶ (10⁻³); against exact ray casting 2.5 × 10⁻⁵ of random
+points (10⁻³) and 0.18 % on the SO-100 and UR5e samples (1.45 %, the measured share of points within half a texel
+diagonal of a silhouette); MuJoCo segmentation of a box scene 0 and of the UR5e 2.5 × 10⁻⁵ of the target pixels away
+from silhouettes (10⁻³); the Camera view 1.4 × 10⁻⁵ (10⁻³); the coverage shares 8.8 × 10⁻⁴ of the volume (5 × 10⁻³).
+<strong>Known limits:</strong> one centre per map (a stereo pair needs one per imager); visibility is decided per texel (0.22° at n =
+512), so a point within about a texel of a silhouette may go either way; MuJoCo's equality constraints (the 2F-85
+linkage) are not applied; cables, cloth and sensor housings do not occlude.</p>
+<p><strong>References (checks):</strong> <code>amanatides_woo1987</code>, <code>greene1986</code>, <code>moller1997</code>, <code>mujoco_camera</code>, <code>mujoco_renderer</code>, <code>mujoco_todorov2012</code> (<a href="#references">full entries</a>).</p>
+<h2 id="voxels">Sparse voxels</h2>
+<p>Each task volume is covered by cubic voxels of 5 mm (a default), split into k³ voxels of at most 2 mm (a default)
+inside refinement regions and around the task objects. A dense 1 mm grid over 1.5 × 1.5 × 1.2 m is 2.7 × 10⁹ voxels;
+a grid over 5 × 10⁷ voxels is refused with a message saying so. See <a href="models/voxels.html">Sparse voxels with adaptive refinement</a>.</p>
+<h2 id="coverage">Coverage and resolution</h2>
+<p>For every voxel and camera: in the image (projected by the imager's lens model), visible (the cube map), pixels per
+millimetre, the viewing angle, the defocus blur where every lens figure is stated or entered, and redundancy (how
+many cameras see it). Shares are volume-weighted; the headline is the share seen by two or more cameras, with status
+thresholds 90 / 60 / 30 % (defaults). See <a href="models/coverage.html">Coverage and resolution in the task volume</a>.</p>
+<h2 id="depth">Depth validity</h2>
+<p>A voxel is depth-valid for a depth sensor when it is (1) inside every needed imager's FOV (both of a stereo pair),
+(2) beyond min-Z for the chosen resolution (the maker's table) and within the stated range, (3) seen by every needed
+imager (finger shadows and stereo parallax), (4) inside the projector cone where texture is needed, and (5) not on a
+surface tagged transparent, IR-absorbing or specular (a warning). The expected error is σ_z = z² σ_d / (f B)
+[Hartley and Zisserman 2004], σ_d = 0.08 px by default (labelled), shown beside the maker's RMS statement. See
+<a href="models/depth.html">Depth validity</a>.</p>
+<p><strong>Validation:</strong> 4 checks (<code>checks_depth.py</code>). Measured in the validation run of 2026-11-08 (232 of 232 checks pass): σ_z
+against a Monte Carlo of disparity noise 0.70 % relative (1.83 %, the Monte Carlo's band); the library's min-Z and FOV
+figures against Intel's D400 tables, 0 differ; the stereo-overlap formula against brute force 9.4 × 10⁻⁴ ° (0.01°);
+finger shadows against ray casting from both imagers 0 (10⁻³). <strong>Known limits:</strong> the voxel centre stands for the voxel;
+the projector's own shadow is not modelled (its position in a D4xx is a labelled assumption); Intel states the depth FOV
+at one distance, so the modelled overlap is narrower by 0.7–3.6°; min-Z is measured from the optical centre, not the
+glass; materials are tags, not optics; σ_z is first order and leaves out calibration error and matcher bias.</p>
+<p><strong>References (checks):</strong> <code>amanatides_woo1987</code>, <code>gallup2008</code>, <code>greene1986</code>, <code>hartley2004</code>, <code>intel_d400</code>, <code>intel_d457</code>, <code>moller1997</code> (<a href="#references">full entries</a>).</p>
+<h2 id="camview">The Camera view</h2>
+<p>The selected sensor's image through its imager's lens model: an exact per-pixel z-buffer of the posed robots,
+objects, tables and floor, with the task volumes' visible edges and the analysis page's overlays; rendered on a
+worker thread, at half size while dragging. See <a href="models/camview.html">The Camera view: a sensor's simulated image</a>.</p>
+<h2 id="grasps">Grasp sets</h2>
+<p>A grasp set (<code>core/grasps.py</code>, <code>project.tasks.grasp_sets</code>) is a list of gripper poses at contact, each with the
+direction the gripper moves in. It is sampled over a task volume (top-down pinch, side, angled, bimanual handoff),
+imported from CSV or JSON, or taken from a trajectory. The grasp centre and the gripper's approach and closing axes are
+measured from the contact pads at home, not typed in: the robot's tagged pads, else the inner faces of each
+fingertip's collision geometry (faces within 40 mm of the tip facing the other fingertips within 45°, not covered by
+the same finger). On the UR5e sample this gives the inner faces of the 2F-85's pads, 130.7 mm out along the gripper
+base's z axis. <strong>Validation:</strong> the pads against MuJoCo's compiled pad boxes 3.6 × 10⁻¹¹ m (10⁻⁶ m), the grasp centre
+against Menagerie's <code>pinch</code> site 0.0° (0.5°), the samplers against their definitions written out again 4.4 × 10⁻¹⁶,
+object surface points against a box's closed form 9.7 × 10⁻¹⁷ m. <strong>Known limits:</strong> samplers do not check reach or
+collisions (the study's IK does); object grasps use the object's axis-aligned box, so the width is an upper bound;
+dataset grasp sets wait for the Phase 8 readers. See <a href="models/grasps.html">Grasp sets</a>.</p>
+<h2 id="grasp">Grasp self-occlusion</h2>
+<p>For every grasp of a set: batched damped-least-squares IK for the grasp centre (several seeds, joint-limit avoidance,
+self-collision and the project's obstacles; the rule nearest home or most manipulable; infeasible grasps counted by
+reason; pinocchio and cuRobo as optional backends, every solution re-checked by DexVantage's own FK). At each
+solution the contact patches ride with their links; each patch point, lifted 2 mm along its normal (a default: the
+inner faces of a parallel gripper face each other, so the faces themselves are blind from every side view), is
+visible from a camera when it projects inside the image through the lens model and nothing in the posed scene's cube
+map is nearer. Cube maps are cached by q-bucket (0.1°, a default). Per grasp, the requirement (default: one camera sees
+every fingertip at 50 % or more) holds or not; the <strong>Contact Visibility Score</strong> is CVS = k / n over the reachable
+grasps, with a percentile bootstrap 95 % interval [Efron 1979] (drawn as Binomial(n, p̂)/n, the exact distribution
+of the resampled mean) and Wilson's score interval [Wilson 1927] beside it. Pre-contact visibility over the last 5 cm,
+the both-fingertips rate, a worst-case gallery and &quot;what to move&quot; (each camera moved ±2 cm and turned ±5°, one at a
+time) complete the result. <strong>Performance (§16):</strong> measured 2026-11-06, 2 000 grasps on the UR5e sample in 111.6 s on an NVIDIA
+GeForce RTX 5080 (EGL device 0) and 131.3 s on the Ryzen 9 9900X's integrated Radeon, 17.9 and 15.2 grasps/s, 10 808
+cube maps; 85.5 s with 256-texel maps, 83.6 s without the sensitivity sweep. Measured again at the Phase 11 gate
+(2026-11-08, RTX 5080, a loaded machine) on every sample: 114.2 s on the UR5e and 182.1 s on ALOHA 2, which misses
+this project's 180 s default (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/performance.md">performance.md</a>). <strong>Validation:</strong> visibility against exact ray casting
+of the full scene, 0 of 7 892 points away from an edge (10⁻³); the bootstrap's coverage against the known p of
+binomial samples, within 0.017 of 95 % (0.031); the q-bucket against evaluation at each grasp's own q, mean 0.0024 of
+a patch (0.02). <strong>Known limits:</strong> the fingers stay at their home opening; obstacles are not checked along the approach;
+the 2F-85's linkage joints are independent entries of q. See <a href="models/grasp.html">Grasp self-occlusion</a>.</p>
+<p><strong>References (checks):</strong> <code>amanatides_woo1987</code>, <code>efron1979</code>, <code>greene1986</code>, <code>lerobot_dataset_format</code>, <code>moller1997</code>, <code>mujoco_todorov2012</code>, <code>mujoco_xml</code>, <code>rep103</code>, <code>scipy_rotation</code>, <code>wilson1927</code> (<a href="#references">full entries</a>).</p>
+<h2 id="policies">Policies</h2>
+<p>A project names the policies its data is for (<code>core/policies.py</code>, <code>project.policies</code>): a policy library entry (8:
+OpenVLA 7B, π0, π0-FAST, SmolVLA base, ACT, Diffusion Policy, Octo-Base, GR00T N1 2B), the cameras it takes and the
+user's own figures over the entry's. Every figure (input resolution, crop rule, patch, tokens per image, control rate,
+action horizon, inference time) is cited from the model card, the paper or the official code at a pinned commit, with
+a quote; a figure no source states is null and shown as not stated. The crop geometry maps a camera pixel (u, v) to
+the input, x_in = dst_x0 + (u + ½ − x0)·s_x, for six rules (resize with padding, centre crop then resize, plain resize,
+centre crop, top-left padding, and GR00T's fractional crop). <strong>Validation:</strong> each rule's pipeline written out again
+from its source code and run through OpenCV's resize, 2.5 × 10⁻¹³ px over 1.4 million input pixels (10⁻⁶ px). <strong>Known
+limits:</strong> which camera fills which slot (base or wrist) is not modelled; Diffusion Policy's step from a 16:9 stream to
+320 × 240 is not stated and is modelled as a stretch, labelled. See <a href="models/policies.html">Policies: what a robot-learning policy takes from each camera</a>.</p>
+<h2 id="vla">VLA token resolution and Plücker ray maps</h2>
+<p>Per policy and camera: the camera at its stream through its lens model, the policy's crop geometry, and a token grid
+of the stated patch (cols = ⌊w/p⌋, rows = ⌊h/p⌋), or a cell derived from tokens per image when that tiles the input on
+a square grid (ACT 32 px, GR00T 28 px, labelled derived). Each task object's and fingertip's triangles are projected
+(subdivided on distorting lenses) and rasterised at input resolution; the study counts the tokens they cover at the
+pre-grasp and contact poses of a grasp set and warns below 2 × 2 tokens (a default) or when more than half is cropped
+away. Plücker ray maps (o × d, d) in the robot base frame are exported per input pixel as <code>.npy</code> or <code>.safetensors</code>
+(ported from Vantage <code>core/plucker.py</code>; DexVantage's own safetensors writer). <strong>Validation:</strong> token counts against
+ray casting every input pixel's centre, 0 tokens (0); Plücker moments against OpenCV's undistortion, 1.3 × 10⁻¹⁵
+(10⁻⁶); the safetensors round trip bit-exact. <strong>Known limits:</strong> silhouettes are not occlusion-tested (the grasp study
+does visibility); Octo's 128 × 128 wrist input is not applied per camera role. See <a href="models/vla.html">VLA token resolution and Plücker ray maps</a>.</p>
+<p><strong>References (checks):</strong> <code>amanatides_woo1987</code>, <code>brown1966</code>, <code>hartley2004</code>, <code>irani_anandan1996</code>, <code>isaac_gr00t</code>, <code>kannala_brandt2006</code>, <code>lerobot</code>, <code>moller1997</code>, <code>opencv_calib3d</code>, <code>opencv_fisheye</code>, <code>opencv_remap</code>, <code>opencv_resize</code>, <code>opencv_warp_perspective</code>, <code>openpi</code>, <code>plucker1865</code>, <code>safetensors</code>, <code>torchvision_centercrop</code> (<a href="#references">full entries</a>).</p>
+<h2 id="dexhand">Multi-finger occlusion</h2>
+<p>For a dexterous hand (the <code>dexhand</code> sample: the Shadow Hand on a UR5e, Apache-2.0 and BSD-3-Clause), over grasp
+postures swept between the hand file's own keyframes or over a grasp set: per fingertip patch point P and camera, the
+first hit along the ray to P and its owner (each finger, the palm, the arm, objects, the rest), d(P) = min_g d_g(P),
+seen ⇔ in view ∧ |P − o| ≤ d(P) + 1 mm. The finger × camera matrix gives the share of each patch not seen and what
+hides most; the mount comparison ranks a palm micro camera, a dorsal wrist camera and a head camera; &quot;what to move&quot;
+turns each camera ±10° about its optical centre (no ray casting needed). <strong>Validation:</strong> the matrix against a central
+projection written out in closed form, 0 (10⁻³); owners against all-pairs Möller–Trumbore, 0 (10⁻³); the union of
+group cube maps against one cube map, 2.0 × 10⁻⁸ m (10⁻⁶ m). <strong>Known limits:</strong> the postures are sample sweeps, not
+measured synergies; the Shadow Hand's tendon coupling is not enforced between keyframes. See
+<a href="models/dexhand.html">Multi-finger occlusion</a>.</p>
+<p><strong>Visual-to-tactile handoff (§7.15, part 2 of the same study, result key <code>handoff</code>).</strong> Along a straight approach of
+each contact case (the hand in its contact posture, moved back along the approach), the share of each fingertip's
+contact patch some camera sees is computed at coarse distances and refined inside every seen-to-hidden transition; at
+contact, the share a tactile pad's footprint covers. The <strong>sensory blind gap</strong> is the distance before contact over
+which a contact is neither seen nor touched (flagged above 10 mm, a default). On the dexhand sample every fingertip is
+seen up to contact (gap 0 mm), and no tactile sensor is mounted, so nothing is touched. <strong>Validation:</strong> the gap
+against a brute-force scan of every distance at the refine spacing, 0 m (2 mm). <strong>Known limits:</strong> the fingers do not
+close during the approach; touch is judged by geometry, not force. See <a href="models/handoff.html">Visual-to-tactile handoff and the sensory blind gap (spec §7.15)</a>.</p>
+<p><strong>References (checks):</strong> <code>greene1986</code>, <code>hartley2004</code>, <code>moller1997</code> (<a href="#references">full entries</a>).</p>
+<h2 id="bandwidth">Bandwidth, hosts and power</h2>
+<p>Each stream's payload is width × height × fps × bits per pixel / 10⁶ Mbit/s from the library's stream modes, on the
+wire × (1 + overhead), the overhead a labelled default of 5 % per interface; a stream whose maker states no bits per
+pixel has no rate until a measured one is entered. The host topology (<code>project.rig</code>: hosts, controllers, hubs, which
+sensor plugs where) gives each controller and link its load against its capacity (USB 2.0: 53.248 MB/s from Table 5-10;
+USB 3.2: 450 MB/s and 1.1 GB/s from §4.4.11, doubled for x2), the margin and flags (a controller over budget, a hub on
+a shared controller); disk per episode and campaign; bus power against USB 3.2 Table 3-1 (900 mA) and USB 2.0 §7.2.1
+(500 mA). Ported from Vantage <code>core/recording.py</code> and <code>core/power.py</code>. <strong>Equations:</strong> payload = W × H × fps × bits per
+pixel / 10⁶ Mbit/s; on wire = payload × (1 + overhead); load = Σ on wire / capacity per controller and link; margin =
+capacity − Σ on wire; recorded = Σ payload × record ratio × (1 + container overhead). <strong>Validation:</strong> the NanEyeC's
+stated serial
+rates bound its payload (79 %); the USB figures against their derivations, 0; the budget re-computed independently
+over 40 random topologies, 3.9 × 10⁻¹⁶. <strong>Known limits:</strong> GMSL link rates and deserialiser power are not stated in the
+library; USB Type-C current levels and Power Delivery are not modelled. See <a href="models/bandwidth.html">Bandwidth, hosts and power</a>.</p>
+<p><strong>References (checks):</strong> <code>naneyec</code>, <code>usb20_spec</code>, <code>usb32_spec</code> (<a href="#references">full entries</a>).</p>
+<h2 id="cables">Cable flex across joints</h2>
+<p>A cable runs between attachments on links. Across one revolute joint it is a belt over a pulley: tangent, arc round a
+wrap cylinder of radius ρ (default the nearer attachment's distance from the axis), tangent, with the height
+difference unrolled, L = √(L_plane² + Δz²), L_plane = t_a + t_b + ρ(|θ| − α_a − α_b) when it wraps; the angle is not
+folded to half a turn, so a joint turned further winds the cable. Each crossed joint is swept over its limits and
+trajectories are played at 2°: slack, bend radius ρ/cos²φ (a helix [do Carmo 1976]) against the cable's stated minimum
+× a factor, pull, and snags (the slack loop through a link). A harness sheet lists cable, length, slack per joint,
+connectors and strain relief (ported from Vantage <code>core/harness.py</code>). <strong>Validation:</strong> the arc against the circle, helix
+and belt closed forms, 1.7 × 10⁻¹⁶ m (10⁻⁹ m); helix bend 4.9 × 10⁻⁵ (5 × 10⁻³); loop arc 4.4 × 10⁻⁴ (5 × 10⁻³);
+snags against brute force, 0 poses. <strong>Known limits:</strong> runs across several joints are straight chords; snags are tested
+at home and trajectory poses only, against the cable's own robot. See <a href="models/cables.html">Cable flex across joints</a>.</p>
+<p><strong>References (checks):</strong> <code>amanatides_woo1987</code>, <code>docarmo1976</code>, <code>moller1997</code>, <code>scipy_brentq</code> (<a href="#references">full entries</a>).</p>
+<h2 id="brackets">Brackets and mounts</h2>
+<p>Watertight, printable STL from signed-distance solids meshed by marching tetrahedra (ported from Vantage
+<code>core/meshing.py</code> and <code>core/brackets.py</code>): wrist-flange adapters (ISO 9409-1-50-4-M6 from UR's drawing; other sizes
+from the designation), 2020 and 4040 T-slot clamps, a pan-tilt neck plate, palm and dorsal sleeves for micro cameras;
+the camera's stated mounting holes where its datasheet gives them (RealSense D405, D435, D435i). Clearance: the
+bracket and camera body against every link but the mount link at home, on screen and 48 seeded joint states, and
+against cable paths when there are cables. <strong>Equations:</strong> the mesh volume V = Σ a · (b × c) / 6 over the triangles (a,
+b, c) with outward normals and the Euler characteristic V − E + F = 2 − 2g per shell (g the through holes); the flange
+disc in closed form π t (R² − r_c² − 4 r_b² − r_p²) + π h (r_s² − r_c²) − π h (r_r² − r_c²). <strong>Validation:</strong> edges,
+winding, Euler characteristic and volume written out
+again, 0 defects on all six kinds; the flange disc's volume against its closed form, 0.18 % (1 %); hole centres fitted
+on the mesh against the pattern, 4.2 × 10⁻⁵ mm (0.05 mm). <strong>Known limits:</strong> STEP export is not done (STL with a JSON
+sidecar); other ISO 9409-1 sizes lack centring and dowel figures. See <a href="models/brackets.html">Brackets and mounts</a>.</p>
+<p><strong>References (checks):</strong> <code>euler_poincare</code>, <code>iso9409_1</code>, <code>treece1999</code>, <code>ur5e_flange</code> (<a href="#references">full entries</a>).</p>
+<h2 id="handeye">Hand-eye calibration</h2>
+<p>Boards (ChArUco, AprilGrid), sub-pixel detection and PnP (ported from Vantage <code>core/targets.py</code>, <code>core/calib.py</code>);
+closed-form AX = XB (Tsai-Lenz, Park-Martin, Horaud-Dornaika, Andreff, Daniilidis) and AX = ZB (Shah, Li) written from
+the papers in NumPy, used because OpenCV 5.0.0's Python bindings lack <code>calibrateHandEye</code> and
+<code>calibrateRobotWorldHandEye</code> (OpenCV's are used where present); then one sparse bundle adjustment over the corners,
+the joint readings and optionally the intrinsics and joint zero offsets, multi-camera and multi-arm, with its
+covariance. The planner picks 15–25 poses (default 20) from candidates on a hemisphere around the board, IK-feasible,
+collision-free and with the board in view, greedily D-optimal in the Fisher information of X and Z, and predicts σ of
+X and Z in mm and degrees; the coach says which pose to take next. <strong>Validation:</strong> the closed forms on exact poses
+1.8 × 10⁻¹⁵ m (10⁻⁹ m); with 0.3 px noise 5.9 mm (15 mm); the adjustment 3.1 σ from the truth (5 σ); its covariance
+against 40 Monte Carlo draws within the χ² band; AX = ZB with two arms 3.5 mm (15 mm); rendered ChArUco and AprilGrid
+corners 0.113 and 0.118 px (0.25 px); the planner's predicted σ against the adjustment's, ln ratio 0.0087 (0.095).
+<strong>Known limits:</strong> no comparison with OpenCV's own solvers has run (not in this OpenCV); Tsai-Lenz is singular near
+180° motions; time offsets between images and joint readings are not modelled. See
+<a href="models/handeye.html">Hand-eye calibration</a>
+and its <a href="models/handeye.html#handeye-planner">planner section</a>.</p>
+<p><strong>References (checks):</strong> <code>andreff1999</code>, <code>barrow1977</code>, <code>borgefors1988</code>, <code>canny1986</code>, <code>daniilidis1999</code>, <code>efron1979</code>, <code>garrido2014</code>, <code>hartley2004</code>, <code>horaud_dornaika1995</code>, <code>kalibr</code>, <code>lerobot_dataset_format</code>, <code>li2010</code>, <code>liang_zeger1986</code>, <code>liu2010_fdcm</code>, <code>mujoco_camera_317</code>, <code>opencv_calib3d</code>, <code>opencv_charuco</code>, <code>opencv_distance_transform</code>, <code>opencv_handeye</code>, <code>park_martin1994</code>, <code>shah2013</code>, <code>triggs2000</code>, <code>tsai_lenz1989</code>, <code>wang_olson2016</code> (<a href="#references">full entries</a>).</p>
+<h2 id="groundtruth">MuJoCo ground truth: rendered against predicted</h2>
+<p><code>core/sim/scene.py</code> builds one MuJoCo scene from the project (each robot from its stored files at its base pose,
+objects, surfaces, material colours, default lights, one camera per imager whose intrinsics are set from its lens
+model); Simulate ▸ Build the MuJoCo scene… writes it as <code>scene.xml</code> with its assets. <code>core/sim/render.py</code> renders
+segmentation, depth and RGB through every lens model (pinhole directly; Brown-Conrady and Kannala-Brandt through an
+oversampled base image remapped, wide lenses through cube faces) in an EGL worker process. The <code>groundtruth</code> study
+(<code>--groundtruth</code>) compares the predictions with the renders: the grasp study's contact visibility (each contact point
+visible in the render when the finger's segment owns its pixel within the depth tolerance) and the depth-validity
+study's voxels against rendered depth with a first-order noise model. <strong>Measured</strong> (2026-11-07, RTX 5080): contact
+agreement 92.8 % on the UR5e over 41 poses with its scripted pick (IoU 88.0 %; the grasps alone 91.1 %), 84.2 % on the
+SO-100; the grasp-level verdict the same on 32 of 32 and 44
+of 44 grasps; depth 99.8 % of voxels (UR5e), 99.6 % (dexhand). Most disagreements are within a pixel of a
+segmentation edge or follow from the definition (the study tests 2 mm in front of the pad, the render the pad face);
+occlusion disagreements away from an edge are 0.5 % (UR5e) and 0.4 % (SO-100). <strong>Throughput:</strong> 14.7–17.5 views/s end
+to end on the RTX 5080 (76–99 renderer frames/s), 14.2 on the integrated Radeon, for the 1280 × 720 D405 and the
+1920 × 1080 D435 with segmentation, depth and RGB. <strong>Equations:</strong> each MuJoCo camera is compiled from the imager's lens
+model with resolution = (W, H), focalpixel = (fx, fy) and principalpixel = ((W − 1)/2 − cx, (H − 1)/2 − cy); a contact
+point counts as visible in the render when its pixel belongs to the finger's segment and |z_render − z_point| is within
+the depth tolerance. <strong>Validation:</strong> six lens models' rendered fiducials against the
+lens model, 0.20 px (0.4 px); the compiled intrinsics 8.8 × 10⁻⁵ px (10⁻³); per-pixel owner against the Camera view's
+renderer 2.2 × 10⁻⁵ of 2.3 M pixels (10⁻³); UR5e contacts 0.072 (0.15); UR5e depth 0.0022 (0.01). <strong>Known limits:</strong>
+the prediction leaves out the camera's seat on its mount, MuJoCo draws smooth primitives, depth is compared at home
+only, distorted lenses are slow (0.7–2.4 views/s). See <a href="models/groundtruth.html">MuJoCo ground truth: rendered against predicted</a>.</p>
+<p><strong>References (checks):</strong> <code>intel_d400</code>, <code>kannala_brandt2006</code>, <code>lerobot_dataset_format</code>, <code>mujoco_camera_317</code>, <code>mujoco_renderer</code>, <code>opencv_remap</code> (<a href="#references">full entries</a>).</p>
+<h2 id="synth_episodes">Synthetic LeRobot episodes</h2>
+<p><code>core/sim/episodes.py</code> (Simulate ▸ Generate synthetic episodes…, <code>--synth-episodes OUT_DIR [--synth-settings JSON]</code>)
+moves the project's robot along its trajectories (or grasp approaches solved by IK with minimum-jerk timing), renders
+every camera through its own lens model with the ground-truth renderer and writes a LeRobot v2.1 or v3.0 dataset with
+seeded, known faults (dropped and duplicated frames, camera-joint desync, clock drift, jitter, exposure steps,
+motion blur, a hidden gripper, mount slip, USB gaps) and their ground truth in <code>dexvantage_truth.json</code>. The auditor,
+the silhouette calibration and the data links are tested on it. <strong>Throughput:</strong> 124–138 camera frames/s at 320 px wide
+on the RTX 5080 including AV1 encoding (<code>--synth-episodes</code>, 4 SO-100 episodes of 120 rows and two cameras in 7.4 s).
+<strong>Validation:</strong> two episodes with every fault written as v2.1 and v3.0 and read back, 0 mismatches. <strong>Known limits:</strong>
+MuJoCo shading, no sensor noise model beyond one grey level; the gripper occluder is painted in the image; fault sizes
+are defaults chosen to show in a short episode (drift 5000 ppm), not measurements. See
+<a href="models/synth_episodes.html">Synthetic LeRobot episodes with ground truth</a>.</p>
+<h2 id="teleop">Teleop overlap and dead zones</h2>
+<p>Per teleop device in <code>project.tasks.teleop_devices</code> (a leader arm or GELLO joint to joint, or a VR or space-mouse
+volume mapped by scale and offset): a task-volume voxel is <strong>comfortable</strong> when the follower's IK converges with its
+joints inside scale × the leader's comfortable box (the central 0.8 of each range, a default) or the mapped device
+volume contains it; it is a <strong>dead zone</strong> when the operator is comfortable but the follower reaches badly (not at all,
+near a singularity by 1/κ of the tool Jacobian, near a joint limit, close to itself). The suggestion moves the
+follower's base on a lattice to maximise the teleoperable share; with two arms, the overlap and the handover quality.
+The SO-100 sample carries its leader arm (the LeRobot SO-100 guide: the leader is the follower's own model): 96.7 %
+teleoperable, &quot;clear&quot;, moving the base +25 mm in y and z gives 100 %. <strong>Equations:</strong> the leader's comfortable workspace
+W = { FK_f(q) : q ∈ scale · C }, C the central box of the leader's ranges; a device volume maps by p_world = B_f · O ·
+(s · p_d); manipulability w = √det(J Jᵀ) [Yoshikawa 1985] and the inverse condition number 1/κ = σ_min / σ_max of the
+tool Jacobian. <strong>Validation:</strong> w and 1/κ against the 2R
+closed form 1.4 × 10⁻¹⁶ m² (10⁻¹²); against a finite-difference Jacobian of the independent chain 3.8 × 10⁻⁹ (10⁻⁶);
+the leader's comfortable workspace against brute-force sampling, 0 missed (0.05); a device volume's mapping against
+Monte Carlo, 0.19 in units of three standard errors (1). <strong>Known limits:</strong> reach is position-only with a free
+orientation; the
+comfortable box is a default, not a human-factors model; VR and space-mouse volumes are what the user states (no maker
+publishes a tracking volume). See <a href="models/teleop.html">Teleop overlap and follower dexterity</a>.</p>
+<p><strong>References (checks):</strong> <code>lerobot_so100</code>, <code>lynch_park2017</code>, <code>yoshikawa1985</code> (<a href="#references">full entries</a>).</p>
+<h2 id="lighting">Lighting, glare and IR wash-out</h2>
+<p>Lights live in <code>project.workspace.lights</code> (panel, ring, window, point, spot; three Elgato entries in the light
+library, every figure cited, a gap stays null). A GGX microfacet BRDF with Smith shadowing and Schlick's Fresnel per
+material tag (<code>core/materials.py</code>) gives each camera's radiance at sampled object, gripper and table points, with
+light and camera visibility from cube maps. Saturation is <strong>relative</strong> unless the user enters a sensor's sensitivity,
+f-number and exposure: an auto-exposure meters the scene as 18 % grey (ISO 12232), so a point saturates at 7.86 × the
+metered mean. For active-stereo sensors, ambient IR against the projector's pattern (Intel's stated optical power and
+FOV) gives the share of valid depth washed out, plus dark and clear surfaces. Recommendations (a polariser, moving or
+dimming a light, tilting the camera, blinding a window) each show the figure before and after; the headline's status
+is the worse of glare and depth loss. <strong>Equations:</strong> irradiance E = I(θ) max(0, n · ωᵢ) / r² [McCluney 2014]; reflected
+radiance from f_r = f_d + f_s with f_s = F(ωᵢ · h) G(ωᵢ, ωₒ) D(h) / (4 |n · ωᵢ| |n · ωₒ|), D(h) = α² / (π cos⁴θ_h (α² +
+tan²θ_h)²) (GGX [Walter et al. 2007]), G Smith's shadowing, F = F₀ + (1 − F₀)(1 − cos θ)⁵ [Schlick 1994].
+<strong>Validation:</strong> GGX normalised 1.4 × 10⁻¹³ (10⁻⁶); weak white furnace by quadrature 8.1 × 10⁻¹²
+(10⁻⁶; the Monte Carlo estimate, 0.0065 from 1, inside its 4 standard-error band); no material's directional albedo
+over 1; reciprocity 1.3 × 10⁻¹⁴; the specular peak's
+closed form 2.2 × 10⁻¹³; Schlick against exact Fresnel 0.036 (0.04); inverse square against Monte Carlo 0.0033
+(0.005); area lights against the closed form 0.022 (0.025); visibility against exact ray casting 0.0066 of the area
+(0.015). <strong>Known limits:</strong> direct light only, hard shadows, no measured beam profiles or IES files, the camera's
+spectral response taken as photometric, no library camera states a sensitivity. See
+<a href="models/lighting.html">Lighting, glare and IR wash-out</a>.</p>
+<p><strong>References (checks):</strong> <code>amanatides_woo1987</code>, <code>ashikhmin2000</code>, <code>hecht2017</code>, <code>heitz2014</code>, <code>howell_catalog</code>, <code>mcluney2014</code>, <code>mcpeak2015</code>, <code>moller1997</code>, <code>schlick1994</code>, <code>schott_bk7</code>, <code>scipy_quad</code>, <code>sultanova2009</code>, <code>veach1997</code>, <code>walter2007</code>, <code>williams1978</code> (<a href="#references">full entries</a>).</p>
+<h2 id="timing">Motion blur, time sync and action-chunk latency</h2>
+<p><strong>Motion blur and rolling shutter</strong> (<code>--motion-blur</code>): along each trajectory (or grasp approach), the image velocity
+of what each imager sees (points of the task volume, objects and the gripper, projected through the lens at q(t)),
+the smear in one exposure and the rolling-shutter skew over the readout; without a set exposure the frame period is
+an upper bound, labelled. On the UR5e sample's scripted pick: up to 38.04 px on the wrist D405, &quot;may be blurred&quot; (an
+upper bound); at most
+0.88 ms keeps it to 1 px. <strong>Time sync</strong> (<code>--time-sync</code>, <code>project.rig['sync']</code>): each stream's stamp error interval
+(exposure centre, readout, USB transfer behind the other frames on its controller, the bus interval) by clock and
+trigger, the skew against the joint states and the action-label error it causes (the TCP's motion in that time); a
+term no maker states makes the figure a lower bound (≥). UR5e: ≥ 54.43 ms, &quot;out of sync&quot;, 9.2 mm of label error; the
+suggestion is the D435's hardware trigger. <strong>Action-chunk latency</strong> (<code>--action-chunk</code>, §7.13): the policy (from
+<code>core/policies.resolve</code>, cited inference time and horizon) as an ideal imitator; the sensor-to-action loop (half the
+exposure, readout, transfer, queueing, inference, the control tick, command latency) gives when the gripper closes
+relative to the demonstrated contact, the overshoot or air-grasp distance and an overshoot map over the task volume,
+and recommends a delay offset and a temporal-ensemble weight (stored on the policy for the LeRobot exporter). A
+policy whose inference time no source states is refused in one sentence. <strong>Validation:</strong> image velocity against
+central differences 2.8 × 10⁻⁹ (10⁻⁵); smear analytic 2.4 × 10⁻¹¹; rolling shutter against a row-by-row readout
+0.024 (0.05); stamp intervals against a frame-timeline simulation 3.5 × 10⁻¹⁸ s (10⁻⁹); action-label error against
+forward kinematics at random phases 2.2 × 10⁻⁴ (0.02); the loop against an event simulation (20 000 trials)
+2.9 × 10⁻⁵ m (5 × 10⁻⁵); the ensemble weights against the closed form 3.3 × 10⁻¹³. <strong>Known limits:</strong> no library entry
+states a readout time or a device's processing latency (bounds until measured); first order in the exposure; the
+policy's learned errors are not modelled. See <a href="models/motion_blur.html">Motion blur and rolling shutter</a>,
+<a href="models/time_sync.html">Time sync</a> and <a href="models/action_chunk.html">Action-chunk latency and temporal alignment (spec §7.13)</a>.</p>
+<p><strong>References (checks):</strong> <code>act_code</code>, <code>hartley2004</code>, <code>kannala_brandt2006</code>, <code>lerobot_act_ensembler</code>, <code>liang2008</code>, <code>lynch_park2017</code>, <code>ms_usb_isoch</code>, <code>mujoco_todorov2012</code>, <code>usb20_spec</code>, <code>usb32_spec</code>, <code>zhao2023_act</code> (<a href="#references">full entries</a>).</p>
+<h2 id="data">Dataset readers, the auditor and plan against recording</h2>
+<p>Readers turn LeRobot v2.1 and v3.0 (<code>core/datasets/lerobot.py</code>, also a writer; the format read from the LeRobot
+source at commit d490e47 and tag v0.3.3), ROS 2 bags in MCAP or SQLite (<code>core/datasets/bag.py</code> over
+<code>core/rosbag.py</code>, ported from Vantage) and RLDS TFRecords (<code>core/datasets/rlds.py</code>) into one Episode shape. The
+<strong>auditor</strong> (<code>--audit OUT.json --dataset PATH</code>, Data ▸ Audit a dataset…) checks each episode from the data alone:
+dropped and duplicated frames, frame rate, jitter, USB gaps, camera-joint offset (cross-correlation of image motion
+with the plan's predicted motion), clock drift, exposure steps, motion blur, the gripper hidden in the wrist camera,
+and mount slip across the campaign (step against gradual flex, ported from Vantage <code>core/online_calib.py</code>), with a
+verdict per episode (pass, fix, recalibrate, drop), a JSON and HTML report and a FiftyOne export with per-frame tags.
+<strong>Plan against recording</strong> (<code>--plan-vs-recording</code>) compares each recorded camera with the plan: resolution, frame
+rate, mount, sync and the grasp study's visibility against what the frames show. <strong>Measured</strong> on a seeded synthetic
+SO-100 campaign (6 episodes × 240 rows, every fault in 2 episodes, audited without its sidecar): recall 1.0 with no
+false positives for drops, USB gaps, jitter, exposure steps, the hidden gripper and mount slip; duplicates and desync
+0.5; blur 1.0 with a false-positive rate of 0.1; in-episode drift at 5000 ppm not resolved (reported, not claimed).
+<strong>Equations:</strong> with P = 1 / the stated fps, a spacing d ≥ 1.5 P is a gap of round(d/P) − 1 frames; the stamps are fitted
+t_k = a + P′ n_k by least squares (measured rate 1/P′, jitter 1.4826 · MAD of the residuals); in-campaign drift δ(t) =
+δ₀ + d (t − t̄). <strong>Validation:</strong> recall and false-positive floors per fault kind, 0 shortfall; desync on static cameras
+16.9 ms (20
+ms); the slip classifier against Vantage's recorded outputs 0 (10⁻⁹); the plan's mount difference against the true
+slip 0.20° (0.3°), the rotation vectors compared; LeRobot v2.1 and v3.0 round trip read independently with pyarrow and
+ffmpeg, 0 mismatches; MCAP
+round trip and TFRecord CRC-32C, 0. <strong>Known limits:</strong> LeRobot's own loader and FiftyOne's importer have not been run
+(neither is installed); desync on cameras on the robot is poorly resolved on textureless scenes; drift shows across a
+campaign, not within an episode. See <a href="models/datasets.html">Datasets: readers, writers and the shared episode shape</a> and <a href="models/audit.html">Dataset and episode auditor, plan against recording</a>.</p>
+<p><strong>References (checks):</strong> <code>baker_matthews2004</code>, <code>huber1964</code>, <code>kass_raftery1995</code>, <code>knapp_carter1976</code>, <code>kunsch1989</code>, <code>lerobot_dataset_format</code>, <code>lucas_kanade1981</code>, <code>pech_pacheco2000</code>, <code>spearman1904</code> (<a href="#references">full entries</a>).</p>
+<h2 id="render_calib">Targetless link-silhouette calibration</h2>
+<p>A static camera's mount is estimated from the robot's own silhouette in recorded frames (<code>core/calib/render_calib.py</code>,
+<code>--silhouette-calib OUT.json --dataset PATH</code>, Calibrate ▸ Silhouette calibration): the robot is rendered at the logged
+joint states through the camera's lens model, and the mount is fitted coarse to fine to the frames' edges (a distance
+transform) and a median-background foreground mask, with a bootstrap σ and an observability test; run per episode it
+shows the mount's drift. <strong>Measured</strong> on synthetic episodes (640 × 360, AV1, a 5 mm and 1° slip): the UR5e overhead
+D435 within 1.3 mm and 0.03°; the SO-100 third-person camera 2.4 mm and 0.30° (the robot covers 4 % of the image),
+the slip between episodes found to about 1 mm. <strong>Validation:</strong> recovery of the slip 1.66 px of the working image (2
+px); against the board-based bundle adjustment of the same rig 1.65 px (2 px). <strong>Known limits:</strong> the robot must look
+like its model; intrinsics and joint times are taken as exact (a desync biases the mount); σ can understate the error
+along the lateral-shift-against-yaw direction for a small robot. See <a href="models/render_calib.html">Targetless link-silhouette calibration (spec §8.4)</a>.</p>
+<h2 id="datalinks">Data links: grasps and hand-eye captures from datasets</h2>
+<p><code>core/datasets/joints.py</code> matches a recording's joints to the robot model (exact name, the name without LeRobot's
+prefixes and suffixes, then by order when the counts agree). Tasks ▸ From a dataset… makes a grasp set from each
+time the gripper closes in an episode (<code>core/grasps.from_dataset</code>); Hand-eye solve ▸ From a LeRobot dataset or ROS 2
+bag… makes a capture session from the frames with the board in view (<code>core/calib/capture.capture_dataset</code>).
+<strong>Validation:</strong> grasps at a scripted pick's closings 6.2 × 10⁻⁸ m (10⁻⁶); a hand-eye solve from a rendered dataset
+0.046 mm from the true mount (0.2 mm). <strong>Known limits:</strong> no clock offset is estimated (only a given one applied); a
+dataset's own intrinsics are compared, never used. See <a href="models/datalinks.html">Data links: grasp sets and hand-eye captures from recorded datasets</a>.</p>
+<h2 id="requirements">Metrics, requirements and the readiness scorecard</h2>
+<p><code>core/metric_defs.py</code> names the figures of merit of every study (<code>&lt;area&gt;.&lt;figure&gt;</code>, e.g. <code>grasp.contact_visibility</code>,
+<code>sync.skew_ms</code>, <code>canonical_view.parallax_p95</code>): each reads a number the study already computed, <code>None</code> (&quot;not stated&quot;)
+with the study's reason when it does not state it, and <code>at_least</code> / <code>at_most</code> when the study states only a bound.
+A requirement is a metric, an operator and a threshold (<code>project.requirements</code>, or a YAML file); the scorecard
+evaluates them on the active variant with a signed margin (pass, fail, not evaluated: a bound decides only in its
+direction), and <code>--check REQUIREMENTS.yaml</code> is the CI gate (exit 0 pass, 1 fail or not evaluated, 2 error;
+<code>defaults</code> checks the labelled defaults). The variants compare evaluates every requirement on every variant;
+<code>--reproduce</code> re-runs any result from its provenance and compares every number; <code>--run-plan</code> runs studies, checks,
+exports and reproductions in order. Ported from Vantage <code>core/requirements.py</code> (the margin, the verdict, the gate),
+without its priorities. On the UR5e sample the labelled defaults fail (camera to joint-state skew at least 54.4 ms
+against 2 ms; cable pulls and snags; the blind gap); its scorecard reproduces exactly. <strong>Equations:</strong> margin m = v − t
+for ≥ and &gt;, m = t − v for ≤ and &lt;, m = −|v − t| for ==; a requirement passes when m ≥ −ε (≥, ≤, ==) or m &gt; ε (&gt;, &lt;), ε
+= 10⁻⁹ · max(1, |t|). <strong>Validation:</strong> 8 exit-code
+cases written out from §11, 0 wrong; bound decisions against a Monte Carlo over the true figures each bound allows,
+0 of 4 000 disagree; 14 metric figures against the results read by hand, 0 difference; reproduction round trip and
+the detection of a 10⁻⁶ change, 0 missed. <strong>Known limits:</strong> no priorities (every requirement decides); thresholds
+compare with the study's rounded figure; <code>rig.cost</code> reads &quot;not stated&quot; until a library entry states a price (none
+does). See <a href="models/requirements.html">Requirements, metrics and the readiness scorecard</a> (worked example:
+<a href="guide/requirements.html">Requirements, the readiness scorecard and the variants compare</a>).</p>
+<p><strong>References (checks):</strong> <code>fips180_4</code>, <code>metropolis_ulam1949</code>, <code>posix_exit</code>, <code>pyyaml</code>, <code>rfc8259</code> (<a href="#references">full entries</a>).</p>
+<h2 id="tolerance">Monte Carlo tolerances and the perturbation export</h2>
+<p>Ported from Vantage <code>core/tolerance.py</code>. Each mount's tolerance is a ± bound per axis (shifts along the mount parent
+frame's axes, turns about the sensor's own x, y, z), drawn uniformly (a labelled default) or as a normal truncated at
+2σ; a sensor with an applied hand-eye result draws from its 6 × 6 calibration covariance instead, converted exactly
+into mount changes. Each draw moves the project through <code>core/factors.py</code> and re-evaluates the named metrics, giving
+each metric's distribution, the share of draws that meet each requirement (with its Wilson interval) and the
+components that drive it (rank correlation). <code>--tolerance-mc OUT.json</code> (<code>--tolerance</code> is <code>--reproduce</code>'s option);
+the perturbation export (§8.5, format <code>perturbations</code>) writes the same draws as per-sensor extrinsic deltas for
+augmentation and Isaac randomisation. On the UR5e sample (64 draws, the labelled default metrics) the worst motion
+smear reads 38.6 px, &quot;no requirement&quot;. <strong>Equations:</strong> a draw moves the mount by p′ = p + d (d along the parent frame's
+axes) and turns it by R′ = R · R_x(δroll) · R_y(δpitch) · R_z(δyaw); a uniform draw is U(−b, b), a normal one N(0,
+(b/2)²) truncated at ±b (standard deviation 0.4398 b). <strong>Validation:</strong> the Monte Carlo σ of a linear metric against the
+GUM law of
+propagation, 0.0060 relative (4 standard errors, 0.020); 30 sampler marginals against <code>scipy.stats.kstest</code>, largest
+D 0.0235 (critical 0.037); the seed reproduces exactly; Spearman against SciPy 5.6 × 10⁻¹⁷; the export against the
+moved project 1.5 × 10⁻⁹ m or rad (10⁻⁸). <strong>Known limits:</strong> components and sensors are independent (a shared bracket
+that bends is not modelled); intrinsics, joint encoders and link lengths are not drawn; n is bounded by the slowest
+study. See <a href="models/tolerance.html">Monte Carlo tolerances and the perturbation export</a> (worked example: <a href="guide/tolerance.html">Tolerances: a worked example on the SO-100 sample</a>).</p>
+<p><strong>References (checks):</strong> <code>isaaclab_camera_cfg</code>, <code>jcgm100_2008</code>, <code>jcgm101_2008</code>, <code>kolmogorov1933</code>, <code>scipy_rotation</code>, <code>scipy_stats</code>, <code>smirnov1948</code>, <code>spearman1904</code> (<a href="#references">full entries</a>).</p>
+<h2 id="experiments">Designed experiments</h2>
+<p>Ported from Vantage <code>core/experiments.py</code>. Factors are <code>core/factors.py</code> paths (a mount coordinate, a device, a
+stream, a study setting); designs are full factorial, two-level fractional factorial at resolution III or IV, Latin
+hypercube, scrambled Sobol and Saltelli; responses are metric ids. The analysis gives first-order and total Sobol
+indices (Jansen estimators) with bootstrap percentile intervals, main effects with Welch intervals, and the best run
+against the rig as it is. <code>--experiment DESIGN.json</code> (schema <code>dexvantage.experiment/1</code>) or the page's saved design
+(<code>--experiment-saved</code>). <strong>Equations:</strong> Jansen's estimators [Saltelli et al. 2010]: V = Var(f(A) ∪ f(B)), S_i = (V − ½
+mean_j (f(B)_j − f(AB_i)_j)²) / V, S_Ti = ½ mean_j (f(A)_j − f(AB_i)<em>j)² / V; a main effect d = ȳ_last − ȳ_first with
+Welch's interval d ± t</em>{ν, 1−α/2} · se. <strong>Validation:</strong> Ishigami's analytic Sobol indices within 0.0008 (2/√N, 0.031);
+Latin
+hypercube strata exact; Sobol discrepancy against <code>scipy.stats.qmc</code> 3.4 × 10⁻¹¹; a Sobol set's discrepancy 0.027 of
+random's expectation (0.5); exact main effects of a linear model on a factorial and a resolution IV fraction; 20 of 20
+fractions have their stated resolution (brute force). <strong>Known limits:</strong> Sobol indices assume independent factors and
+settle slowly (read them with their intervals); main-effect intervals treat the other factors as noise; the best run
+is a sampled point, not an optimum. See <a href="models/experiments.html">Designed experiments</a> (worked example:
+<a href="guide/experiments.html">Designed experiments: a worked example on the UR5e sample</a>).</p>
+<p><strong>References (checks):</strong> <code>box_hunter2005</code>, <code>efron1993</code>, <code>helsel2012</code>, <code>hickernell1998</code>, <code>ishigami1990</code>, <code>jansen1999</code>, <code>mckay1979</code>, <code>saltelli2002</code>, <code>saltelli2010</code>, <code>scipy_qmc</code>, <code>sobol1993</code> (<a href="#references">full entries</a>).</p>
+<h2 id="optimise">Optimiser and design agent (NSGA-II)</h2>
+<p>NSGA-II written from Deb et al. 2002 in NumPy (fast non-dominated sort, crowding distance, bounded SBX and polynomial
+mutation, uniform operators for categorical genes, Deb's constrained domination); the patterns of Vantage
+<code>core/optimiser.py</code> and <code>core/rig_designer.py</code> (the current layout as the first candidate, locked cameras kept,
+options explained, accepting adds a variant). Objectives are metric ids; requirements become normalised constraints;
+an objective the studies do not state is left out with their reason, and cost only when every candidate device states
+a price. The optimiser (&quot;Improve this rig&quot;, <code>--optimise</code>) moves mounts within a box and a cone; the design agent
+(&quot;Design new rigs&quot;, <code>--design-agent</code>) chooses devices, mount sites and bracket types. Designs are scored at
+screening settings (the grasp study on 40 grasps, labelled defaults) unless <code>confirm</code> re-scores the shown ones.
+<strong>Equations:</strong> x dominates y when fᵢ(x) ≤ fᵢ(y) for every objective i and fⱼ(x) &lt; fⱼ(y) for one j (with Deb's
+constrained domination: a feasible design beats an infeasible one, two infeasible ones compare by total violation); the
+crowding distance is Σᵢ (fᵢ(next) − fᵢ(previous)) / (fᵢ,max − fᵢ,min) along each front. <strong>Validation:</strong> ZDT1 and ZDT2
+against their analytic fronts, IGD 0.0051 and 0.0053 (0.01); CONSTR 0.021 (0.05) with no
+constraint violated; 0 of 480 designs changed a locked sensor; the seed reproduces; the options' figures re-run
+without the cache, 0 difference. <strong>Known limits:</strong> an approximate front within a budget of evaluations (about 0.8 s
+per design on the UR5e sample, 2 s for the design agent); the design agent's sites are a sphere around the task
+volume and a cone around the gripper, without camera roll or stream choice. See
+<a href="models/optimise.html">Optimiser and design agent</a> (worked example: <a href="guide/optimise.html">Optimise: improve a rig, or design new ones</a>).</p>
+<p><strong>References (checks):</strong> <code>coello2004_igd</code>, <code>deb2001_moo</code>, <code>deb2002_nsga2</code>, <code>deb_agrawal1995_sbx</code>, <code>deb_goyal1996_mutation</code>, <code>zitzler2000_zdt</code> (<a href="#references">full entries</a>).</p>
+<h2 id="exporters">Exporters</h2>
+<p>Each format registers with <code>@exporter</code> in <code>core/exporters/</code>; <code>core.exporters.export</code> writes <code>export_manifest.json</code>
+(each format's status, files and notes, the SHA-256 of every file, the project's provenance) and stamps every JSON
+file with the provenance block (except those a target parser refuses extra keys in, listed as <code>unstamped</code>). Formats:
+<code>mjcf</code> (camera and site snippets for the robot's own MJCF, and the full MuJoCo scene), <code>urdf</code> (a URDF built from the
+compiled model, the sensor links and optical frames, a tf2 static-transform launch file), <code>opencv_yaml</code> (OpenCV
+FileStorage per imager and a Kalibr camchain), <code>masks</code> (self-occlusion, the mask atlas over a grasp set, depth
+validity), <code>plucker</code>, <code>brackets</code> (STL, STEP with the optional gmsh), <code>isaac</code> (USD camera prims, Isaac Lab v3.0.0 and
+v2.3.2 camera configs with the tolerance study's randomisation bounds), <code>lerobot</code> (the dataset features, train
+configs for ACT and Diffusion Policy with the action-chunk study's delay offset and ensemble weight, OpenVLA's
+entry), <code>report</code> (HTML and PDF of the results with the scorecard and provenance), <code>perturbations</code>, <code>canonical_warp</code>,
+<code>fiftyone</code> and <code>lerobot_dataset</code>. File ▸ Export… (a window job; the report reuses the results the window has
+computed) or <code>--export OUT_DIR --formats …</code>. <strong>Validation:</strong> MJCF snippets through MuJoCo 3.1 × 10⁻¹⁷ m; URDF through
+urdfdom's RPY rule and MuJoCo's URDF compiler 1.1 × 10⁻¹⁵ m; the tf tree 2.8 × 10⁻¹⁷ m; OpenCV YAML read back bit for
+bit and through <code>projectPoints</code> 5.1 × 10⁻¹³ px; Kalibr exact; masks against exact ray casting 0 of 187 200 pixels;
+USD through pxr's <code>Gf.Camera</code> 2.6 × 10⁻⁵ px (10⁻³, float32); Isaac Lab configs 1.4 × 10⁻¹⁶ m; LeRobot export and the
+report parsed back, 0 mismatches. <strong>Known limits:</strong> one joint state per export; URDF has no inertials or collision
+geometry (effort and velocity 0 where not stated); Isaac Lab, Isaac Sim, LeRobot and Kalibr were not run (configs are
+checked against the pinned sources' fields). See <a href="models/exporters_a.html">Exporters, part A: MuJoCo, ROS 2, calibration, masks and wrappers</a> and
+<a href="models/exporters_b.html">Exporters, part B: Isaac Lab and Isaac Sim, LeRobot and the policy codes, reports</a> (worked examples: <a href="guide/exporters_a.html">Exporting the rig: MuJoCo, ROS 2, calibration files and masks</a>,
+<a href="guide/exporters_b.html">Isaac Lab, LeRobot and reports: a worked example on the UR5e sample</a>).</p>
+<h2 id="canonical_warp">Cross-embodiment canonical view warp</h2>
+<p>Maps robot B's wrist image to robot A's canonical viewpoint (§7.16) through the fingertip contact plane, measured
+from each gripper's pads (origin at the tool centre point, z the approach axis, x the closing axis):
+H = K_A (R − t n_Bᵀ/d_B) K_B⁻¹, and a full remap LUT through both lenses. Off the plane the error is the residual
+parallax, reported (P95 and a map) over the task volume's depth range along the approach axis. Study
+<code>canonical_view</code> (<code>--canonical-view</code>), format <code>canonical_warp</code>. On the UR5e sample (Wrist D405 to Overhead D435) the
+default depth range gives 675 px, &quot;large parallax&quot;: the range is a pessimistic bound. <strong>Validation:</strong> plane points
+2.3 × 10⁻¹³ px (10⁻⁹); the LUT against <code>cv2.projectPoints</code> and <code>fisheye.projectPoints</code> 2.3 × 10⁻¹³ px; parallax
+against brute force 2.8 × 10⁻¹³ px; the LUT through <code>cv2.remap</code> against <code>cv2.warpPerspective</code> 1 grey level on 16
+pixels (1, the quantisation bound: zero margin). <strong>Known limits:</strong> exact only on the contact plane; occlusion is not
+modelled; the default depth range is a bound, not a measurement. See
+<a href="models/canonical_warp.html">Cross-embodiment canonical view warp</a>
+(worked example: <a href="guide/canonical_warp.html">Canonical view: pooling wrist cameras across robots</a>).</p>
+<h2 id="rerun">Rerun bridge</h2>
+<p><code>core/bridges/rerun.py</code> logs the robot over its trajectory, camera frusta and pinholes, min-Z blind zones, task
+volumes and audit flags per episode to an <code>.rrd</code> file (<code>--rerun OUT.rrd [--rerun-audit AUDIT.json]</code>) or a live
+viewer (Export ▸ Stream to Rerun…), with the optional <code>rerun-sdk==0.42.0</code>. <strong>Validation:</strong>
+<code>formats.rerun_rrd_readback</code> reads the file back with rerun's own reader (only when rerun-sdk is installed): 83
+entities, none missing; intrinsics 4.8 × 10⁻⁵ px, imager poses 7.7 × 10⁻¹⁰ m, the gripper link 1.3 × 10⁻⁸ m against
+MuJoCo (10⁻⁴: float32). <strong>Known limits:</strong> a fisheye's frustum is approximate in Rerun's pinhole; one trajectory per
+robot; contact pads, objects and study results are not logged; the live viewer was exercised only through a fake
+module. See <a href="models/rerun.html">Rerun bridge</a> (worked example: <a href="guide/rerun.html">Looking at the rig in Rerun</a>).</p>
+<h2 id="assistant">The assistant's tools and the MCP server</h2>
+<p>Ported from Vantage <code>assistant/tools.py</code>, <code>copilot_tools.py</code>, <code>page_guide.py</code> and <code>mcp/</code>. 30 tools with closed JSON
+Schemas (reads of the project and the library with their sources, every study's figures, metrics, edits that
+simulate or apply as one undo step, plans, exports, the page on screen); errors are plain sentences. Nothing is
+computed in the tool layer: figures come from study results, the project or a library entry. <code>python -m dexvantage.mcp</code> is a stdio MCP server (MCP specification 2025-11-25) on a project file, or attached to an open
+window. <strong>Validation:</strong> 14 tool figures against the study results read again, 3.65 × 10⁻⁵ relative (the briefs'
+4-digit rounding, 5 × 10⁻⁴); the server's replies and 40 tool schemas against MCP's examples and the JSON Schema
+2020-12 meta-schema, 0 nonconformities; edit then undo, content hash identical. <strong>Known limits:</strong> one request at a
+time (a long study blocks the next call); no progress notifications. See <a href="models/mcp.html">The assistant's tools and the MCP server</a> (worked
+example: <a href="guide/mcp.html">Claude over MCP: a worked example on the SO-100 sample</a>).</p>
+<p><strong>References (checks):</strong> <code>json_schema</code>, <code>jsonrpc2</code>, <code>mcp_2025_11_25</code> (<a href="#references">full entries</a>).</p>
+<h2 id="copilot">The Assistant dock and the Copilot</h2>
+<p>Window ▸ Assistant (Ctrl+J): Claude (the official SDK, pinned in the <code>assistant</code> extra) or Groq, keys only in the
+system keyring; each question goes with the page on screen. Three rules the loop enforces: every number in an answer
+is checked against the figures the tools and the page returned (unmatched numbers are shown to the user), a changing
+tool comes back as a proposal applied as one undo step, and long studies run only from a plan the user approves
+(recorded with its SHA-256). Chats and memory notes are kept per project. Ported from Vantage's assistant and dock.
+<strong>Validation:</strong> the number check on 28 hand-labelled answers, 0 mismatches; the plan gate on 12 records, 0 wrong; a
+proposal applied and undone, 0 fields differ. <strong>Known limits:</strong> the post-check matches values, not meanings; no
+request was sent to a live API while building (the tests use a fake provider). See
+<a href="models/assistant_dock.html">The Assistant dock: providers, the tool loop, the number check and the Copilot</a> (worked example:
+<a href="guide/assistant_dock.html">The Assistant dock</a>).</p>
+<p><strong>References (checks):</strong> <code>fips180_4</code> (<a href="#references">full entries</a>).</p>
+<h2 id="samples">The ALOHA 2, bimanual Panda and G1 samples</h2>
+<p>From MuJoCo Menagerie (commit 98a70c5, each folder's own licence read: ALOHA BSD-3-Clause, Franka Panda Apache-2.0,
+Unitree G1 BSD-3-Clause): <code>--sample aloha</code> (both arms as robots of their own, the four ALOHA cameras from <code>aloha.xml</code>
+and <code>scene_parts.xml</code>, WidowX leaders), <code>--sample panda-bimanual</code> (two Pandas, GELLO leaders, sample camera
+placements), <code>--sample g1</code> (the G1's upper body with hands, legs held at <code>stand</code>, the head D435 on <code>torso_link</code>;
+meshes simplified within 0.5 mm). <strong>Validation:</strong> the ALOHA arms against <code>aloha.xml</code> 4.6 × 10⁻⁷ m and its cameras
+5.1 × 10⁻⁷ m (10⁻⁶: six-digit XML); the G1's upper body against <code>g1_with_hands.xml</code> 0 m, its head camera
+2.2 × 10⁻¹⁶ m; both Pandas 0 m. <strong>Known limits:</strong> the ALOHA gripper's equality constraint is not applied; the G1 does
+not step, squat or bend at the waist; synthetic episodes move one robot. See <a href="models/samples.html">The ALOHA 2, bimanual Panda and G1 samples</a>
+(worked example: <a href="guide/samples.html">Sample projects</a>).</p>
+<p><strong>References (checks):</strong> <code>aloha2_2024</code>, <code>menagerie_98a70c5</code>, <code>mujoco_camera</code>, <code>mujoco_todorov2012</code>, <code>unitree_g1_urdf</code> (<a href="#references">full entries</a>).</p>
+<h2 id="catalogue">The robot catalogue</h2>
+<p>53 robots in the Library (kind <code>robot</code>, one JSON per robot): the maker's figures (DoF, reach, payload,
+repeatability, mass, control rate, interfaces, joint ranges), each with its source's index and own words, <code>null</code>
+where no source states it; and the model (Menagerie folder, MJCF file, commit, licence), imported with that model's
+licence shown. 22 entries have no maker figure (pages that render by script, 404s), each note says which.
+<strong>Validation:</strong> <code>robots.catalogue_dof</code> recounts the joints of every bundled model the catalogue names against its
+records, 0 disagreements. <strong>Known limits:</strong> the check counts joints, not geometry or limits; the catalogue's joint
+ranges are the maker's, for comparison (an imported robot keeps its model file's own); a maker's page can change after
+the date it was read, which each entry records. See <a href="models/robots.html#catalogue">Robots: import, the MuJoCo model and the samples</a> (worked example:
+<a href="guide/robots.html">Robots: the robot catalogue</a>).</p>
+<p><strong>References (checks):</strong> <code>mujoco_menagerie</code>, <code>mujoco_todorov2012</code>, <code>robot_datasheets</code> (<a href="#references">full entries</a>).</p>
+<h2 id="versioning">Project diff, merge, the Git folder form, citations and figures</h2>
+<p><code>core/projdiff.py</code> lists every change between two projects (meta, robots and joints, variants and sensors with pose
+deltas in mm and degrees, workspace, tasks, requirements, policies, rig, cables, calibration, settings, files), with
+metric deltas when results exist, and merges three ways (refusing conflicts). <code>core/projfolder.py</code> writes a project
+as a Git-friendly folder (<code>.dexv.d</code>, one JSON per section) and a stable text for <code>git diff</code> (<code>--textconv</code>).
+<code>core/cite.py</code> writes BibTeX for every source a project depends on (<code>--cite</code>); <code>core/figures.py</code> writes publication
+figures (SVG or PDF, one or two columns, a colour-blind-safe palette) from a chart's data (<code>--figure</code>, Export figure…
+on page charts). <strong>Validation:</strong> 24 seeded edits of nine kinds, 0 missed or extra; pose deltas exact; 8 of 8 merge
+cases; a folder round trip byte-identical (66 files); 235 BibTeX entries parse with no repeated key; SVG data
+recovered from the tick labels within 4.7 × 10⁻⁵ of the axis range; the PDF page within 0.36 pt. <strong>Known limits:</strong>
+lists (grasp poses, joint tables) are compared and merged whole; text widths in figures are estimated. See
+<a href="models/versioning.html">Project diff, merge and the Git folder form</a> and <a href="models/publication.html">Citations and publication figures</a> (worked examples:
+<a href="guide/versioning.html">Versioning a project: diff, review, merge and Git</a>, <a href="guide/publication.html">Citing your sources and making figures for a paper</a>).</p>
+<p><strong>References (checks):</strong> <code>bibtex_btxdoc</code>, <code>git_textconv</code>, <code>ieee_figure_size</code>, <code>json_schema</code>, <code>pdf_32000</code>, <code>scipy_rotation</code>, <code>svg11</code>, <code>tol_colours</code>, <code>zip_appnote</code> (<a href="#references">full entries</a>).</p>
+<h2 id="api">Python API and plugins</h2>
+<p><code>import dexvantage as dv</code>: <code>dv.open</code>, <code>dv.sample</code>, <code>dv.new</code> return a <code>Rig</code> (robots, sensors, variants, factors,
+<code>run(study, **settings)</code>, <code>metrics</code>, <code>export</code>, <code>check</code>, <code>synth_episodes</code>, <code>to_frame</code> with the optional pandas);
+<code>dexvantage/plugin_sdk.py</code> lets a package add studies, metrics, exporters, readers, library folders and pages
+through the <code>dexvantage.plugins</code> entry point (<code>--list-plugins</code>, <code>--no-plugins</code>, Help ▸ Plugins…), rolled back and
+explained when a plugin fails. Neither computes a figure of its own (no validation model); the plugin template's
+angle is checked in its own test against a closed form. See <a href="guide/api.html">The Python and notebook API</a> and
+<a href="guide/plugins.html">Plugins: adding studies, metrics, exporters, readers, library folders and pages</a>.</p>
+<h2 id="workspace">The workspace check</h2>
+<p><code>core/workspace_check.py</code> (Workspace ▸ Workspace): whether each task object lies inside a task volume, with a
+one-step suggestion of a volume around the objects outside. <strong>Equations:</strong> an object with box [lo, hi] is inside a
+volume of centre c and size s when lo ≥ c − s/2 − τ and hi ≤ c + s/2 + τ on each axis, τ = 1 mm (a default); a turned
+box's half-extents are |R| h [Arvo 1990]. <strong>Validation:</strong> <code>workspace.object_extent</code> (an object's box
+against the exact box of its true shape: 0.861 of the tessellation bound over 300 random objects, tolerance 1) and
+<code>workspace.inside_classification</code> (0 of 240 objects misplaced). <strong>Known limits:</strong> volumes are axis-aligned boxes and the
+inside test uses the object's
+axis-aligned box. See <a href="models/workspace.html">The workspace check</a> (worked example:
+<a href="guide/workspace.html">The Workspace page, the design log and the spec's batch names</a>).</p>
+<p><strong>References (checks):</strong> <code>arvo1990</code>, <code>scipy_rotation</code> (<a href="#references">full entries</a>).</p>
+<h2 id="tracking">Experiment tracker</h2>
+<p><code>core/tracking/</code> logs every study run, designed experiment, optimiser run, tolerance Monte Carlo and readiness
+scorecard as a <strong>run</strong> (schema <code>dexvantage.run/1</code>: start and end in UTC, the project's content hash and variant, the
+study's settings and seeds, every figure with unit and status read through <code>core/metrics</code>, the result file and its
+provenance, tags and a note) in a run store beside the project (JSON lines plus one folder per run, atomic renames
+and a file lock). It is off unless the project turns it on (Analysis ▸ Runs, <code>analysis.studies['tracking']</code>) or
+batch mode gets <code>--track DIR</code>; the setting is left out of the content hash. Runs are compared (deltas against the
+first, the settings that differ and, with replicates, a significance note from <code>core/stats</code>, paired by seed),
+re-run through <code>core/reproduce</code> and exported as CSV, Parquet, an MLflow 3.17 file store and a W&amp;B replay script.
+Cluster runs (<code>--jobs</code>, <code>--gather</code>, <code>dv.cluster</code>) are logged too. <strong>Validation:</strong> 5 checks, tolerance 0 (storage and
+file formats are exact or wrong): 0 of 443 fields differ after a round trip, 8 writer processes × 100 runs lose none,
+7 of 7 crash cases recover, 0 of 8 240 table cells differ, 0 of 80 fields differ read back by MLflow's own
+<code>MlflowClient</code>. <strong>Known limits:</strong> a run keeps the project's hash, not the project; MLflow artifact URIs are
+absolute; single figures are compared by their difference only. See <a href="models/tracking.html">Experiment tracker</a>
+(worked example: <a href="guide/tracking.html">Tracking runs</a>).</p>
+<p><strong>References (checks):</strong> <code>json_lines</code>, <code>mlflow_client_3172</code>, <code>mlflow_filestore_3172</code>, <code>parquet_format</code>, <code>posix_rename_flock</code>, <code>rfc4180</code> (<a href="#references">full entries</a>).</p>
+<h2 id="stats">Statistics and power analysis</h2>
+<p><code>core/stats.py</code> (NumPy and SciPy): Wilson and Clopper-Pearson intervals, BCa bootstrap intervals, exact or Monte
+Carlo permutation tests (paired and unpaired), Welch and paired t, Mann-Whitney and Wilcoxon, Cohen's d and Hedges'
+g with noncentral-t intervals, Cliff's delta, the risk difference (Newcombe) and odds ratio (Woolf), Fisher's exact
+and z tests, Holm, Bonferroni, Benjamini-Hochberg and -Yekutieli corrections, and power and sample size for two
+proportions (normal, arcsine, exact, simulation) and t tests. The study <code>stats</code> compares success counts, two variants
+over the tolerance Monte Carlo, an experiment's factor levels or tracker runs; every comparison names its test and
+why, and a difference that is not clear comes with the smallest difference the data detect. The campaign planner and
+the cell comparison use it. <strong>Equations:</strong> Fisher's exact test from the hypergeometric P(X = x) = C(n₁, x) C(n₂, m − x)
+/ C(n₁ + n₂, m); the Wilson interval (p̂ + z²/2n ± z √(p̂(1 − p̂)/n + z²/4n²)) / (1 + z²/n) [Wilson 1927]; Welch's df
+(v₁ + v₂)² / (v₁²/(n₁ − 1) + v₂²/(n₂ − 1)), vᵢ = sᵢ²/nᵢ. <strong>Validation:</strong> 13 checks against SciPy (to 10⁻¹⁵), Benjamini
+and Hochberg (1995)'s
+worked example, Cohen (1992) Table 2 (within 1 per group), the G*Power 3.1 manual (4.6 × 10⁻⁷) and simulated
+coverage and power (within 1.6 standard errors). <strong>Known limits:</strong> fixed-sample tests only (no sequential testing);
+episodes independent; power for rates and normal data. See <a href="models/stats.html">Statistics and power analysis</a> (worked example:
+<a href="guide/stats.html">Statistics: a worked example</a>).</p>
+<p><strong>References (checks):</strong> <code>benjamini_hochberg1995</code>, <code>benjamini_yekutieli2001</code>, <code>cliff1993</code>, <code>clopper_pearson1934</code>, <code>cohen1988</code>, <code>cohen1992</code>, <code>efron1993</code>, <code>fleiss2003</code>, <code>gpower31_manual</code>, <code>holm1979</code>, <code>newcombe1998</code>, <code>scipy_stats_tests</code>, <code>steiger_fouladi1997</code>, <code>wilson1927</code> (<a href="#references">full entries</a>).</p>
+<h2 id="campaign">Data-collection campaign planner</h2>
+<p><code>core/campaign.py</code>: the conditions (tasks, rig variants, lighting presets, object sets and teleop devices, crossed or
+listed), demonstrations per condition (entered, or from <code>core/stats</code>'s two-proportion power analysis), operators
+counterbalanced by a Williams Latin square, sessions and days within labelled fatigue limits, storage from the
+bandwidth model, the status against the budget, and a schedule exported as CSV, an RFC 5545 calendar and an HTML
+checklist (<code>--campaign SPEC.json</code>, Data ▸ Campaign, <code>dv.campaign</code>). <strong>Equations:</strong> storage GB = Σ payload (Mbit/s) ×
+ratio × (1 + container overhead) × episode s / 8 / 1000 over the enabled sensors; a Williams square of order C has the
+first row 0, 1, C−1, 2, C−2, … and row i = (first row + i) mod C [Williams 1949]. <strong>Validation:</strong> 6 checks: Williams
+squares of
+orders 1–12 by brute force (0 violations), 40 seeded campaigns' balance from their CSV (0), 383 sessions within their
+limits, storage against the bandwidth study (0), 34 calendar events through a strict RFC 5545 reader (0), and the
+normal-approximation sample size against exact power by enumeration (0.033 at most, tolerance 0.04). <strong>Known
+limits:</strong> episodes of fixed length; conditions not balanced across days; a compressed format's storage is the raw
+size until a measured ratio is entered. See <a href="models/campaign.html">Data-collection campaign planner</a> (worked example:
+<a href="guide/campaign.html">Planning a data-collection campaign: a worked example on the ALOHA 2 sample</a>).</p>
+<p><strong>References (checks):</strong> <code>fleiss2003</code>, <code>fleiss_tytun_ury1980</code>, <code>rfc5545</code>, <code>scipy_stats</code>, <code>williams1949</code> (<a href="#references">full entries</a>).</p>
+<h2 id="sim2real">Sim-to-real gap</h2>
+<p><code>core/sim2real/</code> renders one recorded episode again in MuJoCo through the rig (each camera's lens and mount, the
+robot at the recorded joint states) and compares it with the recording camera by camera: brightness and contrast,
+per-channel histogram distance, an exposure gain and offset, sharpness and blur, noise (Immerkær 1996), the robot's
+silhouette overlap, the mount offset (through the silhouette calibration), latency and a kernel MMD between frame
+sets. Shapley shares rank the causes, and each comes with the change that closes it (Apply, one undo step).
+<strong>Equations:</strong> for a set S of gaps closed in the render, d(S) = mean |recorded − f_S(render_S)| in grey levels; each
+cause's Shapley share φᵢ = Σ_{S ⊆ P∖{i}} |S|! (n − |S| − 1)! / n! · (d(S) − d(S ∪ {i})), so Σ φᵢ = d(∅) − d(P) [Shapley
+1953]. <strong>Validation:</strong> 7 checks: SciPy's Wasserstein distance (1.7 × 10⁻¹³ DN), MMD against a hand case and the Gaussian
+closed form, known noise (1.2 % against 5 %) and blur (0.0005 px), Shapley by brute force over all orders, and four
+UR5e recordings with one injected gap each, each recovered and ranked first (worst 0.68 of its tolerance). <strong>Known
+limits:</strong> the render is MuJoCo's shading of the project's model (textures, shadows and background are what is
+left); one episode and a constant latency; no FID (no torch). See <a href="models/sim2real.html">The sim-to-real gap (research tools part 2)</a> (worked
+example: <a href="guide/sim2real.html">The sim-to-real gap: a worked example</a>).</p>
+<p><strong>References (checks):</strong> <code>gretton2012</code>, <code>immerkaer1996</code>, <code>lerobot_dataset_format</code>, <code>mujoco_todorov2012</code>, <code>pech_pacheco2000</code>, <code>rubner2000</code>, <code>scipy_stats</code>, <code>scipy_wasserstein</code>, <code>shapley1953</code>, <code>tai_yang2008</code> (<a href="#references">full entries</a>).</p>
+<h2 id="paper_kit">Publication kit</h2>
+<p><code>core/publication.py</code> (Export ▸ Paper kit…, the <code>paper_kit</code> export format, <code>dv.publication</code>): a methods paragraph,
+booktabs LaTeX tables (sensors, results with their intervals, the scorecard, the experiment, variants, the statistical
+comparisons with their intervals and corrected p-values, the cell comparison and the tracked runs, each when its
+result is present), SVG and PDF figures at one- and two-column widths, a BibTeX file and a reproducibility appendix
+with a run plan. Every number is traced to the project, a library entry, a result or the software environment, and
+checked again. <strong>Validation:</strong> 4 checks, each at 0: every number of the paragraph found in the source data, every
+<code>\cite</code> key defined, the LaTeX structure of 10 files, and 60 table cells against their sources. <strong>Known limits:</strong> no
+LaTeX engine on the build machine (the compile test runs where one is installed); the paragraph says what the project
+and results state, nothing more. See <a href="models/paper_kit.html">Publication kit (paper kit)</a> (worked example:
+<a href="guide/paper_kit.html">Writing the paper kit</a>).</p>
+<p><strong>References (checks):</strong> <code>bibtex_btxdoc</code>, <code>booktabs_fear2020</code>, <code>latex2e_unofficial</code>, <code>siunitx_wright2026</code> (<a href="#references">full entries</a>).</p>
+<h2 id="cluster">Cluster sweeps</h2>
+<p><code>core/cluster/</code> runs the independent parts of long work on several processes: a designed experiment's runs, a
+tolerance Monte Carlo's draws, each optimiser generation's designs and any list of (project, study, settings) jobs,
+in a spawn process pool (<code>--jobs N</code>, Run on… ▸ This machine) or as a Slurm job array (<code>--slurm FOLDER</code>,
+<code>--run-shard</code>, <code>--gather</code>), with a shared on-disk result cache. The gathered result is the in-process one.
+<strong>Validation:</strong> 4 checks at 0: a 6-run experiment and a 6-draw Monte Carlo gathered from separate shard processes
+against the serial runs, the shard partition over m ≤ 300 and N ≤ 40, three processes writing the cache at once, and
+the <code>#SBATCH</code> directives through <code>bash -n</code>. <strong>Known limits:</strong> Slurm only, a shared filesystem, like machines for
+machine-dependent figures; the design agent is not distributed. See <a href="models/cluster.html">Cluster sweeps</a> (worked
+example: <a href="guide/cluster.html">Cluster sweeps: a worked example on the SO-100 sample</a>).</p>
+<p><strong>References (checks):</strong> <code>flock2</code>, <code>nfs5</code>, <code>rename2</code>, <code>slurm_job_array</code>, <code>slurm_sbatch</code> (<a href="#references">full entries</a>).</p>
+<h2 id="cells">Multi-cell comparison</h2>
+<p><code>core/cells.py</code> and <code>core/cells_pool.py</code> (File ▸ Compare cells…, <code>--cells</code>, <code>dv.cells.compare</code>): several robot cells
+(other projects, samples, variants) side by side: the figures of merit with the best and worst cell (a difference
+meaningful only beyond the build spread of a tolerance Monte Carlo and, with <code>core/stats</code>, a Holm-adjusted
+permutation test), a geometric gap index per camera role (ported from Vantage <code>core/rig_gap.py</code>), whether the cells'
+recordings pool for training against the LeRobot feature schema, and the drift of built copies from the plan.
+<strong>Equations:</strong> a difference between two cells is meaningful when |Δ| &gt; k · √(σ_ref² + σ_cell²), k = 2 (a default), σ
+from the tolerance Monte Carlo of each cell. <strong>Validation:</strong> 6 checks: identical cells give 0, a known rotation and
+shift come back to 10⁻¹³, the coverage share
+against an exact polygon clip (0.0144, tolerance 0.02), three LeRobot datasets with known differences (0), and known
+drift offsets (10⁻¹⁵). <strong>Known limits:</strong> the gap is geometric, not appearance or success, and its bands are a
+heuristic; pooling reads the schema, not the data. See <a href="models/cells.html">Multi-cell comparison</a> (worked example:
+<a href="guide/cells.html">Comparing cells: a worked example on the UR5e sample</a>).</p>
+<p><strong>References (checks):</strong> <code>andrew1979</code>, <code>hampel1974</code>, <code>kay_kajiya1986</code>, <code>lerobot_dataset_format</code>, <code>scipy_rotation</code>, <code>sutherland_hodgman1974</code>, <code>vantage_rig_gap</code> (<a href="#references">full entries</a>).</p>
+<h2 id="robot_io">Robot import and export: USD, URDF inertials, OpenVLA, Isaac</h2>
+<p>The USD robot import (spec §13; <code>core/robot/usd_import.py</code>, UsdPhysics to MJCF, through the import wizard and
+<code>dv.robot_io</code>), a small UsdPhysics writer for the round trip, URDF exports with inertials that MuJoCo loads as
+written, OpenVLA state and action encodings chosen from the rig, and Isaac exports with an off-centre principal
+point. <strong>Validation:</strong> 5 checks: the URDF's sensor frames through MuJoCo's URDF compiler (10⁻⁶ m), three robots
+written to USD and imported back over 50 random states, a third-party USD UR5e (the newton-assets file) against the
+sample (2.6 × 10⁻⁸ m), the OpenVLA rules of six rigs (0 mismatches) and the Isaac intrinsics (4.8 × 10⁻⁵ px).
+<strong>Known limits:</strong> one articulation per USD file; drives, loops and couplings are not imported; joint limits round to
+UsdPhysics' 32-bit floats. See <a href="models/robot_io.html">Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point</a> (worked example:
+<a href="guide/robot_io.html">Robots in and out: URDF for MuJoCo, USD robots, OpenVLA and Isaac exports</a>).</p>
+<p><strong>References (checks):</strong> <code>isaaclab_camera_v232</code>, <code>isaaclab_camera_v300</code>, <code>isaaclab_intrinsics</code>, <code>mujoco_menagerie</code>, <code>mujoco_urdf</code>, <code>newton_assets_ur5e</code>, <code>openusd_camera</code>, <code>openusd_physics</code>, <code>openvla_materialize</code>, <code>openvla_oft</code>, <code>openvla_oxe</code>, <code>urdf</code>, <code>urdfdom</code> (<a href="#references">full entries</a>).</p>
+<h2 id="prices">Prices and the rig cost</h2>
+<p>81 of the 191 built-in library entries state a cited list price (USD, the maker's store or official price list, the
+page and date read); <code>rig.cost</code> adds up the enabled sensors' prices (a lower bound when some state none), and the
+optimiser's cost objective works where every candidate states a price. <strong>Validation:</strong> <code>library.prices_sound</code> (every
+built-in price positive, ISO 4217, sourced over https and read within two years: 0 broken) and
+<code>library.rig_cost_sum</code> (the rig cost against the stated prices added up again from the entry files, tolerance
+0.005 USD). <strong>Known
+limits:</strong> hosts, lights, cables and robots are priced in the library but not added to the rig total; prices go
+stale. See <a href="models/library.html#prices">The hardware library: devices from datasheets</a> (worked example: <a href="guide/prices.html">Prices and the rig cost</a>).</p>
+<h2 id="ui_fixes">UI responsiveness and the review round's fixes</h2>
+<p>Hidden analysis pages hold the store's and the analysis controller's signals until they are shown and replay them
+coalesced (<code>ui/pages/_gate.py</code>): an edit on the two-arm samples costs 3.6–5.5 ms on the UI thread instead of
+28–39 ms. Adding the G1 is 10–13 ms (171 ms before). Experiments censor figures stated only as bounds
+(<code>experiments.censored_best</code>: 0 contradictions in 300 random designs), and the canonical view says when its parallax
+bound is larger than the image. See <a href="models/ui-fixes.html">UI responsiveness and the review round's analysis fixes</a> (worked example:
+<a href="guide/ui-fixes.html">Responsiveness, bounded figures and custom devices: a worked example</a>).</p>
+<h2 id="performance">Performance</h2>
+<p>No UI-thread step over 100 ms on the samples with the shader renderer (largest: 68 ms median, 96 ms worst, for a UR5e
+frame after a joint change on an integrated GPU). See <a href="models/performance.html">Performance: the UI-thread budget</a>. The Phase 3,
+6 and 7 pages add no step over 100 ms (largest: 67 ms, the events after Apply on the multi-finger occlusion page;
+<code>scripts/measure_ui_phase3.py</code>). The grasp study's 2 000-grasp budget is in <a href="#grasp">Grasp self-occlusion</a>. The
+Phase 4, 5 and 8 pages add none either (largest: 80.8 ms, the events after Apply on the multi-finger page with the
+handoff; every new page's Apply under 30 ms; <code>scripts/measure_ui_phase458.py</code>).
+The Phase 9 and 10 pages add none either (largest: 48.5 ms, Apply on the Tolerances page; every page shows within
+17 ms; <code>scripts/measure_ui_phase910.py</code>); File ▸ Open sample builds the project on a window job. The research tools
+part 2 pages add none either on ALOHA 2 and the G1 (largest: 19.8 ms, the events after the cell comparison arrives;
+every new page shows within 18 ms, Apply 11–14 ms; <code>scripts/measure_ui_rt2.py</code>), and hidden pages now hold their
+signals until shown, so an edit costs 6–7 ms with every page built (<a href="models/ui-fixes.html">UI responsiveness and the review round's analysis fixes</a>).</p>
+<h2 id="provenance">Provenance</h2>
+<p>As Vantage: a block under <code>provenance</code> (schema <code>dexvantage.provenance/1</code>) with the version, a SHA-256 of the package
+sources, library versions, the project's content hash and per-section hashes, the study and its settings, seeds,
+the batch command with paths reduced to file names, and the SHA-256 of the result without its time stamps.
+<code>--reproduce</code> re-runs a result and compares every number. No path, user or host name is ever written.</p>
+<h2 id="formats">Project and export formats</h2>
+<p>The <code>.dexv</code> project file (a zip of <code>project.json</code>, <code>meshes.npz</code> and the stored model files, written atomically;
+<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/project-format.md">project-format.md</a>, <code>project.schema.json</code>, JSON Schema draft 2020-12), the dataset formats
+DexVantage reads and writes (LeRobot v2.1 and v3.0, ROS 2 bags in MCAP and SQLite, RLDS TFRecords: <a href="#data">Dataset
+readers</a>) and the export formats (<a href="#exporters">Exporters</a>). A format is right or wrong, so most checks have
+tolerance 0; geometric round trips through another library carry that library's precision. <strong>Validation:</strong> 19 checks
+(<code>checks_formats.py</code>, <code>formats_bags.py</code>, <code>formats_exports.py</code>, <code>formats_isaac_lerobot.py</code>, <code>checks_rerun.py</code>,
+<code>checks_warp.py</code>). Measured in the validation run of 2026-11-08 (232 of 232 checks pass): a fully populated
+<code>project.json</code> against its schema through jsonschema, 0 violations; save and load, 0 sections differ; the LeRobot round
+trip, MCAP and TFRecord CRC-32C against the published vectors, 0 mismatches; the MuJoCo scene's cameras loaded by MuJoCo
+5.8 × 10⁻⁷ m (2 × 10⁻⁶ m, six-digit XML) and the snippets 3.1 × 10⁻¹⁷ m; URDF 1.1 × 10⁻¹⁵ m and tf2 2.8 × 10⁻¹⁷ m (10⁻⁹
+m); OpenCV YAML through <code>cv2.FileStorage</code> and the Kalibr camchain exact; masks against the occlusion model 0 pixels; the
+bracket STEP volume through gmsh 3.6 × 10⁻¹³ relative; Isaac USD prims through pxr's <code>Gf.Camera</code> 2.6 × 10⁻⁵ px (10⁻³,
+float32) and the Isaac Lab configs 1.4 × 10⁻¹⁶ m; the LeRobot export and the report parsed back, 0 mismatches; the Rerun
+read-back 4.8 × 10⁻⁵ (10⁻⁴); the canonical warp files 1.3 × 10⁻¹⁵ px. <strong>Known limits:</strong> LeRobot's own loader, Isaac Lab,
+Isaac Sim and Kalibr were not run (their configs are checked against the pinned sources' fields); the Rerun and STEP
+checks need their optional extras; a project of a newer version is refused, not read.</p>
+<p><strong>References (checks):</strong> <code>act_repo</code>, <code>amanatides_woo1987</code>, <code>apache_parquet</code>, <code>crc_catalogue</code>, <code>diffusion_policy_repo</code>, <code>ffmpeg_cli</code>, <code>gmsh</code>, <code>greene1986</code>, <code>html_living_standard</code>, <code>isaaclab_camera_v232</code>, <code>isaaclab_camera_v300</code>, <code>json_schema</code>, <code>kalibr_yaml</code>, <code>lerobot_dataset_format</code>, <code>lerobot_train_config</code>, <code>mcap_python</code>, <code>mcap_spec</code>, <code>moller1997</code>, <code>mujoco_camera_317</code>, <code>mujoco_todorov2012</code>, <code>mujoco_urdf</code>, <code>mujoco_xml</code>, <code>omg_xtypes_cdr</code>, <code>opencv_calib3d</code>, <code>opencv_filestorage</code>, <code>opencv_fisheye</code>, <code>openusd_camera</code>, <code>openvla_oxe</code>, <code>pdf_32000</code>, <code>poppler_pdftotext</code>, <code>python_ast</code>, <code>pyyaml</code>, <code>rep103</code>, <code>rerun_sdk</code>, <code>rfc3720</code>, <code>rosbag2_mcap</code>, <code>step_ap</code>, <code>tf2_static_publisher</code>, <code>tfrecord_format</code>, <code>urdf</code>, <code>urdfdom</code>, <code>zip_appnote</code> (<a href="#references">full entries</a>).</p>
+<h2 id="validation">The validation suite</h2>
+<p><code>dexvantage --validate DIR</code> or Help ▸ Validate the models. Each check compares one model quantity with an independent
+reference and passes when the error is at most its stated tolerance. Phase 0: 8 checks (frames; the project file
+against its JSON Schema through the jsonschema package; save and load identical). Phase 1: 10 kinematics checks (FK
+and Jacobians against an independent chain, DH closed forms and finite differences; IK round trips; the 2R
+manipulability closed form; analytic sphere and capsule distances). Phase 2: 22 more, 40 in all — optics 10
+(OpenCV's <code>projectPoints</code> and <code>fisheye.projectPoints</code>, round trips, FOV fits, finite differences, the hyperfocal
+formulae, MuJoCo-rendered fiducials), occlusion 7 (exact ray casting, MuJoCo segmentation on scripted scenes and on
+the UR5e, the Camera view and the coverage study against ray casting), depth 4 (σ_z against Monte Carlo, Intel's
+min-Z and FOV tables, the stereo-overlap formula, finger shadows against ray casting from both imagers) and the
+project-obstacle distance. Phases 3, 6 and 7: 32 more, 72 in all — grasp 7, VLA tokens and policies 4,
+multi-finger occlusion 3, bandwidth 3, cables 4, brackets 3, hand-eye 8 (each summarised in its section above).
+Phases 4, 5 and 8: 39 more, 113 in all — MuJoCo ground truth 6 (with the synthetic-episode round trip), teleop 4,
+lighting 9, timing 7, the tactile handoff 1, data 4, dataset formats 4 (with the MJCF scene loaded by MuJoCo on its
+own), data links 2, the silhouette calibration 2.
+Phases 9 and 10, the samples, the catalogue and research tools part 1: 64 more, 177 in all — robot catalogue 1,
+library data 6, tolerance 5, experiments 6, optimise 6, formats 11 more (the exporters' round trips and the Rerun
+read-back), the canonical warp 4, assistant 3, requirements 5, copilot 3, versioning 7, samples 5 (each summarised
+in its section above).
+Research tools part 2 and the review round's fixes: 55 more, 232 in all (the two workspace checks came with the
+Phases 9 and 10 reviews) — tracking 5, stats 13, campaign 6, sim2real 7, publication 4, cluster 4, cells 6,
+robot_io 5, library 2 (prices), experiments 1 (<code>experiments.censored_best</code>) (each summarised in its section above).
+With no project given, the project-dependent checks run on the bundled SO-100 and UR5e samples (the multi-finger
+checks on the dexhand sample). The self-test runs the quick run's cheap checks (<code>cheap_only</code>, 160 of them);
+<code>--validate</code> runs them all (232 checks, all passing: full run 384 s, peak 5.58 GB, 2026-11-08, <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/performance.md">performance.md</a>).</p>
+<h2 id="model-documents">Model documents</h2>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Models</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="models/robots.html">Robots: import, the MuJoCo model and the samples</a></td>
+<td>robot import, the MuJoCo kinematics model, bundled models and samples, <a href="models/robots.html#catalogue">the robot catalogue</a> (worked example: <a href="guide/robots.html">Robots: the robot catalogue</a>)</td>
+</tr>
+<tr>
+<td><a href="models/kinematics.html">Robot kinematics: forward kinematics and Jacobians</a></td>
+<td>product-of-exponentials forward kinematics, Jacobians, DH tables</td>
+</tr>
+<tr>
+<td><a href="models/ik.html">Inverse kinematics, manipulability and collision distances</a></td>
+<td>inverse kinematics, manipulability, collision distances</td>
+</tr>
+<tr>
+<td><a href="models/library.html">The hardware library: devices from datasheets</a></td>
+<td>the hardware library: entry format, sources and dates, the gaps policy, from a sensor to imagers, custom devices</td>
+</tr>
+<tr>
+<td><a href="models/optics.html">Optics: lens models, pixel density and defocus</a></td>
+<td>lens models and their valid angles, FOV fitting, pixel density, viewing angle, thin-lens defocus, MuJoCo fiducial check</td>
+</tr>
+<tr>
+<td><a href="models/occlusion.html">Occlusion: articulated cube maps and exact ray casting</a></td>
+<td>the scene's occluders at q, articulated cube-map occlusion (numpy and GPU), exact ray casting, decimation, timings</td>
+</tr>
+<tr>
+<td><a href="models/voxels.html">Sparse voxels with adaptive refinement</a></td>
+<td>sparse voxel grids with adaptive refinement, the dense-grid limit</td>
+</tr>
+<tr>
+<td><a href="models/camview.html">The Camera view: a sensor's simulated image</a></td>
+<td>the Camera view: a sensor's simulated image through its lens model, lens-model frusta (worked example: <a href="guide/sensors.html">Sensors and mounts: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/coverage.html">Coverage and resolution in the task volume</a></td>
+<td>coverage and resolution of the task volume: visibility, pixels per mm, viewing angle, defocus, redundancy (worked example: <a href="guide/coverage.html">Coverage and resolution: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/depth.html">Depth validity</a></td>
+<td>depth validity: the five conditions, min-Z zones, σ_z against the maker's RMS figure (worked example: <a href="guide/depth.html">Depth validity: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/grasps.html">Grasp sets</a></td>
+<td>grasp sets: the record, contact pads, the gripper geometry, the samplers, imports (worked example: <a href="guide/grasps.html">Grasp sets: a worked example on the UR5e and SO-100 samples</a>)</td>
+</tr>
+<tr>
+<td><a href="models/grasp.html">Grasp self-occlusion</a></td>
+<td>grasp self-occlusion: batched IK, contact visibility, the Contact Visibility Score and its intervals, the q-bucket cache, the 2 000-grasp budget (worked example: <a href="guide/grasp.html">Grasp self-occlusion: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/policies.html">Policies: what a robot-learning policy takes from each camera</a></td>
+<td>policies: the fields, the cited library, the crop geometry (worked example: <a href="guide/policies.html">Policies: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/vla.html">VLA token resolution and Plücker ray maps</a></td>
+<td>VLA token resolution, crop warnings and Plücker ray maps (worked example: <a href="guide/vla.html">VLA token resolution: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/dexhand.html">Multi-finger occlusion</a></td>
+<td>the multi-finger occlusion matrix and the dexhand sample (worked example: <a href="guide/dexhand.html">Multi-finger occlusion: a worked example on the dexhand sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/bandwidth.html">Bandwidth, hosts and power</a></td>
+<td>data rates, the host topology, capacities, disk and bus power (worked example: <a href="guide/bandwidth.html">Bandwidth, hosts and power: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/cables.html">Cable flex across joints</a></td>
+<td>cable flex: the routed arc, slack loops, bends, snags, the harness sheet (worked example: <a href="guide/cables.html">Cable flex across joints: a worked example on the SO-100 sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/brackets.html">Brackets and mounts</a></td>
+<td>brackets: the solids, the mesher, ISO 9409-1, the clearance check (worked example: <a href="guide/brackets.html">Brackets: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/handeye.html">Hand-eye calibration</a></td>
+<td>hand-eye calibration: boards, detection, solvers, the bundle adjustment, the planner and the coach (worked example: <a href="guide/handeye.html">Hand-eye calibration: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/swept.html">Swept volume of a trajectory</a></td>
+<td>the ghosted swept volume of a trajectory on the Tasks page</td>
+</tr>
+<tr>
+<td><a href="models/handoff.html">Visual-to-tactile handoff and the sensory blind gap (spec §7.15)</a></td>
+<td>the visual-to-tactile handoff and the sensory blind gap (worked example: <a href="guide/handoff.html">The visual-to-tactile handoff: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/groundtruth.html">MuJoCo ground truth: rendered against predicted</a></td>
+<td>the MuJoCo scene, renders through lens models, rendered against predicted visibility and depth (worked example: <a href="guide/groundtruth.html">Rendered against predicted: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/synth_episodes.html">Synthetic LeRobot episodes with ground truth</a></td>
+<td>synthetic LeRobot episodes with known faults and their ground truth (worked example: <a href="guide/synth_episodes.html">Generating synthetic episodes with known faults</a>)</td>
+</tr>
+<tr>
+<td><a href="models/teleop.html">Teleop overlap and follower dexterity</a></td>
+<td>teleop devices, the comfortable workspace, dead zones, bimanual overlap (worked example: <a href="guide/teleop.html">Teleop overlap: a worked example on the SO-100 sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/lighting.html">Lighting, glare and IR wash-out</a></td>
+<td>light sources, the microfacet materials, relative and absolute saturation, IR wash-out (worked example: <a href="guide/lighting.html">Lighting and glare: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/motion_blur.html">Motion blur and rolling shutter</a></td>
+<td>image velocity, smear and rolling-shutter skew (worked example: <a href="guide/motion_blur.html">Motion blur and rolling shutter: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/time_sync.html">Time sync</a></td>
+<td>clocks, triggers, stamp error intervals and the action-label error (worked example: <a href="guide/time_sync.html">Time sync: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/action_chunk.html">Action-chunk latency and temporal alignment (spec §7.13)</a></td>
+<td>the sensor-to-action loop of a chunked policy, overshoot and air-grasp, delay offset and ensemble weight (worked example: <a href="guide/action_chunk.html">Action-chunk latency: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/datasets.html">Datasets: readers, writers and the shared episode shape</a></td>
+<td>LeRobot v2.1 and v3.0 read and write, ROS 2 bags, RLDS, the Episode shape (worked examples: <a href="guide/datasets.html">Datasets: a worked example on the SO-100 sample</a>, <a href="guide/bags_rlds.html">Reading ROS 2 bags and RLDS datasets</a>)</td>
+</tr>
+<tr>
+<td><a href="models/audit.html">Dataset and episode auditor, plan against recording</a></td>
+<td>the dataset auditor, plan against recording, the FiftyOne export (worked example: <a href="guide/audit.html">Auditing a dataset and comparing it with the plan</a>)</td>
+</tr>
+<tr>
+<td><a href="models/render_calib.html">Targetless link-silhouette calibration (spec §8.4)</a></td>
+<td>targetless link-silhouette calibration and mount drift (worked example: <a href="guide/render_calib.html">Silhouette calibration: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/datalinks.html">Data links: grasp sets and hand-eye captures from recorded datasets</a></td>
+<td>joint matching, grasp sets and hand-eye captures from recorded datasets (worked examples: <a href="guide/grasps.html">Grasp sets: a worked example on the UR5e and SO-100 samples</a>, <a href="guide/handeye.html">Hand-eye calibration: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/performance.html">Performance: the UI-thread budget</a></td>
+<td>the UI-thread budget: measured timings on the samples and what was changed to meet it</td>
+</tr>
+<tr>
+<td><a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/performance.md">performance.md</a></td>
+<td>the spec §16 budgets measured on one machine: the 2,000-grasp study on every sample, coverage and depth, cube maps, UI-thread events, start-up, import and a full validation run (<code>scripts/benchmarks.py</code>)</td>
+</tr>
+<tr>
+<td><a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/validation.md">validation.md</a></td>
+<td>every validation check with its reference, tolerance and the value a full run measured, the agreement with MuJoCo renders first (<code>scripts/gen_validation_doc.py</code>)</td>
+</tr>
+<tr>
+<td><a href="models/requirements.html">Requirements, metrics and the readiness scorecard</a></td>
+<td>named metrics, requirements, the readiness scorecard and CI gate, variants compare, reproduction and plans (worked example: <a href="guide/requirements.html">Requirements, the readiness scorecard and the variants compare</a>)</td>
+</tr>
+<tr>
+<td><a href="models/tolerance.html">Monte Carlo tolerances and the perturbation export</a></td>
+<td>Monte Carlo mount and calibration tolerances, requirement shares, the perturbation export (worked example: <a href="guide/tolerance.html">Tolerances: a worked example on the SO-100 sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/experiments.html">Designed experiments</a></td>
+<td>designed experiments: factorial, fractional, Latin hypercube, Sobol and Saltelli designs; Sobol indices and main effects (worked example: <a href="guide/experiments.html">Designed experiments: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/optimise.html">Optimiser and design agent</a></td>
+<td>NSGA-II, objectives and constraints, the optimiser and the design agent (worked example: <a href="guide/optimise.html">Optimise: improve a rig, or design new ones</a>)</td>
+</tr>
+<tr>
+<td><a href="models/exporters_a.html">Exporters, part A: MuJoCo, ROS 2, calibration, masks and wrappers</a></td>
+<td>exporters part A: MJCF, URDF and tf, OpenCV and Kalibr calibration, masks, Plücker, brackets, FiftyOne and LeRobot dataset wrappers (worked example: <a href="guide/exporters_a.html">Exporting the rig: MuJoCo, ROS 2, calibration files and masks</a>)</td>
+</tr>
+<tr>
+<td><a href="models/exporters_b.html">Exporters, part B: Isaac Lab and Isaac Sim, LeRobot and the policy codes, reports</a></td>
+<td>exporters part B: Isaac Lab and Isaac Sim cameras, LeRobot train configs and policy codes, the HTML and PDF report (worked example: <a href="guide/exporters_b.html">Isaac Lab, LeRobot and reports: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/canonical_warp.html">Cross-embodiment canonical view warp</a></td>
+<td>the cross-embodiment canonical view warp: contact frame, homography, remap LUT, residual parallax (worked example: <a href="guide/canonical_warp.html">Canonical view: pooling wrist cameras across robots</a>)</td>
+</tr>
+<tr>
+<td><a href="models/rerun.html">Rerun bridge</a></td>
+<td>the Rerun bridge: what is logged, the read-back check (worked example: <a href="guide/rerun.html">Looking at the rig in Rerun</a>)</td>
+</tr>
+<tr>
+<td><a href="models/mcp.html">The assistant's tools and the MCP server</a></td>
+<td>the assistant's tool layer, sessions, edits as data, plans and the MCP server (worked example: <a href="guide/mcp.html">Claude over MCP: a worked example on the SO-100 sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/assistant_dock.html">The Assistant dock: providers, the tool loop, the number check and the Copilot</a></td>
+<td>the Assistant dock: providers, the tool loop, the number check, proposals and the Copilot's plan gate (worked example: <a href="guide/assistant_dock.html">The Assistant dock</a>)</td>
+</tr>
+<tr>
+<td><a href="models/samples.html">The ALOHA 2, bimanual Panda and G1 samples</a></td>
+<td>the ALOHA 2, bimanual Panda and G1 samples: sources, licences, what was changed and how it was checked (worked example: <a href="guide/samples.html">Sample projects</a>)</td>
+</tr>
+<tr>
+<td><a href="models/versioning.html">Project diff, merge and the Git folder form</a></td>
+<td>project diff, three-way merge, the unpacked folder and the git textconv (worked example: <a href="guide/versioning.html">Versioning a project: diff, review, merge and Git</a>)</td>
+</tr>
+<tr>
+<td><a href="models/publication.html">Citations and publication figures</a></td>
+<td>BibTeX of a project's sources and publication figures (worked example: <a href="guide/publication.html">Citing your sources and making figures for a paper</a>)</td>
+</tr>
+<tr>
+<td><a href="models/workspace.html">The workspace check</a></td>
+<td>the workspace check: task objects inside task volumes (worked example: <a href="guide/workspace.html">The Workspace page, the design log and the spec's batch names</a>)</td>
+</tr>
+<tr>
+<td><a href="models/tracking.html">Experiment tracker</a></td>
+<td>the experiment tracker: runs, the run store, comparisons, re-runs, CSV, Parquet, MLflow and W&amp;B exports (worked example: <a href="guide/tracking.html">Tracking runs</a>)</td>
+</tr>
+<tr>
+<td><a href="models/stats.html">Statistics and power analysis</a></td>
+<td>statistics and power analysis: intervals, permutation and rank tests, effect sizes, corrections, power and sample size (worked example: <a href="guide/stats.html">Statistics: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/campaign.html">Data-collection campaign planner</a></td>
+<td>the data-collection campaign planner: conditions, demonstrations, Williams-square schedules, storage, calendar export (worked example: <a href="guide/campaign.html">Planning a data-collection campaign: a worked example on the ALOHA 2 sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/sim2real.html">The sim-to-real gap (research tools part 2)</a></td>
+<td>the sim-to-real gap: a recorded episode rendered again, per-camera measures, causes and their changes (worked example: <a href="guide/sim2real.html">The sim-to-real gap: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/paper_kit.html">Publication kit (paper kit)</a></td>
+<td>the publication kit: methods paragraph, tables, figures, BibTeX and appendix, every number traced (worked example: <a href="guide/paper_kit.html">Writing the paper kit</a>)</td>
+</tr>
+<tr>
+<td><a href="models/cluster.html">Cluster sweeps</a></td>
+<td>cluster sweeps: the process pool, Slurm job arrays, gather, the shared result cache (worked example: <a href="guide/cluster.html">Cluster sweeps: a worked example on the SO-100 sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/cells.html">Multi-cell comparison</a></td>
+<td>the multi-cell comparison: figures of merit, the geometric gap, dataset pooling, drift (worked example: <a href="guide/cells.html">Comparing cells: a worked example on the UR5e sample</a>)</td>
+</tr>
+<tr>
+<td><a href="models/robot_io.html">Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point</a></td>
+<td>USD robot import, URDF inertials, OpenVLA encodings, the Isaac principal point (worked example: <a href="guide/robot_io.html">Robots in and out: URDF for MuJoCo, USD robots, OpenVLA and Isaac exports</a>)</td>
+</tr>
+<tr>
+<td><a href="models/ui-fixes.html">UI responsiveness and the review round's analysis fixes</a></td>
+<td>hidden pages that wait until shown, censored experiment figures, the review round's fixes (worked example: <a href="guide/ui-fixes.html">Responsiveness, bounded figures and custom devices: a worked example</a>)</td>
+</tr>
+<tr>
+<td><a href="models/library.html#prices">models/library.md#prices</a></td>
+<td>cited prices and the rig cost (worked example: <a href="guide/prices.html">Prices and the rig cost</a>)</td>
+</tr>
+<tr>
+<td><a href="guide/api.html">The Python and notebook API</a>, <a href="guide/plugins.html">Plugins: adding studies, metrics, exporters, readers, library folders and pages</a></td>
+<td>the Python and notebook API (<code>import dexvantage as dv</code>) and the plugin SDK</td>
+</tr>
+</tbody>
+</table>
+<h2 id="references">References</h2>
+<p>Every source the validation checks cite, by key (<code>dexvantage/validation/references.py</code>; the model documents cite more).</p>
+<ul>
+<li><code>act_code</code>: ACT official code, imitate_episodes.py, temporal_agg (all_time_actions rows by issue step, exp_weights = np.exp(-k * np.arange(n)), k = 0.01: row 0, the oldest chunk, weighs most), https://github.com/tonyzhaozh/act/blob/742c753c0d4a5d87076c8f69e5628c79a8cc5488/imitate_episodes.py, read 2026-11-07.</li>
+<li><code>act_repo</code>: T. Z. Zhao et al., ACT, https://github.com/tonyzhaozh/act at commit 742c753c0d4a5d87076c8f69e5628c79a8cc5488: constants.py (task configs: camera_names) and imitate_episodes.py (temporal aggregation, k = 0.01), read 2026-11-07.</li>
+<li><code>aloha2_2024</code>: ALOHA 2 Team, &quot;ALOHA 2: An Enhanced Low-Cost Hardware for Bimanual Teleoperation&quot;, 2024, https://arxiv.org/html/2405.02292v1 (four RealSense D405 cameras at 848 x 480; the MuJoCo Menagerie model &quot;precisely&quot; models all cameras and robot positions; read 2026-11-07).</li>
+<li><code>amanatides_woo1987</code>: J. Amanatides and A. Woo, &quot;A fast voxel traversal algorithm for ray tracing&quot;, Eurographics '87, 3–10, 1987.</li>
+<li><code>andreff1999</code>: N. Andreff, R. Horaud and B. Espiau, &quot;On-line hand-eye calibration&quot;, Second International Conference on 3-D Digital Imaging and Modeling (3DIM), 430–436, 1999.</li>
+<li><code>andrew1979</code>: A. M. Andrew, &quot;Another efficient algorithm for convex hulls in two dimensions&quot;, Information Processing Letters 9(5), 216–219, 1979 (the monotone chain).</li>
+<li><code>apache_parquet</code>: Apache Parquet file format, https://parquet.apache.org/docs/file-format/ (read here through pyarrow.parquet, https://arrow.apache.org/docs/python/parquet.html).</li>
+<li><code>arvo1990</code>: J. Arvo, &quot;Transforming axis-aligned bounding boxes&quot;, in A. S. Glassner (ed.), Graphics Gems, Academic Press, 548–550, 1990.</li>
+<li><code>ashikhmin2000</code>: M. Ashikhmin and P. Shirley, &quot;An anisotropic Phong BRDF model&quot;, Journal of Graphics Tools 5(2), 25–32, 2000 (the energy-coupled diffuse term, eq. 5).</li>
+<li><code>baker_matthews2004</code>: S. Baker and I. Matthews, &quot;Lucas-Kanade 20 years on: a unifying framework&quot;, International Journal of Computer Vision 56(3), 221–255, 2004.</li>
+<li><code>barrow1977</code>: H. G. Barrow, J. M. Tenenbaum, R. C. Bolles and H. C. Wolf, &quot;Parametric correspondence and chamfer matching: two new techniques for image matching&quot;, Proc. 5th IJCAI, 659–663, 1977.</li>
+<li><code>benjamini_hochberg1995</code>: Y. Benjamini and Y. Hochberg, &quot;Controlling the false discovery rate: a practical and powerful approach to multiple testing&quot;, Journal of the Royal Statistical Society B 57(1), 289-300, 1995: section 3.2, p. 295, the 15 ordered p-values of Neuhaus et al. (1992); Bonferroni at 0.05 rejects 3, Hochberg 3, the FDR procedure at q* = 0.05 rejects 4 (read 2026-11-07 from a scan of the paper).</li>
+<li><code>benjamini_yekutieli2001</code>: Y. Benjamini and D. Yekutieli, &quot;The control of the false discovery rate in multiple testing under dependency&quot;, Annals of Statistics 29(4), 1165-1188, 2001 (the factor c(m) = sum of 1/i).</li>
+<li><code>bibtex_btxdoc</code>: BibTeX documentation btxdoc (&quot;Using BibTeX&quot; on CTAN), https://mirrors.ctan.org/biblio/bibtex/base/btxdoc.pdf, listed at https://ctan.org/pkg/bibtex, read 2026-11-07.</li>
+<li><code>booktabs_fear2020</code>: S. Fear, &quot;Publication quality tables in LaTeX&quot;, booktabs package documentation, version 1.61803398, CTAN, 2020 (section 2: &quot;Never, ever use vertical rules&quot;; &quot;Never use double rules&quot;; &quot;Put the units in the column heading&quot;), https://ctan.org/pkg/booktabs, read 2026-11-07.</li>
+<li><code>borgefors1988</code>: G. Borgefors, &quot;Hierarchical chamfer matching: a parametric edge matching algorithm&quot;, IEEE Transactions on Pattern Analysis and Machine Intelligence 10(6), 849–865, 1988.</li>
+<li><code>box_hunter2005</code>: G. E. P. Box, J. S. Hunter and W. G. Hunter, Statistics for Experimenters: Design, Innovation, and Discovery, 2nd ed., Wiley, 2005 (two-level factorials and their fractions, resolution).</li>
+<li><code>brown1966</code>: D. C. Brown, &quot;Decentering distortion of lenses&quot;, Photogrammetric Engineering 32(3), 444–462, 1966.</li>
+<li><code>canny1986</code>: J. Canny, &quot;A computational approach to edge detection&quot;, IEEE Transactions on Pattern Analysis and Machine Intelligence 8(6), 679–698, 1986.</li>
+<li><code>cliff1993</code>: N. Cliff, &quot;Dominance statistics: ordinal analyses to answer ordinal questions&quot;, Psychological Bulletin 114(3), 494-509, 1993.</li>
+<li><code>clopper_pearson1934</code>: C. J. Clopper and E. S. Pearson, &quot;The use of confidence or fiducial limits illustrated in the case of the binomial&quot;, Biometrika 26(4), 404-413, 1934.</li>
+<li><code>coello2004_igd</code>: C. A. Coello Coello and M. Reyes Sierra, &quot;A study of the parallelization of a coevolutionary multi-objective evolutionary algorithm&quot;, MICAI 2004, LNAI 2972, 688–697 (inverted generational distance).</li>
+<li><code>cohen1988</code>: J. Cohen, Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, 1988 (effect sizes d and h, the power tables).</li>
+<li><code>cohen1992</code>: J. Cohen, &quot;A power primer&quot;, Psychological Bulletin 112(1), 155-159, 1992: Table 2, p. 158, N per group for power 0.80 at alpha 0.01, 0.05 and 0.10; row 1 (mean difference, d = 0.2, 0.5, 0.8): 586 95 38 / 393 64 26 / 310 50 20; row 5 (P difference, h = 0.2, 0.5, 0.8): 584 93 36 / 392 63 25 / 309 49 19 (read 2026-11-07 from a scan of the paper).</li>
+<li><code>craig2005</code>: J. J. Craig, Introduction to Robotics: Mechanics and Control, 3rd ed., Pearson Prentice Hall, 2005 (modified DH link transform Rx(α) Tx(a) Rz(θ) Tz(d)).</li>
+<li><code>crc_catalogue</code>: G. Cook, Catalogue of parametrised CRC algorithms, CRC-32/ISCSI (CRC-32C, Castagnoli): poly 0x1edc6f41, init and xorout 0xffffffff, reflected, check 0xe3069283, https://reveng.sourceforge.io/crc-catalogue/17plus.htm, read 2026-11-07.</li>
+<li><code>daniilidis1999</code>: K. Daniilidis, &quot;Hand-eye calibration using dual quaternions&quot;, The International Journal of Robotics Research 18(3), 286–298, 1999.</li>
+<li><code>deb2001_moo</code>: K. Deb, Multi-Objective Optimization Using Evolutionary Algorithms, Wiley, 2001 (constrained test problems).</li>
+<li><code>deb2002_nsga2</code>: K. Deb, A. Pratap, S. Agarwal and T. Meyarivan, &quot;A fast and elitist multiobjective genetic algorithm: NSGA-II&quot;, IEEE Transactions on Evolutionary Computation 6(2), 182–197, 2002 (the fast non-dominated sort, crowding distance, constrained domination and the CONSTR problem).</li>
+<li><code>deb_agrawal1995_sbx</code>: K. Deb and R. B. Agrawal, &quot;Simulated binary crossover for continuous search space&quot;, Complex Systems 9(2), 115–148, 1995.</li>
+<li><code>deb_goyal1996_mutation</code>: K. Deb and M. Goyal, &quot;A combined genetic adaptive search (GeneAS) for engineering design&quot;, Computer Science and Informatics 26(4), 30–45, 1996 (polynomial mutation).</li>
+<li><code>dh1955</code>: J. Denavit and R. S. Hartenberg, &quot;A kinematic notation for lower-pair mechanisms based on matrices&quot;, Journal of Applied Mechanics 22(2), 215–221, 1955.</li>
+<li><code>diffusion_policy_repo</code>: C. Chi et al., Diffusion Policy, https://github.com/real-stanford/diffusion_policy at commit 5ba07ac6661db573af695b419a7947ecb704690f: config/task/real_pusht_image.yaml (shape_meta), config/train_diffusion_unet_real_image_workspace.yaml (n_latency_steps), dataset/real_pusht_image_dataset.py, read 2026-11-07.</li>
+<li><code>docarmo1976</code>: M. P. do Carmo, Differential Geometry of Curves and Surfaces, Prentice-Hall, 1976 (§1-5: the helix (a cos s/c, a sin s/c, b s/c), c² = a² + b², has curvature a / c²).</li>
+<li><code>dosovitskiy2021</code>: A. Dosovitskiy et al., &quot;An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale&quot;, ICLR 2021 (the ViT patch grid: (H/P)(W/P) patches).</li>
+<li><code>efron1979</code>: B. Efron, &quot;Bootstrap methods: another look at the jackknife&quot;, The Annals of Statistics 7(1), 1–26, 1979 (the percentile bootstrap interval).</li>
+<li><code>efron1993</code>: B. Efron and R. J. Tibshirani, An Introduction to the Bootstrap, Chapman &amp; Hall, 1993 (percentile intervals).</li>
+<li><code>ericson2005</code>: C. Ericson, Real-Time Collision Detection, Morgan Kaufmann, 2005 (§5.1.9, closest points of two line segments).</li>
+<li><code>euler_poincare</code>: The Euler–Poincaré formula for a closed orientable surface of genus g: V − E + F = 2 − 2g per connected shell (e.g. M. de Berg et al., Computational Geometry, 3rd ed., Springer, 2008, §2.2).</li>
+<li><code>ffmpeg_cli</code>: FFmpeg command-line tools ffmpeg and ffprobe (rawvideo rgb24 output, frame pts_time), https://ffmpeg.org/ffmpeg.html and https://ffmpeg.org/ffprobe.html.</li>
+<li><code>fips180_4</code>: NIST FIPS PUB 180-4, Secure Hash Standard (SHS), August 2015 (SHA-256), as implemented by Python's hashlib, https://csrc.nist.gov/pubs/fips/180-4/upd1/final (read 2026-11-07).</li>
+<li><code>fleiss2003</code>: J. L. Fleiss, B. Levin and M. C. Paik, Statistical Methods for Rates and Proportions, 3rd ed., Wiley, 2003 (sample size for comparing two independent proportions).</li>
+<li><code>fleiss_tytun_ury1980</code>: J. L. Fleiss, A. Tytun and H. K. Ury, &quot;A simple approximation for calculating sample sizes for comparing independent proportions&quot;, Biometrics 36(2), 343-346, 1980, https://doi.org/10.2307/2529990 (read 2026-11-07).</li>
+<li><code>flock2</code>: Linux man-pages, flock(2) (NFS clients emulate flock with fcntl byte-range locks since Linux 2.6.12; SMB: not propagated before 5.5, mandatory after), https://man7.org/linux/man-pages/man2/flock.2.html, read 2026-11-07.</li>
+<li><code>franka_dh</code>: Franka Emika, &quot;Robot and interface specifications&quot;, Denavit–Hartenberg parameters of the Panda (Craig's convention), source/control_parameters.rst of https://github.com/frankarobotics/docs at commit 476a2ed2c1f457b87ba2fbb9213ebcd13825382d (2021-11-11), read 2026-11-06; the page https://frankaemika.github.io/docs/control_parameters.html returned HTTP 404 that day, and its successor https://frankarobotics.github.io/docs/robot_specifications.html gives the same figures for the Franka Research 3.</li>
+<li><code>gallup2008</code>: D. Gallup, J.-M. Frahm, P. Mordohai and M. Pollefeys, &quot;Variable baseline/resolution stereo&quot;, IEEE CVPR 2008 (stereo depth error growing as z² / (b f)).</li>
+<li><code>garrido2014</code>: S. Garrido-Jurado, R. Muñoz-Salinas, F. J. Madrid-Cuevas and M. J. Marín-Jiménez, &quot;Automatic generation and detection of highly reliable fiducial markers under occlusion&quot;, Pattern Recognition 47(6), 2280–2292, 2014.</li>
+<li><code>git_textconv</code>: Git documentation, gitattributes(5), &quot;Performing text diffs of binary files&quot; (textconv: &quot;The program should take a single argument, the name of a file to convert, and produce the resulting text on stdout&quot;), https://git-scm.com/docs/gitattributes, read 2026-11-07.</li>
+<li><code>gmsh</code>: C. Geuzaine and J.-F. Remacle, &quot;Gmsh: a 3-D finite element mesh generator with built-in pre- and post-processing facilities&quot;, International Journal for Numerical Methods in Engineering 79(11), 1309–1331, 2009; gmsh 4.15.2 Python API (occ.addPlaneSurface, addSurfaceLoop with sewing, importShapes, getMass), https://gmsh.info.</li>
+<li><code>gpower31_manual</code>: G*Power 3.1 manual (Heinrich-Heine-Universitaet Duesseldorf, June 1, 2023), https://www.psychologie.hhu.de/fileadmin/redaktion/Fakultaeten/Mathematisch-Naturwissenschaftliche_Fakultaet/Psychologie/AAP/gpower/GPowerManual.pdf: section 19.3, p. 48 (matched pairs, two-sided alpha 0.05, N = 50: d_z = 0.421637 gives power 0.832114, d_z = 0.2828427 gives 0.500352); section 20.3, p. 50 (one sample: d = 0.625, one-sided alpha 0.05, power 0.95 needs N = 30, actual power 0.955144; d = 0.1, two-sided alpha 0.01, power 0.90 needs N = 1492, actual power 0.900169) (read 2026-11-07).</li>
+<li><code>greene1986</code>: N. Greene, &quot;Environment mapping and other applications of world projections&quot;, IEEE Computer Graphics and Applications 6(11), 21–29, 1986 (the cube map).</li>
+<li><code>gretton2012</code>: A. Gretton, K. M. Borgwardt, M. J. Rasch, B. Schölkopf and A. Smola, &quot;A Kernel Two-Sample Test&quot;, Journal of Machine Learning Research 13(25), 723–773, 2012, https://www.jmlr.org/papers/v13/gretton12a.html (read 2026-11-07; the unbiased MMD² of Lemma 6, eq. 3; the median heuristic, section 8).</li>
+<li><code>hampel1974</code>: F. R. Hampel, &quot;The influence curve and its role in robust estimation&quot;, Journal of the American Statistical Association 69(346), 383–393, 1974 (the median absolute deviation, 1.4826 × MAD).</li>
+<li><code>hartley2004</code>: R. Hartley and A. Zisserman, Multiple View Geometry in Computer Vision, 2nd ed., Cambridge University Press, 2004.</li>
+<li><code>hecht2017</code>: E. Hecht, Optics, 5th ed., Pearson, 2017 (the Gaussian thin-lens equation; the Fresnel equations, §4.6; Malus's law, §8.2).</li>
+<li><code>heitz2014</code>: E. Heitz, &quot;Understanding the masking-shadowing function in microfacet-based BRDFs&quot;, Journal of Computer Graphics Techniques 3(2), 48–107, 2014 (the weak white furnace test).</li>
+<li><code>helsel2012</code>: D. R. Helsel, Statistics for Censored Environmental Data Using Minitab and R, 2nd edition, Wiley, 2012 (ISBN 978-0-470-47988-9; substituting a value for a censored one is not an estimate), https://www.wiley.com/en-us/Statistics+for+Censored+Environmental+Data+Using+Minitab+and+R%2C+2nd+Edition-p-9780470479889 (read 2026-11-07).</li>
+<li><code>hickernell1998</code>: F. J. Hickernell, &quot;A generalized discrepancy and quadrature error bound&quot;, Mathematics of Computation 67(221), 299–322, 1998 (the centred L2 discrepancy).</li>
+<li><code>holm1979</code>: S. Holm, &quot;A simple sequentially rejective multiple test procedure&quot;, Scandinavian Journal of Statistics 6(2), 65-70, 1979.</li>
+<li><code>horaud_dornaika1995</code>: R. Horaud and F. Dornaika, &quot;Hand-eye calibration&quot;, The International Journal of Robotics Research 14(3), 195–210, 1995.</li>
+<li><code>howell_catalog</code>: J. R. Howell, A Catalog of Radiation Heat Transfer Configuration Factors, configuration B-3 (plane element parallel to a rectangle, its normal through a corner), http://www.thermalradiation.net/indexCat.html.</li>
+<li><code>html_living_standard</code>: WHATWG HTML Living Standard, https://html.spec.whatwg.org/, parsed here with the Python standard library's html.parser (https://docs.python.org/3/library/html.parser.html).</li>
+<li><code>huber1964</code>: P. J. Huber, &quot;Robust estimation of a location parameter&quot;, The Annals of Mathematical Statistics 35(1), 73–101, 1964.</li>
+<li><code>ieee_figure_size</code>: IEEE Author Center, &quot;Resolution and Size&quot; (&quot;One column width: 3.5 inches, 88.9 millimeters, or 21 picas&quot;; &quot;Two columns width: 7.16 inches, 182 millimeters, or 43 picas&quot;), https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/create-graphics-for-your-article/resolution-and-size/, read 2026-11-07.</li>
+<li><code>immerkaer1996</code>: J. Immerkær, &quot;Fast Noise Variance Estimation&quot;, Computer Vision and Image Understanding 64(2), 300–302, 1996, doi:10.1006/cviu.1996.0060 (bibliographic record and abstract read 2026-11-07; the full text is paywalled, the estimator's factors are derived again in core/sim2real/measures.py).</li>
+<li><code>intel_d400</code>: RealSense, &quot;RealSense Product Family D400 Series Datasheet&quot;, document 337029-017, revision 023, March 2026 (Table 3-49 depth camera SKU properties, §4.4 depth FOV at distance, Table 4-12 minimum-Z depth, Table 4-15 depth quality), https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf, read 2026-11-06.</li>
+<li><code>intel_d457</code>: RealSense, &quot;RealSense Product Family D457 Datasheet&quot;, document 337029-011, revision 006, August 2025 (Table 3-19 depth camera D457 properties, Table 4-4 minimum-Z depth), https://realsenseai.com/wp-content/uploads/2025/08/RealSense-D457-Datasheet-Aug_2025.pdf, read 2026-11-06.</li>
+<li><code>irani_anandan1996</code>: M. Irani and P. Anandan, &quot;Parallax geometry of pairs of points for 3D scene analysis&quot;, ECCV 1996, LNCS 1064, 17–30, doi:10.1007/BFb0015520 (the plane-plus-parallax decomposition; bibliographic details read at dblp.org, 2026-11-07).</li>
+<li><code>isaac_gr00t</code>: NVIDIA, Isaac-GR00T, branch n1-release, gr00t/data/transform/video.py VideoCrop and gr00t/experiment/data_config.py, https://github.com/NVIDIA/Isaac-GR00T (commit 755876a), read 2026-11-06.</li>
+<li><code>isaaclab_camera_cfg</code>: Isaac Lab, source/isaaclab/isaaclab/sensors/camera/camera_cfg.py, CameraCfg.OffsetCfg (pos, rot, convention &quot;ros&quot;; rot (w, x, y, z) at tag v2.3.0, (x, y, z, w) at tag v3.0.0 and main commit d4be263), https://github.com/isaac-sim/IsaacLab, read 2026-11-07.</li>
+<li><code>isaaclab_camera_v232</code>: Isaac Lab tag v2.3.2 (commit 37ddf626871758333d6ed89cf64ad702aef127d0), the same files: CameraCfg.OffsetCfg rot (w, x, y, z), TiledCameraCfg, PinholeCameraCfg without OpenCV distortion fields, https://github.com/isaac-sim/IsaacLab, read 2026-11-07.</li>
+<li><code>isaaclab_camera_v300</code>: Isaac Lab tag v3.0.0 (commit e3f7d9ff1f5d7f8280de3ece9000b7117f66bcf4), source/isaaclab/isaaclab/sensors/camera/camera_cfg.py (CameraCfg, OffsetCfg rot (x, y, z, w), convention &quot;ros&quot;), tiled_camera_cfg.py (deprecated), camera.py (_initialize_intrinsics), sim/spawners/sensors/sensors_cfg.py (PinholeCameraCfg, OpenCvPinholeDistortionCfg, OpenCvFisheyeDistortionCfg) and sensors.py (spawn_camera, omni:lensdistortion attributes), https://github.com/isaac-sim/IsaacLab, read 2026-11-07.</li>
+<li><code>isaaclab_intrinsics</code>: Isaac Lab v3.0.0 (commit e3f7d9f) sensors/camera/camera.py L828-857 and L879-904 (_read_authored_opencv_intrinsics, _initialize_intrinsics: the authored OpenCV fx, fy, cx, cy rule; without them cx = width / 2) and sim/spawners/sensors/sensors.py L162-165 (aperture offsets ignored); v2.3.2 (commit 37ddf62) camera.py L589-599 (cx = width / 2), https://github.com/isaac-sim/IsaacLab (read 2026-11-07).</li>
+<li><code>ishigami1990</code>: T. Ishigami and T. Homma, &quot;An importance quantification technique in uncertainty analysis for computer models&quot;, Proc. First International Symposium on Uncertainty Modeling and Analysis (ISUMA '90), 398–403, IEEE, 1990.</li>
+<li><code>iso4217</code>: ISO 4217 Codes for the representation of currencies, list one (current currency and funds code list), SIX Financial Information as the maintenance agency, published 2026-09-17, https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml (read 2026-11-07).</li>
+<li><code>iso9409_1</code>: ISO 9409-1:2004, Manipulating industrial robots — Mechanical interfaces — Part 1: Plates; public preview (clauses 4 and 5, Figure 1), https://cdn.standards.iteh.ai/samples/36578/348a837664f444bc83e2902c7a5acf4c/ISO-9409-1-2004.pdf, read 2026-11-06.</li>
+<li><code>jansen1999</code>: M. J. W. Jansen, &quot;Analysis of variance designs for model output&quot;, Computer Physics Communications 117(1–2), 35–43, 1999.</li>
+<li><code>jcgm100_2008</code>: JCGM 100:2008, Evaluation of measurement data — Guide to the expression of uncertainty in measurement (GUM), clause 5.1.2 and 5.2.2, eq. 10 and 13 (the law of propagation of uncertainty), https://www.bipm.org/en/committees/jc/jcgm/publications.</li>
+<li><code>jcgm101_2008</code>: JCGM 101:2008, Evaluation of measurement data — Supplement 1 to the GUM: propagation of distributions using a Monte Carlo method, https://www.bipm.org/en/committees/jc/jcgm/publications.</li>
+<li><code>json_lines</code>: JSON Lines (one JSON value per line, UTF-8, newline-terminated), https://jsonlines.org/ (read 2026-11-07).</li>
+<li><code>json_schema</code>: JSON Schema, draft 2020-12, https://json-schema.org/draft/2020-12.</li>
+<li><code>jsonrpc2</code>: JSON-RPC 2.0 Specification (JSON-RPC Working Group, 2010), https://www.jsonrpc.org/specification.</li>
+<li><code>kalibr</code>: ethz-asl/kalibr: the &quot;Calibration targets&quot; wiki page (AprilGrid tagSize &quot;edge to edge&quot;, tagSpacing the ratio of the gap to tagSize, 0.3 in the example), aslam_cv/aslam_cameras_april/src/GridCalibrationTargetAprilgrid.cpp and its header (point order, blackTagBorder 2, minTagsForValidObs 4) and kalibr_create_target_pdf (tag ids row by row from the bottom left, corner squares), https://github.com/ethz-asl/kalibr, read 2026-11-06.</li>
+<li><code>kalibr_yaml</code>: ethz-asl/kalibr wiki, &quot;YAML formats&quot; (camchain.yaml: camera_model, intrinsics [fu fv pu pv], distortion_model, distortion_coeffs, resolution, rostopic, T_cn_cnm1) and &quot;Supported models&quot;; kalibr_common/ConfigReader.py and aslam_cv RadialTangentialDistortion / EquidistantDistortion at commit 1f60227, https://github.com/ethz-asl/kalibr, read 2026-11-07.</li>
+<li><code>kannala_brandt2006</code>: J. Kannala and S. S. Brandt, &quot;A generic camera model and calibration method for conventional, wide-angle, and fish-eye lenses&quot;, IEEE Transactions on Pattern Analysis and Machine Intelligence 28(8), 1335–1340, 2006.</li>
+<li><code>kass_raftery1995</code>: R. E. Kass and A. E. Raftery, &quot;Bayes factors&quot;, Journal of the American Statistical Association 90(430), 773–795, 1995 (BIC differences over 6: strong evidence).</li>
+<li><code>kay_kajiya1986</code>: T. L. Kay and J. T. Kajiya, &quot;Ray tracing complex scenes&quot;, SIGGRAPH '86, Computer Graphics 20(4), 269–278, 1986 (the slab test of a ray against a box).</li>
+<li><code>knapp_carter1976</code>: C. H. Knapp and G. C. Carter, &quot;The generalized correlation method for estimation of time delay&quot;, IEEE Transactions on Acoustics, Speech, and Signal Processing 24(4), 320–327, 1976.</li>
+<li><code>kolmogorov1933</code>: A. N. Kolmogorov, &quot;Sulla determinazione empirica di una legge di distribuzione&quot;, Giornale dell'Istituto Italiano degli Attuari 4, 83–91, 1933.</li>
+<li><code>kunsch1989</code>: H. R. Künsch, &quot;The jackknife and the bootstrap for general stationary observations&quot;, The Annals of Statistics 17(3), 1217–1241, 1989 (the moving-block bootstrap).</li>
+<li><code>latex2e_unofficial</code>: LaTeX2e: An unofficial reference manual (June 2026), &quot;Environments&quot; (&quot;The environment-name at the beginning must exactly match that at the end&quot;), https://latexref.xyz/Environments.html, read 2026-11-07.</li>
+<li><code>lerobot</code>: Hugging Face, LeRobot, src/lerobot/policies/common/vla_utils.py resize_with_pad (left and top padding), https://github.com/huggingface/lerobot (commit d490e47), read 2026-11-06.</li>
+<li><code>lerobot_act_ensembler</code>: Hugging Face, LeRobot, src/lerobot/policies/act/modeling_act.py ACTTemporalEnsembler (&quot;w_0 is the oldest action&quot;), https://github.com/huggingface/lerobot/blob/d490e472a5d1a207cfe0255caaaf74b6d66e4656/src/lerobot/policies/act/modeling_act.py, read 2026-11-07.</li>
+<li><code>lerobot_dataset_format</code>: Hugging Face, LeRobot dataset format: v3.0 from src/lerobot/datasets/{utils, dataset_metadata, dataset_writer, io_utils, compute_stats, video_utils}.py, src/lerobot/scripts/convert_dataset_v21_to_v30.py and docs/source/lerobot-dataset-v3.mdx at commit d490e472a5d1a207cfe0255caaaf74b6d66e4656; v2.1 from the same files at tag v0.3.3 (commit b883328e6c95681ca90a18b102e4ae5e1f91e2bf), https://github.com/huggingface/lerobot, read 2026-11-07.</li>
+<li><code>lerobot_so100</code>: Hugging Face, LeRobot documentation, &quot;SO-100&quot; (the leader arm is built from the follower's parts through the wrist and both are calibrated to the same joint positions), https://huggingface.co/docs/lerobot/so100, read 2026-11-07.</li>
+<li><code>lerobot_train_config</code>: Hugging Face LeRobot at commit d490e472a5d1a207cfe0255caaaf74b6d66e4656: src/lerobot/configs/{train, default, policies, types}.py (TrainPipelineConfig, DatasetConfig, PreTrainedConfig, FeatureType), policies/act/configuration_act.py, policies/diffusion/configuration_diffusion.py, datasets/factory.py (resolve_delta_timestamps), https://github.com/huggingface/lerobot, read 2026-11-07.</li>
+<li><code>li2010</code>: A. Li, L. Wang and D. Wu, &quot;Simultaneous robot-world and hand-eye calibration using dual-quaternions and Kronecker product&quot;, International Journal of the Physical Sciences 5(10), 1530–1536, 2010.</li>
+<li><code>liang2008</code>: C.-K. Liang, L.-W. Chang and H. H. Chen, &quot;Analysis and compensation of rolling shutter effect&quot;, IEEE Transactions on Image Processing 17(8), 1323–1330, 2008.</li>
+<li><code>liang_zeger1986</code>: K.-Y. Liang and S. L. Zeger, &quot;Longitudinal data analysis using generalized linear models&quot;, Biometrika 73(1), 13–22, 1986 (the cluster-robust &quot;sandwich&quot; covariance).</li>
+<li><code>library_host_sources</code>: The makers' specification pages and datasheets each host library entry cites in its sources (dexvantage/resources/library/host/*.json), with the date each was read.</li>
+<li><code>library_policy_sources</code>: The papers, model cards and official code each policy library entry cites in its sources (dexvantage/resources/library/policy/*.json), with the date each was read.</li>
+<li><code>library_teleop_sources</code>: The makers' pages and the papers each teleop library entry cites in its sources (dexvantage/resources/library/teleop/*.json), with the date each was read.</li>
+<li><code>liegeois1977</code>: A. Liégeois, &quot;Automatic supervisory control of the configuration and behavior of multibody mechanisms&quot;, IEEE Transactions on Systems, Man, and Cybernetics 7(12), 868–871, 1977.</li>
+<li><code>liu2010_fdcm</code>: M.-Y. Liu, O. Tuzel, A. Veeraraghavan and R. Chellappa, &quot;Fast directional chamfer matching&quot;, IEEE CVPR 2010, 1696–1703 (edges matched within orientation channels).</li>
+<li><code>lucas_kanade1981</code>: B. D. Lucas and T. Kanade, &quot;An iterative image registration technique with an application to stereo vision&quot;, IJCAI 1981, 674–679.</li>
+<li><code>lynch_park2017</code>: K. M. Lynch and F. C. Park, Modern Robotics: Mechanics, Planning, and Control, Cambridge University Press, 2017 (product of exponentials, chapter 4; space Jacobian, chapter 5).</li>
+<li><code>mcap_python</code>: Foxglove, mcap Python package (mcap.reader.make_reader with validate_crcs), MIT licence, https://github.com/foxglove/mcap/tree/main/python/mcap, version 1.6.0 used 2026-11-07.</li>
+<li><code>mcap_spec</code>: Foxglove, MCAP file format specification (records, chunks, message indexes, summary, CRC-32 fields), https://mcap.dev/spec, read 2026-11-07.</li>
+<li><code>mckay1979</code>: M. D. McKay, R. J. Beckman and W. J. Conover, &quot;A comparison of three methods for selecting values of input variables in the analysis of output from a computer code&quot;, Technometrics 21(2), 239–245, 1979.</li>
+<li><code>mcluney2014</code>: W. R. McCluney, Introduction to Radiometry and Photometry, 2nd ed., Artech House, 2014 (the inverse-square law, Lambertian sources).</li>
+<li><code>mcp_2025_11_25</code>: Model Context Protocol specification, version 2025-11-25: basic/lifecycle, basic/transports (stdio), server/tools, https://modelcontextprotocol.io/specification/2025-11-25 (read 2026-11-07).</li>
+<li><code>mcpeak2015</code>: K. M. McPeak et al., &quot;Plasmonic films can easily be better: rules and recipes&quot;, ACS Photonics 2, 326–333, 2015 (aluminium n, k; via the refractiveindex.info database, CC0, read 2026-11-07).</li>
+<li><code>menagerie_98a70c5</code>: MuJoCo Menagerie at commit 98a70c569c4c1b6da467a20012f766ee1f8dc521, folders aloha, franka_emika_panda and unitree_g1, https://github.com/google-deepmind/mujoco_menagerie (read 2026-11-07).</li>
+<li><code>metropolis_ulam1949</code>: N. Metropolis and S. Ulam, &quot;The Monte Carlo method&quot;, Journal of the American Statistical Association 44(247), 335–341, 1949.</li>
+<li><code>miyamoto1964</code>: K. Miyamoto, &quot;Fish eye lens&quot;, Journal of the Optical Society of America 54(8), 1060–1061, 1964.</li>
+<li><code>mlflow_client_3172</code>: MLflow 3.17.2, mlflow.tracking.MlflowClient over a file: tracking URI (the package mlflow-skinny 3.17.2, an independent reader of the mlruns/ layout), https://mlflow.org/docs/latest/api_reference/python_api/mlflow.client.html (read 2026-11-07).</li>
+<li><code>mlflow_filestore_3172</code>: MLflow 3.17.2, mlflow/store/tracking/file_store.py (FileStore: the mlruns/ layout, meta.yaml, metrics/params/tags files) with mlflow/entities/run_info.py, run_status.py, source_type.py and mlflow/utils/validation.py at the same tag, https://github.com/mlflow/mlflow/blob/v3.17.2/mlflow/store/tracking/file_store.py (read 2026-11-07).</li>
+<li><code>moller1997</code>: T. Möller and B. Trumbore, &quot;Fast, minimum storage ray-triangle intersection&quot;, Journal of Graphics Tools 2(1), 21–28, 1997.</li>
+<li><code>ms_usb_isoch</code>: Microsoft, &quot;How to transfer data to USB isochronous endpoints&quot;, Windows driver documentation, 2024-01-17: &quot;For high speed and SuperSpeed, the bus interval is a microframe. The length of a microframe is 125 microseconds&quot;, https://learn.microsoft.com/windows-hardware/drivers/usbcon/transfer-data-to-isochronous-endpoints (read 2026-11-07).</li>
+<li><code>mujoco_camera</code>: MuJoCo XML reference, body/camera (looks along its −z axis, +x right, +y up; fovy, focal, focalpixel, principal, principalpixel, sensorsize, resolution) and visual/quality (offsamples, numslices), doc/XMLreference.rst of https://github.com/google-deepmind/mujoco (main branch), read 2026-11-06.</li>
+<li><code>mujoco_camera_317</code>: MuJoCo XML reference at tag 3.17.0 (the installed version), body/camera: fovy, resolution, sensorsize (&quot;When specified, all intrinsic attributes become active and fovy is ignored&quot;), focal / focalpixel, principal / principalpixel (&quot;Offset of the principal point ... from the image center&quot;), and visual/map znear, zfar; doc/XMLreference.rst of https://github.com/google-deepmind/mujoco/blob/3.17.0/doc/XMLreference.rst, read 2026-11-07.</li>
+<li><code>mujoco_geomdistance</code>: MuJoCo API reference, mj_geomDistance (the signed distance between two geoms, negative when they overlap), https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html#mj-geomdistance.</li>
+<li><code>mujoco_menagerie</code>: MuJoCo Menagerie (Google DeepMind), a collection of MuJoCo models with per-model licences, https://github.com/google-deepmind/mujoco_menagerie at commit 98a70c569c4c1b6da467a20012f766ee1f8dc521, read 2026-11-07.</li>
+<li><code>mujoco_renderer</code>: MuJoCo Python bindings, mujoco.Renderer (offscreen OpenGL rendering of RGB, depth as the distance from the camera plane, and segmentation as (object id, object type)), with MUJOCO_GL=egl, https://mujoco.readthedocs.io/en/stable/python.html#rendering.</li>
+<li><code>mujoco_todorov2012</code>: E. Todorov, T. Erez and Y. Tassa, &quot;MuJoCo: A physics engine for model-based control&quot;, IEEE/RSJ IROS 2012, 5026–5033.</li>
+<li><code>mujoco_urdf</code>: MuJoCo XML reference and modeling guide, URDF extensions: the &lt;mujoco&gt;&lt;compiler …/&gt;&lt;/mujoco&gt; element of a URDF (fusestatic, discardvisual, boundmass), read through mujoco.MjModel at 3.17.0, https://mujoco.readthedocs.io/en/stable/modeling.html#urdf-extensions.</li>
+<li><code>mujoco_xml</code>: MuJoCo XML reference: quat attributes are written (w, x, y, z), https://mujoco.readthedocs.io/en/stable/XMLreference.html.</li>
+<li><code>nakamura1986</code>: Y. Nakamura and H. Hanafusa, &quot;Inverse kinematic solutions with singularity robustness for robot manipulator control&quot;, ASME Journal of Dynamic Systems, Measurement, and Control 108(3), 163–171, 1986.</li>
+<li><code>naneyec</code>: ams OSRAM, NanEyeC miniature camera module datasheet (frame rate and serial data rate over SEIM and LVDS), https://look.ams-osram.com/m/19863b4335e67f1b/original/NanEyeC-Miniature-Camera-Module.pdf, as recorded in the library entry ams-osram-naneyec (read 2026-11-06).</li>
+<li><code>newcombe1998</code>: R. G. Newcombe, &quot;Interval estimation for the difference between independent proportions: comparison of eleven methods&quot;, Statistics in Medicine 17(8), 873-890, 1998 (method 10).</li>
+<li><code>newton_assets_ur5e</code>: newton-physics/newton-assets at commit ac1f172b6f53915f9b81aa9ccd765ae792cc264c, folder universal_robots_ur5e/usd_structured (BSD-3-Clause, ROS Industrial Consortium): written by the mujoco-usd-converter v0.5.0 (https://github.com/newton-physics/mujoco-usd-converter) from MuJoCo Menagerie universal_robots_ur5e/ur5e.xml at commit da76818e269b82289eba39808e2fb91d679d6994, https://github.com/newton-physics/newton-assets (read 2026-11-07).</li>
+<li><code>nfs5</code>: Linux man-pages, nfs(5) (nolock: locks exclude only applications on the same client; close-to-open cache consistency), https://man7.org/linux/man-pages/man5/nfs.5.html, read 2026-11-07.</li>
+<li><code>nist_sp811</code>: NIST Special Publication 811, Guide for the Use of the International System of Units (SI), Appendix B.8: pound (avoirdupois) = 4.535 924 E-01 kg (exactly 0.453 592 37 kg), https://www.nist.gov/pml/special-publication-811, read 2026-11-07.</li>
+<li><code>omg_xtypes_cdr</code>: Object Management Group, DDS-XTypes 1.3, section 7.4 (XCDR1 &quot;plain CDR&quot; serialisation: encapsulation header, alignment of primitives to their size), https://www.omg.org/spec/DDS-XTypes/1.3.</li>
+<li><code>opencv_calib3d</code>: OpenCV, &quot;Camera Calibration and 3D Reconstruction&quot; (calib3d): the pinhole camera model with Brown-Conrady radial, tangential and rational distortion (k1, k2, p1, p2, k3, k4, k5, k6) and cv2.projectPoints, https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html.</li>
+<li><code>opencv_charuco</code>: OpenCV objdetect aruco module: CharucoBoard, CharucoDetector, ArucoDetector and the predefined dictionaries (DICT_APRILTAG_36h11 among them), https://docs.opencv.org/4.x/df/d4a/tutorial_charuco_detection.html.</li>
+<li><code>opencv_distance_transform</code>: OpenCV imgproc, cv2.distanceTransform and cv2.distanceTransformWithLabels (DIST_L2 with a 5 × 5 mask, DIST_LABEL_PIXEL), https://docs.opencv.org/4.x/d7/d1b/group__imgproc__misc.html.</li>
+<li><code>opencv_filestorage</code>: OpenCV core, cv::FileStorage (XML, YAML and JSON persistence of matrices), https://docs.opencv.org/4.x/da/d56/classcv_1_1FileStorage.html (HTTP 403 on 2026-11-07; the installed OpenCV 5.0.0 bindings were used).</li>
+<li><code>opencv_fisheye</code>: OpenCV, &quot;Fisheye camera model&quot; (calib3d fisheye): θd = θ (1 + k1 θ² + k2 θ⁴ + k3 θ⁶ + k4 θ⁸) and cv2.fisheye.projectPoints, https://docs.opencv.org/4.x/db/d58/group__calib3d__fisheye.html.</li>
+<li><code>opencv_handeye</code>: OpenCV calib3d, calibrateHandEye and calibrateRobotWorldHandEye (conventions: gripper-to-base and target-to-camera in, camera-to-gripper out; world-to-camera and base-to-gripper in, base-to-world and gripper-to-camera out), https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html.</li>
+<li><code>opencv_remap</code>: OpenCV imgproc, cv2.remap (dst(x, y) = src(map_x(x, y), map_y(x, y)), nearest and bilinear interpolation), https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html.</li>
+<li><code>opencv_resize</code>: OpenCV, cv2.resize with INTER_LINEAR (bilinear, pixel centres aligned), https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html.</li>
+<li><code>opencv_warp_perspective</code>: OpenCV imgproc, cv2.warpPerspective (dst(x, y) = src(M⁻¹ (x, y)) unless WARP_INVERSE_MAP is set; sample positions in 1/INTER_TAB_SIZE = 1/32 px), the docstring of the installed OpenCV 5.0.0, read 2026-11-07; https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html returned HTTP 403 that day.</li>
+<li><code>openpi</code>: Physical Intelligence, openpi, src/openpi/shared/image_tools.py resize_with_pad and src/openpi/models/model.py, https://github.com/Physical-Intelligence/openpi (commit 215abfb), read 2026-11-06.</li>
+<li><code>openusd_camera</code>: OpenUSD UsdGeomCamera (focalLength, horizontalAperture, verticalAperture and their offsets, clippingRange; a camera looks along -Z with +Y up) and Gf.Camera / GfFrustum (ComputeViewMatrix, ComputeProjectionMatrix), https://openusd.org/release/api/class_usd_geom_camera.html, as implemented by usd-core 26.8 (pxr), read 2026-11-07.</li>
+<li><code>openusd_physics</code>: OpenUSD UsdPhysics schemas (PhysicsRigidBodyAPI, PhysicsMassAPI, PhysicsArticulationRootAPI, PhysicsRevoluteJoint / PrismaticJoint / FixedJoint: body0, body1, localPos0/1, localRot0/1, axis, lowerLimit and upperLimit in degrees or distance), https://openusd.org/release/api/usd_physics_page_front.html, as implemented by usd-core 26.8 (pxr), read 2026-11-07.</li>
+<li><code>openvla_materialize</code>: OpenVLA at commit c8f03f48af692657d3060c19588038c7220e9af9, prismatic/vla/datasets/rlds/oxe/materialize.py L32-33 (only EEF_POS and EEF_R6 actions) and configs.py L33-50 (StateEncoding, ActionEncoding), https://github.com/openvla/openvla (read 2026-11-07).</li>
+<li><code>openvla_oft</code>: OpenVLA-OFT at commit e4287e94541f459edc4feabc4e181f537cd569a8, prismatic/vla/datasets/rlds/oxe/materialize.py L32-33 and L43-45 (JOINT_POS_BIMANUAL accepted, all 14 values absolute) and configs.py L681-687 (the ALOHA entries), https://github.com/moojink/openvla-oft (read 2026-11-07).</li>
+<li><code>openvla_oxe</code>: OpenVLA, https://github.com/openvla/openvla at commit c8f03f48af692657d3060c19588038c7220e9af9: prismatic/vla/datasets/rlds/oxe/configs.py (OXE_DATASET_CONFIGS: image_obs_keys, depth_obs_keys, state_obs_keys, StateEncoding, ActionEncoding), read 2026-11-07.</li>
+<li><code>park_martin1994</code>: F. C. Park and B. J. Martin, &quot;Robot sensor calibration: solving AX = XB on the Euclidean group&quot;, IEEE Transactions on Robotics and Automation 10(5), 717–721, 1994.</li>
+<li><code>parquet_format</code>: Apache Parquet file format (read here through pyarrow.parquet, an independent reader), https://parquet.apache.org/docs/file-format/.</li>
+<li><code>pdf_32000</code>: ISO 32000-1:2008, Document management — Portable document format — Part 1: PDF 1.7 (§7.5 file structure, §7.4.4 FlateDecode, §9.6.2.2 the standard 14 fonts); Adobe's public copy, https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf.</li>
+<li><code>pech_pacheco2000</code>: J. L. Pech-Pacheco, G. Cristóbal, J. Chamorro-Martínez and J. Fernández-Valdivia, &quot;Diatom autofocusing in brightfield microscopy: a comparative study&quot;, ICPR 2000, vol. 3, 314–317 (the variance of the Laplacian as a focus measure).</li>
+<li><code>plucker1865</code>: J. Plücker, &quot;On a new geometry of space&quot;, Philosophical Transactions of the Royal Society of London 155, 725–791, 1865 (line coordinates: direction d and moment m = o × d, m · d = 0).</li>
+<li><code>poppler_pdftotext</code>: Poppler pdftotext, the PDF text extractor of the poppler-utils package, https://poppler.freedesktop.org/.</li>
+<li><code>posix_exit</code>: The Open Group Base Specifications Issue 7, 2018 edition (IEEE Std 1003.1-2017), exit(): &quot;The value of status may be 0, EXIT_SUCCESS, EXIT_FAILURE, or any other value&quot;, https://pubs.opengroup.org/onlinepubs/9699919799/functions/exit.html (read 2026-11-07); the meaning of 1 and 2 is DexVantage's (spec §11).</li>
+<li><code>posix_rename_flock</code>: POSIX.1-2017 rename() (&quot;a link named new shall remain visible to other threads throughout the renaming operation and refer either to the file referred to by new or old before the operation began&quot;; RATIONALE: &quot;the action of the function be atomic&quot;) and Linux flock(2) advisory locks, https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html, https://man7.org/linux/man-pages/man2/flock.2.html (read 2026-11-07).</li>
+<li><code>python_ast</code>: Python standard library, ast (parse, literal_eval) and xml.etree.ElementTree, https://docs.python.org/3/library/ast.html.</li>
+<li><code>pyyaml</code>: PyYAML (yaml.safe_load), https://pyyaml.org/wiki/PyYAMLDocumentation.</li>
+<li><code>ray2002</code>: S. F. Ray, Applied Photographic Optics, 3rd ed., Focal Press, 2002 (depth of field and hyperfocal distance of a thin lens).</li>
+<li><code>rename2</code>: Linux man-pages, rename(2) (&quot;If newpath already exists, it will be atomically replaced, so that there is no point at which another process attempting to access newpath will find it missing&quot;; on NFS a failed rename may have been done), https://man7.org/linux/man-pages/man2/rename.2.html, read 2026-11-07.</li>
+<li><code>rep103</code>: ROS REP 103, Standard Units of Measure and Coordinate Conventions (T. Foote, M. Purvis, 2010), https://www.ros.org/reps/rep-0103.html.</li>
+<li><code>rerun_sdk</code>: Rerun, rerun-sdk 0.42.0 for Python (RecordingStream, the archetypes Transform3D, Pinhole, Mesh3D, Boxes3D, TextLog, Scalars, and the reader rerun.chunk.RrdReader): the installed wheel's source and https://rerun.io/docs/reference/types/archetypes/pinhole (version 0.42.0), read 2026-11-07.</li>
+<li><code>rfc3720</code>: J. Satran et al., RFC 3720, Internet Small Computer Systems Interface (iSCSI), April 2004, appendix B.4 CRC examples (CRC32C test vectors), https://www.rfc-editor.org/rfc/rfc3720.txt, read 2026-11-07.</li>
+<li><code>rfc4180</code>: Y. Shafranovich, Common Format and MIME Type for Comma-Separated Values (CSV) Files, RFC 4180, October 2005, https://www.rfc-editor.org/rfc/rfc4180 (read here through Python's csv module).</li>
+<li><code>rfc5545</code>: B. Desruisseaux (ed.), Internet Calendaring and Scheduling Core Object Specification (iCalendar), RFC 5545, September 2009 (§3.1 content lines and folding, §3.3.11 TEXT, §3.6 and §3.6.1 required properties, §3.8.7.2 DTSTAMP in UTC), https://www.rfc-editor.org/rfc/rfc5545 (read 2026-11-07).</li>
+<li><code>rfc8259</code>: T. Bray (ed.), RFC 8259, The JavaScript Object Notation (JSON) Data Interchange Format, December 2017.</li>
+<li><code>robot_datasheets</code>: The makers' datasheets and product pages each robot catalogue entry cites in its sources (dexvantage/resources/library/robot/*.json), with the date each was read.</li>
+<li><code>rosbag2_mcap</code>: ROS 2 rosbag2 storage plugins rosbag2_storage_mcap (profile ros2, ros2msg schemas, cdr messages) and rosbag2_storage_sqlite3 (topics and messages tables), https://github.com/ros2/rosbag2.</li>
+<li><code>rubner2000</code>: Y. Rubner, C. Tomasi and L. J. Guibas, &quot;The Earth Mover's Distance as a Metric for Image Retrieval&quot;, International Journal of Computer Vision 40(2), 99–121, 2000.</li>
+<li><code>safetensors</code>: Hugging Face, safetensors, README &quot;Format&quot; (8-byte little-endian header length, UTF-8 JSON header with dtype, shape and data_offsets, <strong>metadata</strong>, no holes, little-endian row-major) and safetensors/src/tensor.rs (dtype names, header padded with spaces to 8 bytes), https://github.com/huggingface/safetensors, read 2026-11-06.</li>
+<li><code>saltelli2002</code>: A. Saltelli, &quot;Making best use of model evaluations to compute sensitivity indices&quot;, Computer Physics Communications 145(2), 280–297, 2002.</li>
+<li><code>saltelli2010</code>: A. Saltelli, P. Annoni, I. Azzini, F. Campolongo, M. Ratto and S. Tarantola, &quot;Variance based sensitivity analysis of model output. Design and estimator for the total sensitivity index&quot;, Computer Physics Communications 181(2), 259–270, 2010 (Table 2: the estimators).</li>
+<li><code>schlick1994</code>: C. Schlick, &quot;An inexpensive BRDF model for physically-based rendering&quot;, Computer Graphics Forum 13(3), 233–246, 1994 (the Fresnel approximation, eq. 15).</li>
+<li><code>schott_bk7</code>: SCHOTT optical glass catalogue 2017-01-20b, N-BK7 Sellmeier coefficients (via the refractiveindex.info database, CC0, read 2026-11-07).</li>
+<li><code>scipy_brentq</code>: SciPy, scipy.optimize.brentq (Brent's root finder, an independent solver), https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.brentq.html.</li>
+<li><code>scipy_qmc</code>: SciPy, scipy.stats.qmc (Sobol with Owen scrambling, discrepancy), https://docs.scipy.org/doc/scipy/reference/stats.qmc.html.</li>
+<li><code>scipy_quad</code>: SciPy, scipy.integrate.quad (adaptive quadrature, QUADPACK), https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.quad.html.</li>
+<li><code>scipy_rotation</code>: SciPy, scipy.spatial.transform.Rotation (an independent implementation of rotation conversions), https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.html.</li>
+<li><code>scipy_stats</code>: SciPy, scipy.stats (kstest, uniform, truncnorm, norm, spearmanr: independent implementations), https://docs.scipy.org/doc/scipy/reference/stats.html.</li>
+<li><code>scipy_stats_tests</code>: SciPy 1.18, scipy.stats: binomtest(...).proportion_ci (wilson, exact), bootstrap (percentile, BCa), permutation_test, ttest_ind (equal_var=False), ttest_rel, mannwhitneyu, wilcoxon, fisher_exact, contingency.odds_ratio (kind=&quot;sample&quot;): independent implementations, https://docs.scipy.org/doc/scipy/reference/stats.html (read 2026-11-07).</li>
+<li><code>scipy_wasserstein</code>: SciPy, scipy.stats.wasserstein_distance (the first Wasserstein distance between two 1-D distributions, an independent implementation), https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wasserstein_distance.html.</li>
+<li><code>shah2013</code>: M. Shah, &quot;Solving the robot-world/hand-eye calibration problem using the Kronecker product&quot;, Journal of Mechanisms and Robotics 5(3), 031007, 2013.</li>
+<li><code>shapley1953</code>: L. S. Shapley, &quot;A value for n-person games&quot;, in H. W. Kuhn and A. W. Tucker (eds.), Contributions to the Theory of Games II, Annals of Mathematics Studies 28, Princeton University Press, 307–317, 1953.</li>
+<li><code>shepperd1978</code>: S. W. Shepperd, &quot;Quaternion from rotation matrix&quot;, Journal of Guidance and Control 1(3), 223–224, 1978.</li>
+<li><code>shoemake1985</code>: K. Shoemake, &quot;Animating rotation with quaternion curves&quot;, SIGGRAPH '85, Computer Graphics 19(3), 245–254, 1985.</li>
+<li><code>siunitx_wright2026</code>: J. Wright, &quot;siunitx - A comprehensive (SI) units package&quot;, package manual, version 3.6.7, CTAN, 2026 (section 3.4: literal unit input such as \unit{kg.m/s^2}; \num, \qty, \percent, \degree), https://ctan.org/pkg/siunitx, read 2026-11-07.</li>
+<li><code>slurm_job_array</code>: SchedMD, Slurm Workload Manager, &quot;Job Array Support&quot;, version 26.05 (--array ranges, comma lists and the % throttle; SLURM_ARRAY_TASK_ID; %A and %a; MaxArraySize default 1001), https://slurm.schedmd.com/job_array.html, read 2026-11-07.</li>
+<li><code>slurm_sbatch</code>: SchedMD, Slurm Workload Manager, &quot;sbatch&quot;, version 26.05 (--cpus-per-task, --mem in mebibytes with K, M, G, T, --time formats, --parsable, --dependency=afterany, SLURM_SUBMIT_DIR; #SBATCH directives are read up to the first non-comment, non-whitespace line), https://slurm.schedmd.com/sbatch.html, read 2026-11-07.</li>
+<li><code>smirnov1948</code>: N. Smirnov, &quot;Table for estimating the goodness of fit of empirical distributions&quot;, The Annals of Mathematical Statistics 19(2), 279–281, 1948.</li>
+<li><code>sobol1993</code>: I. M. Sobol', &quot;Sensitivity estimates for nonlinear mathematical models&quot;, Mathematical Modelling and Computational Experiments 1(4), 407–414, 1993.</li>
+<li><code>spearman1904</code>: C. Spearman, &quot;The proof and measurement of association between two things&quot;, The American Journal of Psychology 15(1), 72–101, 1904 (the rank correlation).</li>
+<li><code>spong2006</code>: M. W. Spong, S. Hutchinson and M. Vidyasagar, Robot Modeling and Control, Wiley, 2006 (standard DH link transform Rz(θ) Tz(d) Tx(a) Rx(α)).</li>
+<li><code>steiger_fouladi1997</code>: J. H. Steiger and R. T. Fouladi, &quot;Noncentrality interval estimation and the evaluation of statistical models&quot;, in L. L. Harlow, S. A. Mulaik and J. H. Steiger (eds.), What If There Were No Significance Tests?, Erlbaum, 221-257, 1997.</li>
+<li><code>step_ap</code>: ISO 10303-21, Industrial automation systems and integration: product data representation and exchange, clear text encoding of the exchange structure (STEP), as written and read by OpenCASCADE through gmsh.</li>
+<li><code>sugihara2011</code>: T. Sugihara, &quot;Solvability-unconcerned inverse kinematics by the Levenberg–Marquardt method&quot;, IEEE Transactions on Robotics 27(5), 984–991, 2011.</li>
+<li><code>sultanova2009</code>: N. Sultanova, S. Kasarova and I. Nikolov, &quot;Dispersion properties of optical polymers&quot;, Acta Physica Polonica A 116, 585–587, 2009 (PMMA; via the refractiveindex.info database, CC0, read 2026-11-07).</li>
+<li><code>sutherland_hodgman1974</code>: I. E. Sutherland and G. W. Hodgman, &quot;Reentrant polygon clipping&quot;, Communications of the ACM 17(1), 32–42, 1974.</li>
+<li><code>svg11</code>: W3C, Scalable Vector Graphics (SVG) 1.1 (Second Edition), W3C Recommendation 16 August 2011, https://www.w3.org/TR/SVG11/, read 2026-11-07.</li>
+<li><code>tai_yang2008</code>: S.-C. Tai and S.-M. Yang, &quot;A fast method for image noise estimation using Laplacian operator and adaptive edge detection&quot;, 3rd International Symposium on Communications, Control and Signal Processing (ISCCSP 2008), 1077–1081, doi:10.1109/ISCCSP.2008.4537384 (abstract read 2026-11-07: Sobel edge pixels left out of Immerkær's estimate).</li>
+<li><code>tf2_static_publisher</code>: ros2/geometry2 at commit 183399c, tf2_ros/src/static_transform_broadcaster_program.cpp (--x --y --z --qx --qy --qz --qw --frame-id --child-frame-id), https://github.com/ros2/geometry2, read 2026-11-07.</li>
+<li><code>tfrecord_format</code>: TensorFlow TFRecord format: uint64 length, uint32 masked CRC-32C of the length, data, uint32 masked CRC-32C of the data; mask = rotate right 15 + 0xa282ead8 (xla/tsl/lib/io/record_writer.h and xla/tsl/lib/hash/crc32c.h, https://github.com/openxla/xla; https://www.tensorflow.org/tutorials/load_data/tfrecord), read 2026-11-07.</li>
+<li><code>tol_colours</code>: P. Tol, Paul Tol's Notes, &quot;Qualitative colour schemes&quot; (the bright scheme: #4477AA, #EE6677, #228833, #CCBB44, #66CCEE, #AA3377, #BBBBBB), https://sronpersonalpages.nl/~pault/ (page dated 16 August 2026), read 2026-11-07.</li>
+<li><code>torchvision_centercrop</code>: torchvision.transforms.functional.center_crop (crop_top = int(round((image_height − crop_height) / 2.0)), likewise the left), torchvision/transforms/functional.py of https://github.com/pytorch/vision (main branch), read 2026-11-06.</li>
+<li><code>treece1999</code>: G. M. Treece, R. W. Prager and A. H. Gee, &quot;Regularised marching tetrahedra: improved iso-surface extraction&quot;, Computers &amp; Graphics 23(4), 583–598, 1999.</li>
+<li><code>triggs2000</code>: B. Triggs, P. McLauchlan, R. Hartley and A. Fitzgibbon, &quot;Bundle adjustment — a modern synthesis&quot;, Vision Algorithms: Theory and Practice, LNCS 1883, 298–372, Springer, 2000.</li>
+<li><code>tsai_lenz1989</code>: R. Y. Tsai and R. K. Lenz, &quot;A new technique for fully autonomous and efficient 3D robotics hand/eye calibration&quot;, IEEE Transactions on Robotics and Automation 5(3), 345–358, 1989.</li>
+<li><code>unitree_g1_urdf</code>: Unitree Robotics, unitree_ros robots/g1_description/g1_29dof_rev_1_0.urdf at commit 7c40519e02d7dd16c06b25fe3fa3b67fdeb7cd74, joint &quot;d435_joint&quot; (torso_link to d435_link: xyz 0.0576235 0.01753 0.42987 m, rpy 0 0.8307767239493009 0 rad), https://github.com/unitreerobotics/unitree_ros (read 2026-11-07).</li>
+<li><code>ur5e_flange</code>: Universal Robots, UR5e datasheet, drawing &quot;Tool flange for UR5e&quot; (EN ISO-9409-1-50-4-M6), https://www.universal-robots.com/manuals/latest/en/datasheets/ur5e/, read 2026-11-06.</li>
+<li><code>ur_dh</code>: Universal Robots, &quot;DH Parameters for calculations of kinematics and dynamics&quot;, UR5e/UR7e table, https://www.universal-robots.com/articles/ur/application-installation/dh-parameters-for-calculations-of-kinematics-and-dynamics/, read 2026-11-06.</li>
+<li><code>urdf</code>: ROS URDF XML specification, the &lt;origin rpy=&quot;…&quot;&gt; element: roll, pitch, yaw about fixed x, y, z axes, http://wiki.ros.org/urdf/XML/joint.</li>
+<li><code>urdfdom</code>: ros/urdfdom at commit bfcf29f (urdf_parser/src/joint.cpp: &lt;limit&gt; needs effort and velocity) and ros/urdfdom_headers (urdf_model/pose.h, Rotation::setFromRPY: fixed-axis roll, pitch, yaw), https://github.com/ros/urdfdom, read 2026-11-07.</li>
+<li><code>usb20_spec</code>: Universal Serial Bus Specification, Revision 2.0, April 27, 2000 (Table 5-10 high-speed bulk transaction limits, §7.2.1 classes of devices), https://www.usb.org/sites/default/files/usb_20_20250603.zip, read 2026-11-06.</li>
+<li><code>usb32_spec</code>: USB 3.0 Promoter Group, Universal Serial Bus 3.2 Specification, Revision 1.1, June 2022 (Table 3-1 bus power, §4.4.11 efficiency, §10.14 hub configuration and §11.4 power distribution), https://www.usb.org/sites/default/files/usb_32_202206_0.zip, read 2026-11-06.</li>
+<li><code>vantage_rig_gap</code>: Vantage core/rig_gap.py (the Rig Contrastive Distance: components in 0..1, their weights, the Hungarian camera match, the heuristic transfer bands) and core/fleet.py (measured minus planned, the ok / adjust / re-mount verdict, the robust z-score, the systematic offset), the read-only reference implementation DexVantage ports from.</li>
+<li><code>veach1997</code>: E. Veach, Robust Monte Carlo Methods for Light Transport Simulation, PhD thesis, Stanford University, 1997 (multiple importance sampling, chapter 9).</li>
+<li><code>walter2007</code>: B. Walter, S. R. Marschner, H. Li and K. E. Torrance, &quot;Microfacet models for refraction through rough surfaces&quot;, Eurographics Symposium on Rendering 2007, 195–206 (the GGX distribution, eq. 33; Smith G1, eq. 34; the microfacet BRDF, eq. 20; sampling, eqs. 35–36).</li>
+<li><code>wampler1986</code>: C. W. Wampler, &quot;Manipulator inverse kinematic solutions based on vector formulations and damped least-squares methods&quot;, IEEE Transactions on Systems, Man, and Cybernetics 16(1), 93–101, 1986.</li>
+<li><code>wang_olson2016</code>: J. Wang and E. Olson, &quot;AprilTag 2: Efficient and robust fiducial detection&quot;, IEEE/RSJ IROS 2016, 4193–4198.</li>
+<li><code>williams1949</code>: E. J. Williams, &quot;Experimental designs balanced for the estimation of residual effects of treatments&quot;, Australian Journal of Scientific Research, Series A 2(2), 149-168, 1949, https://doi.org/10.1071/CH9490149 (read 2026-11-07).</li>
+<li><code>williams1978</code>: L. Williams, &quot;Casting curved shadows on curved surfaces&quot;, SIGGRAPH '78, Computer Graphics 12(3), 270–274, 1978 (shadow maps and their depth bias).</li>
+<li><code>wilson1927</code>: E. B. Wilson, &quot;Probable inference, the law of succession, and statistical inference&quot;, Journal of the American Statistical Association 22(158), 209–212, 1927 (the score interval of a proportion).</li>
+<li><code>yoshikawa1985</code>: T. Yoshikawa, &quot;Manipulability of robotic mechanisms&quot;, The International Journal of Robotics Research 4(2), 3–9, 1985.</li>
+<li><code>zhao2023_act</code>: T. Z. Zhao, V. Kumar, S. Levine and C. Finn, &quot;Learning fine-grained bimanual manipulation with low-cost hardware&quot; (ACT, temporal ensembling w_i = exp(-m i)), RSS 2023, https://arxiv.org/abs/2304.13705.</li>
+<li><code>zip_appnote</code>: PKWARE, APPNOTE.TXT, .ZIP File Format Specification (read here through Python's zipfile).</li>
+<li><code>zitzler2000_zdt</code>: E. Zitzler, K. Deb and L. Thiele, &quot;Comparison of multiobjective evolutionary algorithms: empirical results&quot;, Evolutionary Computation 8(2), 173–195, 2000 (ZDT1 and ZDT2 and their analytic fronts, g = 1).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="index.html"><img src="assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="guide.html">User guide</a>
+      <a href="docs.html">Models and methods</a>
+      <a href="methods.html">Technical reference</a>
+      <a href="validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="assets/js/site.js"></script>
+</body>
+</html>

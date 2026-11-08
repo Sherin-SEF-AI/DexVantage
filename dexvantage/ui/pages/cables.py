@@ -13,10 +13,11 @@ Export writes the harness sheet as JSON (with provenance), CSV or HTML.
 from __future__ import annotations
 
 import os
+import threading
 import traceback
 
 import numpy as np
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QGridLayout, QHeaderView, QLineEdit, QMessageBox,
                              QTableWidget, QTreeWidget, QTreeWidgetItem, QWidget)
@@ -32,6 +33,10 @@ SETTINGS = (('bend_factor', 'Bend factor', '×', 'The allowed bend radius is the
                                                 '1.5, a DexVantage margin for flexing, not a maker\'s figure).'),
             ('loop_m', 'Service loop', 'm', 'Added to a run\'s largest length for the suggested laid length '
                                             '(default 0.05 m).'))
+
+
+class _PolylineSignal(QObject):
+    done = pyqtSignal(int, object)                     # (generation, [(points, status)]) from the worker thread
 
 
 def _mm(v, d=1) -> str:
@@ -53,6 +58,11 @@ class CablesPage(StudyPage):
     # ---------------------------------------------------------------- body
     def build_body(self, layout):
         self._overlay_cache = None
+        self._overlay_last = []                         # the last polylines computed, drawn while new ones compute
+        self._overlay_gen = 0                           # bumped by every change that makes the cache stale
+        self._overlay_running = False
+        self._overlay_sig = _PolylineSignal()
+        self._overlay_sig.done.connect(self._polylines_ready)
         self._preview = False
         self._busy = False
         self._spin = {}
@@ -693,6 +703,10 @@ class CablesPage(StudyPage):
     # ---------------------------------------------------------------- overlays
     def _invalidate(self):
         self._overlay_cache = None
+        self._overlay_gen += 1
+        self._refresh_views()
+
+    def _refresh_views(self):
         self._redraw()
         win = self.ctx.window
         cv = getattr(win, 'camview', None) if win is not None else None
@@ -707,37 +721,77 @@ class CablesPage(StudyPage):
         if win is not None and hasattr(win, 'viewport'):
             win.viewport.update()
 
-    def polylines(self) -> list:
+    def polylines(self, wait: bool = False) -> list:
         """[(points (n, 3) world, status)] of every run at the joint state on screen, laid with its laid length (or
-        the suggested one; in Preview, the suggested one)."""
+        the suggested one; in Preview, the suggested one).
+
+        Laying the runs takes 100–150 ms on the bimanual and hand samples (measured, docs/performance.md), more than
+        the UI thread may spend, so it runs on a worker thread: until it ends the views draw the last polylines
+        computed, and they redraw when it does. wait=True computes them here (tests, exports)."""
         if self._overlay_cache is not None:
             return self._overlay_cache
-        out = []
         try:
-            out = self._compute_polylines()
+            inputs = self._polyline_inputs()            # read on the UI thread: the project, the result, the joints
         except Exception:                               # noqa: BLE001 — an overlay must not take the page down
             traceback.print_exc()
-        self._overlay_cache = out
-        return out
+            self._overlay_cache = []
+            return []
+        if wait:
+            out = self._lay(inputs)
+            self._overlay_cache = self._overlay_last = out
+            return out
+        if not self._overlay_running:
+            self._overlay_running = True
+            gen = self._overlay_gen
+            sig = self._overlay_sig
 
-    def _compute_polylines(self) -> list:
-        from ...core.robot.model import get_model
+            def work():
+                out = self._lay(inputs)
+                try:
+                    sig.done.emit(gen, out)
+                except RuntimeError:                    # the page was closed meanwhile
+                    pass
+            threading.Thread(target=work, daemon=True).start()
+        return self._overlay_last
+
+    def _polylines_ready(self, gen: int, out):
+        self._overlay_running = False
+        self._overlay_last = out
+        if gen == self._overlay_gen:
+            self._overlay_cache = out
+        self._refresh_views()                           # a stale result: drawn, and the redraw starts a new one
+
+    def _polyline_inputs(self) -> dict:
         doc = self.doc or {}
+        return {'project': self.project, 'doc': doc, 'preview': self._preview, 'settings': self.settings(),
+                'cables': self.cables() or [CB.clean_cable(c) for c in doc.get('suggested_cables') or []],
+                'q': dict(self.ctx.store.q)}
+
+    @staticmethod
+    def _lay(inputs: dict) -> list:
+        try:
+            return CablesPage._compute_polylines(inputs)
+        except Exception:                               # noqa: BLE001 — an overlay must not take the page down
+            traceback.print_exc()
+            return []
+
+    @staticmethod
+    def _compute_polylines(inputs: dict) -> list:
+        from ...core.robot.model import get_model
+        project, doc, st = inputs['project'], inputs['doc'], inputs['settings']
         res = {c['uid']: c for c in doc.get('cables') or []}
-        cables = self.cables() or [CB.clean_cable(c) for c in doc.get('suggested_cables') or []]
-        st = self.settings()
         out = []
-        for c in cables:
+        for c in inputs['cables']:
             atts = c['attachments']
             if len(atts) < 2 or len({a['robot_uid'] for a in atts}) != 1:
                 continue
             ruid = atts[0]['robot_uid']
-            if self.project.robot(ruid) is None:
+            if project.robot(ruid) is None:
                 continue
-            model = get_model(self.project, ruid)
+            model = get_model(project, ruid)
             if any(a['link'] not in model.link_names for a in atts):
                 continue
-            q = self.ctx.store.q.get(ruid)
+            q = inputs['q'].get(ruid)
             q = model.home if q is None or len(q) != model.nq else np.asarray(q, float)
             T, anc, ax = CB.posed(model, q[None])
             segs = {sg['index']: sg for sg in (res.get(c['uid']) or {}).get('segments') or []}
@@ -745,7 +799,8 @@ class CablesPage(StudyPage):
                 run = CS._Run(model, atts[i], atts[i + 1], c['wrap_radius_m'])
                 ev = run.evaluate(T, anc, ax, q[None])
                 sg = segs.get(i) or {}
-                s = sg.get('suggested_m') if self._preview else (atts[i]['length_to_next_m'] or sg.get('suggested_m'))
+                s = sg.get('suggested_m') if inputs['preview'] else (atts[i]['length_to_next_m']
+                                                                      or sg.get('suggested_m'))
                 if s is None:
                     s = float(ev['L'][0]) + st['loop_m']
                 P = run.loop(ev, float(s), int(st['points']))[0]

@@ -2,7 +2,11 @@
 
 Six samples open in this build: SO-100, UR5e + Robotiq 2F-85, the UR5e with a Shadow Hand for the multi-finger
 occlusion study ([dexhand.md](dexhand.md)), ALOHA 2, two Franka Pandas in one cell, and the Unitree G1 upper body
-(the last three: [the model page](../models/samples.md)).
+(the last three: [the model page](../models/samples.md)). Each has a short tour below: open it, look, run one or two
+studies and read what they say. The figures in the tours are produced by `scripts/guide_examples.py` (examples
+`tour-<sample>`) on this build and checked against this page by `tests/test_guide_examples.py`; the screenshots are from
+`out/screens` (`scripts/screens.py --only samples`, copied by `scripts/tour_media.py`). The ALOHA 2 sample also has the
+[ten-minute tour](../user-guide.md#ten-minute-tour) of the user guide.
 
     dexvantage --sample so100                    # in the window (or File ▸ Open sample in a running window)
     dexvantage --sample ur5e --analyse -         # in batch mode: the project summary as JSON on standard output
@@ -34,8 +38,25 @@ something to analyse, not published figures: move them to where your cameras are
 - **Teleop device (sample choice):** "SO-100 leader arm (sample)": the leader is the follower's own model, joint to
   joint, as the LeRobot SO-100 guide builds it, so `--teleop` runs as the sample opens (96.7 % teleoperable).
 
-Tour: open the sample and move a joint of the arm; the wrist camera rides with the gripper
-while the tripod camera stays put. The SO-101 is in Menagerie too (`robotstudio_so101`, Apache-2.0, 18 MB of
+### Tour
+
+<!-- example: tour-so100 -->
+1. `dexvantage --sample so100` (or File ▸ Open sample ▸ LeRobot SO-100 arm with a wrist and a third-person camera).
+   The Outliner lists 1 robot, 2 sensors, the tabletop volume and the grasp set.
+
+   ![The SO-100 sample as it opens](../media/tour-so100-main.png)
+
+2. Robot ▸ Joint sliders and move `Rotation` (the base): the wrist camera's frustum rides with the jaw, the tripod
+   camera stays put, and the Camera view follows the wrist camera when it is selected.
+3. Analysis ▸ Coverage and resolution ▸ Run: "Task volume seen: 94.5 % (gaps)". The camera table says which camera
+   misses what; the two default cameras (no device chosen) leave gaps a second view would close.
+4. Analysis ▸ Grasp self-occlusion ▸ Run (the 100 top-down pinches): "Contact visibility: 100 % (well seen)".
+5. Analysis ▸ Teleop overlap ▸ Run (the leader arm): "Teleoperable task volume: 96.7 % (clear)"; Apply moves the
+   follower's base by the suggested step.
+
+   ![Teleop overlap on the SO-100](../media/tour-so100-teleop.png)
+
+The SO-101 is in Menagerie too (`robotstudio_so101`, Apache-2.0, 18 MB of
 meshes, not bundled): Robot ▸ Import from MuJoCo Menagerie downloads it and shows its licence first.
 
 ## UR5e + Robotiq 2F-85 (`--sample ur5e`)
@@ -62,12 +83,47 @@ meshes, not bundled): Robot ▸ Import from MuJoCo Menagerie downloads it and sh
 - **Geometry:** the Menagerie UR5e rounds its link offsets to the millimetre, so its flange is up to 1.3 mm from
   the flange of Universal Robots' DH table ([robots.md](../models/robots.md#known-limits)).
 
-Tour: open the sample and run Analysis ▸ Run the project summary (F5): one robot, two depth sensors, one on a link.
-Turn the shoulder: the wrist D405 follows the flange, the overhead D435 does not.
+### Tour
+
+<!-- example: tour-ur5e -->
+1. `dexvantage --sample ur5e`: 1 robot, 2 sensors (both depth cameras, one on a link). Analysis ▸ Run the project
+   summary (F5) fills the Summary tab.
+
+   ![The UR5e sample as it opens](../media/tour-ur5e-main.png)
+
+2. Turn the shoulder on the Robot page: the wrist D405 follows the flange, the overhead D435 does not.
+3. Coverage ▸ Run: "Task volume seen: 91.9 % (mostly single or blind)". Depth validity ▸ Run: "Depth-valid task
+   volume: 84.6 %".
+4. Grasp self-occlusion ▸ Run (the 200 tabletop grasps): "Contact visibility: 100 % (well seen)", with the gallery of
+   the weakest grasps as each camera renders them.
+
+   ![Grasp self-occlusion on the UR5e](../media/tour-ur5e-grasp.png)
+
+5. Time sync ▸ Run: "Worst camera to joint-state skew: ≥ 54.4 ms (out of sync)": the cameras are free-running
+   against the joint states, and the page suggests the D435's hardware trigger.
 
 Known limits: the 2F-85's linkage joints are separate entries of the joint vector, so moving one finger joint alone
 poses the linkage in a way the real gripper cannot (the coupling is an equality constraint in the file, which
 kinematics does not apply).
+
+## UR5e + Shadow Hand (`--sample dexhand`)
+
+- **Robot:** the UR5e with the right Shadow Dexterous Hand from Menagerie (`shadow_hand`, Apache-2.0) on
+  its flange, one robot of 30 joints ([dexhand.md](dexhand.md), [the model page](../models/dexhand.md)).
+- **Cameras (sample placements):** a palm micro camera and a dorsal wrist camera on the hand, and a head camera (a
+  depth camera on the cage).
+- **What it is for:** the multi-finger occlusion matrix and the visual-to-tactile handoff (§7.14, §7.15).
+
+### Tour
+
+<!-- example: tour-dexhand -->
+1. `dexvantage --sample dexhand`: 1 robot, 3 sensors.
+2. Coverage ▸ Run: "Task volume seen: 98.9 % (thin)".
+3. Analysis ▸ Multi-finger occlusion ▸ Run: "Fingertips seen: 93.8 %". The finger × camera matrix gives the share of
+   each fingertip's contact patch each camera does not see and what hides it (the palm, a neighbouring finger, the
+   thumb, or outside the image); the line under the headline names the best single mount and a turn that helps.
+
+   ![The multi-finger occlusion matrix](../media/tour-dexhand-matrix.png)
 
 ## ALOHA 2 (`--sample aloha`)
 
@@ -85,11 +141,23 @@ kinematics does not apply).
   right one, a handover trajectory per arm, ACT, and two leader arms (the library's ALOHA WidowX-250 leader, joint to
   joint; the WidowX's own ranges are not stated, so the followers' are used).
 
-Tour (the spec's ten minutes): `dexvantage --sample aloha`; Analysis ▸ Grasp self-occlusion runs the left arm's
-tabletop grasps (choose the set on the page) and shows which grasps lose a fingertip and why; select
-`cam_left_wrist` and drag it, and the score changes; Analysis ▸ Depth validity, VLA tokens and Bandwidth run on the
-four D405s; Analysis ▸ Teleop shows both arms' reach overlap, the handover zone's quality and the arm-to-arm margin;
-File ▸ Export writes the cameras for MuJoCo and LeRobot; Brackets writes a printable clamp.
+### Tour
+
+<!-- example: tour-aloha -->
+1. `dexvantage --sample aloha`: 2 robots, 4 sensors (the four D405s), the table, a tabletop volume between the arms and
+   a handover zone.
+
+   ![The ALOHA 2 sample as it opens](../media/tour-aloha-main.png)
+
+2. Select `cam_left_wrist` in the Outliner: the Camera view looks down past the left gripper's fingers.
+
+   ![cam_left_wrist in the Camera view](../media/tour-aloha-left-wrist.png)
+
+3. Coverage ▸ Run: "Task volume seen: 100 % (well covered)". Grasp self-occlusion ▸ Run (the left arm's tabletop
+   grasps): "Contact visibility: 100 % (well seen)".
+4. The rest of the specification's ten minutes (which grasps lose a fingertip and why, a moved camera, depth, VLA
+   tokens, bandwidth, the MuJoCo and LeRobot exports and a printable bracket) is the user guide's
+   [ten-minute tour](../user-guide.md#ten-minute-tour).
 
 Measured on this build (2026-11-07, batch flags on the sample as it opens, RTX 5080): `--coverage` 99 % of the task
 volume seen by two or more cameras; `--grasp` (the left arm's 100 grasps) 86 reachable, 14 out of reach, Contact
@@ -109,8 +177,20 @@ contact points and the verdict on 43 of 43 grasps; `--handeye-plan` (cam_left_wr
 - **Tasks and policy (sample choices):** 100 grasps per arm (top-down, side, angled), 60 handoffs, a handover
   trajectory per arm, GELLO leaders from the library (same kinematics as the arm, Wu et al. 2023), Diffusion Policy.
 
-Tour: open it, turn the right arm's first joint on the Robot page: only that arm's wrist camera moves; run Teleop for
-the bimanual block.
+### Tour
+
+<!-- example: tour-panda-bimanual -->
+1. `dexvantage --sample panda-bimanual`: 2 robots, 3 sensors (a wrist D405 on each hand and the front D435).
+
+   ![Two Pandas in one cell](../media/tour-panda-bimanual-main.png)
+
+2. Turn the right arm's first joint on the Robot page: only that arm's wrist camera moves.
+3. Coverage ▸ Run: "Task volume seen: 100 % (thin)". Grasp self-occlusion ▸ Run: "Contact visibility: 100 % (well
+   seen)".
+4. Teleop overlap ▸ Run for the bimanual block: each arm's reach through its GELLO leader, the overlap of the two arms
+   and the handover zone (the measured figures are below).
+
+   ![Teleop overlap of the two Pandas](../media/tour-panda-bimanual-teleop.png)
 
 Measured: `--coverage` 79 % seen by two or more cameras (each wrist D405 sees 52 % at home; the front D435 all of
 it); `--grasp` 76 of 100 reachable (24 out of reach), score 100 %; `--teleop` 100 % teleoperable, the arms' reach
@@ -134,8 +214,22 @@ object you hand over) or move an arm. `--groundtruth` agrees on 91.0 % of contac
   both arms and closes the right hand, GR00T N1.5, and Apple Vision Pro hand tracking (as Unitree's xr_teleoperate drives
   the G1) with no tracking volume, because none is stated.
 
-Tour: open it, run Analysis ▸ Multi-finger occlusion: the head camera's view of the right hand's three fingertips
-over its sample postures.
+### Tour
+
+<!-- example: tour-g1 -->
+1. `dexvantage --sample g1`: 1 robot, 1 sensor (the head D435), both arms and both hands in one state vector.
+
+   ![The G1 upper body](../media/tour-g1-main.png)
+
+2. Select the head camera: the Camera view looks down at the hands over the table.
+
+   ![The head D435's view](../media/tour-g1-head.png)
+
+3. Coverage ▸ Run: "Task volume seen: 96.6 % (mostly single or blind)": one camera sees it, so the page suggests a
+   second.
+4. Grasp self-occlusion ▸ Run (the right hand's grasps): "Contact visibility: 0 % (blind at contact)": from the head,
+   most contact points are behind their own finger at contact.
+5. Analysis ▸ Multi-finger occlusion ▸ Run: "Fingertips seen: 25.9 %" of the fingertip-cases over the sample postures.
 
 Measured: `--coverage` 97 % of the task volumes seen, all by the one camera ("add a second camera"); `--grasp` (the
 right hand's 100 angled grasps) 79 reachable (20 at a joint limit), score 0 %: the head camera sees 38 % of the contact

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Citing your sources and making figures for a paper · DexVantage</title>
+<meta name="description" content="A worked example on the UR5e sample. The rules are in Citations and publication figures.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-a-bibtex-file-of-everything-the-plan-rests-on">1. A BibTeX file of everything the plan rests on</a>
+    <a href="#2-a-figure-from-a-page">2. A figure from a page</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/publication.md"><code>docs/guide/publication.md</code></a></p>
+<h1 id="citing-your-sources-and-making-figures-for-a-paper">Citing your sources and making figures for a paper</h1>
+<p>A worked example on the UR5e sample. The rules are in <a href="../models/publication.html">Citations and publication figures</a>.</p>
+<h2 id="1-a-bibtex-file-of-everything-the-plan-rests-on">1. A BibTeX file of everything the plan rests on</h2>
+<pre><code>dexvantage --sample ur5e --cite ur5e.bib
+185 BibTeX entries → ur5e.bib
+</code></pre>
+<p>The file starts with DexVantage itself, then the sources behind each library entry the project uses, each with the
+date it was read:</p>
+<pre><code>@misc{intel-realsense-d405,
+  title   = {{RealSense Product Family D400 Series Datasheet, Revision 023, March 2026, …}},
+  author  = {{Intel RealSense}},
+  url     = {https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf},
+  urldate = {2026-11-06},
+  note    = {A source of DexVantage library entries intel-realsense-d405, intel-realsense-d435; read 2026-11-06},
+}
+</code></pre>
+<p>then the robot models (the UR5e and 2F-85 folders of MuJoCo Menagerie at commit 98a70c569c4c, each with its licence,
+and Menagerie's own citation), π0's paper and code, and the references the validation checks cite. Use
+<code>--cite-references none</code> for only the project's own sources, <code>all</code> for every reference DexVantage holds. With biblatex
+the <code>urldate</code> fields print as &quot;accessed&quot;; with classic BibTeX the date is in the note.</p>
+<h2 id="2-a-figure-from-a-page">2. A figure from a page</h2>
+<p>Right-click a chart on an analysis page (the action-chunk error curve, the tactile handoff curve, the audit chart,
+the tolerance contributions…): <strong>Export figure, one column (88.9 mm)…</strong> or <strong>two columns (182 mm)…</strong>, then choose
+<code>.svg</code> or <code>.pdf</code>. The figure has the page's data, axis labels and units, 8 pt text and colour-blind-safe colours, on
+white, ready for a paper. <strong>Copy figure data (JSON)</strong> puts the spec on the clipboard. Charts that cannot give their
+data offer <strong>Export figure as drawn (SVG)…</strong> instead.</p>
+<p>Every SVG keeps its data and origin in its metadata; to re-make a figure at another size or in the page's colours:</p>
+<pre><code>dexvantage --figure figure-spec.json fig.pdf --figure-width double --figure-palette chart
+Figure (PDF, 182 × 72.8 mm, 2 series) → fig.pdf
+</code></pre>
+<p>where <code>figure-spec.json</code> is the copied JSON (or the <code>spec</code> member of the SVG's metadata).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

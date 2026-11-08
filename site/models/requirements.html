@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Requirements, metrics and the readiness scorecard · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/metric_defs.py (the named figures of every study), dexvantage/core/requirements.py(requirements, the scorecard, the variants compare), dexvantage/core/studies/requirements.py (studiesrequirements, batch --scorecard OUT.json, and variants_compare, batch --variants-compare …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#metrics">Metrics</a>
+    <a href="#requirements-1">Requirements</a>
+    <a href="#the-scorecard">The scorecard</a>
+    <a href="#variants-compare">Variants compare</a>
+    <a href="#reproduce-and-plans">Reproduce and plans</a>
+    <a href="#validation-measured-2026-11-07---validate---models-requirements-72-s-with-start-up">Validation (measured 2026-11-07, --validate --models requirements, 7.2 s with start-up)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/requirements.md"><code>docs/models/requirements.md</code></a></p>
+<h1 id="requirements">Requirements, metrics and the readiness scorecard</h1>
+<p>Modules: <code>dexvantage/core/metric_defs.py</code> (the named figures of every study), <code>dexvantage/core/requirements.py</code>
+(requirements, the scorecard, the variants compare), <code>dexvantage/core/studies/requirements.py</code> (studies
+<code>requirements</code>, batch <code>--scorecard OUT.json</code>, and <code>variants_compare</code>, batch <code>--variants-compare OUT.json</code>),
+<code>dexvantage/core/studies/rig_inventory.py</code> (study <code>rig</code>, batch <code>--rig-inventory OUT.json</code>),
+<code>dexvantage/core/reproduce.py</code> (<code>--reproduce</code>), <code>dexvantage/core/run_plan.py</code> (<code>--run-plan</code>),
+<code>dexvantage/batch_gate.py</code> (the batch options). Page: <code>dexvantage/ui/pages/requirements.py</code> (Analysis ▸ Requirements
+and variants; Review workspace). Checks: <code>dexvantage/validation/checks_requirements.py</code> (model <code>requirements</code>).
+Tests: <code>tests/test_metric_defs.py</code>, <code>tests/test_requirements.py</code>, <code>tests/test_requirements_batch.py</code>,
+<code>tests/test_requirements_page.py</code>. Spec §7.11, §11 and §13 (&quot;Requirements and Variants compare&quot;).</p>
+<p>Ported from Vantage <code>core/requirements.py</code>: the signed margin, the verdict over the items, the scorecard document and
+the CI gate. Stripped: Vantage's automotive metric registry (sectors, object classes, lidar, GNSS and power figures),
+the must/should priorities, the brief parser and the design-review PDF.</p>
+<h2 id="metrics">Metrics</h2>
+<p>A metric is one number a study's result already holds, with its unit and the direction that is better
+(<code>core/metrics.py</code>, the shared contract). <code>core/metric_defs.py</code> registers one for every study's headline figure (tag
+<code>headline</code>) and the obvious secondary figures. Nothing is computed there beyond unit changes (fractions to %, metres
+to mm, seconds to ms) and sums or extremes over rows the result lists.</p>
+<p>A figure the result does not state reads <code>None</code> with status <code>not stated</code> and, where the study says why, its sentence
+(<code>reason</code>). A figure the study states only as a bound carries <code>bound</code>:</p>
+<ul>
+<li><code>at_least</code>: the time-sync skew and action-label error when some clock or exposure figure is not stated (the study's
+&quot;≥&quot;), the controllers over budget and the total payload when a stream has no stated rate, the cable pulls and snags
+when a cable's length or bend radius is not stated, the blind gap when a finger is blind from the start of the scan;</li>
+<li><code>at_most</code>: the motion smear and rolling-shutter skew over the maximum exposure or readout the stream allows.</li>
+</ul>
+<p>The contract change (additive): an extractor may return <code>{'value', 'bound', 'reason', 'note'}</code> instead of a number;
+<code>metrics.read(metric, doc)</code> turns any extractor's output into a row, and a result shaped otherwise than the extractor
+expects reads <code>not stated</code> instead of raising.</p>
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Figure</th>
+<th>Unit</th>
+<th>Better</th>
+<th>Study</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>grasp.contact_visibility</code></td>
+<td>Contact visibility</td>
+<td>%</td>
+<td>higher</td>
+<td><code>grasp_visibility</code></td>
+</tr>
+<tr>
+<td><code>grasp.contact_visibility_low</code></td>
+<td>Contact visibility, lower bound of its interval</td>
+<td>%</td>
+<td>higher</td>
+<td><code>grasp_visibility</code></td>
+</tr>
+<tr>
+<td><code>grasp.both_fingertips</code></td>
+<td>Both fingertips seen</td>
+<td>%</td>
+<td>higher</td>
+<td><code>grasp_visibility</code></td>
+</tr>
+<tr>
+<td><code>grasp.reachable</code></td>
+<td>Grasps reachable</td>
+<td>%</td>
+<td>higher</td>
+<td><code>grasp_visibility</code></td>
+</tr>
+<tr>
+<td><code>coverage.covered</code></td>
+<td>Task volume seen</td>
+<td>%</td>
+<td>higher</td>
+<td><code>coverage</code></td>
+</tr>
+<tr>
+<td><code>coverage.seen_twice</code></td>
+<td>Task volume seen by two or more cameras</td>
+<td>%</td>
+<td>higher</td>
+<td><code>coverage</code></td>
+</tr>
+<tr>
+<td><code>coverage.blind</code></td>
+<td>Task volume blind</td>
+<td>%</td>
+<td>lower</td>
+<td><code>coverage</code></td>
+</tr>
+<tr>
+<td><code>coverage.ppmm_p5</code></td>
+<td>Resolution, 5th percentile</td>
+<td>px/mm</td>
+<td>higher</td>
+<td><code>coverage</code></td>
+</tr>
+<tr>
+<td><code>depth.valid</code></td>
+<td>Depth-valid task volume</td>
+<td>%</td>
+<td>higher</td>
+<td><code>depth_validity</code></td>
+</tr>
+<tr>
+<td><code>depth.worst_sensor_valid</code></td>
+<td>Depth-valid share of the weakest depth sensor</td>
+<td>%</td>
+<td>higher</td>
+<td><code>depth_validity</code></td>
+</tr>
+<tr>
+<td><code>depth.sigma_z_p95_mm</code></td>
+<td>Depth noise, 95th percentile (worst sensor)</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>depth_validity</code></td>
+</tr>
+<tr>
+<td><code>bandwidth.margin</code></td>
+<td>Smallest controller margin</td>
+<td>Mbit/s</td>
+<td>higher</td>
+<td><code>bandwidth</code></td>
+</tr>
+<tr>
+<td><code>bandwidth.busiest_load</code></td>
+<td>Busiest link or controller load</td>
+<td>%</td>
+<td>lower</td>
+<td><code>bandwidth</code></td>
+</tr>
+<tr>
+<td><code>bandwidth.over_budget</code></td>
+<td>Controllers over budget</td>
+<td>count</td>
+<td>lower</td>
+<td><code>bandwidth</code></td>
+</tr>
+<tr>
+<td><code>bandwidth.payload_mbps</code></td>
+<td>Total payload</td>
+<td>Mbit/s</td>
+<td>lower</td>
+<td><code>bandwidth</code></td>
+</tr>
+<tr>
+<td><code>sync.skew_ms</code></td>
+<td>Worst camera to joint-state skew</td>
+<td>ms</td>
+<td>lower</td>
+<td><code>time_sync</code></td>
+</tr>
+<tr>
+<td><code>sync.label_error_mm</code></td>
+<td>Worst action-label error from the skew</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>time_sync</code></td>
+</tr>
+<tr>
+<td><code>cables.worst</code></td>
+<td>Cables not clear</td>
+<td>count</td>
+<td>lower</td>
+<td><code>cables</code></td>
+</tr>
+<tr>
+<td><code>cables.pull_snag</code></td>
+<td>Cable pulls and snags</td>
+<td>count</td>
+<td>lower</td>
+<td><code>cables</code></td>
+</tr>
+<tr>
+<td><code>cables.bend</code></td>
+<td>Cable bends under the allowed radius</td>
+<td>count</td>
+<td>lower</td>
+<td><code>cables</code></td>
+</tr>
+<tr>
+<td><code>vla.min_tokens</code></td>
+<td>Fewest ViT tokens on a critical object</td>
+<td>tokens</td>
+<td>higher</td>
+<td><code>vla_tokens</code></td>
+</tr>
+<tr>
+<td><code>vla.fingertip_tokens</code></td>
+<td>Fewest ViT tokens on a fingertip</td>
+<td>tokens</td>
+<td>higher</td>
+<td><code>vla_tokens</code></td>
+</tr>
+<tr>
+<td><code>vla.warnings</code></td>
+<td>Token warnings</td>
+<td>count</td>
+<td>lower</td>
+<td><code>vla_tokens</code></td>
+</tr>
+<tr>
+<td><code>action_chunk.air_grasp_mm</code></td>
+<td>Worst air grasp</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>action_chunk_sync</code></td>
+</tr>
+<tr>
+<td><code>action_chunk.worst_mm</code></td>
+<td>Worst closing error</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>action_chunk_sync</code></td>
+</tr>
+<tr>
+<td><code>action_chunk.overshoot_mm</code></td>
+<td>Worst overshoot</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>action_chunk_sync</code></td>
+</tr>
+<tr>
+<td><code>action_chunk.reaction_mm</code></td>
+<td>Reaction distance</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>action_chunk_sync</code></td>
+</tr>
+<tr>
+<td><code>teleop.overlap</code></td>
+<td>Teleoperable task volume</td>
+<td>%</td>
+<td>higher</td>
+<td><code>teleop</code></td>
+</tr>
+<tr>
+<td><code>lighting.glare</code></td>
+<td>Specular saturation (worst camera)</td>
+<td>%</td>
+<td>lower</td>
+<td><code>lighting</code></td>
+</tr>
+<tr>
+<td><code>lighting.depth_loss</code></td>
+<td>Depth lost to lighting (worst sensor)</td>
+<td>%</td>
+<td>lower</td>
+<td><code>lighting</code></td>
+</tr>
+<tr>
+<td><code>motion_blur.worst_px</code></td>
+<td>Worst motion smear</td>
+<td>px</td>
+<td>lower</td>
+<td><code>motion_blur</code></td>
+</tr>
+<tr>
+<td><code>motion_blur.skew_px</code></td>
+<td>Worst rolling-shutter skew</td>
+<td>px</td>
+<td>lower</td>
+<td><code>motion_blur</code></td>
+</tr>
+<tr>
+<td><code>handeye.sigma_mm</code></td>
+<td>Predicted camera position σ (worst axis)</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>handeye_plan</code></td>
+</tr>
+<tr>
+<td><code>handeye.sigma_deg</code></td>
+<td>Predicted camera rotation σ (worst axis)</td>
+<td>°</td>
+<td>lower</td>
+<td><code>handeye_plan</code></td>
+</tr>
+<tr>
+<td><code>handeye.ratio</code></td>
+<td>Predicted σ over the requirement (worst)</td>
+<td>ratio</td>
+<td>lower</td>
+<td><code>handeye_plan</code></td>
+</tr>
+<tr>
+<td><code>groundtruth.agreement</code></td>
+<td>Rendered against predicted agreement</td>
+<td>%</td>
+<td>higher</td>
+<td><code>groundtruth</code></td>
+</tr>
+<tr>
+<td><code>groundtruth.depth_agreement</code></td>
+<td>Rendered depth agreement</td>
+<td>%</td>
+<td>higher</td>
+<td><code>groundtruth</code></td>
+</tr>
+<tr>
+<td><code>dexhand.fingertips_seen</code></td>
+<td>Fingertips seen</td>
+<td>%</td>
+<td>higher</td>
+<td><code>dex_occlusion</code></td>
+</tr>
+<tr>
+<td><code>dexhand.all_fingertips</code></td>
+<td>Grasps with every fingertip seen</td>
+<td>%</td>
+<td>higher</td>
+<td><code>dex_occlusion</code></td>
+</tr>
+<tr>
+<td><code>dexhand.blind_gap_mm</code></td>
+<td>Sensory blind gap before contact (worst)</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>dex_occlusion</code></td>
+</tr>
+<tr>
+<td><code>dexhand.unsensed</code></td>
+<td>Fingertips neither seen nor touched at contact</td>
+<td>count</td>
+<td>lower</td>
+<td><code>dex_occlusion</code></td>
+</tr>
+<tr>
+<td><code>brackets.not_ready</code></td>
+<td>Sensors without a ready bracket</td>
+<td>count</td>
+<td>lower</td>
+<td><code>brackets</code></td>
+</tr>
+<tr>
+<td><code>audit.pass_rate</code></td>
+<td>Episodes that pass the audit</td>
+<td>%</td>
+<td>higher</td>
+<td><code>audit</code></td>
+</tr>
+<tr>
+<td><code>plan.match</code></td>
+<td>Plan against recording: comparisons that match</td>
+<td>%</td>
+<td>higher</td>
+<td><code>plan_vs_recording</code></td>
+</tr>
+<tr>
+<td><code>silhouette.offset_mm</code></td>
+<td>Mount offset found by the silhouettes</td>
+<td>mm</td>
+<td>lower</td>
+<td><code>silhouette_calib</code></td>
+</tr>
+<tr>
+<td><code>silhouette.offset_deg</code></td>
+<td>Mount rotation found by the silhouettes</td>
+<td>°</td>
+<td>lower</td>
+<td><code>silhouette_calib</code></td>
+</tr>
+<tr>
+<td><code>rig.camera_count</code></td>
+<td>Cameras</td>
+<td>count</td>
+<td>lower</td>
+<td><code>rig</code></td>
+</tr>
+<tr>
+<td><code>rig.sensor_count</code></td>
+<td>Sensors</td>
+<td>count</td>
+<td>lower</td>
+<td><code>rig</code></td>
+</tr>
+<tr>
+<td><code>rig.cost</code></td>
+<td>Rig cost (where the library states a price)</td>
+<td>USD</td>
+<td>lower</td>
+<td><code>rig</code></td>
+</tr>
+<tr>
+<td><code>rig.mass_g</code></td>
+<td>Sensor mass</td>
+<td>g</td>
+<td>lower</td>
+<td><code>rig</code></td>
+</tr>
+<tr>
+<td><code>rig.power_w</code></td>
+<td>Sensor power</td>
+<td>W</td>
+<td>lower</td>
+<td><code>rig</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>rig.cost</code> reads an optional <code>price</code> object of a library entry (<code>{&quot;value&quot;, &quot;currency&quot;, &quot;source&quot;, &quot;read&quot;}</code>). <strong>No
+built-in entry states a price</strong> (none was invented), so on every sample the cost reads &quot;not stated&quot; with the devices
+named; prices in different currencies are not added.</p>
+<h2 id="requirements-1">Requirements</h2>
+<p>A requirement is a metric, a comparison (<code>&gt;=</code>, <code>&lt;=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>==</code>) and a threshold in the metric's unit, with the
+study that measures it (<code>core.project.Requirement</code>: <code>uid</code>, <code>name</code>, <code>metric</code>, <code>op</code>, <code>threshold</code>, <code>unit</code>, <code>study</code>,
+<code>is_default</code>, <code>note</code>; the project file's <code>requirements</code> section, unchanged). A requirements file (YAML or JSON) is</p>
+<pre><code class="language-yaml">format: dexvantage.requirements
+version: 1
+requirements:
+- {name: Contact visibility, metric: grasp.contact_visibility, comparison: '&gt;=', threshold: 95, unit: '%',
+   study: grasp_visibility, default: true}
+</code></pre>
+<p><code>comparison</code> also reads <code>op</code> and words (<code>at least</code>, <code>less than</code>, <code>≥</code> …). A unit or study that is not the metric's is
+an error, not a conversion: a threshold in the wrong unit would be silently wrong.</p>
+<p><strong>Defaults</strong> (labelled defaults, <code>is_default</code> true, note &quot;a documented starting point, not a standard&quot;;
+<code>docs/examples/requirements.yaml</code>; <code>--check defaults</code>): contact visibility ≥ 95 %; camera to joint-state skew &lt; 2 ms;
+controllers over budget ≤ 0; cable pulls and snags ≤ 0; sensory blind gap before contact ≤ 0 mm. Editing a default's
+threshold or comparison on the page makes it the user's own figure (no longer labelled a default).</p>
+<h2 id="the-scorecard">The scorecard</h2>
+<p>For each requirement, with value v, threshold t and the metric's figure as the study states it:</p>
+<pre><code>margin = v − t      for ≥ and &gt;          pass when margin ≥ −ε (≥) or margin &gt; ε (&gt;)
+margin = t − v      for ≤ and &lt;          pass when margin ≥ −ε (≤) or margin &gt; ε (&lt;)
+margin = −|v − t|   for ==               pass when margin ≥ −ε,       ε = 1e-9 · max(1, |t|)
+</code></pre>
+<p>Positive margins are good. With a bound the comparison on v decides only in the bound's direction: <code>at_least</code> passes
+<code>≥</code>/<code>&gt;</code> and fails <code>≤</code>/<code>&lt;</code> (and <code>==</code> when v &gt; t); <code>at_most</code> the reverse; anything else is <strong>not evaluated</strong>, with the
+sentence &quot;The study states only that the figure is at least v, which does not settle less than t: give the figures it
+lacks.&quot; A study that refuses gives &quot;not evaluated&quot; with its own sentence; a study that crashes gives an error.</p>
+<p>Verdict: <code>pass</code> (&quot;ready&quot;) when every item passes; <code>fail</code> (&quot;not ready&quot;) when one fails; else <code>incomplete</code> (&quot;not
+evaluated&quot;); <code>empty</code> (&quot;no requirements&quot;). Each study runs at most once per scorecard (a shared result cache of 24
+results, keyed by the project's content, the study's settings, the library entries, <strong>the active variant</strong> and the
+dataset fingerprint).</p>
+<p>The CI gate <code>dexvantage PROJECT --check requirements.yaml [OUT.json]</code> prints the table, writes the scorecard JSON with
+its provenance (default <code>scorecard.json</code>) and exits <strong>0</strong> when every requirement passes, <strong>1</strong> when one fails or is not
+evaluated (a gate cannot certify what it did not measure) and <strong>2</strong> on an error (a file that cannot be read, invalid
+YAML, an unknown metric, a threshold that is not a number, a wrong unit, no project, a study that crashed).</p>
+<h2 id="variants-compare">Variants compare</h2>
+<p>Every variant of the project against every requirement (the scorecard per variant, each study once per variant): a
+cell per variant and requirement (value, bound, status, margin, reason), the <strong>best variant per requirement</strong> (by the
+metric's better direction; for <code>==</code> the smallest distance to the threshold; ties are all named; a cell without a value
+is never best), and a ranking by requirements passed, then fewest failures. The page's Apply makes the top-ranked
+variant active when it passes more (one undo step); Preview draws its sensors next to the active ones; New variant
+from this one copies the active variant (its sensors keep their uids, so host links, cables and policy cameras
+apply to the copy) and makes it active (one undo step).</p>
+<h2 id="reproduce-and-plans">Reproduce and plans</h2>
+<p><code>--reproduce RESULT.json</code> re-runs what wrote a result (the study in its provenance; a scorecard with the requirements
+recorded in it; a run-plan summary step by step with each step's settings) on the project given, else the sample its
+command names (<code>--sample NAME</code>), else the project file it names next to the result or in the current folder, and
+compares every number and text (<code>core/provenance.py</code> <code>compare</code>), exactly or within <code>--tolerance</code>. Computation-time
+blocks that are not under a <code>seconds</code> key (<code>timings</code>, <code>throughput</code>, <code>timing</code>, <code>timing_s</code>) may differ and are counted as
+such. It prints the verdict, the reasons and each mismatch (path, recorded, reproduced) and with <code>--reproduce-out REPORT.json</code> writes the full report. Exit codes as <code>--check</code>: 0 reproduces, 1 does not, 2 cannot be tried.</p>
+<p><code>--run-plan plan.json [OUT_DIR]</code> runs a list of steps in order (<code>study</code> with <code>settings</code> and <code>out</code>; <code>check</code> with a
+requirements file, <code>defaults</code> or inline items; <code>export</code> with <code>formats</code> and <code>options</code>; <code>reproduce</code> with <code>tolerance</code>),
+each on a snapshot with that step's settings only, every result stamped with the plan and the step in its provenance;
+one summary (<code>plan-summary.json</code>, schema <code>dexvantage.run_plan/1</code>) lists each step's status, output, result SHA-256,
+the headline metrics of a study and the verdict of a check. Exit 2 when a step could not run, else 1 when a check
+failed or a reproduction did not match, else 0; a step that cannot run is recorded with its sentence and the plan
+carries on.</p>
+<h2 id="validation-measured-2026-11-07---validate---models-requirements-72-s-with-start-up">Validation (measured 2026-11-07, <code>--validate --models requirements</code>, 7.2 s with start-up)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>requirements.gate_exit_codes</code></td>
+<td>the exit code of 8 synthetic cases written out from spec §11 (pass, fail, not evaluated, unknown metric, bad threshold, wrong unit, broken YAML, missing file)</td>
+<td>0 cases wrong, no traceback</td>
+<td>0 cases (an exit code is right or wrong)</td>
+</tr>
+<tr>
+<td><code>requirements.bound_decisions</code></td>
+<td>a Monte Carlo over the true figures each bound allows (64 per case, with the bound and the threshold), compared by the definition written out again; 4 000 seeded cases (1 000 quick)</td>
+<td>0 disagreements</td>
+<td>0 (the rule is exact)</td>
+</tr>
+<tr>
+<td><code>requirements.metrics_vs_results</code></td>
+<td>14 figures read off the bandwidth, time-sync, cable, coverage, depth, motion-blur, bracket and rig results of the UR5e sample (with its suggested host) by hand</td>
+<td>0 difference</td>
+<td>0 (the same number)</td>
+</tr>
+<tr>
+<td><code>requirements.reproduce_round_trip</code></td>
+<td>the bandwidth and time-sync results of <code>--sample ur5e</code>, re-run from their provenance alone</td>
+<td>0 numbers or texts differ</td>
+<td>0 (deterministic studies)</td>
+</tr>
+<tr>
+<td><code>requirements.reproduce_detects_perturbation</code></td>
+<td>one number of each result changed by 1e-6 relative and the hash rewritten</td>
+<td>both found, exactly that path</td>
+<td>0 results missed</td>
+</tr>
+</tbody>
+</table>
+<p>Self-test line &quot;requirements&quot; (the first two checks, quick): 0.8 s.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The scorecard evaluates the active variant with each study's stored settings; the studies' own Known limits apply
+unchanged (contact visibility is the grasp study's &quot;every fingertip at least 50 % visible in at least one camera&quot;;
+the bandwidth margin is the specification's capacity bound minus the computed load, and so on).</li>
+<li>A bound decides only in its direction; the multi-finger blind gap is scanned at the study's refine step (2 mm by
+default), so a gap shorter than a step reads 0.</li>
+<li>There are no priorities: every requirement is decisive. Thresholds compare with the study's rounded figure.</li>
+<li>The variants compare runs every study each variant needs (the grasp study takes its time per variant).</li>
+<li><code>rig.cost</code>, <code>rig.mass_g</code> and <code>rig.power_w</code> count the enabled sensors only (no hosts, cables, lights, brackets); the
+cost is not stated until a library entry states a price.</li>
+<li><code>--reproduce</code> uses the project's settings as they are now (a change shows as &quot;the project differs&quot;); dataset
+studies need <code>--dataset</code> as when they ran; GPU renders may differ in their last bits between drivers.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

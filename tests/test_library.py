@@ -41,7 +41,7 @@ def _custom(**kw):
 
 # ---------------------------------------------------------------- the schema and the built-in files
 def test_schema_is_valid_draft_2020_12():
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     s = L.schema()
     assert s['$schema'] == 'https://json-schema.org/draft/2020-12/schema'
     jsonschema.Draft202012Validator.check_schema(s)

@@ -879,6 +879,7 @@ class _Frames:
         chunk = max(1, min(int(g.st['chunk']), CHUNK_PIXELS // max(1, W * H)))
         keep = [] if g.keep else None
         vis, pxs = [], []
+        count = self.visible is None                     # a second pass (the writer encoding again) is not counted
         prev = prev_px = None
         j = 0
         while j < len(stored):
@@ -929,8 +930,9 @@ class _Frames:
                 pxs.append(int(px))
                 if keep is not None:
                     keep.append(img)
-                g.frames_done += 1
-                g.tick()
+                if count:
+                    g.frames_done += 1
+                    g.tick()
                 yield i, img
         self.visible, self.px = vis, pxs
         if keep is not None:

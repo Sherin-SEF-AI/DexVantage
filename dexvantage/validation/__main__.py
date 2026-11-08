@@ -1,7 +1,12 @@
 """Run the validation suite from a terminal (no window):
 
     python -m dexvantage.validation [OUT_DIR] [--project FILE.dexv] [--models frames,formats] [--quick] [--seed N]
-    python -m dexvantage.validation --list
+                                    [--no-plugins]
+    python -m dexvantage.validation --list [--no-plugins]
+
+The installed plugins are loaded first (as the app, batch mode and the Python API load them), so their checks
+(plugin_sdk PluginAPI.check, model 'plugin.<name>') run with the built-in ones and --models takes their model ids;
+--no-plugins (or DEXVANTAGE_NO_PLUGINS=1) runs the built-in checks only.
 
 Ported from Vantage validation/__main__.py.
 
@@ -25,16 +30,24 @@ def main(argv=None) -> int:
     ap.add_argument('--quick', action='store_true', help='fewer Monte Carlo trials and samples (a smoke run)')
     ap.add_argument('--seed', type=int, help='the seed of every random draw')
     ap.add_argument('--list', action='store_true', help='list the checks and exit')
+    ap.add_argument('--no-plugins', action='store_true', help='run the built-in checks only (the installed plugins\' '
+                                                              'checks are left out)')
     ap.add_argument('--methods', metavar='HTML', help='also write this run\'s tables into the technical reference '
                                                       '(site/methods.html) between its validation markers')
     a = ap.parse_args(argv)
-    from . import (MODEL_IDS, ValidationSettings, catalogue, export, exit_code, run)
-    from .suite import qt_app
+    from .. import plugin_sdk
+    plugin_sdk.load(enabled=False if a.no_plugins else None)        # the plugins' checks join the run
+    for r in plugin_sdk.loaded():
+        if r.status == 'error':
+            print(f'Plugin {r.error}', file=sys.stderr)
+    from . import (ValidationSettings, catalogue, export, exit_code, run)
+    from .suite import model_ids, qt_app
+    known = model_ids()
     d = {'quick': a.quick}
     if a.models:
-        unknown = [m for m in a.models.split(',') if m.strip() not in MODEL_IDS]
+        unknown = [m for m in a.models.split(',') if m.strip() not in known]
         if unknown:
-            print(f'Unknown model id(s): {", ".join(unknown)}. Known: {", ".join(MODEL_IDS)}.', file=sys.stderr)
+            print(f'Unknown model id(s): {", ".join(unknown)}. Known: {", ".join(known)}.', file=sys.stderr)
             return 4
         d['models'] = a.models
     if a.seed is not None:

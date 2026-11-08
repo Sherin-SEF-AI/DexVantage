@@ -43,7 +43,7 @@ import subprocess
 import sys
 import time
 
-from .suite import Outcome, check
+from .suite import LEROBOT, Outcome, check
 
 _REFS_STORE = ('posix_rename_flock', 'json_lines')
 
@@ -331,7 +331,7 @@ def _bits(v) -> bytes | None:
 @check('tracking.csv_parquet_identical', 'tracking', 'CSV and Parquet tables hold identical values',
        'cells of the runs × metrics tables (wide and long) whose value read back from CSV (Python\'s csv module) or '
        'Parquet (pyarrow) differs from the record, numbers bit for bit', 'the records\' own values', 0, 'cells',
-       refs=('rfc4180', 'parquet_format'))
+       refs=('rfc4180', 'parquet_format'), needs=LEROBOT)
 def csv_parquet_identical(ctx):
     import csv
 

@@ -60,7 +60,7 @@ def test_unproject_then_project_is_the_pixel(k):
 
 
 def test_project_matches_opencv():
-    cv2 = pytest.importorskip('cv2')
+    cv2 = pytest.importorskip('cv2', reason='opencv-python (a core dependency) does not import here')
     rng = np.random.default_rng(1)
     P = np.c_[rng.uniform(-0.5, 0.5, (500, 2)), rng.uniform(0.5, 2, 500)]
     for cam in _cams()[:4]:

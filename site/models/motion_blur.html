@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion blur and rolling shutter · DexVantage</title>
+<meta name="description" content="Module: dexvantage/core/studies/motion_blur.py (study id motion_blur, batch flag --motion-blur OUT.json). Page:dexvantage/ui/pages/motion_blur.py (Analysis ▸ Motion blur and rolling shutter, Placement workspace). Checks:dexvantage/validation/checks_blur.py (model timing). Tests …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-is-computed">What is computed</a>
+    <a href="#image-plane-velocity">Image-plane velocity</a>
+    <a href="#smear-skew-and-capture-position">Smear, skew and capture position</a>
+    <a href="#where-exposure-and-readout-come-from">Where exposure and readout come from</a>
+    <a href="#report">Report</a>
+    <a href="#validation-model-timing-measured-2026-11-07-full-run">Validation (model timing, measured 2026-11-07, full run)</a>
+    <a href="#worked-example">Worked example</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/motion_blur.md"><code>docs/models/motion_blur.md</code></a></p>
+<h1 id="motion_blur">Motion blur and rolling shutter</h1>
+<p>Module: <code>dexvantage/core/studies/motion_blur.py</code> (study id <code>motion_blur</code>, batch flag <code>--motion-blur OUT.json</code>). Page:
+<code>dexvantage/ui/pages/motion_blur.py</code> (Analysis ▸ Motion blur and rolling shutter, Placement workspace). Checks:
+<code>dexvantage/validation/checks_blur.py</code> (model <code>timing</code>). Tests: <code>tests/test_motion_blur.py</code>. Spec §7.9. Written for
+DexVantage (Vantage's <code>core/timing.py</code> models a vehicle driving past static objects; only its convention that a
+rolling shutter's middle row is exposed around trigger + readout/2 + exposure/2 is shared, in the time sync study).</p>
+<h2 id="what-is-computed">What is computed</h2>
+<p>Along each trajectory of the project (or, without one, the approaches of the first grasp set), for every camera
+imager of the active variant that streams (cameras and depth sensors switched on): how fast the image of what the
+camera sees moves, the smear that gives during one exposure, and the skew across a rolling-shutter readout.</p>
+<h2 id="image-plane-velocity">Image-plane velocity</h2>
+<p>A camera's optical frame (z forward, x right, y down) is at <code>o</code> in the world with rotation <code>R</code> (columns = the optical
+axes in world coordinates). A camera on a robot link moves with the link's twist at the trajectory's joint velocity:</p>
+<pre><code>v_c = J_v(q) q̇,  ω_c = J_ω(q) q̇
+</code></pre>
+<p><code>J(q)</code> is MuJoCo's world-frame Jacobian of the camera's optical centre held fixed in the link
+(<code>RobotModel.jacobian(q, link, point)</code>, <code>mj_jac</code>). A camera on a tripod or the cage has <code>v_c = ω_c = 0</code>. A world
+point <code>P</code> moving at <code>v_P</code> sits at <code>P_c = Rᵀ(P − o)</code> in the optical frame. Since <code>Ṙ = [ω_c]× R</code>,</p>
+<pre><code>Ṗ_c = Rᵀ (v_P − v_c − ω_c × (P − o))
+(u̇, v̇) = ∂π/∂P_c · Ṗ_c
+</code></pre>
+<p>where <code>π</code> is the imager's lens model (<code>core/optics</code>). For a pinhole, <code>∂π/∂P_c</code> is written out (<code>fx/z</code>, <code>−fx·x/z²</code>,
+<code>fy/z</code>, <code>−fy·y/z²</code>). For Brown-Conrady and the fisheye models it is a central difference of <code>π</code> in the optical frame,
+with a step of 10⁻⁶ of the distance.</p>
+<p>The points:</p>
+<ul>
+<li>the scene: a <code>volume_grid</code>³ grid (4³ by default) over each task volume, and <code>object_points</code> (40) points on each
+task object's surface. These do not move (<code>v_P = 0</code>);</li>
+<li>the trajectory's robot: its TCP and up to nine points on each fingertip pad (<code>core/grasps.py</code>). These move at
+<code>v_P = v_o + ω × (P − o_link)</code>, from one Jacobian per link.</li>
+</ul>
+<p>A point counts for a camera while it projects inside the image and in front of the camera. Occlusion is not tested.</p>
+<p>The joint velocity <code>q̇</code> is the slope between the trajectory's samples. Trajectories are linear between samples
+(<code>core/robot/trajectory.py</code>), so <code>q̇</code> is constant over each interval. The study samples every <code>step_s</code> (10 ms), at
+interval mid-times.</p>
+<h2 id="smear-skew-and-capture-position">Smear, skew and capture position</h2>
+<pre><code>smear = |(u̇, v̇)| × exposure        (pixels, first order in the exposure)
+skew  = |(u̇, v̇)| × readout         (rolling shutter; 0 for a global shutter)
+</code></pre>
+<p>The skew is how far a point's image moves between the reading of the first row and the last (Liang et al. 2008). The
+study also gives where a rolling shutter records a moving point (<code>rolling_capture</code>). Rows are read at
+<code>t(r) = readout · r/(H − 1)</code>. A point at <code>(u₀, v₀)</code> when the first row is read, moving at <code>(u̇, v̇)</code>, is caught when
+its row is read:</p>
+<pre><code>t* = v₀ / ((H − 1)/readout − v̇),   recorded at (u₀, v₀) + (u̇, v̇)·t*
+</code></pre>
+<h2 id="where-exposure-and-readout-come-from">Where exposure and readout come from</h2>
+<ol>
+<li>Your figure, if you gave one. Settings <code>exposure_s</code> / <code>readout_s</code>, as <code>{sensor uid: {value, source}}</code>: what the
+driver is set to, or a measurement.</li>
+<li>Otherwise the library entry's figure (cited). The D400 series datasheet gives the depth imagers' manual exposure
+range for module 430: 1 to 166 ms (Table 4-23, entered for the D435). The RGB camera's &quot;Manual Exposure Time&quot; is
+listed as 1 to 10000 with no unit, so it is not entered. No readout time is stated for any imager in the library.</li>
+<li>Otherwise a stated upper bound. The exposure is at most one frame period, <code>1/fps</code>, or the maker's stated maximum
+when that is shorter. A rolling-shutter readout is at most one frame period, because the rows of one frame are
+read within one frame period at a steady frame rate. The result labels both &quot;upper bound&quot;. Neither is a device
+figure.</li>
+<li>A sensor with no library device has no frame rate, so no exposure is known. Its smear needs your exposure; the
+page still gives its image speed and the longest exposure that keeps the limit.</li>
+</ol>
+<h2 id="report">Report</h2>
+<ul>
+<li><strong>Per trajectory segment:</strong> the trajectory's intervals, merged into at most <code>max_segments</code> (24) equal spans. For
+each segment and camera imager: the worst image speed, smear and skew, the time, the point, and a status.</li>
+<li><strong>Per camera imager:</strong> its peak image speed, smear and skew, the longest exposure that keeps the limit
+(<code>max_exposure = smear_limit / peak speed</code>), and the worst moment.</li>
+<li><strong>Worst frames:</strong> the <code>frames_kept</code> (3) frames with the largest image speed, each at least 5 steps from the others.
+Each frame keeps <code>q</code> and the smear vector of up to <code>vectors_kept</code> (150) points; the Camera view draws them.</li>
+<li><strong>Status:</strong> &quot;sharp&quot; when the smear is within the limit (<code>smear_limit_px</code>, 1 px by default; a DexVantage default,
+not a standard); &quot;some blur&quot; up to twice the limit; &quot;blurred&quot; beyond. When no exposure is set the smear is an upper
+bound, and over the limit the words are &quot;may blur&quot; and &quot;may be blurred&quot; (the severity is that of the bound).
+&quot;exposure not set&quot; when no exposure is known.</li>
+<li><strong>Recommendation:</strong> for each camera over the limit, the longest exposure that keeps the limit, rounded down to two
+significant figures, with the predicted smear. Apply records it as your exposure (one undo step); set the same
+exposure on the camera. When that is shorter than the shortest exposure the maker states, the study suggests
+slowing the motion by the factor needed instead. When a rolling shutter's skew is over the limit, it suggests a
+global-shutter camera (skew 0) and lists library entries whose imagers are all global shutter.</li>
+<li><strong>Without a trajectory:</strong> up to <code>max_grasps</code> (8) grasps of the first set. The arm moves joint-linearly from the
+pre-grasp pose (<code>pre_grasp_m</code>, 0.10 m back along the approach) to contact at <code>approach_speed_m_s</code> (0.10 m/s).
+Both poses are solved by IK, and both figures are defaults.</li>
+</ul>
+<p>The 3D view draws the TCP's path coloured by each segment's status.</p>
+<h2 id="validation-model-timing-measured-2026-11-07-full-run">Validation (model <code>timing</code>, measured 2026-11-07, full run)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>blur.image_velocity_fd</code></td>
+<td>central differences (h = 10 µs) of the points projected at q(t ± h), forward kinematics only; UR5e sample, both cameras, 92 frames</td>
+<td>2.8 × 10⁻⁹ of the frame's peak speed</td>
+<td>10⁻⁵</td>
+</tr>
+<tr>
+<td><code>blur.smear_analytic</code></td>
+<td>f·v·E/Z for a point moving parallel to the image plane, f·ω·E for a camera turning about its y axis; pinhole and Kannala-Brandt</td>
+<td>2.4 × 10⁻¹¹ (relative)</td>
+<td>10⁻⁶</td>
+</tr>
+<tr>
+<td><code>blur.rolling_shutter_bruteforce</code></td>
+<td>row-by-row readout simulation along the true motion (forward kinematics at every row time), readouts 10 and 30 ms, 2 002 points</td>
+<td>2.4 % of the point's motion (worst 0.29 px, wrist camera, 30 ms)</td>
+<td>5 %</td>
+</tr>
+</tbody>
+</table>
+<p>The rolling-shutter difference is the model's own limit. The study takes the image motion as linear over the readout.
+The real motion turns and changes perspective, which shows at second order: a few per cent of the displacement for a
+wrist camera over 30 ms.</p>
+<h2 id="worked-example">Worked example</h2>
+<p>The UR5e sample's scripted pick is in <a href="../guide/motion_blur.html">Motion blur and rolling shutter: a worked example on the UR5e sample</a>.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li><strong>First order in the exposure:</strong> the image velocity is taken as constant over one exposure. It jumps at the
+trajectory's samples, where <code>q̇</code> changes at once.</li>
+<li><strong>No occlusion test:</strong> a point counted may be hidden behind the gripper.</li>
+<li><strong>The exposure bound overstates:</strong> when no exposure is set, the bound is the frame period. That overstates the
+smear of a camera whose auto-exposure runs shorter.</li>
+<li><strong>Light is not modelled:</strong> a shorter exposure needs more light or gain (the lighting study).</li>
+<li><strong>Other motion:</strong> the robot's other joints and other robots stay at home. A carried object's points are counted as
+scene points, not moved with the gripper.</li>
+<li><strong>Rolling shutter:</strong> rows are read top to bottom at a constant rate.</li>
+<li><strong>Lens derivative:</strong> the distortion of non-pinhole lenses enters through a numerical derivative.</li>
+<li><strong>Vibration:</strong> the mount's vibration is not modelled.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

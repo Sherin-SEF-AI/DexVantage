@@ -1,0 +1,37 @@
+# The versions CI installs (.github/workflows/ci.yml: pip install -c .github/ci-constraints.txt): the stack the test
+# suite and the validation suite last passed on (docs/BUILD_STATE.md, "Environment of this phase": Python 3.14.4,
+# Linux x86_64), so a new upstream release cannot change a CI result on its own. pyproject.toml keeps the open
+# ranges users install with. Change a pin only together with a CI run that passes on it.
+#
+# Not pinned on purpose: the oldest-Python job installs without this file (the newest versions that support 3.10).
+PyQt6==6.12.0
+PyQt6-Qt6==6.12.0
+PyQt6-sip==13.13.0
+numpy==2.5.4
+scipy==1.18.1
+PyOpenGL==3.1.10
+PyYAML==6.0.3
+opencv-python==5.0.0.93
+mujoco==3.17.0                  # 4.0.0 (2026-11-06) is a new major version the suite has not run on
+glfw==2.11.0
+certifi==2026.10.23
+# extras: lerobot, bags, usd, assistant, rerun, step, research, tracking, dev
+pyarrow==26.0.1
+av==19.0.2
+zstandard==0.25.0
+lz4==4.4.5
+usd-core==26.8
+anthropic==2.6.0
+keyring==25.7.0
+rerun-sdk==0.42.0
+gmsh==4.15.2
+pandas==2.3.3
+mlflow-skinny==3.17.2
+wandb==0.30.0
+setuptools==84.2.1
+# test tools (the test extra)
+pytest==9.2.0
+ruff==0.17.4
+jsonschema==4.26.0
+mcap==1.6.0
+protobuf==7.36.2

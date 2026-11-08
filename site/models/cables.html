@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cable flex across joints · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/cables.py (the cable record, the routed arc model, the slack loop, the bend estimate, thesnag test, suggested attachments) and dexvantage/core/studies/cables.py (study id cables, batch flag--cables OUT.json; the sweeps, the flags and the harness sheet). Page …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-cable-record">The cable record</a>
+    <a href="#which-joints-a-run-crosses">Which joints a run crosses</a>
+    <a href="#the-routed-arc-model">The routed arc model</a>
+    <a href="#sweeps-and-trajectories">Sweeps and trajectories</a>
+    <a href="#the-slack-loop-and-the-bend-estimate">The slack loop and the bend estimate</a>
+    <a href="#flags">Flags</a>
+    <a href="#the-harness-sheet">The harness sheet</a>
+    <a href="#cable-library">Cable library</a>
+    <a href="#validation">Validation</a>
+    <a href="#worked-example">Worked example</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/cables.md"><code>docs/models/cables.md</code></a></p>
+<h1 id="cables">Cable flex across joints</h1>
+<p>Modules: <code>dexvantage/core/cables.py</code> (the cable record, the routed arc model, the slack loop, the bend estimate, the
+snag test, suggested attachments) and <code>dexvantage/core/studies/cables.py</code> (study id <code>cables</code>, batch flag
+<code>--cables OUT.json</code>; the sweeps, the flags and the harness sheet). Page: <code>dexvantage/ui/pages/cables.py</code> (Analysis ▸
+Cable flex across joints, Placement workspace). Checks: <code>dexvantage/validation/checks_cables.py</code> (model <code>cables</code>).
+Tests: <code>tests/test_cables.py</code>. Library entries: <code>dexvantage/resources/library/cable/*.json</code>. Spec §7.5. Ported from
+Vantage <code>core/harness.py</code>: the harness sheet and its export (JSON / CSV, here also HTML), findings with a severity and
+a plain message, and the Ramer–Douglas–Peucker <code>simplify</code> for the exported polylines. Vantage's vehicle-surface
+routing graph, entry points, link-reach limits and RF and power checks are automotive and were left out. The
+articulated-joint model below is new.</p>
+<h2 id="the-cable-record">The cable record</h2>
+<p><code>project.cables</code> is a list of plain records, in the project section <code>cables</code> (one undo step per edit) and in both
+copies of the project schema:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uid</code>, <code>name</code>, <code>sensor_uid</code></td>
+<td>identity; the sensor the cable serves</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td><code>usb3</code>, <code>usb2</code>, <code>gmsl2</code>, <code>gmsl</code>, <code>coax</code>, <code>ethernet</code>, <code>power</code> or <code>other</code></td>
+</tr>
+<tr>
+<td><code>library_id</code></td>
+<td>a cable library entry, or <code>''</code></td>
+</tr>
+<tr>
+<td><code>min_bend_radius_m</code></td>
+<td><code>{value, source, kind}</code> or <code>null</code> (not stated: bends are not checked, and the study says so); <code>kind</code> is <code>dynamic</code> (moving), <code>static</code> (fixed) or <code>unspecified</code></td>
+</tr>
+<tr>
+<td><code>diameter_m</code>, <code>length_m</code></td>
+<td>outer diameter; the cable's provided length; <code>null</code> when not stated or not set</td>
+</tr>
+<tr>
+<td><code>wrap_radius_m</code></td>
+<td>the radius it is guided round a joint at; <code>null</code> = the default (below)</td>
+</tr>
+<tr>
+<td><code>attachments</code></td>
+<td><code>[{robot_uid, link, point [x, y, z] in the link frame, length_to_next_m}]</code>; <code>length_to_next_m</code> is the cable laid to the next attachment, <code>null</code> when not set</td>
+</tr>
+<tr>
+<td><code>connectors</code>, <code>strain_relief</code>, <code>note</code></td>
+<td>the user's entries for the harness sheet (not checked)</td>
+</tr>
+</tbody>
+</table>
+<p>A cable made from a library entry (<code>cables.from_library</code>) takes its type, diameter and connectors, and its minimum
+bend radius: the moving (dynamic) figure when the maker states one, since a cable across a joint flexes; otherwise
+the fixed (static) figure, labelled <code>static</code>, and the study notes that a flexing cable may need more (the two library
+cables that state both, Basler's GMSL cable 13.8 / 34.5 mm and VA Imaging's 20 / 50 mm, give 2.5 times the fixed
+figure for moving use). The
+source string cites the entry's source title, URL and date read.</p>
+<h2 id="which-joints-a-run-crosses">Which joints a run crosses</h2>
+<p>A run joins consecutive attachments A (on link a) and B (on link b). The joints it crosses are the moving joints on
+the bodies along the kinematic tree's path from a to b (<code>crossed_joints</code>), each with a side: +1 when b is on the
+joint's child side (turning the joint by +δ turns B by +δ about the axis relative to A), −1 when a is. The joint
+axes and anchors at q come from MuJoCo (<code>xaxis</code>, <code>xanchor</code> after <code>mj_kinematics</code>) with <code>Robot.base</code> applied.</p>
+<ul>
+<li><strong>no joint</strong> (<code>rigid</code>): the run keeps its length.</li>
+<li><strong>one revolute joint</strong> (<code>wrap</code>): the routed arc model, below.</li>
+<li><strong>a prismatic joint or several joints</strong> (<code>chord</code>): the straight chord |B − A|. When the arm folds, this is shorter
+than a cable laid along it. The study says so and asks for an attachment on each link between them.</li>
+</ul>
+<h2 id="the-routed-arc-model">The routed arc model</h2>
+<p>In cylindrical coordinates about the joint axis (O, u), A is at radius d_a and height z_a, and B at d_b and z_b. The
+angle from A to B about u is θ. The cable is guided round the joint on a cylinder of radius ρ: the cable's
+<code>wrap_radius_m</code>, or by default min(d_a, d_b), the nearer attachment's distance from the axis (a labelled default). A
+set radius larger than that is limited to it. Seen along the axis, the cable runs on the tangent from A to the
+circle, along the circle, and on the tangent to B, like a belt over a pulley:</p>
+<pre><code>t_a = √(d_a² − ρ²),  t_b = √(d_b² − ρ²),  α_a = atan2(t_a, ρ) = arccos(ρ/d_a),  α_b likewise
+L_plane = t_a + t_b + ρ (|θ| − α_a − α_b)              when |θ| &gt; α_a + α_b (it wraps)
+L_plane = √(d_a² + d_b² − 2 d_a d_b cos θ)               otherwise (the straight line clears the cylinder)
+L       = √(L_plane² + (z_b − z_a)²)
+</code></pre>
+<p>The tangent planes and the cylinder unroll flat, so the shortest path over them is a straight line in the unrolled
+plane. The height therefore grows linearly with unrolled length, and the length is the hypotenuse. The two branches
+meet continuously at |θ| = α_a + α_b. α is computed as atan2(t, ρ), not as arccos(ρ/d): arccos is ill-conditioned
+near 1 and disagreed with t by about 10⁻⁸ rad when an attachment lay on the cylinder, which showed up as 4 × 10⁻¹⁰ m
+in the validation check before the change.</p>
+<p><strong>The angle is not folded to half a turn.</strong> θ = θ_home + side · (q − q_home), where θ_home is the geometric angle at
+home in (−π, π]. This assumes the cable is laid the short way round at home. A joint that turns further winds the
+cable round it, so the length keeps growing past half a turn. With other joints moving (along a trajectory) the
+geometry of a single-joint run depends only on that joint, so the formula holds there too. The validation checks
+that θ equals the geometric angle modulo 2π at every sample.</p>
+<p><strong>Where it wraps, the cable lies on a helix</strong> of radius ρ whose unrolled line rises at angle φ, tan φ =
+(z_b − z_a) / L_plane. Its bend radius is ρ / cos²φ (the helix's radius of curvature c²/a [do Carmo 1976]).</p>
+<h2 id="sweeps-and-trajectories">Sweeps and trajectories</h2>
+<p>Each crossed joint is swept over its full range from the model file (<code>RobotModel.lower</code>, <code>upper</code>), with the other
+joints at home. The sweep takes <code>sweep_samples</code> samples (default 181). An unlimited joint is swept one turn (±π)
+around home, and is flagged <code>endless</code> (&quot;a cable across it winds up without end&quot;). Every trajectory of the robot in
+<code>project.tasks.trajectories</code> is played at its samples, with poses added between two samples so that no revolute
+joint moves more than <code>max_step_deg</code> (default 2°) and no prismatic one more than 10 mm. A trajectory is thinned
+evenly to <code>max_poses</code> (default 3000), with a note when that happens.</p>
+<p>For each run:</p>
+<table>
+<thead>
+<tr>
+<th>Figure</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>slack per joint</td>
+<td>the largest minus the smallest length over that joint's sweep; <code>slack_loop_m</code> adds the service loop</td>
+</tr>
+<tr>
+<td>length min / max</td>
+<td>over the sweeps, home and the trajectories</td>
+</tr>
+<tr>
+<td>suggested laid length</td>
+<td>the largest length plus <code>loop_m</code> (default 0.05 m), rounded up to 5 mm</td>
+</tr>
+<tr>
+<td>laid length used</td>
+<td>the attachment's <code>length_to_next_m</code>, or the suggested one when it is not set (flagged <code>unset</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-slack-loop-and-the-bend-estimate">The slack loop and the bend estimate</h2>
+<p>At a pose where the route is shorter than the laid length s, the extra cable bows outwards, away from the joint
+axis. The bow's direction is the route's normal as seen along the axis: the radial direction less its component
+along the route's in-plane tangent. That direction is constant along a straight part, radial on the helix, and
+square to both the route and the axis; a run with no revolute joint bows perpendicular to its chord, towards world
++z. The drawn loop (<code>bulge</code>) is a circular arc laid over the route, in the route's unrolled length ℓ and that offset
+y:</p>
+<pre><code>ℓ = L/2 + R sin ψ,   y = R (cos ψ − cos β),   ψ ∈ [−β, β],   sin β / β = L / σ,   R = σ / (2β)
+</code></pre>
+<p>Beyond a half circle the bow overhangs the ends and is continued along the end segments. σ is found by bisection so
+that the polyline is s long. On a straight run this is exactly the circular arc of length s over the chord.</p>
+<p><strong>The bend radius estimate</strong> (<code>bend_estimate</code>) is the smaller of two radii. The first is the route's own bend on the
+joint cylinder, ρ / cos²φ, where the run wraps. The second is the slack loop's radius, taken as a circular arc of
+length s over the route length L, R = s / (2β) with sin β / β = L / s; a taut run (s ≤ L) has no loop. Its minimum
+over every pose is compared with the allowed radius, the stated minimum × <code>bend_factor</code>. The bend factor defaults to
+1.5, a DexVantage margin for flexing and not a maker's figure. The drawn polyline is not used for the figure: laying
+the bow over a tightly wrapped route adds the two curvatures, which over-states the bend.</p>
+<h2 id="flags">Flags</h2>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Severity</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pull</code></td>
+<td>critical</td>
+<td>a run laid shorter than its largest length (with the pose that needs it), or a cable whose <code>length_m</code> is shorter than its runs need together, before the run to the host</td>
+</tr>
+<tr>
+<td><code>snag</code></td>
+<td>serious</td>
+<td>the slack loop's polyline passes through one of the robot's links at home or along a trajectory</td>
+</tr>
+<tr>
+<td><code>bend</code></td>
+<td>serious</td>
+<td>the bend estimate is below the allowed radius; the message says whether the wrap radius or the loop sets it</td>
+</tr>
+<tr>
+<td><code>endless</code></td>
+<td>serious</td>
+<td>an unlimited joint is crossed</td>
+</tr>
+<tr>
+<td><code>unset</code> / <code>unknown</code> / <code>setup</code></td>
+<td>warning</td>
+<td>no laid length yet; no stated minimum bend radius; fewer than two attachments, attachments on different robots, a link the model lacks</td>
+</tr>
+</tbody>
+</table>
+<p>A cable's status is its worst flag. The headline is the number of cables with no flag, out of the total, with the
+word for the worst status: &quot;clear&quot;, &quot;check&quot;, &quot;at risk&quot; or &quot;pulls&quot;.</p>
+<p><strong>The snag test</strong> (<code>snag_hits</code>) tests the loop polyline at home and at every trajectory pose. The polyline's
+segments are cast as rays against each link's colliding triangles, in the link's own frame. This uses core/raycast:
+Möller–Trumbore [Möller 1997] through a uniform grid [Amanatides and Woo 1987], built once per link. Segments within
+<code>seat_m</code> (default 20 mm) of either attachment are left out: that is the clamp, where the cable touches its link by
+design. The loop's middle point is also tested for lying inside a link, by the parity of crossings along a ray. The
+joint sweeps are not tested for snags: with one joint moving and the rest at home, the arm passes through poses it
+would not take, as the spec's &quot;over a trajectory&quot; implies.</p>
+<p><strong>Suggested attachments</strong> (<code>suggest_attachments</code>, the page's Suggest attachments, and the study when the project has
+no cables) start with the sensor's mount position, then add one point on each link down the chain to the base.
+Each point is at the middle of its link (between its two joint anchors at home; on the base, at its child joint's
+anchor). It is pushed out past the farthest colliding vertex within 30 mm of the push line, plus half the diameter
+(5 mm assumed when the cable states none: a default, not a cable's figure) and 5 mm (a default clearance). The push direction moves away from both joint axes: their common perpendicular, turned towards +z (or −x
+when level). These are suggestions to check against the real robot, and the study labels them so.</p>
+<h2 id="the-harness-sheet">The harness sheet</h2>
+<p><code>files(doc, project)</code> returns <code>cables.json</code> (the result with its provenance block), <code>cables.csv</code> and <code>cables.html</code>;
+<code>export(doc, project, folder)</code> writes them. The CSV has one row per run with these columns: cable, sensor, type,
+library entry, diameter, the stated minimum bend radius with its kind and source, the allowed radius, the cable's
+length, the run, its links, route, joints, slack loop per joint (mm), length range, suggested and laid lengths,
+smallest bend, snag poses, connectors, strain relief, status, and the flags in words. The HTML page holds the same
+content as tables, with no scripts or external files. The page's Export button writes JSON (with provenance), CSV
+or HTML by the file's extension.</p>
+<h2 id="cable-library">Cable library</h2>
+<p>Three entries, each figure from the maker's page or datasheet, read 2026-11-06 (<code>kind: &quot;cable&quot;</code>, the <code>cable</code> block of
+<code>library.schema.json</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th>Diameter</th>
+<th>Minimum bend radius, fixed</th>
+<th>moving</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basler Cable GMSL, FAKRA-Z, 1x F/F</td>
+<td>3.45 mm max.</td>
+<td>13.8 mm</td>
+<td>34.5 mm</td>
+<td>docs.baslerweb.com/basler-cable-gmsl-fakra-z-1x-f-f</td>
+</tr>
+<tr>
+<td>VA Imaging VA-CABLE-USB3-xxm-HF (active optical USB 3.0)</td>
+<td>4.8 mm</td>
+<td>20 mm</td>
+<td>50 mm</td>
+<td>hs.va-imaging.com, VA-CABLE-USB3-xxm-HF.pdf</td>
+</tr>
+<tr>
+<td>Newnex High Flex Active USB3 (ULHLU11AC12)</td>
+<td>6.3 mm</td>
+<td>not stated</td>
+<td>75 mm (&quot;12 × OD (≈ 75 mm)&quot;)</td>
+<td>newnex.com/high-flex-active-usb-3-cable.php</td>
+</tr>
+</tbody>
+</table>
+<p>The Newnex page states no fixed figure; it stays <code>null</code>. Each entry's note quotes the figures and says what the
+source leaves out.</p>
+<h2 id="validation">Validation</h2>
+<p>Measured with the default seed, <code>--validate</code> (full run, 1.2 s for the four checks):</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Compared with</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cables.routed_arc</code></td>
+<td>the circle arc r·|q − α₀|, the helix √((r·|q − α₀|)² + dz²) and the belt-over-a-pulley length, written out in the check; 721 samples per case over ±2.8 rad (wrapping past half a turn), the robot base moved and rotated</td>
+<td>1.7 × 10⁻¹⁶ m; unwrapped angle against the geometric angle 8.9 × 10⁻¹⁶ rad</td>
+<td>10⁻⁹ m</td>
+</tr>
+<tr>
+<td><code>cables.helix_bend</code></td>
+<td>the helix's radius of curvature (r² + b²)/r, b = dz/θ [do Carmo 1976]; the study's estimate and the drawn 49-point polyline of a taut wrapped run, dz = 0, 40, 100 mm</td>
+<td>4.9 × 10⁻⁵ (relative)</td>
+<td>5 × 10⁻³</td>
+</tr>
+<tr>
+<td><code>cables.loop_arc</code></td>
+<td>the circular arc of length s over c, β from <code>scipy.optimize.brentq</code>; the study's loop radius and the drawn loop, 200 random (c, s), s/c from 1.02 to 6</td>
+<td>4.4 × 10⁻⁴ (polyline), 2.7 × 10⁻¹³ (estimate); loop length 5.9 × 10⁻¹³</td>
+<td>5 × 10⁻³</td>
+</tr>
+<tr>
+<td><code>cables.snag_bruteforce</code></td>
+<td>brute force: the same loops resampled every 0.5 mm, each point tested against the scripted robot's boxes in closed form (base pose and Rz(q) written out); 162 trajectory poses</td>
+<td>0 poses differ (22 snagged on both sides, 2 grazing poses within 1 mm left out); share of time snagged 13.6 % at the study's 2° sampling against 12.8 % by brute force at 0.2° (bound 1.2 %)</td>
+<td>0 poses</td>
+</tr>
+</tbody>
+</table>
+<p>The tolerances are explained in each check's note. Both sides of <code>routed_arc</code> compute in float64 from the same link
+poses, so 10⁻⁹ m leaves room for rounding, while a wrong side sign or a length folded to half a turn would show as
+centimetres. The polyline radii carry a discretisation error of order (Δφ)² of the angle step between points.
+Brute-force points 0.5 mm apart can miss a graze less than 1 mm deep, which is why grazing poses are left out of the
+snag comparison.</p>
+<h2 id="worked-example">Worked example</h2>
+<p>See <a href="../guide/cables.html">Cable flex across joints: a worked example on the SO-100 sample</a>: the SO-100 sample with the Basler GMSL cable, and the UR5e sample's
+wrist D405 with the VA Imaging USB 3 cable.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The cable has no stiffness, weight, torsion or friction on the links. The slack loop is a circular bow, not an
+elastica, so the bend radius is an estimate.</li>
+<li>A run across several joints is a straight chord, which under-states the length when the arm folds. Add an
+attachment on each link.</li>
+<li>Each joint's sweep moves that joint alone. Combinations of joints come only from the trajectories.</li>
+<li>The wrap radius is one cylinder about the axis, not the joint housing's real shape.</li>
+<li>θ assumes the cable is laid the short way round at home.</li>
+<li>An unlimited joint is swept one turn only and flagged, because no external cable can cross it.</li>
+<li>Snags are tested at sampled poses (home and the trajectories), not over the continuous swept volume, and only
+against the cable's own robot: other robots, the task objects and the tables are not tested.</li>
+<li>The parity test assumes closed link meshes.</li>
+<li>The run from the last attachment to the host is not modelled. Connectors and strain relief are the user's
+entries and are not checked.</li>
+<li>The suggested attachments come from the link geometry at home, not from the real robot's cable channels.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

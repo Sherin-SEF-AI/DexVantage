@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Camera view: a sensor&#x27;s simulated image · DexVantage</title>
+<meta name="description" content="Modules: dexvantage/core/camrender.py (the image), dexvantage/ui/camview.py (the panel), with the lens models ofcore/optics and the imagers of core/library (library.sensor_imagers). Check:dexvantage/validation/checks_camview.py (model occlusion). Tests: tests/test_sensors_ui.py.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-it-shows">What it shows</a>
+    <a href="#how-an-image-is-made">How an image is made</a>
+    <a href="#frame-budget">Frame budget</a>
+    <a href="#the-frusta-in-the-3d-view">The frusta in the 3D view</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/camview.md"><code>docs/models/camview.md</code></a></p>
+<h1 id="camview">The Camera view: a sensor's simulated image</h1>
+<p>Modules: <code>dexvantage/core/camrender.py</code> (the image), <code>dexvantage/ui/camview.py</code> (the panel), with the lens models of
+<code>core/optics</code> and the imagers of <code>core/library</code> (<code>library.sensor_imagers</code>). Check:
+<code>dexvantage/validation/checks_camview.py</code> (model <code>occlusion</code>). Tests: <code>tests/test_sensors_ui.py</code>.</p>
+<h2 id="what-it-shows">What it shows</h2>
+<p>The selected sensor's image through one of its imagers (a combo picks RGB, IR left, IR right…): the robots posed at
+the current joint state in their model colours, the task objects, the surfaces (tables) and the floor (z = 0, with a
+0.1 m grid as a view aid: the floor occludes nothing in the studies), shaded by <code>0.30 + 0.70 |n · r|</code> (a head light at
+the camera: n the triangle's normal, r the pixel's ray). The task volumes are drawn on it as dashed edges where the
+image sees them, and the current analysis page adds its own overlays (<code>StudyPage.camview_overlays(cam_model, pose)</code>,
+polylines in the imager's pixel coordinates). The line under the image says which imager, its stream size and FOV,
+the size rendered and the time; its tooltip gives where the camera model comes from (a datasheet FOV, a crop
+assumption, a calibration or the labelled default camera) and the share of pixels on the robot, objects, surfaces
+and floor. A sensor without a library device is drawn through the default camera (90° × 60°, 1280 × 720, pinhole),
+and the view says so first.</p>
+<p>Ported from Vantage <code>ui/camview.py</code>: the idea of shading each pixel from its own ray (unproject every pixel through
+the real lens model, find what it hits, shade it), the fit of the image to the panel and the overlays as projected
+polylines. What changed: Vantage looked rays up in the cube map of a static car body; here the scene is re-posed for
+every joint vector and every pixel needs the triangle it sees (for its colour), so each image is rasterised again.</p>
+<h2 id="how-an-image-is-made">How an image is made</h2>
+<p>Each image pixel (u, v) (OpenCV: pixel centres at integers) has a ray r = <code>CameraModel.unproject(u, v)</code> in the
+imager's optical frame (z forward, x right, y down), and the imager's optical frame in the world is the sensor body
+pose (<code>scenegeom.sensor_world_pose</code>: the mount pose, composed with the link pose at q for a link mount) composed with
+the imager's pose in the body (from the library entry or the unit's calibration).</p>
+<p><strong>The rasteriser</strong> (<code>camrender.raster</code>) is a pinhole z-buffer. For a pixel centre the ray is d = ((u − c_x)/f_x,
+(v − c_y)/f_y, 1); with a triangle's corners a₀, a₁, a₂ relative to the camera centre, d passes through the triangle
+iff the three triple products d · (aᵢ × aᵢ₊₁) all have the sign of D = a₀ · (a₁ × a₂), and the hit's depth is
+z = D / (n · d) with n = (a₁ − a₀) × (a₂ − a₀). This is the test of <code>core/occlusion.raster_numpy</code> (ported to an
+arbitrary pinhole), so a triangle crossing the near plane (5 mm, a default) is drawn correctly: its candidate pixels
+are the bounding box of its corners in front of the plane and of its edges' crossings of it. The nearest hit per
+pixel wins (<code>np.minimum.at</code>), and the triangle index is kept with it.</p>
+<p><strong>The lens decides the path:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Lens</th>
+<th>Path</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pinhole</td>
+<td><code>pinhole</code></td>
+<td>rasterised straight into the image</td>
+</tr>
+<tr>
+<td>rays within 60° of the axis (a Brown-Conrady lens, a mild Kannala-Brandt)</td>
+<td><code>base</code></td>
+<td>a pinhole base image that covers every pixel's ray (its focal length the lens's, at most twice the image along each axis) is rasterised; each image pixel takes the triangle of the base pixel nearest its own ray</td>
+</tr>
+<tr>
+<td>a fisheye beyond 60°</td>
+<td><code>cube</code></td>
+<td>the world-axis cube faces (<code>core/occlusion.FACES</code>, ported from Vantage) that the rays need are rasterised at n = 2 f (64…1024 texels); each pixel takes the triangle of its ray's texel (<code>occlusion.texel_index</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>In every path the pixel's <strong>distance</strong> is then recomputed exactly along its own ray to the plane of the triangle it
+sees: t = (n̂ · a₀) / (n̂ · r̂). The look-up only decides which triangle a pixel sees.</p>
+<p><strong>The sensor's seat:</strong> the rule of <code>scenegeom.sensor_occluders</code> — the link a sensor is mounted on stays in the image
+(a wrist camera sees its gripper), except its triangles with every corner within 25 mm (a default) of an imager's
+centre. Sensor housings are not drawn (as in the occlusion model).</p>
+<h2 id="frame-budget">Frame budget</h2>
+<p>Images are rendered on a worker thread; the UI thread only snapshots the project and the joint state (0.4 ms on the
+UR5e sample). Changes are throttled (one render at a time, at most one queued). While the scene changes quickly — the
+store's drag flag, IK drag, a mouse button held, or changes less than 150 ms apart — the image is rendered at half
+size (<code>DRAG_SCALE</code>), and again at full size 180 ms after the changes stop. The full size is the panel's size, capped at
+640 × 400 pixels and at the imager's own stream size. Measured on the UR5e sample (193 113 triangles, numpy, one core
+of the development machine): 0.11 s at 320 × 180 (pinhole), 0.32 s at 640 × 360, 0.18 s for a Brown lens and 0.28 s
+for a 190° fisheye at 320 × 240.</p>
+<h2 id="the-frusta-in-the-3d-view">The frusta in the 3D view</h2>
+<p>Each imager's outline in the 3D view comes from its lens model too (<code>camrender.frustum_body</code>): the image's outer edge
+(u = −0.5 … W − 0.5, the edges the FOV is measured to) is unprojected, so a distorted lens bends the outline and a
+fisheye draws a curved cone (the outline then lies on a sphere instead of a plane once a ray is more than 75° off the
+axis). The reference imager is drawn with the lines from its centre to the corners; the device's other imagers by
+their outline only. The outline is 0.12 m long (0.30 m for the selected sensor): a symbol of the field of view, not a
+range.</p>
+<h2 id="validation">Validation</h2>
+<p><code>occlusion.camview_vs_raycast</code>: pixels sampled at random in images of the UR5e sample (every imager of the wrist
+D405 and the overhead D435 through its own lens model, plus a Brown-Conrady lens (k₁ = −0.25) and a 190° equidistant
+fisheye at the wrist, so all three paths run) at random arm poses, against the exact first hit along the same ray
+from <code>core/raycast.py</code> (Möller–Trumbore through a uniform grid, sharing no code with the rasteriser). A pixel is wrong
+when only one finds a surface or the distances differ by more than 1 mm; disagreements within two pixels' angle of a
+silhouette (<code>raycast.near_silhouette</code>) are counted apart, since a pixel centre or the nearest base / cube pixel may
+fall on the other side of an edge. Tolerance: 10⁻³ of the pixels away from silhouettes; at most 3 % in all.</p>
+<p>Measured with the default seed (full run, 24 images at 192 px wide, 70 061 pixels): 1 pixel wrong away from a
+silhouette (1.4 × 10⁻⁵), 142 near a silhouette (0.20 % in all); 7.8 s. Quick run: 4 images, 0 wrong, 0.6 % near a
+silhouette.</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>One triangle per pixel, no anti-aliasing: edges are as sharp as the pixel grid. The base and cube paths take the
+nearest base pixel, so an edge can move by up to half a base pixel.</li>
+<li>A geometric view, not a photometric one: no shadows, textures, exposure, noise or IR pattern (lighting is Phase 5);
+materials are drawn in their model colours.</li>
+<li>No sensor housings (the sensor's own or other sensors') in the image.</li>
+<li>The floor and its grid are a view aid; tables are the project's surfaces.</li>
+<li>The time per image grows with the triangles in view; the GPU path the occlusion model uses is not used here yet.</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -110,8 +110,8 @@ def _episode(j, n, ts):
 def test_lerobot_random_access_frames_are_the_right_frames(tmp_path, version, irregular):
     """Any subset of an episode's frames decodes to exactly those frames: the first, the last, the first frame of a
     later episode in a packed v3.0 file (the seek lands in the episode before it), and frames across a drop."""
-    pytest.importorskip('pyarrow')
-    pytest.importorskip('av')
+    pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
+    pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
     from dexvantage.core import datasets as DS
     from dexvantage.core.datasets import lerobot as L
     eps, want_ts = [], []

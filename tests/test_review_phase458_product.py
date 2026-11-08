@@ -26,6 +26,8 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 @pytest.fixture(scope='module')
 def campaign(tmp_path_factory):
     """Two small SO-100 LeRobot v2.1 episodes (one Parquet file each), every fault on."""
+    from render_support import require
+    require()                               # renders MuJoCo scenes
     from dexvantage.core.robot.samples import sample_project
     from dexvantage.core.sim import episodes as SE
     root = str(tmp_path_factory.mktemp('rv458') / 'so100')

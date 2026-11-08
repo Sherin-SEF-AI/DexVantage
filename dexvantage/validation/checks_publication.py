@@ -157,10 +157,10 @@ def source_pool(project, results: dict):
 def found(token: str, nums, words, lens) -> bool:
     if token in words:
         return True
+    if token.count('.') > 1:          # a version-like token not in the word set (float() would raise)
+        return False
     t = float(token)
     d = len(token.split('.')[1]) if token.count('.') == 1 else 0
-    if token.count('.') > 1:
-        return False
     half = 0.5 * 10 ** (-d) * (1 + 1e-9) + 1e-12
     if d == 0 and float(int(t)) in {float(x) for x in lens}:
         return True

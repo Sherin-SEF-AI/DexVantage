@@ -353,7 +353,7 @@ def test_rig_round_trips_through_the_file_and_validates(tmp_path):
                           'links': [{'via': 'a'}, {'sensor_uid': 's'}]})
     assert junk['hosts'][0]['controllers'][0]['kind'] == 'usb3'
     assert junk['hosts'][0]['controllers'][0]['practical_mbps'] is None and len(junk['links']) == 1
-    jsonschema = pytest.importorskip('jsonschema')
+    jsonschema = pytest.importorskip('jsonschema', reason='jsonschema (the test extra) is not installed')
     with open(os.path.join(ROOT, 'docs', 'project.schema.json')) as fh:
         jsonschema.validate(json.loads(json.dumps(q.to_dict())), json.load(fh))
 

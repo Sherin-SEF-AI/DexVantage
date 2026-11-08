@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brackets: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="This walks through printable brackets for the two cameras of the UR5e + Robotiq 2F-85 sample: an adapter on therobot&#x27;s ISO 9409-1 flange for the wrist D405, and a 2020 T-slot clamp for the overhead D435. The model behind it is indocs/models/brackets.md. Figures below are from a run on 2026-11-06 at …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-open-the-sample-and-run">1. Open the sample and run</a>
+    <a href="#2-read-the-result">2. Read the result</a>
+    <a href="#3-change-it-and-export">3. Change it and export</a>
+    <a href="#4-batch">4. Batch</a>
+    <a href="#what-is-not-checked">What is not checked</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/brackets.md"><code>docs/guide/brackets.md</code></a></p>
+<h1 id="brackets-a-worked-example-on-the-ur5e-sample">Brackets: a worked example on the UR5e sample</h1>
+<p>This walks through printable brackets for the two cameras of the UR5e + Robotiq 2F-85 sample: an adapter on the
+robot's ISO 9409-1 flange for the wrist D405, and a 2020 T-slot clamp for the overhead D435. The model behind it is in
+<code>docs/models/brackets.md</code>. Figures below are from a run on 2026-11-06 at the default settings.</p>
+<h2 id="1-open-the-sample-and-run">1. Open the sample and run</h2>
+<pre><code>dexvantage --sample ur5e
+</code></pre>
+<p>Open Analysis ▸ Brackets and press <strong>Run</strong>. Neither sensor has a bracket type yet, so the headline reads &quot;—&quot; with the
+status word <strong>check</strong> and the line &quot;No sensor has a bracket type yet: Apply sets the suggested ones. Suggested: Wrist
+D405: wrist-flange adapter (ISO 9409-1); Overhead D435: camera clamp, 2020 T-slot.&quot;</p>
+<p>The suggestions come from the mounts: the D405 sits on <code>wrist_3_link</code>, whose fixed child is the gripper's coupling,
+and the UR5e's flange is ISO 9409-1-50-4-M6 by UR's datasheet; the D435 is on the cage, a static frame.</p>
+<p><strong>Preview</strong> shows the suggestions with their reasons; <strong>Apply</strong> sets both types in one undo step (Edit ▸ Undo takes
+them back) and runs the study again (about 17 s: most of it is the clearance check over the joint range).</p>
+<h2 id="2-read-the-result">2. Read the result</h2>
+<p>The headline now reads <strong>0/2 ready</strong>, status <strong>check</strong>. Both brackets are closed, printable solids; both carry a
+warning that is about the camera, not the bracket:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Wrist D405 (flange adapter)</th>
+<th>Overhead D435 (2020 clamp)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Size</td>
+<td>63 × 95 × 24 mm</td>
+<td>121 × 29 × 12 mm</td>
+</tr>
+<tr>
+<td>Mass (solid PETG, an estimate)</td>
+<td>38 g</td>
+<td>32 g</td>
+</tr>
+<tr>
+<td>Mesh</td>
+<td>closed, one shell, V − E + F = −12 (7 through holes)</td>
+<td>closed, one shell, V − E + F = −2</td>
+</tr>
+<tr>
+<td>Camera face</td>
+<td>bottom, 1 × 1/4-20 (Intel Table 4-22: 9 mm from the left imager)</td>
+<td>back, 2 × M3, 45 mm apart (Intel Figure 10-9)</td>
+</tr>
+<tr>
+<td>Clearance</td>
+<td>forearm_link 2.0 mm inside in 1 of 48 sampled states (2 %)</td>
+<td>no link comes near</td>
+</tr>
+<tr>
+<td>Image covered</td>
+<td>0.0 %</td>
+<td>0.0 %</td>
+</tr>
+</tbody>
+</table>
+<p>Select a row to see its holes and figures. For the adapter: four Ø6.4 mm bolt holes on the Ø50 circle at 45°, 135°,
+225° and 315° and a Ø6.1 mm dowel hole on +x, all marked <strong>cited</strong> (the tooltip gives UR's datasheet and the ISO
+preview); a Ø31.4 mm centring spigot 3 mm high; the gripper's footprint (77 mm) kept free above the disc. The flags
+say what to check before printing:</p>
+<ul>
+<li>&quot;The 1 × 1/4-20 on the bottom face: the maker's drawing does not dimension where they sit on the face, so they are
+drawn at its middle&quot; — Intel gives the hole's distance from the left imager, not its position front to back.</li>
+<li>&quot;The depth of the flange's Ø31.5 centring recess is not stated: the adapter's spigot is 3 mm high (a default)&quot;.</li>
+</ul>
+<p>The notes give the assembly: the bolts get 8 mm longer, UR's limit on bolt engagement is quoted, the gripper sits
+8 mm further out (add it to the tool centre point), a Ø6 mm dowel sets the camera's angle about the flange axis, and
+the print orientation (on its side, about 10 cm² of overhang to support).</p>
+<p>The clearance line means: in one of the 48 collision-free joint states sampled within the UR5e's limits, the forearm
+folds back far enough to touch the camera. That is a warning, not a fault: avoid that arm pose, or move the camera.
+The notes say 83 of 144 drawn states were dropped because the robot ran into itself.</p>
+<h2 id="3-change-it-and-export">3. Change it and export</h2>
+<ul>
+<li>In the 3D view the brackets are drawn grey on the robot, with the camera body's box outlined in the status colour;
+they follow the arm as you move the joints. The Camera view outlines them too (useful to see whether the overhead
+camera sees the wrist bracket).</li>
+<li>Choose the sensor, then its <strong>Bracket</strong> type, flange pattern, side, standoff, tilt and wall: each change is one undo
+step and is kept in the project (the type on the sensor's mount, the options in the study settings). Run again.</li>
+<li><strong>Export STL…</strong> writes the selected bracket at full resolution (0.5 mm grid) as <code>Wrist_D405.stl</code> with
+<code>Wrist_D405.stl.json</code> beside it: the STL's SHA-256, the dimensions, holes and their sources, flags, notes, the
+defaults used and the provenance block. Meshing at full resolution takes about a second, so the button builds and
+writes on a worker thread (the status bar shows it) and says when the files are written; a folder that does not
+exist is refused at once. <strong>Export…</strong> writes the whole result as JSON.</li>
+</ul>
+<h2 id="4-batch">4. Batch</h2>
+<pre><code>dexvantage --sample ur5e --brackets brackets.json
+</code></pre>
+<p>writes the same result (with provenance) for the sensors that have a bracket type. Set the types first in the project
+(or in the page) and save it; <code>--brackets</code> on a project file uses its types and options.</p>
+<h2 id="what-is-not-checked">What is not checked</h2>
+<p>Strength, stiffness and heat are not modelled. The camera body is a box of the maker's stated size with the optics at
+the front face (an assumption). Where the T-slot clamp sits on the profile and the hand's surface under a palm mount
+are not in the project; the base is placed from the camera (side, standoff, tilt). See the model's Known limits.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

@@ -299,7 +299,7 @@ def test_mlflow_names_are_valid():
 
 
 def test_mlflow_client_reads_the_store(tmp_path, saved):
-    pytest.importorskip('mlflow')
+    pytest.importorskip('mlflow', reason='mlflow-skinny (the tracking extra) is not installed')
     st = _store_with_runs(tmp_path, saved)
     TR.export(st, str(tmp_path / 'exp'), formats='mlflow')
     r = CT.mlflow_compare(str(tmp_path / 'exp' / 'mlruns'), st.runs(), reader='mlflow')
@@ -370,7 +370,7 @@ def test_wandb_replay_calls_the_official_api(tmp_path, saved):
 
 
 def test_wandb_replay_offline_with_real_wandb(tmp_path, saved):
-    pytest.importorskip('wandb')
+    pytest.importorskip('wandb', reason='wandb (the tracking extra) is not installed')
     st = _store_with_runs(tmp_path, saved, 2)
     TR.export(st, str(tmp_path / 'exp'), formats='wandb')
     h = tmp_path / 'home'

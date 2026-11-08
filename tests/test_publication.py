@@ -170,7 +170,9 @@ def test_bibtex_keys_used_equal_keys_defined(tmp_path):
     with open(os.path.join(folder, 'refs.bib'), encoding='utf-8') as fh:
         defined = {k for _t, k, _f in parse_bibtex(fh.read())}
     assert cited == defined and len(cited) >= 8
-    assert {'dexvantage', 'menagerie2022github', 'intel-realsense-d405', 'mujoco_todorov2012'} <= cited
+    # the D400 Series datasheet backs both the D405 and the D435: one entry keyed by the document (core/cite.py)
+    assert {'dexvantage', 'menagerie2022github', 'intel:realsense-d400-series-datasheet-mar-2026',
+            'mujoco_todorov2012'} <= cited
 
 
 def _compile(folder, engine):

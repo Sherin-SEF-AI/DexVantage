@@ -58,6 +58,13 @@ counts and the power calculator computed on the spot, else the page's result), `
 gathered headline), `get_rig_cost` (the cited prices) and `check_robot_file` (what a URDF, MJCF or USD file references
 and whether each file is found, before an import). Each reads; none changes the project.
 
+Phase 11 added `get_project_diff` (34 in the registry, 40 in `tools/list`): what changed, item by item
+(`core/projdiff.py`, as File ▸ Compare with…), from another project file (`path`, read beside this project when
+relative) to this project, or from the active variant to another variant (`variant`, its name or uid; both sides are
+diffed as one-variant projects under the active variant's uid, so sensors pair up); with `metrics`, each figure on
+both sides and its delta, with `delta_unit` (a change of a percentage is in percentage points). The metrics' studies
+follow the long-study rule above. It reads only.
+
 ## Edits as data (`mcp/edits.py`)
 
 `edit_project` and `simulate_changes` take

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lighting and glare: a worked example on the UR5e sample · DexVantage</title>
+<meta name="description" content="Will the overhead camera see a shiny can as a white blob when the arm grasps it under a desk light? Will a window washout the D435&#x27;s IR pattern? The Lighting page answers both. It reports the share of the object and gripper area eachcamera sees in specular saturation over the gripper&#x27;s working …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#1-add-a-light-and-a-shiny-object">1. Add a light and a shiny object</a>
+    <a href="#2-run">2. Run</a>
+    <a href="#3-a-window">3. A window</a>
+    <a href="#settings-worth-knowing">Settings worth knowing</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/lighting.md"><code>docs/guide/lighting.md</code></a></p>
+<h1 id="lighting-and-glare-a-worked-example-on-the-ur5e-sample">Lighting and glare: a worked example on the UR5e sample</h1>
+<p>Will the overhead camera see a shiny can as a white blob when the arm grasps it under a desk light? Will a window wash
+out the D435's IR pattern? The Lighting page answers both. It reports the share of the object and gripper area each
+camera sees in specular saturation over the gripper's working poses, and the valid depth an active-stereo sensor is
+predicted to lose. It then tries the usual fixes and gives each one's effect. The model, its equations and its
+validation are in <a href="../models/lighting.html">Lighting, glare and IR wash-out</a>.</p>
+<h2 id="1-add-a-light-and-a-shiny-object">1. Add a light and a shiny object</h2>
+<ol>
+<li>
+<p><strong>File ▸ Open sample ▸ UR5e</strong>. The rig has a Wrist D405 on the tool flange and an Overhead D435 on the cage. The
+sample has a grasp set of 200 tabletop grasps. It has no lights and no task objects.</p>
+</li>
+<li>
+<p>Add a task object at the task volume's centre: a cylinder, radius 33 mm, height 115 mm, at (−134, 492, 57.5) mm,
+tagged <strong>metallic</strong> (a soda can). The window adds only boxes (<strong>Workspace ▸ Add box object</strong>), so this example adds
+the can by script (a box added in the window gets its tags on this page, under <strong>Task object materials</strong>: pick the
+object, tick its tags; each tick is one undo step and an object always keeps at least one tag, matte):</p>
+<pre><code class="language-python">from dexvantage.core.project import TaskObject
+from dexvantage.core.frames import Pose
+p.workspace.objects.append(TaskObject(name='Soda can', shape='cylinder', size=(0.033, 0.115, 0),
+                                      pose=Pose([-0.134, 0.492, 0.0575], [0, 0, 0, 1]), materials=['metallic']))
+</code></pre>
+</li>
+<li>
+<p><strong>Analysis ▸ Lighting and glare</strong> opens the page (Placement workspace). The headline reads &quot;not run yet&quot;. The
+lights table is empty.</p>
+</li>
+<li>
+<p><strong>Add light ▸ Elgato Key Light (library)</strong>. The light goes 1.2 m above the task volume's centre, at
+(−134, 492, 1350) mm, facing down. Its luminous flux, 2800 lm, comes from Elgato's product page; the source line
+names the page and the date it was read. The note under the editor gives the luminance the study uses:
+1.02 × 10⁴ cd/m², from L = Φ / (π A) over the 350 × 250 mm panel. That this is the emitting face is an assumption,
+and the library entry says so. Elgato states no IR figure, so the light's IR column reads &quot;not stated&quot;. The light
+is drawn in the 3D view as a rectangle with a cross and a short line showing the way it faces. Adding it was one
+undo step.</p>
+</li>
+</ol>
+<h2 id="2-run">2. Run</h2>
+<ol start="5">
+<li>Press <strong>Run</strong>. It takes 1.4 s on the RTX 5080 through EGL device 0, IK included, and 18 s on the numpy
+rasteriser without a GPU, with the same figures. The study takes 6 reachable grasps from the sample's set as
+working poses: grasps 1, 48, 106, 118, 141 and 177.</li>
+</ol>
+<p>The headline reads <strong>34.9 % rel. · heavy glare</strong>: &quot;34.9 % of the object and gripper area Overhead D435 sees is in
+specular saturation (relative model), 98.5 % at its worst pose (grasp 106).&quot;</p>
+<ul>
+<li><strong>&quot;rel.&quot;</strong> means the relative model. Neither Intel nor any other maker in the library states its sensor's
+sensitivity in DN per lux second. So the page predicts saturation for an auto-exposure that meters the scene as
+18 % grey, which ISO 12232 puts at 12.7 % of full scale. A point saturates at 7.86 times the metered mean
+luminance. If you know the camera's sensitivity, f-number and exposure, enter them in the study settings
+(<code>sensors[uid]</code>). The model then becomes absolute, and the Cameras table says so.</li>
+<li>In the <strong>Cameras</strong> table, the Wrist D405 reads 0.0 %: at these grasps it sees the gripper and the table, not the
+can's highlight. The Overhead D435 reads 34.9 % on average and 98.5 % at grasp 106. At that grasp it looks straight
+down on the can's aluminium top, which mirrors the panel above it.</li>
+<li>The <strong>Glare map</strong> of the Overhead D435 fills the image cells where the can's highlight saturates and outlines the
+cells near saturation. While the page is open, the Camera view of the Overhead D435 outlines the same cells over
+its image. The 3D view marks the saturated points of the worst pose with small red crosses.</li>
+<li><strong>Active depth sensors</strong>: the Overhead D435's projector is stated at 360 mW (Intel's D400 datasheet, Table 3-17).
+Its pattern gives a median 0.150 W/m² on the can and the gripper. The Key Light states no IR, so nothing washes the
+pattern out: 0.0 %. The D405 is passive stereo, and the notes say it has no wash-out figure.</li>
+</ul>
+<p><strong>What to change</strong> lists each candidate with the figure before and after:</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Saturation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Move Elgato Key Light 30 cm along world −y</td>
+<td>34.9 % → 13.7 %</td>
+</tr>
+<tr>
+<td>A linear polariser on Overhead D435</td>
+<td>34.9 % → 34.9 %: it would not help, because aluminium reflects both polarisations nearly alike (an ideal polariser still passes 44–50 % of its specular light up to 80° incidence) and the auto-exposure makes up the diffuse light the polariser removes</td>
+</tr>
+<tr>
+<td>Dim Elgato Key Light to 50 %</td>
+<td>34.9 % → 34.9 %: with one light, the auto-exposure makes up for it</td>
+</tr>
+<tr>
+<td>Tilt Overhead D435 ±5° or ±10°</td>
+<td>34.9 % → 34.9–35.1 %</td>
+</tr>
+</tbody>
+</table>
+<p>Press <strong>Apply</strong> to move the light 30 cm along −y (one undo step), or keep going.</p>
+<h2 id="3-a-window">3. A window</h2>
+<ol start="6">
+<li><strong>Add light ▸ Window (enter its figures)</strong>. Set it at (−134, 1400, 800) mm, <strong>faces −y</strong> (into the room), size
+1200 × 1000 mm. Give it a luminance of 2000 cd/m² and an IR irradiance of 10 W/m², with no distance, so the IR is
+measured at the glass. Type the source of each figure; here, write &quot;example figure, not a measurement&quot;. Use your
+own meter readings for a real lab. Each field is one undo step.</li>
+<li><strong>Run</strong> again (0.8 s).</li>
+</ol>
+<p>The headline now reads <strong>0.0 % rel. · low glare; depth washed out</strong> (critical: the depth loss below sets the
+status). The window brightens the scene the auto-exposure meters, so the
+can no longer clips. The text adds: &quot;Overhead D435 is predicted to lose valid depth on 73.8 % of what it sees of
+them.&quot; In the depth table, the ambient IR median is 0.95 W/m² against the pattern's 0.150 W/m². Where the ambient IR
+is as bright as the pattern (contrast under 0.5, a default), the pattern is washed out. The suggestion is:</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Figure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blind or curtain Window</td>
+<td>depth loss 73.8 % → 0.0 %</td>
+</tr>
+</tbody>
+</table>
+<ol start="8">
+<li>Press <strong>Apply</strong>. The window is set to 0 % of its stated output (<code>dim</code> 0, a blind) as one undo step, and the study
+runs again. The depth loss is now 0.0 %, and the glare is back at 34.9 %, with moving the Key Light the
+suggestion again. <strong>Edit ▸ Undo</strong> opens the blind.</li>
+</ol>
+<h2 id="settings-worth-knowing">Settings worth knowing</h2>
+<p>The study settings live in <code>project.analysis.studies['lighting']</code>:</p>
+<ul>
+<li><code>poses</code>: 'auto' (grasps when there is a set), 'grasps' or 'home'. <code>max_poses</code> defaults to 6.</li>
+<li><code>robot_material</code>: the gripper's material tag. It defaults to 'matte', because model files carry no tags.
+<code>link_materials</code> sets it per link.</li>
+<li><code>materials</code>: measured values per object, {uid: {'alpha', 'albedo', 'ir_albedo', 'depth_reads_through'}}. The
+defaults per tag are DexVantage defaults, not measurements.</li>
+<li><code>sensors[uid]</code>: <code>exposure_s</code>, <code>gain</code>, <code>sensitivity_dn_per_lux_s</code>, <code>bits</code>, <code>f_number</code> (for the absolute model), and
+<code>polariser</code>.</li>
+<li><code>contrast_min</code> (0.5) and <code>ir_albedo_min</code> (0.1): the wash-out and dark-surface thresholds, both defaults.</li>
+<li><code>good_pct</code>, <code>warn_pct</code> and <code>serious_pct</code> (1, 5 and 15 %): the status thresholds, defaults.</li>
+</ul>
+<p>Batch: <code>dexvantage project.dexv --lighting lighting.json</code> writes the same result with provenance. On a project
+without lights, the result's headline says &quot;no lights&quot; and the command still exits 0.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The study models direct light only, with hard shadows from each light's centre. It assumes a photometric camera
+response, and it takes the IR figures to be in the band the depth imagers see. The polariser's gain is an upper
+bound. The materials' roughness and albedos are defaults, and points are sampled, so a very small highlight can be
+missed. The full list is in <a href="../models/lighting.html#known-limits">Lighting, glare and IR wash-out</a>.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

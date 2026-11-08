@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Action-chunk latency and temporal alignment (spec §7.13) · DexVantage</title>
+<meta name="description" content="dexvantage/core/studies/action_chunk_sync.py · study action_chunk_sync · batch --action-chunk OUT.json · pageAnalysis ▸ Action-chunk latency · checks chunk.loop_vs_simulation, chunk.ensemble_closed_form(dexvantage/validation/checks_chunk.py).">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#the-loop">The loop</a>
+    <a href="#the-close-timing-error">The close-timing error</a>
+    <a href="#chunks-and-temporal-ensembling">Chunks and temporal ensembling</a>
+    <a href="#recommendations-apply">Recommendations (Apply)</a>
+    <a href="#validation-measured-2026-11-07">Validation (measured 2026-11-07)</a>
+    <a href="#on-the-samples">On the samples</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/action_chunk.md"><code>docs/models/action_chunk.md</code></a></p>
+<h1 id="action-chunk-latency-and-temporal-alignment-spec-713">Action-chunk latency and temporal alignment (spec §7.13)</h1>
+<p><code>dexvantage/core/studies/action_chunk_sync.py</code> · study <code>action_chunk_sync</code> · batch <code>--action-chunk OUT.json</code> · page
+<strong>Analysis ▸ Action-chunk latency</strong> · checks <code>chunk.loop_vs_simulation</code>, <code>chunk.ensemble_closed_form</code>
+(<code>dexvantage/validation/checks_chunk.py</code>).</p>
+<p>The question: an action-chunked policy (ACT, Diffusion Policy, π0 flow matching) runs on the rig with a
+sensor-to-action loop that its training data never saw. How late or early does it close the gripper on the contact
+point, how far is the hand from the contact point when the fingers close, and what proprioceptive delay offset and
+ensemble weight should go into the training config?</p>
+<h2 id="the-loop">The loop</h2>
+<p>Per policy and per camera it takes. Every term carries a value, an origin (library entry, your figure, policy entry,
+bandwidth study, default, not stated) and its source.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Model</th>
+<th>Origin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>τ_e/2</td>
+<td>half the exposure: an image shows the scene at mid-exposure</td>
+<td>library imager <code>exposure_s</code>/<code>exposure_ms</code>, or your figure; <strong>no library entry states it today</strong>, so it is &quot;not stated&quot; and left out</td>
+</tr>
+<tr>
+<td>τ_r</td>
+<td>readout (the last row after the exposure)</td>
+<td>as above</td>
+</tr>
+<tr>
+<td>τ_x</td>
+<td>one frame of the policy's stream: w·h·bpp·(1 + overhead) / bandwidth left to it</td>
+<td>the bandwidth study (§7.6): the lower of the link's capacity less the sensor's other streams and the controller's capacity less everything else; not stated without a link or a stated bits per pixel; refused when the controller is over budget</td>
+</tr>
+<tr>
+<td>τ_q</td>
+<td>the newest frame's age when inference starts: uniform 0 … 1/fps (+ <code>queue_extra_ms</code>, default 0)</td>
+<td>default model (camera and policy on independent clocks)</td>
+</tr>
+<tr>
+<td>τ_i</td>
+<td>one inference</td>
+<td>the policy entry (<code>core/policies.resolve</code>): cited or measured. <strong>Not stated → the policy is refused</strong> with a sentence that says where to enter a measurement</td>
+</tr>
+<tr>
+<td>τ_w</td>
+<td>the chunk waits for the next control tick: uniform 0 … Δt, Δt = 1/control_hz</td>
+<td>default model</td>
+</tr>
+<tr>
+<td>τ_c</td>
+<td>command latency</td>
+<td><code>command_ms</code> with its source, else one control period (a default)</td>
+</tr>
+</tbody>
+</table>
+<p>A missing term makes the loop &quot;at least&quot; the sum of the others; the page and the notes list which figure is missing.</p>
+<h2 id="the-close-timing-error">The close-timing error</h2>
+<p>The policy is modelled as an <strong>ideal imitator</strong>: it closes on the frame that, in the training data, came with the
+close command. While recording, the close command stamped t_c − c_rec closed the gripper at contact t_c (c_rec: the
+follower's command latency then; default the same τ_c); the training pairs the image stamped t with the action
+stamped t + δ (δ: the proprioceptive delay offset; default 0, as LeRobot's <code>delta_timestamps</code> start at 0). An image
+stamped on arrival at the host (<code>host_receive</code>, the default) carries the age a = τ_e/2 + τ_r + τ_x; one stamped at
+mid-exposure (<code>mid_exposure</code>; the default when the time-sync settings put the stream on a camera hardware clock)
+carries none. At deployment the close reaches the gripper</p>
+<pre><code>e = (τ_e/2 + τ_r + τ_x − a) + τ_q + τ_i + τ_w + ρ + (τ_c − c_rec) − δ − k·Δt
+</code></pre>
+<p>after contact, with ρ uniform over ±Δt/2 (the close lands on a whole control step) and k the actions the executor
+skips at the start of a chunk (<code>skip_steps</code>, default 0). The interval [low–high] is the sum of the ranges, the nominal
+value the sum of the means, and the spread σ = √(Σ wᵢ²/12) of the independent uniform phases. Note that with host
+stamps the image's own age cancels: what is left is queueing, inference and the step rounding.</p>
+<p><strong>Spatially</strong> the arm follows the demonstrated motion, so the error is the distance from the contact point when the
+fingers close. Along a trajectory that closes the gripper at t_c (tool centre P(t)):</p>
+<pre><code>overshoot = |P(t_c + e_high) − P(t_c)| (e_high &gt; 0),   air-grasp = |P(t_c + e_low) − P(t_c)| (e_low &lt; 0)
+</code></pre>
+<p>over every closing stroke of every trajectory (<code>core/grasps.py</code> <code>closure_events</code>), the worst kept. A hand that stops
+before it closes loses nothing to timing. Without such a trajectory (or with your <code>approach_speed_m_s</code>): v·max(0,
+e_high) and v·max(0, −e_low) at a constant speed v (default 0.10 m/s, <strong>a default, not a measurement</strong>).</p>
+<h2 id="chunks-and-temporal-ensembling">Chunks and temporal ensembling</h2>
+<p>They change how old the information behind an executed action is (the reaction age), not the timing above. A chunk
+comes every s = max(E, ⌈τ_i/Δt⌉) control steps (E: actions executed per chunk). Open loop (Diffusion Policy's receding
+horizon, π0), action k of a chunk rests on an image L + k·Δt old. With temporal ensembling (ACT, E = 1) the executed
+action is Σ wᵢ aᵢ / Σ wᵢ with <strong>wᵢ = exp(−m·i), i = 0 the oldest prediction</strong>: the official ACT code
+(<code>imitate_episodes.py</code>, commit 742c753, read 2026-11-07) stores chunk t in row t of <code>all_time_actions</code>, takes the
+populated rows of column t in issue order and weights them <code>np.exp(-k * np.arange(n))</code>, k = 0.01; LeRobot's
+<code>ACTTemporalEnsembler</code> (commit d490e47, read 2026-11-07) says &quot;w₀ is the oldest action&quot;, a positive coefficient gives
+more weight to older actions and a negative one to newer ones. The mean age is</p>
+<pre><code>L + Δt · Σ wᵢ (n − 1 − i) / Σ wᵢ  =  L + Δt · [(n − 1) − S₁/S₀],  r = e^(−m),
+S₀ = (1 − rⁿ)/(1 − r),  S₁ = r (1 − n rⁿ⁻¹ + (n − 1) rⁿ)/(1 − r)²
+</code></pre>
+<p>(n = H for s = 1; for s &gt; 1 averaged over the step's place in the cycle). ACT's m = 0.01 with H = 100 gives 57.7 steps,
+1.15 s at 50 Hz. The <strong>reaction distance</strong> (along the trajectory |P(t_c) − P(t_c − age)|, else v × age) is how far the
+hand travels before an action that has seen a change at the contact lands.</p>
+<h2 id="recommendations-apply">Recommendations (Apply)</h2>
+<ul>
+<li><strong>Delay offset</strong>: δ that centres the timing interval of the policy's cameras on contact, rounded to whole control
+steps (the dataset is taken to be recorded at the control rate), with the worst error before and after.</li>
+<li><strong>Ensemble weight</strong> (ensembling policies only): on m ∈ [−1, 1] in steps of 0.005 (defaults), the m with the most
+averaging, n_eff = (Σw)²/Σw², whose reaction distance stays within <code>reaction_tolerance_mm</code> (default 10 mm); when no m
+does, the most averaging within 10 % of the shortest reachable reaction.</li>
+</ul>
+<p>Apply stores both on every policy of the result as <code>Policy.recommendations</code> (one undo step); the study reads them back
+as the policy's configured offset and m, so the headline after Apply shows the predicted change. The result and the
+page's export carry them; a LeRobot training-config exporter (§9.2, Phase 10) is not built yet, so enter them in your
+training config by hand.</p>
+<p>Status: the worst policy's larger of overshoot and air-grasp against <code>tolerance_mm</code> (default 5 mm): good up to it,
+warning up to 2×, serious up to 4×, critical beyond (defaults, not standards).</p>
+<h2 id="validation-measured-2026-11-07">Validation (measured 2026-11-07)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Measured</th>
+<th>Tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chunk.loop_vs_simulation</code></td>
+<td>event-by-event simulation (frames on their own clock, the newest frame ready at inference start, its stamp, the imitator's chunk index rounded to whole steps, the next control tick, skipped actions, command latency), 20 000 trials in each of 4 scenarios</td>
+<td>worst mean difference 1.4 × 10⁻⁵ m at 0.1 m/s (0.14 ms), no simulated close outside the model's interval, spread ratio 0.992–1.000</td>
+<td>5 × 10⁻⁵ m (about five standard errors), spread within 3 %</td>
+</tr>
+<tr>
+<td><code>chunk.ensemble_closed_form</code></td>
+<td>the geometric-series closed form above; Σ wᵢ aᵢ / Σ wᵢ from the formula</td>
+<td>3.3 × 10⁻¹³ steps over m = −0.1 … 1.5, H = 1 … 100</td>
+<td>10⁻⁹ steps</td>
+</tr>
+</tbody>
+</table>
+<p>The tests (<code>tests/test_action_chunk.py</code>) also replay ACT's <code>all_time_actions</code> table as the official code builds it
+(including its &quot;populated&quot; row test) against <code>ActEnsembler</code>.</p>
+<h2 id="on-the-samples">On the samples</h2>
+<ul>
+<li><strong>UR5e</strong> (π0 sample policy): the loop is 120 ms [93–146] without the D405's and D435's exposure and readout (not
+stated); transfer 9.5 ms (D405, 1280 × 720 YUY2) and 15.8 ms (D435, 1920 × 1080) once the cameras are plugged into a
+USB 3.2 Gen 1 controller on the Bandwidth page. The sample's scripted pick stops the hand before the gripper closes,
+so the close (+63 to +136 ms late) costs 0 mm: status good. A 100 ms (5-step) offset centres it anyway.</li>
+<li><strong>SO-100</strong> (SmolVLA sample policy): refused, &quot;its inference time is not stated by its source&quot;.</li>
+<li><strong>dexhand</strong>: no policy, refused with what to add.</li>
+<li>Run time 0.02–0.05 s per run (no rendering); batch 0.4–0.6 s with start-up.</li>
+</ul>
+<h2 id="known-limits">Known limits</h2>
+<p>The policy is an ideal imitator, so its learned errors (and the smoothing ensembling buys against them) are not
+modelled, only timing; arm and gripper commands reach the hardware with the same latency and the arm follows the
+demonstrated motion exactly (servo lag and the gripper's own closing time are not added: put them in <code>command_ms</code>);
+clocks are independent with uniform phases (a hardware-triggered rig whose policy loop is locked to the camera has a
+narrower interval); with ensembling the close is a weighted mix of the chunks' close steps, which lies inside the
+interval given for one chunk; the time-sync study's clock offsets and jitter are not added; transfer assumes the
+bandwidth left to a stream is used at its full rate; the trajectory is held at its ends; grasp centres in the map use
+one speed; a synchronous loop that pauses the arm during inference is not modelled; no library entry states exposure
+or readout today, so those terms need your measured figures.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

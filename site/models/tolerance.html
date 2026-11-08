@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monte Carlo tolerances and the perturbation export · DexVantage</title>
+<meta name="description" content="Spec §7.11 (Monte Carlo tolerances) and §8.5 (synthetic camera perturbation). Code: dexvantage/core/tolerance.py(the model, ported from Vantage core/tolerance.py), dexvantage/core/studies/tolerance.py (the study tolerance,batch flag --tolerance-mc OUT.json) …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#what-is-drawn">What is drawn</a>
+    <a href="#monte-carlo">Monte Carlo</a>
+    <a href="#the-perturbation-export-85">The perturbation export (§8.5)</a>
+    <a href="#validation-measured-2026-11-07">Validation (measured 2026-11-07)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="#references">References</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/tolerance.md"><code>docs/models/tolerance.md</code></a></p>
+<h1 id="monte-carlo-tolerances-and-the-perturbation-export">Monte Carlo tolerances and the perturbation export</h1>
+<p>Spec §7.11 (Monte Carlo tolerances) and §8.5 (synthetic camera perturbation). Code: <code>dexvantage/core/tolerance.py</code>
+(the model, ported from Vantage <code>core/tolerance.py</code>), <code>dexvantage/core/studies/tolerance.py</code> (the study <code>tolerance</code>,
+batch flag <code>--tolerance-mc OUT.json</code>), <code>dexvantage/core/exporters/perturbations.py</code> (the exporter <code>perturbations</code>),
+<code>dexvantage/ui/pages/tolerance.py</code> (the Tolerances page). Checks: <code>dexvantage/validation/checks_tolerance.py</code>
+(model <code>tolerance</code>).</p>
+<p>The batch flag is <code>--tolerance-mc</code>, not <code>--tolerance</code>: <code>--tolerance</code> already exists as <code>--reproduce</code>'s comparison
+tolerance.</p>
+<h2 id="what-is-drawn">What is drawn</h2>
+<p>Each draw moves every enabled sensor of the active variant (locked ones too: a locked mount is still built with a
+tolerance). A draw of one sensor is six numbers, the factors of <code>core/factors.py</code>:</p>
+<pre><code>d = [dx, dy, dz]            metres along the mount parent frame's axes
+    [droll, dpitch, dyaw]   degrees about the sensor body's own x, y, z axes, in that order:  R' = R · Rx · Ry · Rz
+</code></pre>
+<p>applied to a copy of the project through <code>factors.apply(..., allow_locked=True)</code>.</p>
+<h3 id="mount-tolerance-a--bound">Mount tolerance: a ± bound</h3>
+<p><code>Mount.tolerance</code> (<code>position_mm</code>, <code>rotation_deg</code>) is a <strong>± bound per axis</strong>, the way the Inspector and the Sensors
+page show it (&quot;± 1 mm · ± 0.5°&quot;, the project's labelled defaults). Each of the three shifts lies within ± position_mm
+and each of the three turns within ± rotation_deg, independently. Inside the bound the distribution is a setting:</p>
+<table>
+<thead>
+<tr>
+<th><code>distribution</code></th>
+<th>draw</th>
+<th>σ of one component</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uniform</code> (default, labelled)</td>
+<td>U(−b, b)</td>
+<td>b / √3</td>
+</tr>
+<tr>
+<td><code>normal</code></td>
+<td>N(0, (b/2)²) truncated at ± b (the bound is 2 σ)</td>
+<td>(b/2) √(1 − 2·2 φ(2) / (2 Φ(2) − 1)) = 0.4398 b</td>
+</tr>
+</tbody>
+</table>
+<p>Uniform is the default because a drawing tolerance says only that the part is inside the bound: every value within it
+is taken as equally likely (Vantage's default too). The truncated normal is for a process known to centre.</p>
+<h3 id="calibration-covariance">Calibration covariance</h3>
+<p>A sensor with a hand-eye session (<code>project.calibration</code>, <code>core/calib</code>) whose result is solved (<code>ok</code>) and applied
+draws from that result's 6 × 6 covariance instead. The bundle adjustment parameterises the imager's optical frame X
+in the mount frame as X' = [R_X Exp(ω) | t_X + v] (ω about X's own axes, v along the parent's: <code>core/calib/handeye.py</code>).
+A draw is (ω, v) ~ N(0, C), turned exactly into the body's factors. With the imager's pose in the body
+T_im = [R_im | t_im] and the body's nominal rotation R_B:</p>
+<pre><code>δ     = R_im ω                                   (the turn about the body's axes: Exp(R_im ω) = R_im Exp(ω) R_imᵀ)
+shift = v − R_B (Exp(δ) − I) t_im                (the body origin moves when X turns about the imager)
+(droll, dpitch, dyaw) = the X-Y-Z decomposition of Exp(δ):  b = asin R₀₂, a = atan2(−R₁₂, R₂₂), c = atan2(−R₀₁, R₀₀)
+</code></pre>
+<p>so the moved project's X is exactly [R_X Exp(ω) | t_X + v]. The calibration replaces the mount tolerance only while
+the sensor is where the calibration put it: if its current X differs from the stored one by more than 1 µm or 1 µrad
+(the sensor was moved since), the mount tolerance is used and the source says why.</p>
+<h3 id="bounds">Bounds</h3>
+<p><code>bounds(project)</code> gives per sensor <code>position_m</code> and <code>rotation_deg</code> as <code>[lo, hi]</code> per axis and the <code>source</code>:
+a mount tolerance's ± bound (× scale), or a calibration covariance's ± 2 σ of each marginal of the linearised body
+covariance J C Jᵀ, with J mapping (ω, v) to (shift, δ): ∂shift/∂ω = R_B [t_im]× R_im, ∂shift/∂v = I, ∂δ/∂ω = R_im.</p>
+<h2 id="monte-carlo">Monte Carlo</h2>
+<p><code>monte_carlo(project, metric_ids, n, seed)</code> evaluates the named metrics (<code>core/metrics.evaluate</code>: each study re-run on
+the moved project, no cache) on the project as it is (the nominal) and on n draws from one <code>numpy.random.default_rng (seed)</code>, sensors in the variant's order. Per metric:</p>
+<ul>
+<li>nominal, mean, σ (n − 1), P5, P50, P95, min, max over the draws that gave a value; the count that gave none;</li>
+<li>the pessimistic 5 % figure: P5 for a higher-is-better metric, P95 for a lower-is-better one;</li>
+<li>per project requirement on the metric: the share of draws meeting it, with its Wilson score 95 % interval
+(Wilson 1927), and whether the nominal meets it. Each draw is decided as the scorecard decides it
+(core/requirements.decide: a tolerance of 10⁻⁹ relative at the threshold; a figure the study states only as a
+bound, such as a time-sync skew of &quot;at least 1 ms&quot;, meets or misses only when the bound settles it); a draw whose
+bound does not settle the requirement counts as not meeting it and is counted in <code>undecided</code>;</li>
+<li>per mount, its contribution: for each component x the Spearman rank correlation ρ(x, f) and ρ(|x|, f) (a figure
+that falls whichever way the camera turns has ρ ≈ 0 and ρ(|x|, f) large); a component counts max(ρ², ρ_abs²), a
+mount the sum over its six (split into its position and rotation parts), and the shares are those sums normalised
+over the mounts. A mount whose largest |ρ| is below 2 / √(n − 1) (two standard errors of ρ under no association) is
+flagged as not distinguishable from noise.</li>
+</ul>
+<p>The study's headline is the requirement met by the smallest share of draws (ties: the smallest margin of its
+pessimistic figure over the threshold, in σ), as that pessimistic figure, with a status word from the share: <strong>holds</strong>
+from 95 %, <strong>marginal</strong> from 80 %, <strong>often fails</strong> from 50 %, else <strong>fails</strong> (DexVantage defaults). Without
+requirements it is the figure with the widest relative spread, word <strong>no requirement</strong>.</p>
+<p>Which figures: the study's <code>metrics</code> setting; else the metrics the project's requirements name; else (a default) the
+headline metrics of the fast geometric studies, <code>coverage.covered</code>, <code>depth.valid</code>, <code>motion_blur.worst_px</code>,
+<code>vla.min_tokens</code> (under a second per draw on the samples, measured 2026-11-07; grasp visibility takes about 30 s per
+draw on the UR5e sample and is left to a requirement or the settings).</p>
+<p>The suggestion (the page's Apply) halves the position or rotation tolerance (whichever part contributes more) of the
+unlocked mount-tolerance sensor that contributes most to the headline figure, if above noise. Its effect is not
+predicted; the study is run again.</p>
+<h2 id="the-perturbation-export-85">The perturbation export (§8.5)</h2>
+<p><code>perturbed_extrinsics(project, n, seed)</code> draws as above and gives arrays (n draws, S sensors):</p>
+<table>
+<thead>
+<tr>
+<th>array</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>d</code> (n, S, 6)</td>
+<td>the factors above</td>
+</tr>
+<tr>
+<td><code>delta_body</code> (n, S, 4, 4)</td>
+<td>T_body' = T_body · Δ, Δ = [Rx Ry Rz | R_Bᵀ shift] (<code>core/sim/render</code> <code>extrinsic_delta</code>)</td>
+</tr>
+<tr>
+<td><code>T_parent_body</code></td>
+<td>the moved body in its mount parent frame</td>
+</tr>
+<tr>
+<td><code>T_parent_optical</code></td>
+<td>the primary imager's REP-103 optical frame (z forward, x right, y down) in the mount parent frame</td>
+</tr>
+<tr>
+<td><code>T_world_optical</code></td>
+<td>the same in the world at the joint state given (home by default)</td>
+</tr>
+</tbody>
+</table>
+<p>The exporter writes <code>perturbations/perturbations.json</code> (per draw and sensor: <code>d</code>, <code>delta_body</code>, the mount pose, an
+Isaac Lab <code>CameraCfg.OffsetCfg</code> with <code>pos</code>, <code>rot_xyzw</code>, <code>rot_wxyz</code> and <code>convention: &quot;ros&quot;</code>, and a 3DGS camera with
+<code>position</code> and camera-to-world <code>rotation</code>) and <code>perturbations/perturbations.npz</code> (the arrays, sensor uids and names,
+seed, scale, distribution), both listed with SHA-256 in the export manifest and the JSON stamped with provenance.</p>
+<p>Conventions, read from the targets' source on 2026-11-07: Isaac Lab's <code>OffsetCfg.rot</code> is (w, x, y, z) at tag v2.3.0
+and (x, y, z, w) at tag v3.0.0 and on main (commit d4be263), <code>source/isaaclab/isaaclab/sensors/camera/camera_cfg.py</code>
+— both orders are written, named; convention &quot;ros&quot; is forward +Z, up −Y, the optical frame here. The 3DGS reference
+code (<code>utils/camera_utils.py</code> <code>camera_to_JSON</code>, commit 54c035f) writes a camera as its centre <code>position</code> and a
+camera-to-world <code>rotation</code> in the COLMAP/OpenCV axes, the optical frame here.</p>
+<h2 id="validation-measured-2026-11-07">Validation (measured 2026-11-07)</h2>
+<p>The rig of the checks: three static sensors, &quot;Mount A&quot; ± 2 mm ± 1°, &quot;Mount B&quot; ± 1 mm ± 0.25°, and a RealSense D435
+calibrated by a hand-eye result written in the check with a correlated 6 × 6 covariance (σ 1.5 mrad, 0.8 mm), so the
+RGB imager's offset in the body matters.</p>
+<table>
+<thead>
+<tr>
+<th>check</th>
+<th>reference</th>
+<th>measured (full / quick)</th>
+<th>tolerance</th>
+<th>why that tolerance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tolerance.linear_propagation</code></td>
+<td>GUM law of propagation, σ² = Σ (∂f/∂x)² σ²ₓ + wᵀ C w, written out (JCGM 100:2008 eq. 10, 13)</td>
+<td>0.0060 / 0.0083 relative error of σ (n = 20 000 / 3 000; uniform 0.0030, normal 0.0060)</td>
+<td>4 standard errors of a sample σ, 4 √(2 / 4n): 0.020 / 0.052 (declared as applied, full / quick)</td>
+<td>sampling error of σ̂ for a kurtosis up to 3; the mean is also within 4 σ/√n</td>
+</tr>
+<tr>
+<td><code>tolerance.sampler_ks</code></td>
+<td>scipy.stats.kstest against uniform, truncnorm and norm; positions, SciPy intrinsic XYZ Euler angles and rotation vectors read back from the moved projects</td>
+<td>largest D 0.0235 / 0.032 over 30 marginals (n = 4 000 / 1 500)</td>
+<td>critical D at α = 0.001 / 30: 0.037 / 0.061 (declared as applied, full / quick)</td>
+<td>Bonferroni over the marginals; the calibration draws' sample covariance is within 4.1 % (Frobenius) of C</td>
+</tr>
+<tr>
+<td><code>tolerance.seed_reproducible</code></td>
+<td>the same run repeated; the export's separate draw loop</td>
+<td>0</td>
+<td>0</td>
+<td>the same seed must give the same numbers</td>
+</tr>
+<tr>
+<td><code>tolerance.spearman</code></td>
+<td>scipy.stats.spearmanr, with ties</td>
+<td>5.6 × 10⁻¹⁷</td>
+<td>10⁻¹²</td>
+<td>rounding only</td>
+</tr>
+<tr>
+<td><code>tolerance.export_roundtrip</code></td>
+<td>the project moved through core.factors per draw, composed with the imager offset; SciPy reads <code>rot_wxyz</code></td>
+<td>1.5 × 10⁻⁹ m or rad</td>
+<td>10⁻⁸</td>
+<td>the JSON's 9 decimals</td>
+</tr>
+</tbody>
+</table>
+<p>The self-test runs the last three (about 0.8 s, mostly imports).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>The six components of a mount tolerance are independent, and no two sensors are correlated: a shared bracket that
+bends moves its cameras together, which is not modelled.</li>
+<li>The turns are applied in a fixed order (x, y, z about the moving body axes); a rotation-vector reading of the same
+bound differs only to second order in the angle.</li>
+<li>The calibration covariance is the bundle adjustment's Gauss-Newton estimate (optimistic when the residuals are not
+Gaussian, <code>docs/models/handeye.md</code>); intrinsics' covariance, joint encoders and link lengths are not drawn.</li>
+<li>The contribution shares treat the components as independent; for a calibration covariance (correlated components)
+they are indicative. Rank correlation finds monotone dependence on a component or its size, not interactions.</li>
+<li>Each draw re-runs every study the metrics need, so n is bounded by the slowest study; a share of 95 % from 64 draws
+has a Wilson interval about ± 6 % wide.</li>
+<li>The export gives optical frames for each sensor's primary imager only (others: apply <code>delta_body</code>); the 3DGS world
+pose of a link-mounted camera holds at the joint state of the export only.</li>
+</ul>
+<h2 id="references">References</h2>
+<p><code>jcgm100_2008</code>, <code>jcgm101_2008</code>, <code>kolmogorov1933</code>, <code>smirnov1948</code>, <code>spearman1904</code>, <code>wilson1927</code>, <code>scipy_stats</code>,
+<code>scipy_rotation</code>, <code>isaaclab_camera_cfg</code>, <code>kerbl2023_3dgs</code> (<code>dexvantage/validation/references.py</code>).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

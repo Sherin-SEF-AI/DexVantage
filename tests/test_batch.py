@@ -47,6 +47,7 @@ def test_reproduce_and_tampering(tmp_path, proj):
     assert r.returncode == 1 and 'changed after DexVantage wrote it' in r.stdout
 
 
+@pytest.mark.mujoco_render                  # the optics model has rendered checks
 def test_validate_exit_code_and_report(tmp_path):
     r = _run('--validate', str(tmp_path / 'v'), '--quick', '--models', 'frames,optics,library')   # the exit code
     assert r.returncode == 0, r.stdout + r.stderr

@@ -11,6 +11,11 @@ license = { text = "GPL-3.0-or-later" }
 classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
 ]
 requires-python = ">=3.10"
@@ -36,9 +41,12 @@ step = ["gmsh==4.15.2"]           # bracket STEP export as a faceted solid (core
 research = ["pandas==2.3.3"]     # the Python API's Result.to_frame() as a DataFrame (dexvantage/api.py)
 tracking = ["mlflow-skinny==3.17.2", "wandb==0.30.0"]   # the experiment tracker: its mlruns/ export read back by
                                   # MLflow's client (a test), the W&B replay script (core/tracking)
-bundle = ["fast-simplification==0.2.0"]  # scripts/bundle_samples.py only: the G1 sample's mesh simplification
+bundle = ["fast-simplification==0.2.0",  # scripts/bundle_samples.py: the G1 sample's mesh simplification
+          "pyinstaller==6.22.3", "pyinstaller-hooks-contrib==2026.9"]  # packaging/: the downloadable app
 test = ["pytest", "jsonschema", "ruff", "mcap", "protobuf"]  # mcap, protobuf: test references (bags, RLDS)
 dev = ["setuptools==84.2.1"]      # the plugin template's real pip install test (tests/test_plugins.py); MIT
+site = ["markdown-it-py==4.2.0", "pillow==13.0.0"]  # scripts/build_site.py: Markdown → the website's pages (MIT),
+                                  # screenshots → JPEG (MIT-CMU); its --check needs neither
 
 [project.urls]
 Source = "https://github.com/Sherin-SEF-AI/DexVantage"
@@ -58,7 +66,7 @@ include = ["dexvantage", "dexvantage.*"]
 
 [tool.setuptools.package-data]
 dexvantage = ["resources/fonts/*.ttf", "resources/fonts/OFL.txt", "resources/icons/*.png", "resources/*.json",
-              "resources/robots/**", "resources/usd_robots/**"]
+              "resources/library/**", "resources/robots/**", "resources/usd_robots/**", "validation/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -68,10 +76,13 @@ line-length = 120
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W"]
+# ANN (flake8-annotations): spec §16 "type hints on public functions": parameters, *args, **kwargs and public return
+# types, checked in the modules below only (the rest of the codebase is listed as open in docs/BUILD_STATE.md)
+select = ["E", "F", "W", "ANN001", "ANN002", "ANN003", "ANN201", "ANN206"]
 ignore = ["E741", "E731"]
 
 [tool.ruff.lint.per-file-ignores]
+"!dexvantage/{api.py,api_research.py,api_cluster.py,plugin_sdk.py,core/metrics.py,core/factors.py,core/exporters/__init__.py,core/stats.py,core/tracking/__init__.py}" = ["ANN"]
 # ported from Vantage with their formatting kept (spec §2: copy, adapt only what is automotive)
 "dexvantage/ui/{theme,icon_data,charts,widgets,viewport3d,render_gl,navigation,colormaps}.py" = ["E501", "E702", "F841"]
 "dexvantage/ui/dialogs/{base,palette}.py" = ["E501"]

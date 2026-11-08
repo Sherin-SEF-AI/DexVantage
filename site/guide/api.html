@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Python and notebook API · DexVantage</title>
+<meta name="description" content="import dexvantage as dv gives DexVantage without the window: open or make a rig, run any study, read the namedmetrics, sweep factors, check requirements, export, and read recorded datasets. It runs the same code as the window andbatch mode (core.jobs, core.metrics, core.factors, core.exporters …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#install">Install</a>
+    <a href="#a-worked-example-on-the-ur5e-sample">A worked example on the UR5e sample</a>
+    <a href="#the-example-notebooks">The example notebooks</a>
+    <a href="#plugins">Plugins</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/api.md"><code>docs/guide/api.md</code></a></p>
+<h1 id="the-python-and-notebook-api">The Python and notebook API</h1>
+<p><code>import dexvantage as dv</code> gives DexVantage without the window: open or make a rig, run any study, read the named
+metrics, sweep factors, check requirements, export, and read recorded datasets. It runs the same code as the window and
+batch mode (<code>core.jobs</code>, <code>core.metrics</code>, <code>core.factors</code>, <code>core.exporters</code>, <code>core.requirements</code>, <code>core.datasets</code>), so
+every figure is the study's own: the API computes nothing itself. No Qt is imported on this path (a test checks it), so
+it runs on a headless server, in CI and in Jupyter.</p>
+<p>The module is <code>dexvantage/api.py</code>; its docstring examples are run as a doctest by <code>tests/test_api.py</code>. Two worked
+notebooks are in <code>examples/</code> (below).</p>
+<h2 id="install">Install</h2>
+<pre><code>pip install -e &quot;.[research]&quot;        # pandas 2.3.3 for DataFrames; without it tables are lists of dicts
+</code></pre>
+<p><code>Result.to_frame()</code> returns a pandas DataFrame when pandas is installed, else <code>dv.Records</code> (a list of row dicts) whose
+<code>.note</code> says how to get a DataFrame. In a DataFrame a figure that is not stated is <code>NaN</code> (pandas' missing number); in
+the dicts it is <code>None</code>.</p>
+<h2 id="a-worked-example-on-the-ur5e-sample">A worked example on the UR5e sample</h2>
+<pre><code>&gt;&gt;&gt; import dexvantage as dv
+&gt;&gt;&gt; rig = dv.sample('ur5e')
+&gt;&gt;&gt; rig
+&lt;Rig 'UR5e + Robotiq 2F-85 sample': 1 robot, 2 sensors, 1 variant&gt;
+&gt;&gt;&gt; cov = rig.run('coverage')                       # 0.9 s on the RTX 5080 machine the figures below are from
+&gt;&gt;&gt; cov.headline['text']
+'Task volume seen: 91.9 % (mostly single or blind)'
+&gt;&gt;&gt; cov.to_frame('cameras', columns=['name', 'seen', 'hidden', 'outside_image', 'ppmm_median'])
+            name      seen    hidden  outside_image  ppmm_median
+0     Wrist D405  0.464096  0.140706       0.395198       2.1325
+1  Overhead D435  0.719290  0.280710       0.000000       1.6760
+</code></pre>
+<p><code>run</code> takes a study id (<code>dv.studies()</code> lists them: id, title, batch flag, whether it needs a robot, and the plugin that
+added it), a dash form of it (<code>depth-validity</code>) or its batch flag (<code>rig-inventory</code>). Keyword arguments are settings laid
+over the stored ones <strong>for this run only</strong>: <code>rig.run('coverage', cube_n=256)</code>. A name the study does not read is
+refused in one sentence that lists its settings (<code>rig.run('tolerance', draws=8)</code>: &quot;The tolerance study has no setting
+called draws; its settings are distribution, metrics, n, scale, seed and sensors.&quot;; <code>core/study_settings.py</code>, for the
+studies it lists). <code>progress=fn(fraction, text)</code> reports progress. The result is a <code>dv.Result</code>: the study's own JSON (a <code>dict</code>, so <code>json.dumps(cov)</code> works) plus</p>
+<ul>
+<li><code>.headline</code>: the study's headline metric with its unit, the status word the result gives and a sentence
+(<code>'Worst camera to joint-state skew: ≥ 54.4 ms (out of sync)'</code> on this sample: a bound is shown as one);</li>
+<li><code>.metrics()</code>: every metric of the study read off this result, without running anything again;</li>
+<li><code>.to_frame(key=None, columns=None)</code>: the metrics, or the list under <code>key</code> (one row per item, nested fields as
+dotted columns such as <code>fov_deg.h</code>); <code>.tables()</code> lists the keys that hold such lists;</li>
+<li><code>.save(path)</code>: the JSON with the provenance block, as batch mode writes it.</li>
+</ul>
+<h3 id="a-factor-sweep">A factor sweep</h3>
+<p>Factors are the settable quantities of <code>core/factors.py</code> (<code>rig.factors.paths()</code> lists them with their values):</p>
+<pre><code>&gt;&gt;&gt; cam = 'Overhead D435'
+&gt;&gt;&gt; rows = []
+&gt;&gt;&gt; for dz in (-0.10, 0.0, 0.10):
+...     moved = rig.with_factors({f'sensor:{cam}.dz': dz})       # a new Rig: rig is unchanged
+...     rows.append({'dz_m': dz, 'z_m': round(moved.factors[f'sensor:{cam}.z'], 3),
+...                  **moved.metrics(['coverage.covered', 'depth.valid']).figures()})
+</code></pre>
+<p>gives (pandas)</p>
+<pre><code>   dz_m  z_m  coverage.covered  depth.valid
+0  -0.1  0.9           90.5456    79.508750
+1   0.0  1.0           91.9015    84.607292
+2   0.1  1.1           92.0444    87.004375
+</code></pre>
+<p>so raising the overhead D435 by 10 cm buys 0.1 points of task volume seen and 2.4 points of depth-valid volume on this
+sample (the coverage and depth-validity models' own Known limits apply: <code>docs/models/coverage.md</code>,
+<code>docs/models/depth.md</code>).</p>
+<h3 id="what-changes-the-rig-and-what-makes-a-new-one">What changes the rig and what makes a new one</h3>
+<table>
+<thead>
+<tr>
+<th>Call</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rig.factors[path] = value</code>, <code>rig.factors.update({...})</code></td>
+<td>edits <code>rig</code> itself: its project is replaced by the edited copy <code>core.factors.apply</code> returns (Robot and Sensor objects read before are then stale)</td>
+</tr>
+<tr>
+<td><code>rig.with_factors({...})</code>, <code>rig.factors.apply({...})</code>, <code>rig.use_variant(name)</code>, <code>rig.copy()</code></td>
+<td>a new Rig; <code>rig</code> is unchanged</td>
+</tr>
+<tr>
+<td><code>rig.run(study, **settings)</code></td>
+<td>runs on a copy with the settings for this run; stored settings unchanged (store one with <code>rig.factors['setting:coverage.cube_n'] = 256</code>)</td>
+</tr>
+<tr>
+<td><code>rig.robots</code>, <code>rig.sensors</code>, <code>rig.variants</code>, <code>rig.project</code></td>
+<td>the project's own objects: changing one changes the rig</td>
+</tr>
+<tr>
+<td><code>rig.add_variant(name, {sensor factors})</code></td>
+<td>edits <code>rig</code>: adds a copy of the active variant (sensor uids kept) with those factors set on the copy; the active variant stays (<code>dv.stats.compare_variants(rig, b=name)</code> then compares them)</td>
+</tr>
+</tbody>
+</table>
+<p>A locked sensor is the user's: setting one of its factors raises <code>FactorError</code> unless <code>allow_locked=True</code> is given.</p>
+<h3 id="metrics-requirements-export-save">Metrics, requirements, export, save</h3>
+<pre><code>&gt;&gt;&gt; rig.metrics(['coverage.covered', 'sync.skew_ms', 'bandwidth.margin']).to_frame()[['id', 'value', 'status', 'bound']]
+                 id    value      status     bound
+0  coverage.covered  91.9015          ok      None
+1      sync.skew_ms  54.4258          ok  at_least
+2  bandwidth.margin      NaN  not stated      None
+&gt;&gt;&gt; rig.check([{'name': 'Task volume seen', 'metric': 'coverage.covered', 'op': '&gt;=', 'threshold': 90}]).headline['text']
+'Readiness scorecard: 1 / 1 (ready). All 1 requirement pass.'
+&gt;&gt;&gt; manifest = rig.export('out/ur5e', ['opencv_yaml', 'mjcf'])   # files, notes, SHA-256, provenance
+&gt;&gt;&gt; rig.save('ur5e.dexv')
+</code></pre>
+<p><code>bandwidth.margin</code> is &quot;not stated&quot; because the sample has no host controller; the 90 % threshold is this example's own
+figure, not a standard. <code>rig.save(path)</code> writes a <code>.dexv</code> file, or the unpacked, Git-friendly form when the path is a
+folder or ends in <code>.dexv.d</code>. Every refusal, from <code>dv.open</code> and <code>dv.sample</code> to a factor value that is not a finite
+number or a device the library does not have, is a <code>dv.DexVantageError</code> with a plain sentence. <code>rig.check</code> takes a
+requirements file (YAML or JSON, <code>docs/guide/requirements.md</code>), a list of
+requirement dicts, <code>'defaults'</code> (DexVantage's labelled defaults: they include the grasp study, about 30 s on a sample)
+or nothing (the rig's own requirements). Each study runs once per call and results are cached by content for the
+process.</p>
+<h3 id="datasets">Datasets</h3>
+<pre><code>&gt;&gt;&gt; ds = dv.datasets.open('out/so100_synthetic')   # LeRobot v2.1 / v3.0, RLDS, ROS 2 bags, plugin formats
+&gt;&gt;&gt; ds
+&lt;Recording LeRobot v3.0 'so100_synthetic': 2 episodes&gt;
+&gt;&gt;&gt; ds.to_frame()                 # one row per episode
+&gt;&gt;&gt; ds.to_frame(episode=0)        # that episode's joint-state rows (t and one column per joint)
+&gt;&gt;&gt; rig.run('audit', dataset='out/so100_synthetic').headline['text']
+'Episodes that pass the audit: 0 % (not usable)'
+</code></pre>
+<p>(<code>dv.sample('so100').synth_episodes('out/so100_synthetic', episodes=2, frames=24, max_width=160)</code> makes that dataset:
+every fault on with its defaults, so no episode passes, which is the point of it.) <code>dv.datasets.formats()</code> lists the
+readers, plugins' included.</p>
+<h3 id="jupyter">Jupyter</h3>
+<p><code>Rig</code>, <code>Result</code>, <code>Recording</code> and the tables have HTML views: a rig shows its robots, variants (the active one in bold),
+task volumes and a sensor table; a result shows its headline figure in a large mono font with its status word in the
+status colour, its metrics, its run time and its tables. Every value is HTML-escaped; a figure that is not stated is
+&quot;—&quot; with the tooltip &quot;not stated&quot;.</p>
+<h2 id="the-example-notebooks">The example notebooks</h2>
+<p><code>examples/01_rig_studies_factors.py</code> (the UR5e: sensors, coverage, the sweep above, a requirement, an OpenCV YAML
+export, saving the moved rig; 4.9 s, 0.8 GB) and <code>examples/02_datasets_audit.py</code> (the SO-100: two synthetic episodes
+rendered in MuJoCo, read back, audited; 2.7 s on the RTX 5080) are jupytext percent-format scripts: run them with
+<code>python examples/01_rig_studies_factors.py</code>, or open them as notebooks with <code>jupytext --to notebook &lt;file&gt;</code> (jupytext
+is not a DexVantage dependency). <code>DEXVANTAGE_EXAMPLE_OUT</code> chooses where they write (default: a new temporary folder).
+<code>tests/test_examples.py</code> runs both. <code>examples/03_research_workflow.py</code> (the SO-100: tracked runs and their MLflow,
+W&amp;B, CSV and Parquet export, statistics and power, the campaign, a tolerance sweep on a process pool, two cells, the
+project diff, the paper kit, BibTeX and a vector figure; about 4 s) is walked through in <code>docs/guide/research-workflow.md</code>;
+<code>tests/test_completeness_api.py</code> runs it. The research tools of part 1 are in the API too: <code>dv.diff</code>, <code>dv.merge</code>,
+<code>dv.bibtex</code>, <code>dv.figures</code>, <code>dv.figure</code> and <code>dv.export_runs</code> (<code>docs/models/research-api.md</code>).</p>
+<h2 id="plugins">Plugins</h2>
+<p>The API loads the installed plugins on first use (<code>dexvantage/plugin_sdk.py</code>, <code>docs/guide/plugins.md</code>), so their
+studies, metrics, exporters and dataset readers work here as built-in ones do. <code>dv.plugins()</code> lists what was found;
+<code>DEXVANTAGE_NO_PLUGINS=1</code> turns them off.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The API is a thin layer over the studies, so their Known limits apply unchanged. Studies run in the calling thread (a
+long study blocks the cell; pass <code>progress=</code>). The result cache holds 32 results per process, keyed by the project's
+content, the study settings, the library entries the project names and the dataset fingerprint. UI pages are not
+reachable from Python. HTML views show at most 200 rows of a table (<code>to_frame()</code> has them all). <code>rig.synth_episodes</code>
+needs MuJoCo's offscreen renderer (EGL).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

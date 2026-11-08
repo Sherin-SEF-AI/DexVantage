@@ -334,6 +334,9 @@ def run(args) -> int:
             os.makedirs(args.validate, exist_ok=True)
             PV.stamp_paths(VA.export(res, project, args.validate), project, args.validate)
             print(f'{res.passed}/{len(res.checks)} checks passed; report in {args.validate}')
+            if res.not_run:
+                from .validation.suite import not_run_sentence
+                print(not_run_sentence(res.not_run))
             code = max(code, VA.exit_code(res))
         from . import batch_gate
         code = max(code, batch_gate.run(args, project))      # --check, --run-plan
@@ -402,6 +405,18 @@ def _experiment(args, project) -> int:
     return EXIT_OK
 
 
+def _progress_line():
+    """fn(fraction, text) for a terminal: a line on stderr each time the step's text changes (the report export runs
+    every study, a minute or two with nothing else printed); not used when stderr is a file or a pipe."""
+    last = ['']
+
+    def say(frac, text=''):
+        if text and text != last[0]:
+            last[0] = text
+            print(f'  {text} ({100 * frac:.0f} %)', file=sys.stderr, flush=True)
+    return say
+
+
 def _export(args, project) -> int:
     """--export OUT_DIR --formats a,b [--export-options JSON]: core.exporters.export. Exit 0 when every format was
     written, 1 when some were refused (the others are written; each refusal is said in a line), 2 when none could
@@ -436,8 +451,9 @@ def _export(args, project) -> int:
             return _err(f'--export-options names {", ".join(bad)}, which --formats does not ask for')
     if 'fiftyone' in fmts and getattr(args, 'dataset', None):
         options.setdefault('fiftyone', {}).setdefault('dataset', args.dataset)
+    ctx = jobs.Ctx(progress=_progress_line()) if sys.stderr.isatty() else None   # the report runs every study
     try:
-        man = X.export(project.snapshot(), args.export, fmts, options)
+        man = X.export(project.snapshot(), args.export, fmts, options, ctx=ctx)
     except jobs.StudyError as e:
         return _err(str(e))
     except Exception as e:                              # noqa: BLE001 — a sentence here, the traceback in a file

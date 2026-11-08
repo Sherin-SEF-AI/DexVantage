@@ -13,7 +13,7 @@ import zipfile
 
 import numpy as np
 
-from .suite import Outcome, check
+from .suite import LEROBOT, Outcome, check
 
 SCHEMA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'resources',
                            'project.schema.json')
@@ -57,7 +57,8 @@ def _written(ctx):
 @check('formats.schema', 'formats', 'Project file against its JSON Schema',
        'number of schema violations in project.json of a fully populated project, read with zipfile and json only',
        'the published JSON Schema (resources/project.schema.json, also docs/project.schema.json) through the '
-       'jsonschema package\'s Draft 2020-12 validator', 0, 'violations', refs=('json_schema', 'zip_appnote'))
+       'jsonschema package\'s Draft 2020-12 validator', 0, 'violations', refs=('json_schema', 'zip_appnote'),
+       needs=(('jsonschema', 'test'),))
 def _schema(ctx):
     import jsonschema
     _, path = _written(ctx)
@@ -285,7 +286,7 @@ def _lerobot_reader(root: str, src: list) -> tuple[list, dict]:
        'closer to a neighbouring source frame, info.json features and totals',
        'the source arrays; the files read independently of DexVantage\'s reader with json and pyarrow.parquet at the '
        'paths the LeRobot source defines, and the videos decoded by the ffmpeg and ffprobe command-line tools',
-       0, 'mismatches', refs=('lerobot_dataset_format', 'apache_parquet', 'ffmpeg_cli'))
+       0, 'mismatches', refs=('lerobot_dataset_format', 'apache_parquet', 'ffmpeg_cli'), needs=LEROBOT)
 def _lerobot_roundtrip(ctx):
     from ..core.datasets import lerobot as L
     src = lerobot_reference_episodes(ctx.rng('formats.lerobot_roundtrip'))
@@ -659,7 +660,7 @@ def _isaac_config(ctx):
        'core/datasets/lerobot (write_lerobot and LeRobotDataset); the LeRobot source at commit d490e47 (field names); '
        'ACT, Diffusion Policy and OpenVLA sources at their pinned commits', 0, 'mismatches',
        refs=('lerobot_dataset_format', 'lerobot_train_config', 'act_repo', 'diffusion_policy_repo', 'openvla_oxe'),
-       cost='study')
+       cost='study', needs=LEROBOT)
 def _lerobot_export(ctx):
     from ..core import jobs
     from ..core.robot.samples import sample_project

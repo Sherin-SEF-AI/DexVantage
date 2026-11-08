@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exporters, part A: MuJoCo, ROS 2, calibration, masks and wrappers · DexVantage</title>
+<meta name="description" content="Spec §9.2 and §11. The exporters write the project in the formats other tools read. Each registers with@exporter in dexvantage/core/exporters/ and runs through core.exporters.export(project, out_dir, formats, options), which writes export_manifest.json (each format&#x27;s status, files and notes, the …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#frames-and-the-pose-of-an-export">Frames and the pose of an export</a>
+    <a href="#mjcf-mjcf">MJCF (mjcf)</a>
+    <a href="#ros-2-urdf">ROS 2 (urdf)</a>
+    <a href="#calibration-opencv_yaml">Calibration (opencv_yaml)</a>
+    <a href="#masks-masks">Masks (masks)</a>
+    <a href="#wrappers">Wrappers</a>
+    <a href="#validation-measured-2026-11-07-formats-model">Validation (measured 2026-11-07, formats model)</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/exporters_a.md"><code>docs/models/exporters_a.md</code></a></p>
+<h1 id="exporters-part-a-mujoco-ros-2-calibration-masks-and-wrappers">Exporters, part A: MuJoCo, ROS 2, calibration, masks and wrappers</h1>
+<p>Spec §9.2 and §11. The exporters write the project in the formats other tools read. Each registers with
+<code>@exporter</code> in <code>dexvantage/core/exporters/</code> and runs through <code>core.exporters.export(project, out_dir, formats, options)</code>, which writes <code>export_manifest.json</code> (each format's status, files and notes, the SHA-256 of every file,
+the project's provenance) and stamps every JSON file it lists with the provenance block, except the files a format
+marks <code>unstamped</code> (a LeRobot or FiftyOne dataset keeps its JSON as that tool defines it).</p>
+<table>
+<thead>
+<tr>
+<th>Format id</th>
+<th>Module</th>
+<th>Files (under the output folder)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mjcf</code></td>
+<td><code>mjcf.py</code></td>
+<td><code>mjcf/cameras_snippet.xml</code>, <code>mjcf/scene/scene.xml</code> + <code>assets/</code> + <code>scene_notes.txt</code></td>
+</tr>
+<tr>
+<td><code>urdf</code></td>
+<td><code>ros2.py</code></td>
+<td><code>ros2/rig.urdf</code>, <code>ros2/meshes/*.stl</code>, <code>ros2/static_transforms.launch.py</code>, <code>ros2/tf_tree.yaml</code></td>
+</tr>
+<tr>
+<td><code>opencv_yaml</code></td>
+<td><code>calibration.py</code></td>
+<td><code>calibration/opencv/&lt;sensor&gt;__&lt;imager&gt;.yaml</code>, <code>calibration/kalibr/camchain.yaml</code>, <code>calibration/cameras.json</code></td>
+</tr>
+<tr>
+<td><code>masks</code></td>
+<td><code>masks.py</code></td>
+<td><code>masks/self/*.png</code> (+ <code>_owner.png</code>), <code>masks/atlas/*</code>, <code>masks/depth/*.png</code> (+ <code>_valid.png</code>), <code>masks/masks.json</code></td>
+</tr>
+<tr>
+<td><code>plucker</code></td>
+<td><code>bridges.py</code></td>
+<td><code>plucker/plucker_&lt;policy&gt;_&lt;camera&gt;.npy</code>, <code>.safetensors</code>, <code>.json</code> (core/plucker.py)</td>
+</tr>
+<tr>
+<td><code>brackets</code></td>
+<td><code>bridges.py</code></td>
+<td><code>brackets/&lt;sensor&gt;.stl</code> + <code>.stl.json</code>, <code>.step</code> with gmsh</td>
+</tr>
+<tr>
+<td><code>fiftyone</code></td>
+<td><code>bridges.py</code></td>
+<td><code>fiftyone/</code> (core/audit/report.export_fiftyone after an audit of <code>options.dataset</code>)</td>
+</tr>
+<tr>
+<td><code>lerobot_dataset</code></td>
+<td><code>bridges.py</code></td>
+<td><code>lerobot_dataset/</code> (core/sim/episodes.generate)</td>
+</tr>
+</tbody>
+</table>
+<p>Batch: <code>dexvantage PROJECT.dexv --export OUT_DIR --formats mjcf,urdf,... [--export-options JSON]</code>; an unknown
+format name is refused in one line before anything is written (exit 2); exit 1 when some formats are refused and the
+others written, 0 when all are written. In the window: File ▸ Export… (also Export ▸ Export to MuJoCo, Isaac, ROS 2,
+LeRobot…), a window job; the dialog then shows the manifest.</p>
+<h2 id="frames-and-the-pose-of-an-export">Frames and the pose of an export</h2>
+<p>A sensor's body frame is <code>&lt;sensor&gt;_link</code> (REP-103: x forward, y left, z up) and each imager's optical frame is
+<code>&lt;sensor&gt;_&lt;imager&gt;_optical_frame</code> (REP-103's optical frame: z forward, x right, y down); the default imager of a
+sensor without a device is named by its role (<code>rgb</code>). A sensor on a robot link hangs from that link's frame
+(DexVantage's link frame: the MuJoCo body of the robot's file, or the URDF link); a sensor on a static frame (cage,
+tripod, table) hangs from <code>world</code>, the primary robot's base, because static mount frames have no transforms of their
+own (<code>core/scenegeom.sensor_world_pose</code>). Every export takes one joint state (<code>options.q</code>, {robot uid: joint values};
+default every robot at home; the dialog offers &quot;the pose on screen&quot;): it matters for world poses of cameras on links,
+the Kalibr chain between a moving and a fixed camera, and the masks.</p>
+<h2 id="mjcf-mjcf">MJCF (<code>mjcf</code>)</h2>
+<p><strong>Snippets.</strong> For every body carrying a sensor, the elements to paste inside <code>&lt;body name=&quot;…&quot;&gt;</code> of the robot's own
+file (its body names, no prefix), and a block for <code>&lt;worldbody&gt;</code> (the project's world). Each sensor gets
+<code>&lt;site name=&quot;&lt;sensor&gt;_mount&quot;&gt;</code> at its body frame (MuJoCo's default site type and size, a drawing aid) and each imager
+a <code>&lt;camera&gt;</code> at T_body_optical · diag(1, −1, −1) (MuJoCo's camera looks along −z with +y up) with</p>
+<pre><code>resolution = (W, H),  sensorsize = (W, H) · 3 µm (nominal: only the ratios matter),
+focalpixel = (fx, fy),  principalpixel = ((W − 1)/2 − cx, (H − 1)/2 − cy)
+</code></pre>
+<p>exactly as <code>core/sim/scene.py</code> sets them (its docstring cites MuJoCo 3.17.0's XML reference, and the principal-point
+sign was measured on renders, <code>validation/mjrender.py</code>). Numbers are written with 17 significant digits (Python's
+<code>repr</code>). A static sensor is in the project's world frame, which is the primary robot's file frame; for another
+robot's file move it by the inverse of that robot's base (the notes say so). MuJoCo cameras are pinhole: a distorted
+lens gets its pinhole part and the notes say so.</p>
+<p><strong>Scene.</strong> <code>core/sim/scene.save_scene</code>, the scene the ground-truth renders use (robots, objects, tables, lights,
+every imager), written by MuJoCo's own XML writer (6 significant digits) with its mesh and texture files.</p>
+<h2 id="ros-2-urdf">ROS 2 (<code>urdf</code>)</h2>
+<p>The URDF is written from the MuJoCo model DexVantage compiles (<code>core/robot/model.py</code>), so MJCF robots export too.
+Each MuJoCo body is a link at DexVantage's link frame. MuJoCo moves a body with a hinge j (anchor p and axis a in the
+body frame, reference qpos0) as</p>
+<pre><code>X_body(q) = X_parent · T0 · Trans(p) · Rot(a, q − qpos0) · Trans(−p)
+</code></pre>
+<p>(mj_kinematics; T0 the body's pos and quat), and a slide as X_parent · T0 · Trans(a (q − qpos0)). URDF moves a child
+as X_parent · origin · Rot(axis, q) about the child frame's origin [urdfdom joint and pose parsers], so</p>
+<pre><code>origin = T0 · Trans(p) · Rot(a, −qpos0)       (a slide: T0 · Trans(−a qpos0))
+</code></pre>
+<p>and, when p ≠ 0 (or a body has several joints), an extra link <code>&lt;body&gt;__&lt;joint&gt;</code> carries the joint and a fixed joint
+with origin Trans(−p) brings the body back to its own frame. A body with free or ball joints is fixed at its home
+pose (DexVantage holds them there). A URDF link MuJoCo merged into its parent is a fixed joint at its recorded
+offset. With several robots every link and joint is prefixed <code>&lt;robot&gt;_</code>.</p>
+<p><code>origin rpy</code> is urdfdom's fixed-axis roll, pitch, yaw, R = Rz(yaw) Ry(pitch) Rx(roll) (<code>urdf_model/pose.h</code>
+<code>setFromRPY</code>). The writer takes pitch = atan2(−R20, hypot(R00, R10)), yaw = atan2(R10, R00), and the roll from
+Ry(pitch)ᵀ Rz(yaw)ᵀ R, which stays within rounding at and near ±90° of pitch (asin loses half the digits there, and
+an ill-conditioned yaw near the lock is absorbed by the roll; <code>test_rpy_writer_keeps_precision_near_gimbal_lock</code>).</p>
+<p>Joint limits are DexVantage's (the robot's records or the file's ranges); without finite limits a hinge is
+<code>continuous</code>; a slide without limits is refused (URDF cannot write it). urdfdom refuses a <code>&lt;limit&gt;</code> without <code>effort</code>
+and <code>velocity</code> (<code>urdf_parser/src/joint.cpp</code>); when the robot's records do not state them they are written as 0 and
+the notes say so: set them before giving the file to a controller or a planner. Each link's inertial comes from the
+robot's MuJoCo model, labelled with its source (the file's inertial, or MuJoCo's computation from an MJCF file's
+geoms); links without mass get a stated minimal placeholder (10⁻⁶ kg), and a <code>&lt;mujoco&gt;</code> compiler element lets MuJoCo
+load the file as written (<a href="robot_io.html">Robot import and export: URDF inertials, USD import, OpenVLA encodings, Isaac principal point</a>). No collision geometry; each link's visual meshes are one
+binary STL in metres in its frame.</p>
+<p><code>static_transforms.launch.py</code>: one <code>tf2_ros</code> <code>static_transform_publisher</code> Node per sensor frame (parent →
+<code>&lt;sensor&gt;_link</code>, <code>&lt;sensor&gt;_link</code> → each optical frame), with the program's flags <code>--x --y --z --qx --qy --qz --qw --frame-id --child-frame-id</code> (ros2/geometry2 at commit 183399c, read 2026-11-07), for use beside your own robot
+description. <code>tf_tree.yaml</code>: every sensor frame with its parent, kind, whether it moves with a robot link, the static
+transform and its world pose at the export's joint state.</p>
+<h2 id="calibration-opencv_yaml">Calibration (<code>opencv_yaml</code>)</h2>
+<p>Per imager an OpenCV YAML written by <code>cv2.FileStorage</code> (<code>image_width</code>, <code>image_height</code>, <code>camera_name</code>,
+<code>camera_matrix</code>, <code>distortion_model</code> in ROS's names, <code>distortion_coefficients</code>, <code>opencv_functions</code>, <code>lens_model</code>,
+<code>exact</code>, <code>approximation_error_px</code>, <code>unmapped_share</code>, <code>parent_frame</code>, <code>camera_frame</code>, <code>T_parent_camera</code>,
+<code>T_world_camera</code>, <code>joint_state</code>); a Kalibr <code>camchain.yaml</code> (<code>cam0…</code>: <code>camera_model</code>, <code>intrinsics [fu fv pu pv]</code>,
+<code>distortion_model</code>, <code>distortion_coeffs</code>, <code>resolution</code>, <code>rostopic</code> (a suggestion), and from cam1 on <code>T_cn_cnm1</code>,
+which &quot;takes cam0 to cam1 coordinates&quot; for cam1 [Kalibr wiki &quot;YAML formats&quot;, read 2026-11-07]); and <code>cameras.json</code>
+with every imager's <code>CameraModel.to_dict</code>, OpenCV's K and D, both mappings, the frames and the extrinsics.</p>
+<p><strong>Lens mapping.</strong></p>
+<table>
+<thead>
+<tr>
+<th>DexVantage</th>
+<th>OpenCV</th>
+<th>Kalibr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pinhole</td>
+<td>plumb_bob, zeros (exact)</td>
+<td>pinhole / none (exact)</td>
+</tr>
+<tr>
+<td>Brown-Conrady, 5 terms</td>
+<td>plumb_bob (exact)</td>
+<td>radtan [k1 k2 p1 p2] (exact when k3 = 0, else fitted)</td>
+</tr>
+<tr>
+<td>Brown-Conrady, 8 terms</td>
+<td>rational_polynomial (exact)</td>
+<td>radtan, fitted</td>
+</tr>
+<tr>
+<td>Kannala-Brandt</td>
+<td>fisheye (exact)</td>
+<td>equidistant [k1..k4] (exact)</td>
+</tr>
+<tr>
+<td>equidistant</td>
+<td>fisheye, zeros (exact)</td>
+<td>equidistant, zeros (exact)</td>
+</tr>
+<tr>
+<td>equisolid, stereographic</td>
+<td>fisheye, least-squares KB (no exact form)</td>
+<td>equidistant, least-squares KB</td>
+</tr>
+</tbody>
+</table>
+<p>Kalibr's radtan is OpenCV's Brown-Conrady with k3 = 0 and its equidistant is OpenCV's fisheye (aslam_cv
+<code>RadialTangentialDistortion</code> and <code>EquidistantDistortion</code> at Kalibr commit 1f60227). A Brown lens with k3 or rational
+terms has its radtan terms fitted by linear least squares: with (x, y) = (X/Z, Y/Z) of the lens's rays at a 41 × 41
+grid of pixels and (xd, yd) their distorted coordinates,</p>
+<pre><code>xd − x = k1 x r² + k2 x r⁴ + 2 p1 x y + p2 (r² + 2x²),  yd − y = k1 y r² + k2 y r⁴ + p1 (r² + 2y²) + 2 p2 x y
+</code></pre>
+<p>is linear in (k1, k2, p1, p2). The radial fisheyes go to Kannala-Brandt by <code>CameraModel.kb_approximation</code>. Every
+approximation states its error: the largest distance between where the lens and the written model put the same ray,
+over the 41 × 41 grid, and the share of pixels whose rays the written model cannot map. OpenCV's and Kalibr's
+fisheye compute θ from X/Z, so they take only rays in front of the camera: a lens whose image reaches 90° off the
+axis is said to have no exact equivalent there.</p>
+<p>Pixel convention: DexVantage, OpenCV and ROS put pixel centres at integers; Kalibr's projection is u = fu·x + pu
+(aslam_cv <code>PinholeProjection</code>) and its documentation states no pixel-centre convention, so the same numbers are
+written.</p>
+<h2 id="masks-masks">Masks (<code>masks</code>)</h2>
+<p><strong>Self-occlusion.</strong> Per camera (each sensor's primary imager by default; <code>imagers: &quot;all&quot;</code> for every imager) the
+Camera view's renderer (<code>core/camrender.py</code>, each pixel-centre ray through the imager's own lens) of the robots at q,
+the task objects and the tables, with the camera's seat on its mount link left out by the occlusion study's rule
+(<code>scenegeom.sensor_occluders</code>, OWN_RADIUS_M = 25 mm, a default). A pixel is 255 when the first surface on its ray is
+a robot link (any robot), else 0. The 16-bit owner image holds 1 + the index into <code>masks.json</code>'s <code>owners</code>
+(<code>robot:&lt;uid&gt;:&lt;link&gt;</code>, <code>object:&lt;uid&gt;</code>, <code>surface:&lt;uid&gt;</code>), 0 for nothing, so a policy can mask one link. <code>scale</code>
+(default 1) renders at a share of the stream size (the lens scaled by <code>CameraModel.scaled</code>).</p>
+<p><strong>Atlas.</strong> Over a grasp set (<code>grasp_set</code>, default the first), the grasp study's inverse kinematics
+(<code>grasp_visibility.solve_grasps</code> with its settings) poses the robot; up to 4 × <code>atlas_grasps</code> grasps are solved
+(evenly picked) and <code>atlas_grasps</code> of the reachable ones kept (8, a default), each camera rendered at <code>atlas_scale</code>
+(0.25, a default): one tiled PNG per camera (row-major) and a frequency PNG (the share of those grasps in which the
+robot covers each pixel, 0–255).</p>
+<p><strong>Depth validity.</strong> Per depth sensor, every pixel of the depth (reference) imager at the depth resolution takes the
+first surface on its ray, and that point is tested by the depth validity study's own <code>evaluate()</code>; the pixel's code
+is the first condition it fails (0 valid, 1 fov, 2 min_z, 3 max_range, 4 occluded, 5 projector, 6 material) and 255
+when the ray meets nothing the project models (the floor is not geometry in DexVantage). The other imagers' lines of
+sight use the study's cube maps at 2048 texels per face (a default; at the study's 512, a texel spans more depth than
+the 1 mm tolerance on far grazing surfaces and 4.4 % of the overhead D435's pixels read occluded); the reference
+imager sees each pixel's point by construction.</p>
+<h2 id="wrappers">Wrappers</h2>
+<p><code>plucker</code> calls <code>core/plucker.export_plucker</code> for a policy (default the first with a camera in use) at the export's
+pose. <code>brackets</code> builds each sensor's bracket (<code>core/brackets.build</code>, the Brackets page's settings) and writes STL
+with its sidecar; with <code>step: true</code> and gmsh installed (<code>pip install &quot;dexvantage[step]&quot;</code>, gmsh 4.15.2) each triangle
+becomes a planar face of one OpenCASCADE solid (points, shared lines, <code>addSurfaceLoop(sewing=True)</code>), written as
+STEP: a faceted solid, not parametric CAD; above <code>step_max_triangles</code> (20 000, a default) it is skipped with a note,
+and <code>step_res_mm</code> meshes the STEP on a coarser grid (measured on the UR5e wrist flange adapter: 119 092 triangles at
+0.5 mm; with the STEP at 2 mm the bracket export took 6.8 s in all and the STEP is 16.7 MB). Without gmsh the request is refused in one sentence.
+<code>fiftyone</code> audits <code>options.dataset</code> (per-frame scores on) and writes the FiftyOne export; <code>lerobot_dataset</code> generates
+synthetic episodes (<code>core/sim/episodes.generate</code>, its settings as options) into <code>lerobot_dataset/</code>.</p>
+<h2 id="validation-measured-2026-11-07-formats-model">Validation (measured 2026-11-07, <code>formats</code> model)</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Reference</th>
+<th>Tolerance</th>
+<th>Measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>formats.mjcf_snippets</code></td>
+<td>snippets parsed by MuJoCo, attached to each body of the robot's own model; camrender.optical_pose</td>
+<td>10⁻⁹ m, 10⁻⁹ rad, 10⁻³ px</td>
+<td>3.1 × 10⁻¹⁷ m, 7.7 × 10⁻¹⁶ rad, 8.8 × 10⁻⁵ px (float32 cam_intrinsic)</td>
+</tr>
+<tr>
+<td><code>formats.mjcf_scene</code></td>
+<td>the saved scene from disk (Phase 4 check)</td>
+<td>2 × 10⁻⁶ m</td>
+<td>5.8 × 10⁻⁷ m</td>
+</tr>
+<tr>
+<td><code>formats.urdf_roundtrip</code></td>
+<td>ElementTree walk with urdfdom's RPY quaternion and Rodrigues written again; MuJoCo's URDF compiler</td>
+<td>10⁻⁹ m, 10⁻⁹ rad, no structural problem</td>
+<td>1.1 × 10⁻¹⁵ m, 1.3 × 10⁻¹⁵ rad</td>
+</tr>
+<tr>
+<td><code>formats.ros2_tf</code></td>
+<td>launch file read with <code>ast</code>, tree with PyYAML, composed on RobotModel link poses</td>
+<td>10⁻⁹ m</td>
+<td>2.8 × 10⁻¹⁷ m, 7.5 × 10⁻¹⁶ rad</td>
+</tr>
+<tr>
+<td><code>formats.opencv_yaml</code></td>
+<td>cv2.FileStorage read-back; cv2.projectPoints / fisheye.projectPoints, seven lens models</td>
+<td>0 (bit for bit); 10⁻⁶ px exact mappings</td>
+<td>0; 5.1 × 10⁻¹³ px; approximations 3.7 × 10⁻⁹ px (equisolid) and 1.6 × 10⁻⁴ px (stereographic), within their stated 4.8 × 10⁻⁹ and 3.7 × 10⁻⁴ px</td>
+</tr>
+<tr>
+<td><code>formats.kalibr_camchain</code></td>
+<td>PyYAML read-back; chain from optical poses; ConfigReader's model rules</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>formats.masks_vs_occlusion</code></td>
+<td>exact ray casting (core/raycast.py) on the occlusion study's occluders; its cube map (n = 2048); depth conditions per pixel by ray casting</td>
+<td>10⁻³ of pixels; cube 0.5 %; depth 1 %</td>
+<td>0 of 187 200; 0.07 %; 0.25 %</td>
+</tr>
+<tr>
+<td><code>formats.bracket_step</code> (with gmsh)</td>
+<td>OpenCASCADE's STEP reader and mass properties against the mesh's divergence-theorem volume</td>
+<td>10⁻⁶ relative</td>
+<td>3.6 × 10⁻¹³</td>
+</tr>
+</tbody>
+</table>
+<p>The self-test line &quot;exporters&quot; exports the UR5e sample as URDF and OpenCV YAML, compiles the URDF in MuJoCo and
+compares every optical frame at a random joint state (about 0.5 s).</p>
+<h2 id="known-limits">Known limits</h2>
+<ul>
+<li>One joint state per export: a camera on a link has its world pose, Kalibr chain and masks at that pose only.</li>
+<li>URDF: no collision geometry, equality constraints and mimic joints not written; massless links (anchors, sensor
+frames) carry a labelled minimal inertial; effort and velocity 0 when not stated; one colour per link.</li>
+<li>MJCF snippets: a URDF link MuJoCo merged into its parent is reached through the parent body; MuJoCo cameras are
+pinhole (a distorted lens's distortion is not in the file).</li>
+<li>Calibration: no camera-IMU transforms (DexVantage models no IMUs); Kalibr's omni, ds and eucm models are not
+fitted, so a fisheye past 90° has no exact Kalibr or OpenCV form; rostopic names are suggestions.</li>
+<li>Masks are geometric (visual meshes; no cables, housings, blur or anti-aliasing); a distorted lens's mask edges move
+by up to half a pixel of the renderer's pinhole base image; the atlas poses only the grasp's robot, fingers at
+their home opening; depth codes test the surface at the pixel-centre ray.</li>
+<li>STEP is a faceted solid (a face per triangle), large and slow above a few tens of thousands of triangles.</li>
+<li>The FiftyOne wrapper re-runs the audit (not cached between exports); LeRobot's own loader and FiftyOne's importer
+were not run (not installed).</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

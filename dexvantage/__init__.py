@@ -5,7 +5,7 @@ dv.sample, dv.new, dv.studies, dv.metrics, dv.exporters, dv.plugins, dv.datasets
 dv.publication, dv.stats, dv.Rig, dv.Result. The names are resolved on first use, so importing the package stays cheap
 and never imports Qt.
 """
-__version__ = "0.1.0.dev0"
+__version__ = "0.1.0rc1"
 
 _API = ('Rig', 'Result', 'Records', 'Table', 'MetricTable', 'Recording', 'DexVantageError', 'open', 'sample', 'new',
         'samples', 'studies', 'metrics', 'exporters', 'plugins', 'load_plugins', 'datasets', 'runs', 'track',

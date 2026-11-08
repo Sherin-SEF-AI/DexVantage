@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The research tools from Python: diff, merge, BibTeX, figures and run export · DexVantage</title>
+<meta name="description" content="dexvantage/api_research.py (re-exported as dv.diff, dv.merge, dv.bibtex, dv.figures, dv.figure,dv.export_runs), added by the completeness review of research tools part 2. Batch mode already had every one ofthese (--diff, --merge, --cite, --figure, --runs-export); a notebook had to import core …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#model">Model</a>
+    <a href="#validation">Validation</a>
+    <a href="#known-limits">Known limits</a>
+    <a href="../methods.html">All model documents</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Technical reference</div>
+    <p class="crumbs"><a href="../methods.html">All model documents</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/models/research-api.md"><code>docs/models/research-api.md</code></a></p>
+<h1 id="the-research-tools-from-python-diff-merge-bibtex-figures-and-run-export">The research tools from Python: diff, merge, BibTeX, figures and run export</h1>
+<p><code>dexvantage/api_research.py</code> (re-exported as <code>dv.diff</code>, <code>dv.merge</code>, <code>dv.bibtex</code>, <code>dv.figures</code>, <code>dv.figure</code>,
+<code>dv.export_runs</code>), added by the completeness review of research tools part 2. Batch mode already had every one of
+these (<code>--diff</code>, <code>--merge</code>, <code>--cite</code>, <code>--figure</code>, <code>--runs-export</code>); a notebook had to import core modules for them.</p>
+<h2 id="model">Model</h2>
+<p>There is none of its own: each function hands its inputs to the module that batch mode uses and wraps the answer.</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Calls</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dv.diff(a, b, metrics=None)</code></td>
+<td><code>core/projdiff.diff</code>, and <code>evaluate_deltas</code> with the API's result cache for <code>metrics</code></td>
+<td><code>Diff</code>: the <code>dexvantage.diff/1</code> document (a dict) with <code>.identical</code>, <code>.text</code>, <code>.html</code>, <code>.to_frame()</code>, <code>.save(path)</code> (with provenance), an HTML view</td>
+</tr>
+<tr>
+<td><code>dv.merge(base, ours, theirs)</code></td>
+<td><code>core/projdiff.merge3</code></td>
+<td><code>Merge</code>: <code>.rig</code> (unsaved), <code>.from_ours</code>, <code>.from_theirs</code>, <code>.notes</code>; conflicts raise <code>dv.MergeConflict</code> (a <code>DexVantageError</code>, <code>.conflicts</code> in words)</td>
+</tr>
+<tr>
+<td><code>dv.bibtex(rig, path=None, references='checks')</code></td>
+<td><code>core/cite.bibtex</code></td>
+<td>the BibTeX text (written to <code>path</code> too)</td>
+</tr>
+<tr>
+<td><code>dv.figures(result)</code></td>
+<td><code>core/publication.figure_specs</code> (the paper kit's)</td>
+<td><code>[{'id', 'study', 'spec'}]</code></td>
+</tr>
+<tr>
+<td><code>dv.figure(source, path, width='single', palette='tol', index=0)</code></td>
+<td><code>core/figures.write</code>; bars sized and labels cut as the paper kit does (<code>10 + 5 mm</code> per row at least, <code>publication.fit_labels</code>)</td>
+<td><code>{'path', 'format', 'width_mm', 'height_mm', 'series'}</code></td>
+</tr>
+<tr>
+<td><code>dv.export_runs(where, out_dir, formats=…, **filters)</code></td>
+<td><code>core/tracking.export</code></td>
+<td>the export's manifest: CSV, Parquet, MLflow <code>mlruns/</code>, W&amp;B offline replay</td>
+</tr>
+</tbody>
+</table>
+<p>Projects are a Rig, a core Project or a path (a <code>.dexv</code> file or an unpacked <code>.dexv.d</code> folder). Errors are
+<code>DexVantageError</code> with one sentence. No Qt is imported on this path except to write a PDF figure (Qt's PDF writer).</p>
+<p>The same review made three small changes the API relies on:</p>
+<ul>
+<li><code>Result.headline</code> for a study without a headline metric (the tolerance Monte Carlo, the scorecard, experiments,
+the optimiser) shows the study's own figure with its unit and quantile (&quot;Monte Carlo tolerances: P5 94.4 % (no
+requirement)&quot;) instead of the raw float (&quot;94.344085&quot;); a p-value reads &quot;p = 0.0915&quot;, not &quot;0.0915 p&quot;.</li>
+<li><code>core/provenance.environment</code> reads the PyQt6 and Qt versions from the installed wheels' metadata when Qt has not
+been imported, so <code>dv.track</code>, <code>Result.save</code> and every other provenance stamp no longer import Qt headless (they did:
+<code>PyQt6.QtCore</code> was imported to read two version strings). With Qt imported it reads them from Qt as before; the
+two agree (6.12.0 and 6.12.0 here).</li>
+<li><code>core/cluster/local.check_main_guard</code>: a process pool (<code>dv.cluster</code>, <code>--jobs</code>, the experiments' pool) started from
+a script's top-level code outside <code>if __name__ == '__main__':</code> is refused in one sentence naming the line, before
+any worker starts. Before, each spawned worker re-ran the script, multiprocessing raised its 16-line bootstrapping
+error in every worker and the parent died with <code>BrokenPipeError</code>. The check mirrors <code>multiprocessing.spawn</code>: a main
+module run by name (<code>python -m</code>, so <code>python -m dexvantage</code> and <code>python -m pytest</code>) or without a file (a notebook,
+the interactive prompt) is not re-run, so it is not checked; a script's line is looked up in its own syntax tree.</li>
+</ul>
+<p>And one to the plugin SDK: <code>PluginAPI.check(...)</code> registers a plugin's validation check under its own model
+(<code>plugin.&lt;name&gt;</code>, <code>validation/suite.py</code> <code>PLUGIN_MODELS</code>, <code>all_models()</code>, <code>model_ids()</code>); its references join
+<code>validation/references.REFERENCES</code> while the plugin is loaded. Unloading, or a plugin that fails, removes the checks,
+the model and the references again. <code>--validate --models</code> accepts the plugin models (<code>available_models()</code>).</p>
+<h2 id="validation">Validation</h2>
+<p>Nothing here computes a figure, so there is no validation check of its own; the tests compare each function with the
+module it calls on the SO-100 sample (<code>tests/test_completeness_api.py</code>, 16 tests):</p>
+<ul>
+<li><code>dv.diff</code> returns exactly <code>projdiff.diff</code>'s document and <code>to_text</code>'s text; its metric delta equals the two rigs'
+<code>coverage.covered</code> read through <code>rig.metrics</code> (94.52 % → 94.32 % for the third-person camera raised 100 mm).</li>
+<li><code>dv.merge</code> keeps both sides' edits of two different sensors and raises <code>MergeConflict</code> with the place in words when
+both sides move the same sensor differently.</li>
+<li><code>dv.bibtex(…, references='none')</code> equals <code>cite.bibtex</code>; <code>dv.figures(result)</code> equals the paper kit's specs; an SVG
+written from a result, from a spec item and from a spec file has the stated width (88.9 and 182 mm).</li>
+<li><code>dv.export_runs</code> writes every format the store export writes; filters pick the runs.</li>
+<li>In a fresh process, every new function (and <code>dv.track</code>) leaves <code>sys.modules</code> without PyQt6, PyQt5 or PySide6.</li>
+<li>The guard: an unguarded script gets the sentence with its line number and no traceback; a guarded one runs; the
+syntax-tree lookup finds lines inside <code>if __name__ == '__main__':</code> and <code>if '__main__' == __name__:</code> blocks and not in
+a function body or above the block.</li>
+</ul>
+<p>The plugin checks are tested in <code>tests/test_completeness_plugins.py</code> (5 tests): a toy plugin's check runs in the suite
+under its model, passes, appears in the JSON and HTML report with its reference and in the checks' BibTeX; unloading
+and a failing plugin remove it; a taken id, an unknown reference key and a key with other text are skipped with a
+sentence each.</p>
+<h2 id="known-limits">Known limits</h2>
+<p>The functions inherit their modules' limits (lists such as grasp poses are diffed and merged whole; only the curve and
+bar charts have figure specs; <code>dv.figure</code> of a result draws its first per-item list of numbers unless <code>index</code> picks
+another). <code>dv.diff(…, metrics=…)</code> runs those metrics' studies on both projects in the calling thread. The main-guard
+check cannot see a pool started from code that <code>exec</code>s a script, and a script that starts a pool in a guarded block
+still re-runs its unguarded top-level code in every worker (Python's spawn rule: keep all top-level work under the
+guard, as <code>examples/03_research_workflow.py</code> explains). Plugin checks join a run only when the plugin is loaded in that
+process (the app, batch mode and the API load plugins; <code>python -m dexvantage.validation</code> does not), and the paper
+kit's per-study validation summary names the built-in models only.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

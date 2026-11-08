@@ -260,6 +260,9 @@ def test_chats_and_memory_are_kept_per_project_under_xdg_data_home(so100):
     root = ST.data_root()
     assert root.startswith(os.environ['XDG_DATA_HOME'])
     a, b = so100.snapshot(), so100.snapshot()
+    # an unsaved project's folder is named by its name and creation second, so a sample another test (the dock's)
+    # opened in the same second shares it: this test's project has a name of its own
+    a.name = 'Chats and memory per project'
     b.name = 'Another project'
     cid = CH.new_id()
     CH.save(a, cid, title='Where is the wrist camera?', items=[{'role': 'user', 'text': 'Where?'},
@@ -302,7 +305,7 @@ def test_errors_are_plain_sentences_and_a_failed_turn_leaves_nothing(so100):
 
 
 def test_claude_requests_follow_the_documented_shape():
-    pytest.importorskip('anthropic')
+    pytest.importorskip('anthropic', reason='anthropic (the assistant extra) is not installed')
     s = A.new_session(PR.CLAUDE, 'test-key-123456789', A.Settings(PR.CLAUDE_DEFAULT))
     kw = s.request_kwargs()
     assert kw['model'] == 'claude-opus-5-5' and kw['thinking']['type'] == 'adaptive'
@@ -320,8 +323,9 @@ def test_claude_requests_follow_the_documented_shape():
 
 
 def test_claude_errors_map_to_plain_sentences():
-    anthropic = pytest.importorskip('anthropic')
-    httpx = pytest.importorskip("httpx2")       # the HTTP library the anthropic 2.x SDK uses
+    anthropic = pytest.importorskip('anthropic', reason='anthropic (the assistant extra) is not installed')
+    httpx = pytest.importorskip('httpx2', reason='httpx2 (the HTTP library the anthropic 2.x SDK uses, the assistant '
+                                                 'extra) is not installed')
     from dexvantage.assistant import claude as C
     req = httpx.Request('POST', 'https://api.anthropic.invalid/v1/messages')
     r429 = httpx.Response(429, request=req, headers={'retry-after': '7'})

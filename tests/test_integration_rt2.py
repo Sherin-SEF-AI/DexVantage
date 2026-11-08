@@ -17,7 +17,8 @@ CAM = 'sensor:Third-person camera (sample placement)'
 # the tools the assistant registry holds after research tools part 2 (the MCP server adds its own six)
 RT2_TOOLS = {'get_runs', 'get_statistics', 'get_campaign', 'get_sim2real', 'get_methods_paragraph', 'get_cells',
              'get_cluster_job', 'get_rig_cost', 'check_robot_file'}
-N_TOOLS = 33
+# Phase 11 added get_project_diff (what changed against another project file or variant)
+N_TOOLS = 34
 MCP_ONLY = {'dexvantage_status', 'get_history', 'open_project', 'redo_change', 'run_batch', 'save_project'}
 N_MCP_TOOLS = N_TOOLS + len(MCP_ONLY)
 
@@ -145,13 +146,13 @@ def test_dv_cluster_logs_when_the_projects_tracking_is_on(tmp_path):
 def test_tool_registry_has_every_research_tool_and_the_count_is_known():
     from dexvantage.assistant import tools as T
     from dexvantage.mcp.server import Router, Server
-    assert RT2_TOOLS <= set(T.TOOLS)
+    assert RT2_TOOLS | {'get_project_diff'} <= set(T.TOOLS)
     assert len(T.TOOLS) == N_TOOLS, sorted(T.TOOLS)
     srv = Server(Router(mode='file'))
     tools = srv.handle({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})['result']['tools']
     assert len(tools) == N_MCP_TOOLS and {t['name'] for t in tools} == set(T.TOOLS) | MCP_ONLY
     by = {t['name']: t for t in tools}
-    for name in RT2_TOOLS:
+    for name in RT2_TOOLS | {'get_project_diff'}:
         assert by[name]['annotations']['readOnlyHint'] is True, name
 
 
@@ -243,8 +244,8 @@ def test_frames_the_threaded_decoder_drops_are_decoded_again_single_threaded(tmp
     # a full run at this integration saw "2 frame(s) … could not be decoded" from the frame-threaded AV1 decoder on a
     # file that decodes cleanly alone: frames it silently does not return are tried once more without threads
     import numpy as np
-    av = pytest.importorskip('av')
-    pytest.importorskip('pyarrow')
+    av = pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
+    pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
     from dexvantage.core import datasets as DS
     from dexvantage.core.datasets import lerobot as L
     from dexvantage.validation import checks_formats as CF
@@ -285,8 +286,8 @@ def test_a_decoder_that_fails_after_every_seek_is_read_from_the_start(tmp_path, 
     # threaded and the single-threaded pass on a file that decodes cleanly alone: a third pass reads from the start
     # with no seek
     import numpy as np
-    av = pytest.importorskip('av')
-    pytest.importorskip('pyarrow')
+    av = pytest.importorskip('av', reason='av (the lerobot extra) is not installed')
+    pytest.importorskip('pyarrow', reason='pyarrow (the lerobot extra) is not installed')
     from dexvantage.core import datasets as DS
     from dexvantage.core.datasets import lerobot as L
     from dexvantage.validation import checks_formats as CF

@@ -149,7 +149,10 @@ extrinsics and hardware timestamps are not part of the format (`None`). Depth vi
 listed as cameras but their frames are not dequantised. v3.0 quantiles are exact where LeRobot's are histogram
 estimates. Data files roll over by uncompressed Arrow bytes and video files by packet bytes, where LeRobot measures
 the files on disk, so file boundaries can differ slightly from LeRobot's own for the same limits. The episodes
-table is written as one file. The writer writes videos, not PNG image features (the reader reads both). Video bytes
+table is written as one file. The writer writes videos, not PNG image features (the reader reads both). SVT-AV1
+now and then writes a stream that does not decode (2 of 32 and 1 of 40 small datasets written four at a time,
+measured 2026-11-08), so the writer decodes every AV1 file once after writing it (more time per dataset) and
+encodes a bad one again with one encoder thread, about 11 × slower; none of 40 failed that way. Video bytes
 streamed from the Hub are not kept on disk (a second pass reads them again unless they are still among the blocks
 in memory).
 

@@ -953,6 +953,8 @@ class MainWindow(QMainWindow):
             res, _paths = out
             self.validation_report = os.path.join(folder, 'validation.html')
             text = f'{res.passed} of {len(res.checks)} checks passed' + (' (cancelled)' if res.cancelled else '')
+            if getattr(res, 'not_run', None):
+                text += f'; {len(res.not_run)} not run: an optional package is missing (the report names it)'
             self.store.project.add_log('validation', text)
             self.msg(f'{text} · report in {folder}', 8000)
             if open_report and not res.cancelled and QGuiApplication.platformName() != 'offscreen':

@@ -2,7 +2,10 @@ import json
 import os
 import subprocess
 import sys
+import warnings
 from concurrent.futures import ThreadPoolExecutor
+
+import pytest
 
 from dexvantage import validation as VA
 
@@ -19,7 +22,9 @@ from dexvantage import validation as VA
 res = VA.run(settings=VA.ValidationSettings(quick=True, models=(sys.argv[1],)))
 print('@@' + json.dumps([{'id': c.id, 'model': c.model, 'passed': bool(c.passed), 'error': c.error,
                           'exception': (c.exception or '')[-800:], 'reference': c.reference, 'quantity': c.quantity,
-                          'unit': c.unit, 'refs': list(c.refs)} for c in res.checks], default=str))
+                          'unit': c.unit, 'refs': list(c.refs),
+                          'unrendered': 'cannot render offscreen' in (c.exception or '')} for c in res.checks],
+                         default=str))
 """
 WORKERS = 2
 HEAVY = ('formats', 'handeye', 'groundtruth')
@@ -41,8 +46,20 @@ def test_every_check_passes_and_names_its_reference():
     checks = [c for m in HEAVY for c in _quick_run(m)]
     with ThreadPoolExecutor(WORKERS) as ex:
         checks += [c for cs in ex.map(_quick_run, [m for m in suite.MODEL_IDS if m not in HEAVY]) for c in cs]
-    failed = [(c['id'], c['error'], c['exception']) for c in checks if not c['passed']]
+    failed = [(c['id'], c['error'], c['exception'], c['unrendered']) for c in checks if not c['passed']]
+    # without an offscreen renderer (Windows, macOS, Linux without EGL: tests/render_support.py) the rendered checks
+    # fail with RenderUnavailable's sentence; every other check must still pass. DEXVANTAGE_TEST_RENDER=require (CI on
+    # Linux) accepts none of them.
+    from render_support import check as render_check
+    what, why = render_check()
+    if what == 'fail':
+        pytest.fail(why, pytrace=False)
+    unrendered = [f for f in failed if what == 'skip' and f[3]]
+    failed = [f for f in failed if f not in unrendered]
     assert not failed, failed
+    if unrendered:
+        warnings.warn(f'{len(unrendered)} rendered check(s) could not run ({why}): '
+                      + ', '.join(f[0] for f in unrendered))
     assert len(checks) >= len(suite.specs(VA.ValidationSettings(quick=True)))
     for c in checks:
         assert c['reference'] and c['quantity'] and c['unit'], c['id']

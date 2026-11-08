@@ -139,6 +139,9 @@ def main(argv=None):
             return 2
     w = MainWindow(project or blank_project(), soft_3d=not gl_available(), settings=settings)
     w.show()
+    if w.soft_3d and not args.software_3d and app.platformName() not in ('offscreen', 'minimal'):
+        w.msg('OpenGL is not available here, so the 3D view is drawn by the slower QPainter renderer (about a second '
+              'a frame on the larger samples); the user guide\'s Troubleshooting says what to check.', 20000)
     from .ui.mcp_bridge import start_bridge          # Claude over MCP reaches this window (setting mcp/bridge)
     bridge = start_bridge(w)
     if bridge is not None:
@@ -147,7 +150,19 @@ def main(argv=None):
         w.add_recent(project.path)
     if hasattr(app, 'file_opened'):
         app.file_opened.connect(lambda p: w.open_project(p))
-    return app.exec()
+    # Ctrl+C in the terminal that started the window closes it as its close button does (asking to save first); the
+    # timer wakes Python while Qt waits, or the signal would wait for the next event
+    import signal
+    from PyQt6.QtCore import QTimer
+    prev = signal.signal(signal.SIGINT, lambda *_: w.close())
+    wake = QTimer()
+    wake.timeout.connect(lambda: None)
+    wake.start(250)
+    try:
+        return app.exec()
+    finally:
+        wake.stop()
+        signal.signal(signal.SIGINT, prev)
 
 
 if __name__ == '__main__':

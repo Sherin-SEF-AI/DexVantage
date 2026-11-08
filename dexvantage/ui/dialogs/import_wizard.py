@@ -72,8 +72,10 @@ TIP_TOKENS = ('tip', 'fingertip', 'distal')
 def usd_message() -> str:
     """Why a USD file cannot be read here, or '' when it can (usd-core installed)."""
     if importlib.util.find_spec('pxr') is None:
-        return ('USD files need the optional usd-core package (optional: install usd-core, for example pip install '
-                '"dexvantage[usd]"), then import the file again; or export the robot as URDF or MJCF and import that.')
+        from ...extras import missing
+        return missing('usd', 'USD files need the optional usd-core package (install the usd extra: pip install '
+                              '"dexvantage[usd]"), then import the file again; or export the robot as URDF or MJCF '
+                              'and import that.', ', or export the robot as URDF or MJCF and import that')
     return ''
 
 

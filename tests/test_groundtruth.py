@@ -30,6 +30,8 @@ def ur5e():
 
 @pytest.fixture(scope='module')
 def ur5e_doc():
+    from render_support import require
+    require()                               # the study renders the UR5e scene
     p = sample_project('ur5e')
     p.analysis.studies[GT.SID] = dict(FAST)
     return jobs.run_study(GT.SID, p)
@@ -167,6 +169,7 @@ def test_save_scene_is_self_contained(ur5e, tmp_path):
 
 
 # ---------------------------------------------------------------------- renders
+@pytest.mark.mujoco_render
 def test_renderer_outputs(ur5e):
     from dexvantage.core.robot.model import get_model
     s0, s1 = ur5e.variant.sensors
@@ -192,6 +195,7 @@ def test_renderer_outputs(ur5e):
     assert (a['seg'] != imgs[3]['seg']).mean() > 0.01                  # the wrist camera follows q
 
 
+@pytest.mark.mujoco_render
 def test_renders_agree_with_the_camera_view(ur5e):
     from dexvantage.core import camrender as CR
     from dexvantage.core import library as LB
@@ -211,6 +215,7 @@ def test_renders_agree_with_the_camera_view(ur5e):
     assert np.median(np.abs(rr.dist[ok] - im['range'][ok])) < 1e-4
 
 
+@pytest.mark.mujoco_render
 @pytest.mark.parametrize('lens', ['brown', 'equidistant'])
 def test_distortion_remap_matches_the_lens_model(lens):
     """A sphere seen through a distorted lens: the rendered mask's centroid within 0.4 px of the predicted mask's."""
@@ -259,6 +264,7 @@ def test_lens_plans():
     assert w.path == 'wide' and w.subs[0].K.width >= 64 * RD.OVERSAMPLE * 0.9
 
 
+@pytest.mark.mujoco_render
 def test_mjrender_session_overrides_are_per_job():
     import mujoco
 
@@ -353,6 +359,7 @@ def test_settings_and_status():
     assert GT.status_for(10, GT.DEFAULTS) == ('critical', 'disagrees')
 
 
+@pytest.mark.mujoco_render
 def test_without_grasps_or_depth_sensors():
     p = sample_project('dexhand')                       # no grasp set; a head depth camera
     p.analysis.studies[GT.SID] = {'grasps': 2}
@@ -365,6 +372,7 @@ def test_without_grasps_or_depth_sensors():
     assert 'Nothing could be compared' in str(e.value) and 'grasp set' in str(e.value)
 
 
+@pytest.mark.mujoco_render
 def test_trajectory_frames_without_a_grasp_set():
     """A project with a trajectory and no grasp set compares home and the trajectory's frames; the frames are posed
     where the trajectory says (§9.1: renders over grasp sets and trajectories)."""
@@ -388,7 +396,8 @@ def test_trajectory_frames_without_a_grasp_set():
 
 
 # ---------------------------------------------------------------------- checks, self-test, batch
-@pytest.mark.parametrize('cid', ['groundtruth.scene_intrinsics', 'groundtruth.lens_remap_fiducials'])
+@pytest.mark.parametrize('cid', ['groundtruth.scene_intrinsics',
+                                 pytest.param('groundtruth.lens_remap_fiducials', marks=pytest.mark.mujoco_render)])
 def test_checks_pass_quick(cid):
     from dexvantage import validation as VA
     from dexvantage.validation import suite
@@ -410,6 +419,7 @@ def test_self_test_line():
     assert status == selftest.OK and '6 cameras' in msg
 
 
+@pytest.mark.mujoco_render
 def test_batch_flag(tmp_path):
     assert jobs.STUDIES.get(GT.SID) is not None or jobs.load_studies() is None
     assert jobs.STUDIES[GT.SID].batch == 'groundtruth'
@@ -427,6 +437,7 @@ def test_batch_flag(tmp_path):
 
 
 # ---------------------------------------------------------------------- the page
+@pytest.mark.mujoco_render
 def test_page(app, win, tmp_path):
     assert 'groundtruth' in win.pages
     assert win.actions_by_id['mujoco_validate'].isEnabled() and win.actions_by_id['mujoco_scene'].isEnabled()

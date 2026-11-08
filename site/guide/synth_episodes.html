@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generating synthetic episodes with known faults · DexVantage</title>
+<meta name="description" content="A synthetic dataset is a LeRobot dataset rendered from your project, with faults placed where you know they are. Useit to test a dataset auditor, a data loader or a training pipeline before real recordings exist. The model, thedefaults and the validation are in docs/models/synth_episodes.md.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#in-the-app">In the app</a>
+    <a href="#worked-example-the-ur5e-sample">Worked example: the UR5e sample</a>
+    <a href="#reading-it-back">Reading it back</a>
+    <a href="#settings">Settings</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/synth_episodes.md"><code>docs/guide/synth_episodes.md</code></a></p>
+<h1 id="generating-synthetic-episodes-with-known-faults">Generating synthetic episodes with known faults</h1>
+<p>A synthetic dataset is a LeRobot dataset rendered from your project, with faults placed where you know they are. Use
+it to test a dataset auditor, a data loader or a training pipeline before real recordings exist. The model, the
+defaults and the validation are in <code>docs/models/synth_episodes.md</code>.</p>
+<h2 id="in-the-app">In the app</h2>
+<ol>
+<li>Open a project with a robot and cameras, for example File ▸ Open sample ▸ UR5e + Robotiq 2F-85.</li>
+<li>Simulate ▸ Generate synthetic episodes….</li>
+<li>Set the number of episodes and the rows per episode (0 plays each motion at its own length), the LeRobot version
+(v3.0 or v2.1), the image width, and the seed. Tick the faults to inject; all ten are ticked at first.</li>
+<li>Choose a new or empty folder and press Generate. The status bar shows the progress, and Cancel stops the job
+without leaving a half-written folder. When it ends, the status bar says what was written and which faults were
+injected.</li>
+</ol>
+<p>The robot follows the project's trajectories. A project without any (the SO-100 sample) approaches the grasps of its
+first grasp set instead.</p>
+<h2 id="worked-example-the-ur5e-sample">Worked example: the UR5e sample</h2>
+<pre><code>dexvantage --sample ur5e --synth-episodes ur5e-synth \
+    --synth-settings '{&quot;episodes&quot;: 2, &quot;frames&quot;: 60, &quot;max_width&quot;: 320}'
+</code></pre>
+<p>prints (on an RTX 5080):</p>
+<pre><code>2 synthetic episodes (120 rows, 220 camera frames from 2 cameras) written as LeRobot v3.0 in 1.9 s (116 frames/s).
+Faults injected: dropped frames (4 frames in 2 episodes); duplicated frames (4 frames in 2 episodes); camera-joint
+offset (2 episodes); clock drift (2 episodes); timestamp jitter (2 episodes); exposure change (30 frames in 2
+episodes); motion-blurred frames (4 frames in 2 episodes); gripper hidden in the wrist camera (6 frames in 2
+episodes); mount slip (1 episode); USB reset gaps (16 frames in 2 episodes). Ground truth: dexvantage_truth.json;
+rendered on NVIDIA GeForce RTX 5080/PCIe/SSE2.
+</code></pre>
+<p>The folder is an ordinary LeRobot v3.0 dataset plus the sidecar:</p>
+<pre><code>data/chunk-000/file-000.parquet
+meta/info.json, meta/stats.json, meta/tasks.parquet, meta/episodes/chunk-000/file-000.parquet
+videos/observation.images.wrist_d405/chunk-000/file-000.mp4
+videos/observation.images.overhead_d435/chunk-000/file-000.mp4
+dexvantage_truth.json
+</code></pre>
+<p>Both episodes play the sample's &quot;Scripted pick&quot;, time-scaled to 60 rows at 30 fps. The 30 fps comes from the D405's
+and D435's RGB streams (the sidecar's <code>fps_source</code>). The images are the streams scaled to 320 × 180. What episode 0 of
+the sidecar says, in short:</p>
+<table>
+<thead>
+<tr>
+<th>Fault</th>
+<th>Camera</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gripper hidden</td>
+<td>wrist D405</td>
+<td>stored frames 19–21 (an occluder over the gripper)</td>
+</tr>
+<tr>
+<td>USB reset</td>
+<td>overhead D435</td>
+<td>slots 9–16 missing; frame 9 is the first after the 0.3 s gap</td>
+</tr>
+<tr>
+<td>drops</td>
+<td>wrist D405</td>
+<td>slots 41 and 51 missing; frames 41 and 50 follow the gaps</td>
+</tr>
+<tr>
+<td>duplicates</td>
+<td>wrist D405</td>
+<td>frames 3 and 28 repeat frames 2 and 27 exactly</td>
+</tr>
+<tr>
+<td>blur</td>
+<td>overhead D435</td>
+<td>frames 3 and 29, 9 renders over 1/30 s</td>
+</tr>
+<tr>
+<td>exposure change</td>
+<td>overhead D435</td>
+<td>frames 20–34 × 1.4</td>
+</tr>
+<tr>
+<td>desync</td>
+<td>overhead D435</td>
+<td>its images show the robot 0.05 s after their stamps</td>
+</tr>
+<tr>
+<td>drift</td>
+<td>wrist D405</td>
+<td>content time = stamp × (1 + 5000 × 10⁻⁶)</td>
+</tr>
+<tr>
+<td>jitter</td>
+<td>overhead D435</td>
+<td>stamps ± N(0, 3 ms), clipped to ±6.7 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Episode 1 also carries the mount slip: from episode 1 on, the overhead D435 sees the cell through its mount moved
+3 mm along x and turned 1.5° about y. <code>episodes[&quot;1&quot;][&quot;extrinsics&quot;]</code> holds that pose, and <code>cameras[...][&quot;extrinsics&quot;]</code>
+holds the true one. <code>visibility</code> says, per stored frame, whether the gripper shows (the wrist camera sees it in 55 of
+58 frames, the 3 hidden ones excepted).</p>
+<h2 id="reading-it-back">Reading it back</h2>
+<pre><code>from dexvantage.core.datasets import open_dataset
+with open_dataset('ur5e-synth') as ds:
+    ep = ds.load(0)                      # Episode: t, q, action, cameras {key: CameraStream}
+    truth = ds.truth()                   # the sidecar, or None for a recorded dataset
+    cam = ep.cameras['observation.images.wrist_d405']
+    for i, rgb in cam.frames([19, 20]):  # decoded lazily
+        ...
+</code></pre>
+<p>A test of an auditor should find the faults from <code>ep</code> alone and only then compare its findings with <code>truth</code>. Seed,
+settings and the project fix every fault's place, so the same command writes the same dataset.</p>
+<h2 id="settings">Settings</h2>
+<p>Stored in <code>project.analysis.studies['synth_episodes']</code>; <code>--synth-settings</code> (JSON text or a .json file) goes over
+them. <code>episodes</code> (4), <code>frames</code> (none: each motion's own length), <code>version</code> (<code>v3.0</code>), <code>seed</code> (0), <code>motion</code> (<code>auto</code>,
+<code>trajectories</code>, <code>grasps</code>), <code>size</code> ([w, h]) or <code>max_width</code> (640), <code>default_fps</code> (30), <code>noise_dn</code> (1), <code>action_lead_rows</code>
+(1), <code>q_offset_rad</code> (0.02), <code>pre_grasp_m</code> (0.08), <code>max_joint_speed</code> (0.8), <code>gripper_min_frac</code> (0.002), <code>device</code>
+(<code>auto</code> or an EGL device index), and <code>faults</code>: a list of the faults to inject, or {fault: false | {its settings,
+<code>episodes</code>, <code>camera</code>}}, for example</p>
+<pre><code>{&quot;faults&quot;: {&quot;drift&quot;: {&quot;drift_ppm&quot;: 200, &quot;camera&quot;: &quot;observation.images.wrist_d405&quot;}, &quot;blur&quot;: false}}
+</code></pre>
+<p>The figures in brackets are DexVantage defaults chosen so each fault shows in a short episode. They are not
+measurements of any camera.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

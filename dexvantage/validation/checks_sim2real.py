@@ -35,7 +35,7 @@ import math
 
 import numpy as np
 
-from .suite import Outcome, check
+from .suite import LEROBOT, Outcome, check
 
 
 @check('sim2real.emd_vs_scipy', 'sim2real', 'Histogram EMD against SciPy',
@@ -201,7 +201,7 @@ def top_factor(cam: dict):
        'largest recovery error / its tolerance over a brightness offset, a blur, a latency and a mount offset, each '
        'alone on the UR5e sample\'s overhead camera; each must also rank first among the camera\'s causes',
        'the gaps injected (core/sim2real/inject.py through the synthetic episode generator)', 1.0, 'ratio',
-       refs=('mujoco_todorov2012', 'lerobot_dataset_format', 'shapley1953'), cost='study')
+       refs=('mujoco_todorov2012', 'lerobot_dataset_format', 'shapley1953'), cost='study', needs=LEROBOT)
 def _recovery(ctx):
     import os
     from ..core.robot.samples import sample_project

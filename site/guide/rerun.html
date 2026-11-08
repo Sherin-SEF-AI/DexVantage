@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Looking at the rig in Rerun · DexVantage</title>
+<meta name="description" content="Rerun is a viewer many robot-learning groups already keep open. DexVantage can hand it the rig: the robot movingthrough its trajectory, every camera&#x27;s frustum, the depth cameras&#x27; min-Z blind zones, the task volumes and, after adataset audit, which episodes failed and why. The model is in Rerun …">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#set-up-once">Set-up (once)</a>
+    <a href="#a-worked-example-on-the-ur5e-sample">A worked example on the UR5e sample</a>
+    <a href="#with-a-dataset-audit">With a dataset audit</a>
+    <a href="#reading-the-file-back-in-python">Reading the file back in Python</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/rerun.md"><code>docs/guide/rerun.md</code></a></p>
+<h1 id="looking-at-the-rig-in-rerun">Looking at the rig in Rerun</h1>
+<p>Rerun is a viewer many robot-learning groups already keep open. DexVantage can hand it the rig: the robot moving
+through its trajectory, every camera's frustum, the depth cameras' min-Z blind zones, the task volumes and, after a
+dataset audit, which episodes failed and why. The model is in <a href="../models/rerun.html">Rerun bridge</a>.</p>
+<h2 id="set-up-once">Set-up (once)</h2>
+<pre><code>pip install &quot;dexvantage[rerun]&quot;          # rerun-sdk 0.42.0
+</code></pre>
+<p>Without the package, Export ▸ Stream to Rerun… says this in one sentence, and nothing else in DexVantage needs it.</p>
+<h2 id="a-worked-example-on-the-ur5e-sample">A worked example on the UR5e sample</h2>
+<ol>
+<li>
+<p>File ▸ Open sample ▸ UR5e + Robotiq 2F-85.</p>
+</li>
+<li>
+<p>Export ▸ Stream to Rerun… asks whether to save an <code>.rrd</code> file or open the Rerun viewer.</p>
+<ul>
+<li><strong>Save an .rrd file…</strong> writes the scene in the background. The status bar then reads: &quot;Sent 1 robot (21 links,
+136 poses over Scripted pick (sample)), 6 camera frustums, 2 min-Z zones, 1 task volume to dexvantage.rrd.&quot;
+The file is about 2.8 MB and takes 0.3 s. Open it later with <code>rerun dexvantage.rrd</code>.</li>
+<li><strong>Open the Rerun viewer</strong> starts a viewer and streams the same scene into it.</li>
+</ul>
+</li>
+<li>
+<p>In Rerun:</p>
+<ul>
+<li>Scrub the <code>time</code> timeline: the arm runs the scripted pick at 30 samples per second.</li>
+<li>The Wrist D405's frusta (RGB and IR) ride on <code>wrist_3_link</code>, and the Overhead D435's stay on the cage.</li>
+<li>The red pyramids in front of each RealSense are the volumes closer than min-Z, where the camera gives no depth.</li>
+<li>The blue box is the task volume.</li>
+<li>Each camera's <code>lens</code> entity names its lens model and K.</li>
+</ul>
+</li>
+</ol>
+<h2 id="with-a-dataset-audit">With a dataset audit</h2>
+<p>Run Data ▸ Audit a dataset… first, or a batch audit. Stream to Rerun… then adds the <code>episode</code> timeline:</p>
+<ul>
+<li><code>audit/verdict</code> logs one line per episode, for example &quot;episode 3: fix (desync)&quot;, at the WARN level.</li>
+<li><code>audit/pass</code> is 1 or 0.</li>
+<li><code>audit/flags/&lt;flag&gt;</code> (blur, desync, gripper_hidden, mount_slip, …) is the number of cameras failing that check.</li>
+</ul>
+<p>In batch:</p>
+<pre><code>dexvantage --sample so100 --synth-episodes out/synth
+dexvantage --sample so100 --audit out/audit.json --dataset out/synth --rerun out/scene.rrd
+# or, from an audit written before:
+dexvantage project.dexv --rerun out/scene.rrd --rerun-audit out/audit.json
+</code></pre>
+<p>An output name that does not end in <code>.rrd</code>, or a folder that does not exist, is refused in one sentence (exit 2).</p>
+<h2 id="reading-the-file-back-in-python">Reading the file back in Python</h2>
+<pre><code class="language-python">from dexvantage.core.bridges import rerun as RB
+rb = RB.read_back('out/scene.rrd')        # {entity path: {'static': {...}, 'rows': [...]}}
+rb['/world/task_volumes/Tabletop_sample']['static']['Boxes3D:centers']
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

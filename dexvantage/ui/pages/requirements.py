@@ -431,7 +431,7 @@ class RequirementsPage(StudyPage):
                 if it_res['bound'] and it_res['value'] is not None:
                     val = ('≥ ' if it_res['bound'] == 'at_least' else '≤ ') + val
                 mg = '—' if it_res['margin'] is None else ('+' if it_res['margin'] >= 0 else '−') + \
-                    RQ._fmt(abs(it_res['margin']), r.unit)
+                    RQ._fmt(abs(it_res['margin']), M.delta_unit(r.unit))
                 status, level = it_res['status_text'], it_res['level']
             else:
                 val, mg, status, level = '—', '—', 'not run', 'warning'

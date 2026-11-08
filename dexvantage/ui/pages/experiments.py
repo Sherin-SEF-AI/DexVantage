@@ -665,7 +665,7 @@ class ExperimentsPage(StudyPage):
         me = a.get('main_effects') or []
         binned = any(m.get('binned') for m in me)
         self.effects.set_data('effect', [(titles.get(m['factor'], m['factor']), m.get('effect'), m.get('effect_ci'))
-                                         for m in me], unit,
+                                         for m in me], M.delta_unit(unit),
                               'Main effects' + (' (binned: last quantile bin minus first)' if binned else ''),
                               'No main effects for this response' if doc else '')
         s = a.get('sobol')

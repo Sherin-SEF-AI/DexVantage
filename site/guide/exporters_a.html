@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exporting the rig: MuJoCo, ROS 2, calibration files and masks · DexVantage</title>
+<meta name="description" content="A worked example on the UR5e sample (a UR5e with a Robotiq 2F-85, a RealSense D405 on the wrist and a D435 on thecage). The model behind each file is in Exporters, part A: MuJoCo, ROS 2, calibration, masks and wrappers.">
+<meta name="theme-color" content="#0f0f0e">
+<link rel="icon" type="image/png" href="../assets/img/favicon.png">
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+<a class="skip" href="#doc">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="26" height="26">DexVantage</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links">Menu</button>
+    <div class="nav-links" id="nav-links">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#samples">Samples</a>
+      <a href="../guide.html">Guide</a>
+      <a href="../docs.html">Docs</a>
+      <a href="../methods.html">Methods</a>
+      <a href="../validation.html">Validation</a>
+      <a href="../index.html#download">Download</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<div class="docs">
+  <aside class="toc" aria-label="On this page">
+    <p>On this page</p>
+    <a href="#in-the-window">In the window</a>
+    <a href="#in-batch">In batch</a>
+    <a href="#what-you-get-and-what-to-do-with-it">What you get, and what to do with it</a>
+    <a href="#brackets-and-step">Brackets and STEP</a>
+    <a href="#checking-the-files">Checking the files</a>
+    <a href="../guide.html#worked-examples">All worked examples</a>
+  </aside>
+  <main class="doc" id="doc">
+    <div class="eyebrow">Worked example</div>
+    <p class="crumbs"><a href="../guide.html#worked-examples">All worked examples</a> · source: <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/docs/guide/exporters_a.md"><code>docs/guide/exporters_a.md</code></a></p>
+<h1 id="exporting-the-rig-mujoco-ros-2-calibration-files-and-masks">Exporting the rig: MuJoCo, ROS 2, calibration files and masks</h1>
+<p>A worked example on the UR5e sample (a UR5e with a Robotiq 2F-85, a RealSense D405 on the wrist and a D435 on the
+cage). The model behind each file is in <a href="../models/exporters_a.html">Exporters, part A: MuJoCo, ROS 2, calibration, masks and wrappers</a>.</p>
+<h2 id="in-the-window">In the window</h2>
+<ol>
+<li>File ▸ Open sample ▸ UR5e. Pose the arm if you want the cameras on the wrist exported somewhere other than home.</li>
+<li>File ▸ Export… (Ctrl+E). Tick the formats: each row says what it writes. The common options are controls (the
+MJCF mode, the ROS package for mesh paths, which imagers, the mask atlas and depth masks, STEP for brackets, the
+dataset for FiftyOne); anything else goes in the row's Options field as JSON, for example <code>{&quot;scale&quot;: 0.5}</code> for
+half-size masks or <code>{&quot;atlas_grasps&quot;: 16}</code>.</li>
+<li>Pose: &quot;The home pose of every robot&quot; or &quot;The pose on screen&quot;. Choose an output folder, then Export. The export
+runs in the background (progress in the status bar); the dialog then lists each format with its file count and
+notes, or the reason it was refused.</li>
+</ol>
+<h2 id="in-batch">In batch</h2>
+<pre><code>dexvantage --sample ur5e --export out/ur5e --formats mjcf,urdf,opencv_yaml,masks,plucker
+</code></pre>
+<p>On the UR5e sample this writes 82 files in 9.3 s (offscreen, measured 2026-11-07; 1.6 GB peak), and
+prints each format's notes, for example:</p>
+<pre><code>urdf: 24 files
+  · UR5e + Robotiq 2F-85: the effort and velocity limits of shoulder_pan_joint, … are not stated by its file and
+    are written as 0 (urdfdom needs the attributes): set them before giving the file to a controller or a planner.
+masks: 13 files
+  · Mask atlas: 8 grasps of &quot;Tabletop grasps (sample)&quot; (21 of the 32 tried of its 200 are reachable by inverse
+    kinematics); tiles at 0.25 of the stream size (by default 8 grasps at 0.25).
+5 of 5 formats written; manifest → out/ur5e/export_manifest.json
+</code></pre>
+<p><code>--export-options '{&quot;mjcf&quot;: {&quot;mode&quot;: &quot;snippets&quot;}, &quot;masks&quot;: {&quot;atlas&quot;: false}}'</code> passes options per format (JSON text
+or a .json file). A format name DexVantage does not have is refused in one line before anything is written (exit
+2); a format that cannot run on the project (no bracket type, no policy, no dataset) is refused with its reason while
+the others are written (exit 1).</p>
+<h2 id="what-you-get-and-what-to-do-with-it">What you get, and what to do with it</h2>
+<ul>
+<li><strong>mjcf/cameras_snippet.xml</strong>: paste each block inside the named <code>&lt;body&gt;</code> of <code>ur5e_robotiq_2f85.xml</code> (the wrist
+D405's three cameras and its mount site go in <code>wrist_3_link</code>, the D435's in <code>&lt;worldbody&gt;</code>). <strong>mjcf/scene/scene.xml</strong>
+loads on its own: <code>python -m mujoco.viewer --mjcf out/ur5e/mjcf/scene/scene.xml</code>.</li>
+<li><strong>ros2/rig.urdf</strong> with <code>ros2/meshes/</code>: <code>world</code> → the UR5e's links → <code>wrist_d405_link</code> →
+<code>wrist_d405_rgb_optical_frame</code> (and the IR frames), <code>world</code> → <code>overhead_d435_link</code> → its optical frames. Load it
+with robot_state_publisher, or run <code>ros2 launch static_transforms.launch.py</code> beside your own UR description to
+publish only the sensor frames. Set the URDF exporter's package option (for example <code>{&quot;package&quot;: &quot;my_cell&quot;}</code>) so
+RViz finds the meshes as <code>package://my_cell/meshes/…</code>.</li>
+<li><strong>calibration/opencv/*.yaml</strong>: read with <code>cv2.FileStorage(path, cv2.FILE_STORAGE_READ)</code>; <code>distortion_model</code> says
+which OpenCV functions take the coefficients (plumb_bob and rational_polynomial: <code>cv2.projectPoints</code>, fisheye:
+<code>cv2.fisheye</code>). The sample's RealSense imagers are pinhole, so every mapping is exact; a calibrated equisolid or
+stereographic lens is written as the closest Kannala-Brandt curve and the file states its error in pixels.</li>
+<li><strong>calibration/kalibr/camchain.yaml</strong>: a starting camchain for <code>kalibr_calibrate_cameras</code> (replace the suggested
+rostopic names with your driver's). The wrist D405 moves with the arm, so the chain from it to the D435 holds at the
+export's pose only (the notes say so).</li>
+<li><strong>masks/self/wrist_d405__rgb.png</strong>: the robot covers 34.4 % of the wrist D405's colour image at home (the gripper)
+and 25.4 % of the overhead D435's. <code>_owner.png</code> (16-bit) says which link each pixel sees: index into
+<code>masks.json</code> <code>owners</code>. <strong>masks/atlas/</strong> tiles the masks over 8 reachable grasps and the frequency image shows how
+often each pixel is covered.</li>
+<li><strong>masks/depth/wrist_d405__ir_left.png</strong>: 61.2 % of the D405's depth pixels valid at home, 26.7 % closer than its
+min-Z (the gripper fingers), 6.3 % occluded for one imager, 5.1 % outside the stereo overlap; the overhead D435 49 %
+valid and 48.7 % &quot;no surface&quot; (it looks past the table at the floor, which DexVantage does not model).</li>
+<li><strong>plucker/</strong>: π0's per-pixel rays for each of its cameras at the export's pose.</li>
+<li><strong>export_manifest.json</strong>: every file's SHA-256 and the project's provenance; <code>dexvantage --reproduce</code> and a
+reviewer can tell which project and settings made the files.</li>
+</ul>
+<h2 id="brackets-and-step">Brackets and STEP</h2>
+<p>Choose a bracket type on the Brackets page (the UR5e wrist D405 takes a flange adapter, ISO 9409-1-50-4-M6), then
+export <code>brackets</code>. STEP needs the optional gmsh package (<code>pip install &quot;dexvantage[step]&quot;</code>); it is a faceted solid
+(each STL triangle a face). The wrist adapter's mesh at the default 0.5 mm grid has 119 092 triangles, more than the
+20 000 the STEP writer takes by default, so pass <code>{&quot;step&quot;: true, &quot;step_res_mm&quot;: 2.0}</code> for a coarser STEP (16.7 MB).</p>
+<h2 id="checking-the-files">Checking the files</h2>
+<p>Help ▸ Validate the models… runs the <code>formats</code> checks: the snippets and the URDF are loaded by MuJoCo and every
+camera frame is compared with DexVantage's kinematics, the OpenCV YAML and Kalibr files are read back and compared
+number for number, and the masks are compared per pixel with exact ray casting and the occlusion study's cube map
+(the figures are in the models document).</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="../index.html"><img src="../assets/img/logo.png" alt="" width="22"
+        height="22">DexVantage</a>
+      <p class="fine">DexVantage is free software under the GNU General Public License, version 3 or later
+        (<a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/LICENSE">GPL-3.0-or-later</a>). The screenshots were taken from the application by
+        <code>scripts/screens.py</code>. Robot, camera and policy names describe the bundled samples and the hardware
+        library and belong to their owners; no affiliation is implied. This site loads nothing from other sites.</p>
+    </div>
+    <div class="links">
+      <a href="../guide.html">User guide</a>
+      <a href="../docs.html">Models and methods</a>
+      <a href="../methods.html">Technical reference</a>
+      <a href="../validation.html">Validation report</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/releases/latest">Releases</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/blob/main/CITATION.cff">Cite</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage">GitHub</a>
+      <a href="https://github.com/Sherin-SEF-AI/DexVantage/issues">Report an issue</a>
+    </div>
+  </div>
+</footer>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>
